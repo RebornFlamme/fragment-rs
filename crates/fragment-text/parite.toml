@@ -1,0 +1,129 @@
+# Table de parité de fragment-text (program.md §6, ADR-002 : un `parite.toml` par
+# crate ; `docs/parite-tests.md` est régénéré par le chef, `cargo xtask parite`).
+#
+# Schéma (proposé par la première tâche de phase 1, à figer dans xtask) :
+#   [[module]]        un module TS porté
+#   source            le fichier TS (chemin sous Fragment/app/src/)
+#   tests_source      son fichier de tests TS ("" : il n'en a pas)
+#   rust              le fichier Rust
+#   tests_rust        le fichier de tests Rust (un #[test] par cas TS, même nom en snake_case)
+#   cas_source        nombre de `it(...)` dans tests_source
+#   cas_portes        nombre de ces cas portés un pour un
+#   cas_ajoutes       cas écrits en plus (module sans tests TS, ou règle testée seulement en e2e)
+#   [[module.non_porte]]  un cas TS non porté : son titre et la raison
+#   note              ce que le port a dû trancher (repris dans la PR)
+
+crate = "fragment-text"
+tache = "fr-p1-text"
+
+[[module]]
+source = "ui/core/editor/Editor.ts"
+tests_source = "ui/core/editor/mapRange.test.ts"
+rust = "src/editor.rs"
+tests_rust = "tests/map_range.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 0
+note = "Contrats DocumentSurface / TextSurface / Editor en traits ; les gardes TS (hasText, isEditable) deviennent as_text / as_editor redéfinis par les surfaces ; fullText tri-état → enum FullText. Les membres DOM (contentEl, scrollEl, cm, Marker, addLayer, onChange) ne sont pas dans le contrat : présentation (fragment-ui). LineBlock (déclaré, inutilisé en TS) non porté."
+
+[[module]]
+source = "ui/core/editor/viewport.ts"
+tests_source = "ui/core/editor/viewport.test.ts"
+rust = "src/viewport.rs"
+tests_rust = "tests/viewport.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 0
+
+[[module]]
+source = "ui/core/editor/findPassage.ts"
+tests_source = "ui/core/editor/findPassage.test.ts"
+rust = "src/find_passage.rs"
+tests_rust = "tests/find_passage.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+note = "Index en octets UTF-8 (TS : unités UTF-16). Le `\\s` de JavaScript est reproduit à l'identique (est_blanc), pas char::is_whitespace."
+
+[[module]]
+source = "ui/core/editor/revealPassage.ts"
+tests_source = "ui/core/editor/revealPassage.test.ts"
+rust = "src/reveal_passage.rs"
+tests_rust = "tests/reveal_passage.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 0
+note = "Seul le modèle pur locatePassage est porté (revealPassage : surlignage + défilement = présentation). findQuote (artefacts/anchor.ts) est injecté par le trait QuoteFinder ; find_quote_exact fournit l'étage « à l'identique », la cascade complète viendra de fragment-artefacts."
+
+[[module]]
+source = "ui/core/editor/rangeHighlights.ts"
+tests_source = "ui/core/editor/rangeHighlights.test.ts"
+rust = "src/range_highlights.rs"
+tests_rust = "tests/range_highlights.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+note = "La TABLE (poses, retrait, remappage, poke regroupé, boîtes) sans le calque CM ni le DOM : la surface possède sa table, lui passe ses changements (remap) et vide le poke (take_redraw). Le cas « UNE table par surface » vérifie les boîtes et le `above` du calque ; la WeakMap n'a pas d'équivalent (possession explicite)."
+
+[[module]]
+source = "ui/core/layers/visibility.ts"
+tests_source = ""
+rust = "src/visibility.rs"
+tests_rust = "tests/range_highlights.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+note = "Pas de fichier de tests TS. Rangé sous layers/ en TS, mais rangeHighlights en dépend et fragment-layers dépend de fragment-text : porté ici (exercé par les boîtes de rangeHighlights)."
+
+[[module]]
+source = "ui/core/layers/WidgetLayer.ts (mapAnchor)"
+tests_source = "ui/core/layers/mapAnchor.test.ts"
+rust = "src/map_anchor.rs"
+tests_rust = "tests/map_anchor.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 0
+note = "L'union WidgetAnchor reste dans fragment-layers (docs/contrats.md) : la règle est écrite sur le trait TextAnchored ; le test porte une copie locale de l'union."
+
+[[module]]
+source = "ui/core/editor/textDelta.ts"
+tests_source = ""
+rust = "src/text_delta.rs"
+tests_rust = "tests/text_delta.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 8
+note = "Pas de fichier de tests TS : cas écrits d'après le contrat et les données de htmlTextModel.test.ts. ★ Comparaison par octets, bornes ramenées à une frontière de caractère UTF-8."
+
+[[module]]
+source = "shared/htmlBridge.ts (partie pure)"
+tests_source = "shared/htmlBridge.test.ts"
+rust = "src/html_bridge.rs"
+tests_rust = "tests/html_bridge.rs"
+cas_source = 7
+cas_portes = 5
+cas_ajoutes = 5
+note = "inject_html_bridge prend le script en paramètre (le script JS du pont n'est pas porté) ; flatten_page porte la fonction `aplatir` du script sur un arbre de nœuds minimal (5 cas ajoutés, dont la page e2e `texte.html` de html-text.spec.ts)."
+
+[[module.non_porte]]
+cas = "le script est du JS valide"
+raison = "porte sur HTML_BRIDGE_SCRIPT (du JavaScript exécuté par la page) : non porté, le moteur de page de fragment-html n'est pas choisi"
+
+[[module.non_porte]]
+cas = "les échappements des regex survivent à la chaîne (antislash w, antislash S)"
+raison = "idem : propriété de la chaîne JS du script"
+
+[[module]]
+source = "ui/views/html/htmlTextModel.ts"
+tests_source = "ui/views/html/htmlTextModel.test.ts"
+rust = "src/html_text_model.rs"
+tests_rust = "tests/html_text_model.rs"
+cas_source = 9
+cas_portes = 9
+cas_ajoutes = 0
+
+[total]
+cas_source = 40
+cas_portes = 38
+cas_non_portes = 2
+cas_ajoutes = 13
