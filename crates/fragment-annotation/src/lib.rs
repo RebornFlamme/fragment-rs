@@ -4,4 +4,7 @@
 //! registres `annotation:*@1` branchés sur l'app viendront avec `fragment-ui`.
 
 pub mod geometry;
+pub mod persistence;
+pub mod session;
 pub mod shapes;
+pub mod source;
