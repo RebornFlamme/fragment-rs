@@ -71,8 +71,23 @@ fn run() {
 }
 
 fn main() {
+    // ★ Le fil principal de Windows n'a que 1 Mo de pile : en débogage, créer la VM QuickJS puis
+    //   la fenêtre GPUI y déborde (STATUS_STACK_OVERFLOW constaté sur le runner). Les fils de test
+    //   de Rust en ont 2 Mo et passent. L'hôte réel doit donc réserver sa pile (`/STACK` à l'édition
+    //   de liens, ou un fil dédié comme ici).
     #[cfg(windows)]
-    run();
+    {
+        let host = std::thread::Builder::new()
+            .name("hote-plugins".to_owned())
+            .stack_size(16 * 1024 * 1024)
+            .spawn(run);
+        match host {
+            Ok(handle) => {
+                let _ = handle.join();
+            }
+            Err(error) => eprintln!("spike S3 : impossible de créer le fil de l'hôte : {error}"),
+        }
+    }
     #[cfg(not(windows))]
     eprintln!("spike S3 : exemple prévu pour Windows (GPUI).");
 }
