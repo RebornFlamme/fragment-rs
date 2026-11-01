@@ -2,4 +2,5 @@
 //!
 //! ★ Toute position qui traverse l'API publique est un index en unités de code UTF-16 (ADR-004).
 
+pub mod frontmatter_model;
 pub mod table_model;

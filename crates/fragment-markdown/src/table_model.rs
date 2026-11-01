@@ -136,7 +136,6 @@ pub fn parse_table(src: &str) -> TableModel {
 fn escape_cell(text: &str) -> String {
     text.replace("\r\n", " ")
         .replace('\n', " ")
-        .replace('\r', " ")
         .replace('|', "\\|")
 }
 
@@ -388,10 +387,7 @@ pub fn sort_by_column(m: &TableModel, c: usize, dir: SortDir) -> TableModel {
         let o = locale_compare_numeric(x, y);
         if signe == 1 { o } else { o.reverse() }
     });
-    TableModel {
-        rows,
-        ..m.clone()
-    }
+    TableModel { rows, ..m.clone() }
 }
 
 /// Supprime la ligne de grille `r` — jamais l'en-tête (r ≥ 1).
@@ -508,7 +504,7 @@ pub fn cell_at_offset(src: &str, offset: usize) -> CellAt {
     let texte = String::from_utf16_lossy(line);
     let lead = usize::from(texte.trim_start().starts_with('|'));
     let col = pipes.saturating_sub(lead);
-    let row = if li <= 1 { 0 } else { li - 1 };
+    let row = li.saturating_sub(1);
     // Offset DANS le texte de la cellule (blancs de tête retirés).
     let fin_brut = local.min(line.len()).max(cell_start);
     let brut = String::from_utf16_lossy(&line[cell_start.min(line.len())..fin_brut]);
@@ -544,7 +540,10 @@ mod tests {
     fn parse_table_lit_en_tete_alignements_et_corps() {
         let m = parse_table(SRC);
         assert_eq!(m.header, v(&["A", "B", "C"]));
-        assert_eq!(m.aligns, vec![None, Some(Align::Center), Some(Align::Right)]);
+        assert_eq!(
+            m.aligns,
+            vec![None, Some(Align::Center), Some(Align::Right)]
+        );
         assert_eq!(m.rows, vv(&[&["1", "2", "3"], &["4", "5", "6"]]));
     }
 
@@ -570,7 +569,12 @@ mod tests {
     #[test]
     fn serialize_table_re_echappe_les_pipes_et_aplatit_les_retours_a_la_ligne() {
         let m = set_cell(&parse_table(SRC), 1, 0, "x|y\nz");
-        assert!(serialize_table(&m).split('\n').nth(2).is_some_and(|l| l.contains("x\\|y z")));
+        assert!(
+            serialize_table(&m)
+                .split('\n')
+                .nth(2)
+                .is_some_and(|l| l.contains("x\\|y z"))
+        );
     }
 
     // ── opérations ──
@@ -604,7 +608,10 @@ mod tests {
         let m = parse_table(SRC);
         let r = move_column(&m, 2, 0);
         assert_eq!(r.header, v(&["C", "A", "B"]));
-        assert_eq!(r.aligns, vec![Some(Align::Right), None, Some(Align::Center)]);
+        assert_eq!(
+            r.aligns,
+            vec![Some(Align::Right), None, Some(Align::Center)]
+        );
         assert_eq!(r.rows[0], v(&["3", "1", "2"]));
     }
 
@@ -631,15 +638,23 @@ mod tests {
     fn cell_at_offset_en_tete_premiere_cellule() {
         assert_eq!(
             cell_at_offset(SRC2, 2),
-            CellAt { row: 0, col: 0, in_cell: 0 }
+            CellAt {
+                row: 0,
+                col: 0,
+                in_cell: 0
+            }
         );
     }
     #[test]
     fn cell_at_offset_corps_deuxieme_colonne() {
-        let off = SRC2.find("Cellule 2").map_or(0, |b| b) + 3;
+        let off = SRC2.find("Cellule 2").unwrap_or(0) + 3;
         assert_eq!(
             cell_at_offset(SRC2, off),
-            CellAt { row: 1, col: 1, in_cell: 3 }
+            CellAt {
+                row: 1,
+                col: 1,
+                in_cell: 3
+            }
         );
     }
 
@@ -652,8 +667,14 @@ mod tests {
     fn operations_des_menus_tri_numerique_en_tete_fixe_vides_en_dernier() {
         let m = menus();
         let col0 = |t: &TableModel| t.rows.iter().map(|r| r[0].clone()).collect::<Vec<_>>();
-        assert_eq!(col0(&sort_by_column(&m, 0, SortDir::Asc)), v(&["2", "10", ""]));
-        assert_eq!(col0(&sort_by_column(&m, 0, SortDir::Desc)), v(&["10", "2", ""]));
+        assert_eq!(
+            col0(&sort_by_column(&m, 0, SortDir::Asc)),
+            v(&["2", "10", ""])
+        );
+        assert_eq!(
+            col0(&sort_by_column(&m, 0, SortDir::Desc)),
+            v(&["10", "2", ""])
+        );
         assert_eq!(sort_by_column(&m, 0, SortDir::Asc).header, v(&["N", "X"]));
     }
 
@@ -661,7 +682,11 @@ mod tests {
     fn operations_des_menus_supprimer_jamais_l_en_tete_jamais_la_derniere_colonne() {
         let m = menus();
         assert_eq!(
-            delete_row(&m, 1).rows.iter().map(|r| r[1].clone()).collect::<Vec<_>>(),
+            delete_row(&m, 1)
+                .rows
+                .iter()
+                .map(|r| r[1].clone())
+                .collect::<Vec<_>>(),
             v(&["b", "c"])
         );
         assert_eq!(delete_row(&m, 0), m);
@@ -674,7 +699,11 @@ mod tests {
     fn operations_des_menus_dupliquer_une_ligne_une_colonne_la_copie_juste_apres() {
         let m = menus();
         assert_eq!(
-            duplicate_row(&m, 2).rows.iter().map(|r| r[1].clone()).collect::<Vec<_>>(),
+            duplicate_row(&m, 2)
+                .rows
+                .iter()
+                .map(|r| r[1].clone())
+                .collect::<Vec<_>>(),
             v(&["a", "b", "b", "c"])
         );
         let d = duplicate_column(&set_align(&m, 0, Some(Align::Right)), 0);
@@ -701,7 +730,14 @@ mod tests {
     fn port_cell_at_offset_apres_un_emoji_en_utf16() {
         let src = "| 😀 | b |\n| - | - |";
         // `| 😀 | ` = 1+1+2+1+1+1 = 7 unités UTF-16 avant `b`.
-        assert_eq!(cell_at_offset(src, 7), CellAt { row: 0, col: 1, in_cell: 0 });
+        assert_eq!(
+            cell_at_offset(src, 7),
+            CellAt {
+                row: 0,
+                col: 1,
+                in_cell: 0
+            }
+        );
     }
 
     #[test]
