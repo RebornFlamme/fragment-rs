@@ -6,12 +6,21 @@
 //! des coffres, les décisions du client et le traitement d'une requête côté serveur.
 
 pub mod client_pur;
+pub mod hote;
 pub mod instance_index;
 pub mod pipe;
 pub mod protocol;
+pub mod serveur;
 pub mod shim;
 pub mod vault_path;
 pub mod vault_registry;
+
+// Les noms publics gelés de docs/contrats.md (fragment-cli).
+pub use hote::{
+    CliData, CliError, CliFlags, CliHandler, CliHandlerSpec, CliHost, CliInstallResult,
+    InstanceInfo,
+};
+pub use protocol::{CliInstanceRecord, CliRequest, CliResult, EXIT};
 
 /// Nom de dossier d'un chemin, séparateurs `/` ET `\` reconnus.
 ///
