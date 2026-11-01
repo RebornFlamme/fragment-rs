@@ -8697,6 +8697,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "image",
+ "toml 0.8.23",
 ]
 
 [[package]]

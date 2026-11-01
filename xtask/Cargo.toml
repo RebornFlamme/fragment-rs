@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 image.workspace = true
+toml = "0.8"
 
 [lints]
 workspace = true
