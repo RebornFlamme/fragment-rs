@@ -134,7 +134,7 @@ fn jumeau_gutter_globe_charge_puis_recharge_a_chaud(cx: &mut TestAppContext) {
         globe
             .attach_layer("e2e-globe", "pdf", json!({ "editor": true }))
             .is_none(),
-        "appliesTo { viewType: markdown } doit exclure un PDF"
+        "appliesTo {{ viewType: markdown }} doit exclure un PDF"
     );
     let instance = globe
         .attach_layer("e2e-globe", "markdown", json!({ "editor": true }))
