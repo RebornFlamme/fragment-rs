@@ -6,4 +6,5 @@
 //! calculs que Fragment avait isolés du DOM et de pdf.js.
 
 pub mod pdf_geometry;
+pub mod pdf_outline;
 pub mod pdf_zoom;
