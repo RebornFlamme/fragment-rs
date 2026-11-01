@@ -86,9 +86,9 @@ jobs:
           orig="$tmp/gpui-base-$v"
           # Fichiers déclarés modifiés dans NOTICE.
           grep -E '^  [A-Za-z0-9_./-]+\.rs ' vendor/gpui-base/NOTICE | awk '{print "src/input/"$1}' | sort > "$tmp/declared"
-          # Fichiers qui divergent réellement (NOTICE est notre ajout, Cargo.lock n'est pas vendored).
-          (cd vendor/gpui-base && find . -type f ! -name NOTICE | sed 's|^\./||' | sort) > "$tmp/v.files"
-          (cd "$orig" && find . -type f ! -name Cargo.lock | sed 's|^\./||' | sort) > "$tmp/o.files"
+          # Fichiers qui divergent réellement (NOTICE est notre ajout ; Cargo.lock et .cargo_vcs_info.json ne sont pas vendored).
+          (cd vendor/gpui-base && find . -type f ! -name NOTICE ! -name .cargo_vcs_info.json | sed 's|^\./||' | sort) > "$tmp/v.files"
+          (cd "$orig" && find . -type f ! -name Cargo.lock ! -name .cargo_vcs_info.json | sed 's|^\./||' | sort) > "$tmp/o.files"
           : > "$tmp/changed"
           for f in $(sort -u "$tmp/v.files" "$tmp/o.files"); do
             if [ ! -f "vendor/gpui-base/$f" ] || [ ! -f "$orig/$f" ] || ! cmp -s "vendor/gpui-base/$f" "$orig/$f"; then
@@ -103,7 +103,7 @@ jobs:
           fi
           # Le patch : produit, puis ré-appliqué à une copie neuve de l'original.
           mkdir "$tmp/a" "$tmp/b" "$tmp/c"
-          cp -r "$orig/." "$tmp/a/"; rm -f "$tmp/a/Cargo.lock"
+          cp -r "$orig/." "$tmp/a/"; rm -f "$tmp/a/Cargo.lock" "$tmp/a/.cargo_vcs_info.json"
           cp -r vendor/gpui-base/. "$tmp/b/"; rm -f "$tmp/b/NOTICE"
           cp -r "$tmp/a/." "$tmp/c/"
           (cd "$tmp" && diff -ruN a b > fork.patch || true)
