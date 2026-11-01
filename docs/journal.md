@@ -58,3 +58,13 @@ Prochaine vague : S1b (en cours) ; S2 et S3 dès que la marge hebdo le permet ; 
 Tâches fermées : fr-p2-s1b (PR #17). Verdict **GO** (6/6 tests headless, sur NoopTextSystem) : fork n°1 `vendor/gpui-base` (+531/−30 lignes, 7 fichiers, API `set_row_model`), `[patch.crates-io]` + `exclude = ["vendor"]`, job CI `fork-patch` (version épinglée, sha256 de l'archive, liste exacte des fichiers modifiés). ADR-006 écrite.
 Décisions prises par le chef : les dettes du fork (police par rangée — un H1 plus GROS —, gouttière/IME aux hauteurs variables, atomicité ←/→ des plages masquées) deviennent la tâche fr-p3-fork-input, prérequis de T3 ; la PR amont s'ouvre à sa fin (patch stable).
 À trancher par l'orchestrateur : rien.
+
+## Vague 3 — 01/11/2026 19:15 UTC — usage 5h 25 % / semaine 38 % (autorisé 36,4 %) — PAUSE
+Phase : 2. Tâches fermées : fr-p2-s3 (PR #18). En cours : rien. Bloqué : budget hebdo au-dessus du prorata.
+- S3 = **GO-AVEC** (QuickJS via gpui-shell) : rendu d'un arbre de 502 nœuds 13,8 ms, rechargement à chaud 23 ms, 12 évasions refusées, boucle infinie coupée à 2 s. Conditions pour T10 : une VM par plugin (~2,6 Mo, ~8 ms) ; Rust → JS jamais synchrone (contrats déclaratifs ou poussés) ; une vue racine par chargement ; gpui-shell `=0.8.1` sans la feature `webview` (elle tire `gpui-fast`, un autre GPUI) ; pile de 16 Mo pour l'hôte.
+Décisions prises par le chef :
+- Format des plugins : T10 fournit une coquille CommonJS où `require('fragment')` rend l'objet API, pour garder le format des plugins de Fragment (pas de divergence de contrat ; l'API en argument d'`onload` reste possible).
+- `gpui-fast` : à trancher AVEC S2 (si la webview l'exige, l'activer partout ou isoler la webview).
+- Cadence imposée par le plafond hebdomadaire : un spike ou une tranche lourde coûte 3 à 4 % de la semaine, le prorata en rend ≈ 0,54 %/h → au plus une grosse tâche locale toutes les 6-7 h. Pause jusqu'à ~22:20 UTC (prorata ≥ 38 %).
+À trancher par l'orchestrateur : rien (le plafond n'est pas atteint ; c'est le prorata qui cadence).
+Prochaine vague : S2 (pages HTML vivantes, WebView2) au retour sous le prorata ; puis fr-p3-fork-input et le découpage de T1.
