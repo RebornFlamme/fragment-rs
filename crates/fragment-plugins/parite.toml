@@ -36,3 +36,12 @@ portes = 0
 non_portes = [
   { cas = "installerMargeDeLecture (classe CSS sur containerEl, iterateAllLeaves)", raison = "DOM / workspace : fragment-ui ; le modèle (3 commandes, état voulu, disponibilité) est porté avec des cas ajoutés." },
 ]
+
+[command_palette]
+ts = "app/src/ui/views/command-palette/CommandPalettePlugin.ts"
+tests_ts = "app/src/ui/views/command-palette/CommandPalettePlugin.test.ts"
+source = 2
+portes = 2
+non_portes = [
+  { cas = "(aucun test TS) onload, CommandPaletteModal, ribbon, chargement async par loadData/loadLocalStorage", raison = "modale et ribbon : fragment-ui ; le chargement est la fonction pure `charger_preferences` (cas ajouté). L'ordre des commandes, les récents (MRU, 100) et les épinglés sont portés (cas ajoutés)." },
+]

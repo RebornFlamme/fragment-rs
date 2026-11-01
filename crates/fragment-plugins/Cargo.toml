@@ -16,5 +16,8 @@ fragment-core = { path = "../fragment-core" }
 # CliError (workspace:open valide ses paramètres comme le TS) : par chemin.
 fragment-cli = { path = "../fragment-cli" }
 
+# Tri sans accents de la palette (locale_compare) ; déjà dans Cargo.lock (fragment-core).
+unicode-normalization = "0.1"
+
 [lints]
 workspace = true
