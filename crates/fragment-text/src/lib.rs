@@ -11,9 +11,11 @@
 //!   UTF-8 (le TS comptait des unités UTF-16) : voir `editor.rs`.
 
 pub mod editor;
+pub mod viewport;
 
 pub use editor::{
     Assoc, ChangeOrigin, DocumentSurface, Editor, EditorChange, EditorChangeSpec, EditorPosition,
     EditorRange, EditorSelectionSpec, EditorTransactionSpec, FullText, MapPos, MappedPos,
     MappedRange, Rect, SurfaceText, TextSurface, full_text, has_text, is_editable, map_range,
 };
+pub use viewport::{Bande, ViewportBand, Vp, bande, bande_appropriee, biais};
