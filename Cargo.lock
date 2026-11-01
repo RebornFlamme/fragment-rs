@@ -1908,6 +1908,10 @@ version = "0.0.1"
 [[package]]
 name = "fragment-theme"
 version = "0.0.1"
+dependencies = [
+ "fragment-core",
+ "unicode-normalization",
+]
 
 [[package]]
 name = "fragment-ui"
