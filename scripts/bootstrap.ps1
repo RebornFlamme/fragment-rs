@@ -33,7 +33,10 @@ function Ecrire-SiAbsent($chemin, $contenu) {
 }
 function Natif($commande) {
     # Lance une commande native, échoue franchement sur code de sortie ≠ 0.
-    & $commande[0] $commande[1..($commande.Length - 1)]
+    # ★ Splatting (@reste) : le shim npm de `bd` (bd.ps1) recevait sinon un seul argument concaténé.
+    $exe = $commande[0]
+    $reste = @($commande | Select-Object -Skip 1)
+    & $exe @reste
     if ($LASTEXITCODE -ne 0) { throw "échec ($LASTEXITCODE) : $($commande -join ' ')" }
 }
 
