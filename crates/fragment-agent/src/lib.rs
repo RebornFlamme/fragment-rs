@@ -9,5 +9,7 @@ pub mod contrat;
 pub mod events;
 pub(crate) mod motif;
 pub mod quick_model;
+pub mod screen_model;
+pub mod skills_model;
 pub mod trace_model;
 pub mod utf16;
