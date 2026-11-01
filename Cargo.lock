@@ -1801,6 +1801,12 @@ dependencies = [
 [[package]]
 name = "fragment-annotation"
 version = "0.0.1"
+dependencies = [
+ "fragment-artefacts",
+ "fragment-text",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "fragment-app"

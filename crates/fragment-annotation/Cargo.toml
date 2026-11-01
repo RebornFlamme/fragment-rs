@@ -7,6 +7,12 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+# Rect, EditorChange, Assoc, map_anchor (ancre d'un trait, ADR-004 : positions UTF-16).
+fragment-text = { path = "../fragment-text" }
+# Op / DurableAnchor / resolve_anchor : la persistance parle le langage du journal.
+fragment-artefacts = { path = "../fragment-artefacts" }
 
 [lints]
 workspace = true
