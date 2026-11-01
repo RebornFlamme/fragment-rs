@@ -1,0 +1,63 @@
+# Parité des tests de fragment-plugins : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[github_registry_source]
+ts = "app/src/ui/core/plugins/registry/GithubRegistrySource.ts"
+tests_ts = "app/src/ui/core/plugins/registry/GithubRegistrySource.test.ts"
+source = 8
+portes = 8
+non_portes = []
+
+# types.ts n'a pas de test (CatalogEntry, PluginRegistrySource, erreurs).
+[registry_types]
+ts = "app/src/ui/core/plugins/registry/types.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []
+
+# ★ Hors catalogue : rangé ici car un plugin cœur (« Espace de travail ») est un plugin.
+[workspace_commands]
+ts = "app/src/ui/coreCommands/WorkspaceCommandsPlugin.ts"
+tests_ts = "app/src/ui/coreCommands/WorkspaceCommandsPlugin.test.ts"
+source = 5
+portes = 5
+non_portes = [
+  { cas = "(aucun test TS) onLoad, commandeSurFeuille/commandeSurPile, diviser, ouvrirCli (attente de stabilité du défilement)", raison = "câblage Workspace / ItemView / DOM : fragment-ui. Le tableau des commandes, le cycle d'onglets et la validation des paramètres de `workspace:open` sont portés (cas ajoutés)." },
+]
+
+[margin_mode]
+ts = "app/src/ui/coreCommands/marginMode.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = [
+  { cas = "installerMargeDeLecture (classe CSS sur containerEl, iterateAllLeaves)", raison = "DOM / workspace : fragment-ui ; le modèle (3 commandes, état voulu, disponibilité) est porté avec des cas ajoutés." },
+]
+
+[command_palette]
+ts = "app/src/ui/views/command-palette/CommandPalettePlugin.ts"
+tests_ts = "app/src/ui/views/command-palette/CommandPalettePlugin.test.ts"
+source = 2
+portes = 2
+non_portes = [
+  { cas = "(aucun test TS) onload, CommandPaletteModal, ribbon, chargement async par loadData/loadLocalStorage", raison = "modale et ribbon : fragment-ui ; le chargement est la fonction pure `charger_preferences` (cas ajouté). L'ordre des commandes, les récents (MRU, 100) et les épinglés sont portés (cas ajoutés)." },
+]
+
+[secret_storage]
+ts = "app/src/ui/core/settings/SecretStorage.ts"
+tests_ts = "app/src/ui/core/settings/SecretStorage.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# ── Non portés (présentation : à fragment-ui) ──
+# Setting.ts (+ test, 6 cas) — le builder impératif `Setting` : 100 % DOM (settingEl, infoEl,
+#   controlEl, composants Toggle/Text/Dropdown/Slider…), les cas du test inspectent le DOM.
+# SettingPage.ts (+ test, 2 cas) — SettingGroup / SettingPage : conteneurs DOM autour de `Setting`.
+# definitionTree.test.ts (1 cas) — `renderDefinition` d'un arbre déclaratif (chargement
+#   paresseux des enfants au 1er dépli, un contrôle par ligne) : le rendu est DOM ; le MODÈLE
+#   (SettingDefinition*, SettingTreeNode) est dans fragment-core (tâche core-b), où il faut
+#   tester la paresse (« enfants chargés une fois »).

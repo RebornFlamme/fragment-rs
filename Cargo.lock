@@ -1801,6 +1801,14 @@ dependencies = [
 [[package]]
 name = "fragment-annotation"
 version = "0.0.1"
+dependencies = [
+ "fragment-artefacts",
+ "fragment-core",
+ "fragment-text",
+ "serde",
+ "serde_json",
+ "unicode-normalization",
+]
 
 [[package]]
 name = "fragment-app"
@@ -1890,6 +1898,14 @@ version = "0.0.1"
 [[package]]
 name = "fragment-plugins"
 version = "0.0.1"
+dependencies = [
+ "fragment-cli",
+ "fragment-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "unicode-normalization",
+]
 
 [[package]]
 name = "fragment-snap"
@@ -1902,6 +1918,10 @@ version = "0.0.1"
 [[package]]
 name = "fragment-theme"
 version = "0.0.1"
+dependencies = [
+ "fragment-core",
+ "unicode-normalization",
+]
 
 [[package]]
 name = "fragment-ui"

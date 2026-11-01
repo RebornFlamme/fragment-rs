@@ -1,0 +1,23 @@
+# Parité des tests de fragment-theme : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[theme_model]
+ts = "app/src/ui/theme/themeModel.ts"
+tests_ts = "app/src/ui/theme/themeModel.test.ts"
+source = 4
+portes = 4
+non_portes = []
+
+# api.ts n'a pas de test : le trait ThemeManager et la définition `theme:manager@1`
+# (un test ajouté vérifie l'id du contrat).
+[manager]
+ts = "app/src/ui/theme/api.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []
+
+# Non porté ici : app/src/ui/theme/ThemePlugin.ts (lecture du disque, watcher, injection
+# de la feuille de style) — plugin d'intégration, relève de fragment-ui / T11 (ADR-005).

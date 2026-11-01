@@ -1,0 +1,90 @@
+# Parité des tests de fragment-annotation : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[geometry]
+ts = "app/src/ui/views/annotation/geometry.ts"
+tests_ts = "app/src/ui/views/annotation/geometry.test.ts"
+source = 15
+portes = 15
+non_portes = []
+
+[shapes]
+ts = "app/src/ui/views/annotation/shapes.ts"
+tests_ts = "app/src/ui/views/annotation/shapes.test.ts"
+source = 4
+portes = 4
+non_portes = []
+
+# AnnotationSource.ts n'a pas de .test.ts : il est exercé par AnnotationSession.test.ts
+# et AnnotationPersistence.test.ts. Les tests de `source.rs` sont des ajouts du port.
+[source]
+ts = "app/src/ui/views/annotation/AnnotationSource.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []
+
+[session]
+ts = "app/src/ui/views/annotation/AnnotationSession.ts"
+tests_ts = "app/src/ui/views/annotation/AnnotationSession.test.ts"
+source = 7
+portes = 6
+non_portes = [
+  { cas = "monte et démonte les enfants tiers à chaud sans perdre les données", raison = "les extensions (`annotation:extensions@1`) sont des `Component` enfants montés par la session : cycle de vie GPUI, à porter avec le plugin d'annotation de fragment-ui" },
+]
+
+[persistence]
+ts = "app/src/ui/views/annotation/AnnotationPersistence.ts"
+tests_ts = "app/src/ui/views/annotation/AnnotationPersistence.test.ts"
+source = 4
+portes = 1
+non_portes = [
+  { cas = "persiste un record par trait et les calques, recharge sans écriture d’écho", raison = "test d'intégration sur un vrai ArtefactManager + App async (microtâches) ; la partie pure (encodage `operation`, décodage) est testée par des cas ajoutés, l'orchestration revient à l'hôte" },
+  { cas = "une lecture lente ne ressuscite pas un trait supprimé ni ne perd une édition locale", raison = "dépend de l'async du manager ; la règle (révision périmée) est portée dans `Revisions` et testée par un cas ajouté" },
+  { cas = "la suppression distante et le déplacement de scope retirent la projection locale", raison = "dépend de `ArtefactManager.subscribe` et du filtrage de scope du manager (déjà testés dans fragment-artefacts)" },
+]
+# Le cas « migre le format annotation:doc… » est porté sur sa partie pure (`lire_fichier`).
+
+# ★ Hors annotation à proprement parler, rangé ici car c'est la crate la plus proche
+#   (menu « Calques ») parmi les quatre de fr-p1-divers.
+[artefacts_menu]
+ts = "app/src/ui/views/artefacts/menuModel.ts"
+tests_ts = "app/src/ui/views/artefacts/menuModel.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# ★ doc-widget : rangés ici faute de crate plus proche (marqueurs de la marge, comme annotation:markers).
+[anchor_link]
+ts = "app/src/ui/views/doc-widget/anchorLink.ts"
+tests_ts = "app/src/ui/views/doc-widget/anchorLink.test.ts"
+source = 4
+portes = 4
+non_portes = [
+  { cas = "(aucun test TS) LinkMarker.draw, classe Liens, anchorLinks(surface)", raison = "présentation : SVG, calque `addLayer`, requestAnimationFrame, queueMicrotask, WeakMap par surface — fragment-ui. La clé de géométrie (lien_cle, geometry_key) est portée et testée (cas ajoutés)." },
+]
+
+[cluster_filter]
+ts = "app/src/ui/views/doc-widget/clusterFilter.ts"
+tests_ts = "app/src/ui/views/doc-widget/clusterFilter.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# api.ts n'a pas de test : définitions des canaux annotation:*@1 (cas ajoutés : ids du contrat).
+[api]
+ts = "app/src/ui/views/annotation/api.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = [
+  { cas = "annotation:extensions@1 et annotation:markers@1 typés ; Gesture, GestureContext, AnnotationTool.begin, StrokeKind.hitTest, AnnotationSessionAPI.geometry", raison = "dépendent de la surface, du pointeur et de `Component` (présentation) : avec le plugin d'annotation de fragment-ui. Les ids sont gardés." },
+]
+
+# Non portés dans cette crate (présentation ou câblage, fragment-ui), sans test unitaire TS :
+#   views/annotation/{DrawSurface,AnnotationToolbar,AnnotationPlugin,annotationLayer,placement,
+#   strokeMarkers,toolbarItems,tools,order,annotationCli,contributions}.ts — DOM / surface /
+#   CLI du plugin ; `contributions.ts` (resolve : dernier inscrit gagne) est reproduit par
+#   `AnnotationRegistries`.
