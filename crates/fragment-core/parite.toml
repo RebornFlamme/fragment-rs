@@ -1,0 +1,189 @@
+# Table de parité de fragment-core (program.md §6 et §7 : `cargo xtask parite` la
+# régénère en table dans docs/parite-tests.md ; en attendant l'outil, elle est tenue
+# à la main). Un `[[module]]` par fichier TS porté ; `cas_source` = nombre de `it(…)`
+# du `.test.ts` ; `cas_portes` = ceux qui ont un `#[test]` du même nom en snake_case ;
+# `cas_ajoutes` = tests Rust sans équivalent TS ; `non_portes` = ce qui ne l'est pas, et pourquoi.
+
+[crate]
+name = "fragment-core"
+tache = "fr-p1-core-a"
+reference = "RebornFlamme/Fragment @ 83731579"
+
+[[module]]
+ts = "app/src/ui/core/lru.ts"
+rs = "crates/fragment-core/src/lru.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 0
+notes = "HashMap + compteur d'usage (pas de Map ordonnée) ; éviction O(n) au seul dépassement de la borne."
+
+[[module]]
+ts = "app/src/ui/core/diffMinimal.ts"
+rs = "crates/fragment-core/src/diff_minimal.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 0
+notes = "Positions en OCTETS UTF-8 (offsets natifs de String), là où le TS comptait des unités UTF-16 ; le recul hors d'une paire de surrogates devient un recul vers une frontière de caractère (is_char_boundary). Le cas aléatoire tire avec un xorshift (pas de dépendance)."
+
+[[module]]
+ts = "app/src/ui/core/frontmatter.ts"
+rs = "crates/fragment-core/src/frontmatter.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+notes = "Le frontmatter est un serde_json::Map ; `String(v)` : nombre/booléen/null → leur texte, tableau/objet imbriqué → JSON compact."
+
+[[module]]
+ts = "app/src/ui/core/plugins/registry/semver.ts"
+rs = "crates/fragment-core/src/semver.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+notes = "compare_versions rend std::cmp::Ordering (-1/0/1 en TS)."
+
+[[module]]
+ts = "app/src/ui/core/keymap/swipe.ts"
+rs = "crates/fragment-core/src/swipe.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/src/ui/core/fuzzySearch.ts"
+rs = "crates/fragment-core/src/fuzzy_search.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 0
+notes = "Plages en index de CARACTÈRES (scalaires Unicode) du texte d'origine, et non d'unités UTF-16 ; identiques hors caractères astraux. prepare_fuzzy_search rend une struct FuzzySearch (méthode search) plutôt qu'une fermeture. Pliage NFD par unicode-normalization."
+
+[[module.non_portes]]
+quoi = "renderMatches(el, text, matches, offset)"
+raison = "Présentation DOM (spans .suggestion-highlight) ; docs/contrats.md : « présentation, pas de contrat », le surlignage se fait en runs de texte côté fragment-ui."
+
+[[module]]
+ts = "app/src/ui/core/fuzzySearch.test.ts (bloc formatHotkey)"
+rs = "crates/fragment-core/src/keymap/format_hotkey.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+notes = "Les 4 cas `formatHotkey` vivent dans fuzzySearch.test.ts côté TS ; portés à côté de l'implémentation (keymap/formatHotkey.ts → keymap/format_hotkey.rs)."
+
+[[module]]
+ts = "app/src/ui/core/links/resolveLink.ts"
+rs = "crates/fragment-core/src/resolve_link.rs"
+cas_source = 14
+cas_portes = 14
+cas_ajoutes = 0
+notes = "Le coffre arrive avec core-b : resolve_link lit deux traits minimaux, LinkFile (path/name/basename) et LinkVault (get_file_by_path/get_files), que TFile/Vault implémenteront. Les fakes du test TS deviennent des impl de ces traits."
+
+[[module]]
+ts = "app/src/ui/core/events.ts"
+rs = "crates/fragment-core/src/events.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "Pas de test vitest côté TS. Poignée partagée (Rc), charge utile `&dyn Any`, EventRef = jeton (lien faible vers la table). tryTrigger : catch_unwind (★ un écouteur qui panique ne prive pas les suivants)."
+
+[[module.non_portes]]
+quoi = "Events.off(name, cb)"
+raison = "Désinscription par identité de fonction : une fermeture Rust n'a pas d'identité comparable ; seule la voie par référence (offref / EventRef::off) existe, c'est celle que registerEvent utilise."
+
+[[module]]
+ts = "app/src/ui/core/component.ts"
+rs = "crates/fragment-core/src/component.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+notes = "Pas de test vitest côté TS. Trait Component + ComponentState embarqué ; nettoyages Box<dyn FnOnce()> rejoués LIFO sous catch_unwind ; BasicComponent = le `new Component()` nu."
+
+[[module.non_portes]]
+quoi = "registerDomEvent, registerInterval"
+raison = "DOM et minuteur navigateur ; l'équivalent GPUI (abonnements, tâches) vit côté fragment-ui."
+
+[[module]]
+ts = "app/src/ui/core/registry.ts"
+rs = "crates/fragment-core/src/registry.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "Testé par RegistryHub.test.ts (cas 4 et 5) et CommandManager.test.ts. Poignées partagées ; garde d'identité par jeton d'enregistrement ; ordre d'insertion conservé (OrderedMap interne) ; priorité i32 (toutes entières dans Fragment) ; get/values exigent T: Clone (ranger des Rc)."
+
+[[module]]
+ts = "app/src/ui/core/RegistryHub.ts"
+rs = "crates/fragment-core/src/registry_hub.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 1
+notes = "Le 6e cas (« un vrai bundle tiers ») vit dans plugin.rs : le bundle TS évalué par new Function + require('fragment') devient une struct Rust du même contrat. define_registry rend Result (le `throw` sur un id non versionné). La nature Keyed/Ordered est portée par le type (RegistryDefinition<T, K>) : get / get_ordered. Erreur supplémentaire : IncompatibleType (le T fantôme du TS est vérifié en Rust)."
+
+[[module]]
+ts = "app/src/ui/core/keymap/{types,matching,Scope,Keymap}.ts"
+rs = "crates/fragment-core/src/keymap.rs + keymap/{types,matching,scope}.rs"
+cas_source = 22
+cas_portes = 22
+cas_ajoutes = 1
+notes = "Les 22 cas hors HotkeyManager de keymap.test.ts. KeyEvent/Modifiers/InputEvent/PointerEvent remplacent KeyboardEvent/MouseEvent ; handler → Option<bool> (Some(false)/Some(true)/None = false/true/undefined) ; `consomme : preventDefault ET stopPropagation` = retour Some(false) que l'hôte applique. `new Scope()` nu = pub(crate) (l'ESLint devient la visibilité). PaneType défini ici (core-b le réexporte). Keymap::handle_wheel remplace l'écouteur wheel (le filtre pinch/défilement DOM est à l'hôte) : 1 cas ajouté."
+
+[[module.non_portes]]
+quoi = "Keymap constructor(cible) : addEventListener keydown (capture) / wheel, defileEncore, destroy"
+raison = "DOM : l'hôte GPUI (fragment-ui) appelle handle_key_event / handle_wheel."
+
+[[module.non_portes]]
+quoi = "keymap/porteeEchap.ts (porteeEchap, porteePersistante)"
+raison = "Hors liste de la tâche ; lit window.app ; à porter avec Menu/Toolbar (fragment-ui)."
+
+[[module]]
+ts = "app/src/ui/core/keymap/HotkeyManager.ts"
+rs = "crates/fragment-core/src/keymap/hotkey_manager.rs"
+cas_source = 13
+cas_portes = 13
+cas_ajoutes = 1
+notes = "Les 13 cas « de la frappe à la commande » de keymap.test.ts. Persistance derrière le trait HotkeyStore (le coffre est core-b) ; hotkeys.json (dé)sérialisé en gardant l'ordre des clefs (visiteur serde) : 1 cas ajouté. ★ Sur macOS, Mod = Meta : les tests TS comme Rust pressent ctrlKey — ils supposent une plateforme non-mac (CI ubuntu/windows)."
+
+[[module.non_portes]]
+quoi = "app.vault.on('raw') + debounce → load()"
+raison = "Le Vault et debounce ne sont pas dans ce groupe ; l'hôte appelle `load()` quand hotkeys.json change."
+
+[[module]]
+ts = "app/src/ui/core/CommandManager.ts"
+rs = "crates/fragment-core/src/command.rs"
+cas_source = 18
+cas_portes = 18
+cas_ajoutes = 0
+notes = "Les 18 cas CommandManager (les 4 cas Plugin.addCommand sont dans plugin.rs). Couplage à l'App réduit au trait CommandHost (last_event, active_editor, hotkey_manager) tenu en Weak. EditorContext = (editor, view) type-effacés (Rc<dyn Any>) : Editor est dans fragment-text, View dans core-b. « lève » = panique, attrapée par catch_unwind (A30 : rend false). Command : callbacks en Rc<dyn Fn> (Clone), constructeurs with_*."
+
+[[module]]
+ts = "app/src/ui/core/plugin.ts"
+rs = "crates/fragment-core/src/plugin.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 1
+notes = "Les 4 cas Plugin.addCommand de CommandManager.test.ts + le 6e cas de RegistryHub.test.ts. Trait Plugin: Component + PluginBase embarqué ; l'App vue par le plugin = trait PluginHost (commands, registry). Mariages portés : createRegistry, registerRegistryEntry, registerOrderedEntry, registerRegistryContribution, addCommand, removeCommand, onExternalSettingsChange. 1 cas ajouté (manifest camelCase)."
+
+[[module.non_portes]]
+quoi = "registerView, registerExtensions, registerEmbed, registerEditorExtension, registerMarkdownPostProcessor, registerMarkdownCodeBlockProcessor, addIcon, addRibbonIcon, addStatusBarItem, registerLayer, registerArtefactKind, registerDocumentProvider, addSettingTab, registerCliHandler"
+raison = "Chaque mariage arrive avec le registre qu'il épouse (core-b, fragment-layers, -artefacts, -ui, -cli) ; même forme : register(host.<registre>.register(…))."
+
+[[module.non_portes]]
+quoi = "loadData / saveData / settingDefinitions"
+raison = "data.json passe par l'adapter du Vault (core-b) ; settingDefinitions par SettingDefinition (contrat core-b)."
+
+[[module]]
+ts = "app/src/ui/core/plugins.ts"
+rs = "crates/fragment-core/src/plugins.rs"
+cas_source = 18
+cas_portes = 18
+cas_ajoutes = 1
+notes = "Le MODÈLE : installé ≠ activé ≠ chargé, restreint par défaut, reconcile, install/checkForUpdates/update/uninstall, loadedVersions. Le disque = trait PluginStorage (MockAdapter du test TS → impl), la matérialisation = trait CommunityLoader (le fake pose le contenu de main.js comme marque, ce que faisait window.__marque), les sources = trait PluginRegistrySource (+ CatalogEntry, PluginAssets de plugins/registry/types.ts). Synchrone. app.version / app.pluginRegistries → set_app_version / paramètre de check_for_updates. 1 cas ajouté (plugin interne)."
+
+[[module.non_portes]]
+quoi = "evaluateModule, resoudreModuleHote (new Function + shim require), injection de styles.css"
+raison = "Évaluation JavaScript et DOM : c'est l'hôte JS de fragment-plugins (S3), derrière CommunityLoader."
+
+[[module]]
+ts = "app/src/ui/core/keymap/captureHotkey.ts"
+rs = "crates/fragment-core/src/capture_hotkey.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 0
+notes = "capture_hotkey(keymap, on_result) → disposer ; la portée se dépile depuis son propre handler via un lien faible. find_hotkey_conflict prend les commandes et la fonction hotkeys_for_command (les deux fakes du test TS) plutôt qu'un App."
