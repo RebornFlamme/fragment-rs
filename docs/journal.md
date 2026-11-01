@@ -41,3 +41,15 @@ Remonté et tranché par l'orchestrateur :
 - S1 NO-GO sur l'éditeur stock (masquage sans retrait, hauteur de ligne unique, pas de bloc). ACCORD pour le 1er fork (≤ 2) : gpui-base::input via [patch.crates-io] → vendor/gpui-base, patch minimal, PR amont, test CI « le patch s'applique encore ». Sous-spike B fr-p2-s1b, 3 jours max, six tests ; sinon bascule sur C (mise en page maison) avec ADR, sans remonter. Hauteur de rangée dictée par le modèle. T3 attend le verdict B.
 À trancher par l'orchestrateur : rien.
 Prochaine vague : fr-p2-s1b (prioritaire), S2, S3 au fil des places ; puis porte de la phase 1 (parite-tests.md via cargo xtask parite).
+
+## Vague 2 — 01/11/2026 15:20 UTC — usage 5h 40 % / semaine 34 % (autorisé 34,2 %)
+Phase : 1 — **PORTE FRANCHIE**. Tâches fermées : fr-p1-core-b (#13), fr-p1-markdown (#14), fr-p1-parite (#15), fr-p1-divers (#16), puis l'épic fr-p1. En cours : fr-p2-s1b (fork de gpui-base::input, local). Bloqué : rien.
+- CI verte sur main (run 41320167640). `cargo xtask parite` : 767/800 cas source portés = **95,9 %**, chaque non-porté justifié (`docs/parite-tests.md`).
+- Contrat : `fragment-core/tests/contrats.rs` vérifie 48/68 noms du cœur ; les 20 restants (Vault, vues, objets du workspace, App) arrivent avec T1/T2.
+Décisions prises par le chef :
+- `menuModel`, `anchorLink`, `clusterFilter`, `Toolbar` (modèles) rangés provisoirement dans fragment-annotation ; à reclasser en T5/T8 si un autre consommateur apparaît.
+- `SecretStorage` : trait dans fragment-core, implémentation (disque/chiffrement injectés) dans fragment-plugins.
+- Disque C: plein (311 Mo libres) : dossiers cibles des tâches finies supprimés (2,6 Go rendus) ; chaque équipier supprime le sien en fin de tâche. Le reste du disque n'est pas à nous.
+- Budget : semaine au plafond du prorata → pas de nouvel équipier avant que la marge remonte (≈ +0,5 %/h).
+À trancher par l'orchestrateur : rien.
+Prochaine vague : S1b (en cours) ; S2 et S3 dès que la marge hebdo le permet ; puis découpage de la phase 3 (T1 shell, ne dépend que de p1-core) en tâches Beads.
