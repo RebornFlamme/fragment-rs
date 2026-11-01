@@ -43,6 +43,9 @@ export default class Evil {
       await probe("fs.writeFile(dir/pwn.txt)", () => fs.writeFile(cfg.dir + "/pwn.txt", "x"));
       await probe("fetch(url)", () => fetch(cfg.url));
       await probe("import(../escape.js)", () => import("../escape.js"));
+      for (const name of ["fs", "child_process", "net", "http", "os"]) {
+        await probe("require(" + name + ")", () => require(name));
+      }
       await probe("process.run", () => process.run("cmd", ["/c", "echo", "pwned"]));
       fragment.log("PROBES|done");
     });

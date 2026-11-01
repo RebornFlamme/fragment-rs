@@ -522,13 +522,19 @@ fn isolation_aucune_capacite(cx: &mut TestAppContext) {
         "fetch(url)",
         "import(../escape.js)",
         "process.run",
+        "require(fs)",
+        "require(child_process)",
+        "require(net)",
+        "require(http)",
+        "require(os)",
     ] {
         let l = line(&log, &format!("PROBE|{probe}|"));
         assert!(l.contains("|DENIED|"), "{probe} n'a pas été refusé : {l}");
     }
     assert!(!log.iter().any(|l| l.contains("SECRET-CANARY")));
-    // Les globaux d'évasion n'existent pas.
-    for global in ["require", "std", "os"] {
+    // Les globaux d'évasion n'existent pas. (`require` existe : c'est le shim CommonJS de la
+    // bibliothèque standard ; les sondes `require(fs)` & co ci-dessus sont toutes refusées.)
+    for global in ["std", "os"] {
         assert_eq!(
             line(&log, &format!("GLOBAL|{global}|")),
             format!("GLOBAL|{global}|undefined")

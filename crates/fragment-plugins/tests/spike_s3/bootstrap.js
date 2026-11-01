@@ -51,9 +51,23 @@ const STYLE_FLAG = new Set([
   "size_full", "flex_1", "items_center", "justify_center", "font_semibold", "overflow_hidden",
 ]);
 
+// ★ gpui-shell 0.8.1 n'accepte PAS le nom d'un jeton (`bg("primary")`) malgré son README : une
+//   couleur est un `#rrggbb` ou une valeur de `cx.theme().colors`. L'arbre garde donc des NOMS de
+//   jetons (portables, c'est le contrat du thème de fragment-rs) et le pont les résout au rendu.
+const COLOR_KEYS = new Set(["bg", "color", "border_color"]);
+let themeCx = null;
+
+function colorOf(value) {
+  if (typeof value !== "string" || value.startsWith("#")) return value;
+  const color = themeCx.theme().colors[value];
+  if (color === undefined) throw new Error("jeton de couleur inconnu : " + value);
+  return color;
+}
+
 function styled(el, style) {
   if (!style) return el;
-  for (const [key, value] of Object.entries(style)) {
+  for (const [key, raw] of Object.entries(style)) {
+    const value = COLOR_KEYS.has(key) ? colorOf(raw) : raw;
     if (STYLE_ARG[key]) el = el[STYLE_ARG[key]](value);
     else if (STYLE_FLAG.has(key) && value === true) el = el[key]();
     else throw new Error("style inconnu : " + key);
@@ -224,7 +238,8 @@ export default class PluginHostView extends View {
     if (MODE !== "load") boot(cx);
   }
 
-  render(_cx) {
+  render(cx) {
+    themeCx = cx;
     pump();
     const target = host.active();
     if (!target) return div();
