@@ -1,0 +1,100 @@
+# Parité des tests — fragment-artefacts (phase 1, tâche fr-p1-artefacts).
+# Lu par `cargo xtask parite` (à venir) pour régénérer docs/parite-tests.md.
+# Un module = un fichier TS de Fragment (chemins sous app/src/) → son port Rust.
+# `cas_source` = les `it(` du fichier de tests TS ; `cas_portes` = les `#[test]` du
+# même nom (snake_case) ; chaque cas non porté est justifié dans `[[module.non_porte]]`.
+
+[crate]
+name = "fragment-artefacts"
+reference = "app/src/ui/core/artefacts/"
+
+[[module]]
+ts = "ui/core/artefacts/types.ts"
+rs = "src/types.rs"
+cas_source = 0
+cas_portes = 0
+note = "Le contrat du journal + sa sérialisation NDJSON. 3 tests Rust propres (sérialisation à l'identique du TS)."
+
+[[module]]
+ts = "ui/core/artefacts/clock.ts"
+rs = "src/clock.rs"
+cas_source = 0
+cas_portes = 0
+note = "HLC format Actual, ISO sans dépendance. 3 tests Rust propres."
+
+[[module]]
+ts = "ui/core/artefacts/fold.ts"
+test_ts = "ui/core/artefacts/fold.test.ts"
+rs = "src/fold.rs"
+cas_source = 7
+cas_portes = 7
+note = "Propriétés à graine : mulberry32 porté à la lettre, mêmes graines (1-60, 100-140, 200-260), mêmes tirages."
+
+[[module]]
+ts = "ui/core/artefacts/anchor.ts"
+test_ts = "ui/core/artefacts/anchor.test.ts"
+rs = "src/anchor/mod.rs"
+cas_source = 27
+cas_portes = 27
+note = "`approx-string-match` remplacé par src/anchor/approx.rs (Myers/Hyyrö + DP, test de propriété Myers = DP). Index en caractères (voir la PR). + 1 test Rust propre."
+
+[[module]]
+ts = "ui/core/artefacts/objects.ts"
+rs = "src/objects.rs"
+cas_source = 0
+cas_portes = 0
+note = "JSON canonique, sha256, ObjectStore. 2 tests Rust propres. Le trait JournalAdapter est dans src/fs.rs (JournalFs)."
+
+[[module]]
+ts = "ui/core/artefacts/cache.ts"
+rs = "src/cache.rs"
+cas_source = 0
+cas_portes = 0
+note = "Trait JournalCache, NullJournalCache, MemoryJournalCache. IdbJournalCache non porté (IndexedDB ; un cache persistant viendra avec l'app)."
+
+[[module]]
+ts = "ui/core/artefacts/journal/reader.ts"
+rs = "src/journal/reader.rs"
+cas_source = 0
+cas_portes = 0
+note = "1 test Rust propre (parse_segment : curseur, ligne incomplète, fichier rétréci)."
+
+[[module]]
+ts = "ui/core/artefacts/journal/writer.ts"
+rs = "src/journal/writer.rs"
+cas_source = 0
+cas_portes = 0
+note = "Minuteries → échéances servies par ArtefactManager::poll. SyncSink non porté (tout est synchrone). 1 test Rust propre."
+
+[[module]]
+ts = "ui/core/artefacts/journal/import.ts"
+rs = "src/journal/import.rs"
+cas_source = 0
+cas_portes = 0
+note = "Couvert par les 2 cas « migration » d'ArtefactManager.test.ts."
+
+[[module]]
+ts = "ui/core/artefacts/journal/compact.ts"
+rs = "src/journal/compact.rs"
+cas_source = 0
+cas_portes = 0
+note = "Couvert par les 3 cas « compaction » de fold.test.ts et la maintenance d'ArtefactManager.test.ts."
+
+[[module]]
+ts = "ui/core/artefacts/device.ts"
+rs = "src/device.rs + src/fs.rs"
+cas_source = 0
+cas_portes = 0
+note = "Modèle : random_id, read_device_id, vault_key (FNV-1a sur UTF-16), local_root. LocalFsAdapter → fs::StdFs, MemoryAdapter → fs::MemoryFs. 5 tests Rust propres."
+
+[[module]]
+ts = "ui/core/artefacts/ArtefactManager.ts"
+test_ts = "ui/core/artefacts/ArtefactManager.test.ts"
+rs = "src/artefact_manager.rs"
+cas_source = 31
+cas_portes = 30
+note = "Synchrone ; événements par méthodes (on_document_event, on_raw) ; minuteries par poll(). + 1 test Rust propre (poll)."
+
+[[module.non_porte]]
+cas = "un document de PLUGIN est renommé ou supprimé › un événement sans fournisseur est ignoré"
+raison = "Teste `DocumentManager.notify` (documents/DocumentManager.ts → fragment-core, tâche fr-p1-core-b) : le filtrage par fournisseur n'est pas dans cette crate, le manager ne reçoit que des événements déjà fournis."
