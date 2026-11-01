@@ -335,11 +335,14 @@ mod tests {
             json!(QUICK_ICONS)
         );
         // Ni commandes, ni drapeaux, ni tâche : le petit agent ne fait que nommer ce que l'utilisateur veut.
-        let cles: Vec<&String> = actions["items"]["properties"]
+        let mut cles: Vec<&String> = actions["items"]["properties"]
             .as_object()
             .map(|o| o.keys().collect())
             .unwrap_or_default();
-        assert_eq!(cles, vec!["icon", "label"]); // serde_json trie ses clés ; l'ensemble est {label, icon}
+        // ★ L'ordre des clés dépend de la feature `preserve_order` de serde_json (unifiée
+        //   dans le workspace complet) : on trie, seul l'ensemble {label, icon} compte.
+        cles.sort();
+        assert_eq!(cles, vec!["icon", "label"]);
     }
 
     #[test]
