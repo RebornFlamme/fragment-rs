@@ -17,6 +17,8 @@
 //      du script), sur un arbre de nœuds minimal plutôt que sur le DOM.
 // ═══════════════════════════════════════════════════════════════════════════
 
+use crate::utf16::utf16_len;
+
 /// La marque des messages du pont (l'app ignore tout autre message).
 pub const HTML_BRIDGE_MARK: &str = "fragmentHtml";
 
@@ -115,9 +117,9 @@ pub struct TextSegment {
     /// forme aussi ; pas le contenu des éléments sautés, qui n'est pas parcouru).
     /// Le propriétaire du DOM retrouve le nœud en comptant pareil.
     pub node: usize,
-    /// Son début dans le texte aplati (octets)…
+    /// Son début dans le texte aplati (unités de code UTF-16, ADR-004)…
     pub start: usize,
-    /// … et sa longueur.
+    /// … et sa longueur (unités de code UTF-16).
     pub len: usize,
 }
 
@@ -232,10 +234,10 @@ impl Aplatisseur {
                     self.segs.push(TextSegment {
                         node: ordinal,
                         start: self.n,
-                        len: d.len(),
+                        len: utf16_len(d),
                     });
                     self.morceaux.push(d.clone());
-                    self.n += d.len();
+                    self.n += utf16_len(d);
                     self.dernier = d.chars().next_back().unwrap_or('\n');
                     self.virtuel = false;
                 }

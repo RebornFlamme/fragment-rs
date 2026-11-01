@@ -25,6 +25,26 @@ fn le_passage_recopie_avec_d_autres_blancs_que_la_source() {
     assert_eq!(&t[m.start..m.end], "editor   Markdown customisable");
 }
 
+#[test]
+fn non_ascii_les_index_sont_en_unites_utf16() {
+    // « é » : 1 unité (2 octets) ; 😀 : 2 unités (4 octets).
+    let t = "é😀 le  pyruvate\n entre";
+    let m = find_in_text(t, "pyruvate entre")[0];
+    assert_eq!((m.start, m.end), (8, 23));
+    assert_eq!(
+        t.encode_utf16()
+            .skip(m.start)
+            .take(m.end - m.start)
+            .collect::<Vec<_>>(),
+        "pyruvate\n entre".encode_utf16().collect::<Vec<_>>()
+    );
+    let accents = find_in_text("été été", "été");
+    assert_eq!(
+        accents.iter().map(|m| (m.start, m.end)).collect::<Vec<_>>(),
+        vec![(0, 3), (4, 7)]
+    );
+}
+
 // describe('pick — l’occurrence voulue')
 
 #[test]

@@ -13,15 +13,19 @@
 
 use crate::editor::{Assoc, EditorPosition, MappedPos, SurfaceText};
 use crate::text_delta::{TextDelta, map_through_delta, text_delta};
+use crate::utf16::{utf16_len, utf16_to_byte};
 
 /// Le coin de la page : pas un caractère.
 pub const PAGE_CORNER: usize = 0;
 
-/// Le texte aplati d'une page et sa carte positions ↔ lignes.
+/// Le texte aplati d'une page et sa carte positions ↔ lignes. Positions, index et
+/// colonnes sont en unités de code UTF-16 (ADR-004).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PageText {
     text: String,
-    /// Index du début de chaque ligne.
+    /// Longueur du texte en unités de code UTF-16.
+    len: usize,
+    /// Index UTF-16 du début de chaque ligne.
     starts: Vec<usize>,
 }
 
@@ -29,8 +33,18 @@ impl PageText {
     pub fn new(text: impl Into<String>) -> Self {
         let text = text.into();
         let mut starts = vec![0];
-        starts.extend(text.match_indices('\n').map(|(i, _)| i + 1));
-        Self { text, starts }
+        let mut u = 0;
+        for c in text.chars() {
+            u += c.len_utf16();
+            if c == '\n' {
+                starts.push(u);
+            }
+        }
+        Self {
+            len: u,
+            text,
+            starts,
+        }
     }
 
     pub fn text(&self) -> &str {
@@ -39,7 +53,7 @@ impl PageText {
 
     /// La dernière position (après le dernier caractère).
     pub fn end(&self) -> usize {
-        self.text.len() + 1
+        self.len + 1
     }
 
     pub fn line_count(&self) -> usize {
@@ -53,18 +67,24 @@ impl PageText {
         let fin = self
             .starts
             .get(n + 1)
-            .map_or(self.text.len(), |&suivant| suivant - 1);
-        &self.text[debut..fin]
+            .map_or(self.len, |&suivant| suivant - 1);
+        let (Some(a), Some(b)) = (
+            utf16_to_byte(&self.text, debut),
+            utf16_to_byte(&self.text, fin),
+        ) else {
+            return "";
+        };
+        &self.text[a..b]
     }
 
     /// position → index dans `text` (le coin : 0).
     pub fn to_index(&self, pos: usize) -> usize {
-        pos.saturating_sub(1).min(self.text.len())
+        pos.saturating_sub(1).min(self.len)
     }
 
     /// index dans `text` → position.
     pub fn to_pos(&self, index: usize) -> usize {
-        index.min(self.text.len()) + 1
+        index.min(self.len) + 1
     }
 
     pub fn offset_to_pos(&self, pos: usize) -> EditorPosition {
@@ -79,12 +99,12 @@ impl PageText {
 
     pub fn pos_to_offset(&self, p: EditorPosition) -> usize {
         let line = p.line.min(self.starts.len() - 1);
-        self.to_pos(self.starts[line] + p.ch.min(self.get_line(line).len()))
+        self.to_pos(self.starts[line] + p.ch.min(utf16_len(self.get_line(line))))
     }
 
     /// Le texte entier (ancres par citation, `reveal_passage`).
     pub fn surface_text(&self) -> SurfaceText {
-        let len = self.text.len();
+        let len = self.len;
         SurfaceText::new(
             self.text.clone(),
             move |i| i.min(len) + 1,
@@ -123,6 +143,6 @@ pub fn diff_page_text(avant: &str, apres: &str) -> PageTextDiff {
     PageTextDiff {
         changed: avant != apres,
         delta: text_delta(avant, apres),
-        avant_len: avant.len(),
+        avant_len: utf16_len(avant),
     }
 }

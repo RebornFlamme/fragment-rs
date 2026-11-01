@@ -20,10 +20,12 @@
 
 use crate::editor::{EditorRange, SurfaceText};
 use crate::find_passage::{est_blanc, replier, trim_js};
+use crate::utf16::{byte_to_utf16, utf16_len};
 
 /// Un passage à révéler.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct PassageRef {
+    /// Positions du passage (texte : unités de code UTF-16, ADR-004).
     pub from: usize,
     pub to: usize,
     /// Le texte du passage (blancs éventuellement repliés) : relocalise des positions périmées.
@@ -52,7 +54,7 @@ impl PassageRef {
 pub const PASSAGE_KEY: &str = "reveal:passage";
 
 /// Cherche une citation `exact` dans `text`, au plus près de `hint` (un index
-/// d'octets) ; rend l'index de son début. La signature de `findQuote`
+/// UTF-16, ADR-004) ; rend l'index UTF-16 de son début. La signature de `findQuote`
 /// (artefacts/anchor.ts), moins le préfixe et le suffixe que `locate_passage`
 /// laisse vides.
 pub trait QuoteFinder {
@@ -74,13 +76,18 @@ pub fn find_quote_exact(text: &str, exact: &str, hint: usize) -> Option<usize> {
     }
     let mut best: Option<usize> = None;
     let mut depuis = 0;
+    // L'index UTF-16 de `depuis`, tenu à jour pour ne pas reparcourir le texte.
+    let mut depuis16 = 0;
     while let Some(rel) = text[depuis..].find(exact) {
-        let k = depuis + rel;
+        let k_octet = depuis + rel;
+        let k = depuis16 + byte_to_utf16(&text[depuis..], rel);
         if best.is_none_or(|b| k.abs_diff(hint) < b.abs_diff(hint)) {
             best = Some(k);
         }
         // Les occurrences qui se chevauchent comptent aussi (`exactMatches` avance d'un caractère).
-        depuis = k + text[k..].chars().next().map_or(1, char::len_utf8);
+        let suivant = text[k_octet..].chars().next().map_or(1, char::len_utf8);
+        depuis16 = k + text[k_octet..k_octet + suivant].encode_utf16().count();
+        depuis = k_octet + suivant;
     }
     best
 }
@@ -99,7 +106,8 @@ pub fn locate_passage_with(
     p: &PassageRef,
     finder: &dyn QuoteFinder,
 ) -> Option<EditorRange> {
-    let borne = |pos: usize| t.to_pos(t.to_index(pos).min(t.text.len()));
+    let len = utf16_len(&t.text);
+    let borne = |pos: usize| t.to_pos(t.to_index(pos).min(len));
     let quote = p.quote.as_deref().map(trim_js).unwrap_or("");
     if quote.is_empty() {
         return (p.to > p.from).then(|| EditorRange {
@@ -107,7 +115,7 @@ pub fn locate_passage_with(
             to: borne(p.to),
         });
     }
-    let hint = t.to_index(p.from).min(t.text.len());
+    let hint = t.to_index(p.from).min(len);
     // On cherche dans le texte aux BLANCS REPLIÉS (la citation a pu l'être : une
     // sélection sur plusieurs lignes) — la fin se relit alors exactement dans le
     // texte d'origine, même quand ses blancs diffèrent de ceux de la citation.
@@ -115,39 +123,45 @@ pub fn locate_passage_with(
     let q = replier(quote);
     let j = finder.find_quote(&replie.text, &q, replie.vers_replie(hint))?;
     let a = replie.vers_texte(j);
-    let b = replie.vers_texte((j + q.len() - 1).min(replie.text.len().saturating_sub(1))) + 1;
+    let b = replie.vers_texte((j + utf16_len(&q) - 1).min(replie.len.saturating_sub(1))) + 1;
     Some(EditorRange {
         from: t.to_pos(a),
         to: t.to_pos(b),
     })
 }
 
-/// Le texte aux blancs repliés, et les deux cartes d'indices (en octets).
-struct Replie<'a> {
+/// Le texte aux blancs repliés, et les deux cartes d'indices (en unités UTF-16).
+struct Replie {
     text: String,
-    /// Pour chaque OCTET replié, l'octet d'origine.
+    /// Longueur du texte replié, en unités UTF-16.
+    len: usize,
+    /// Pour chaque UNITÉ repliée, l'unité d'origine.
     indices: Vec<usize>,
-    origine: &'a str,
+    /// Longueur du texte d'origine, en unités UTF-16.
+    origine_len: usize,
 }
 
-impl Replie<'_> {
+impl Replie {
     /// index replié → index d'origine (au-delà : la fin du texte).
     fn vers_texte(&self, i: usize) -> usize {
-        self.indices.get(i).copied().unwrap_or(self.origine.len())
+        self.indices.get(i).copied().unwrap_or(self.origine_len)
     }
 
-    /// index d'origine → index replié (le premier octet replié dont l'origine est ≥ i).
+    /// index d'origine → index replié (la première unité repliée dont l'origine est ≥ i).
     fn vers_replie(&self, i: usize) -> usize {
         self.indices.partition_point(|&x| x < i)
     }
 }
 
-fn replier_blancs(text: &str) -> Replie<'_> {
+fn replier_blancs(text: &str) -> Replie {
     let mut out = String::with_capacity(text.len());
     let mut indices = Vec::with_capacity(text.len());
-    for (i, c) in text.char_indices() {
+    let mut i = 0;
+    for c in text.chars() {
         let blanc = est_blanc(c);
+        let l = c.len_utf16();
         if blanc && out.ends_with(' ') {
+            i += l;
             continue;
         }
         if blanc {
@@ -155,12 +169,14 @@ fn replier_blancs(text: &str) -> Replie<'_> {
             indices.push(i);
         } else {
             out.push(c);
-            indices.extend(i..i + c.len_utf8());
+            indices.extend(i..i + l);
         }
+        i += l;
     }
     Replie {
+        len: indices.len(),
         text: out,
         indices,
-        origine: text,
+        origine_len: i,
     }
 }

@@ -61,6 +61,39 @@ fn page_vide_une_ligne_vide() {
     assert_eq!(v.offset_to_pos(5), p(0, 0));
 }
 
+#[test]
+fn non_ascii_lignes_colonnes_et_positions_en_unites_utf16() {
+    // « é » : 1 unité ; 😀 : 2 unités. Texte de 8 unités (un \n compris).
+    let t = PageText::new("é😀\nÀ😀b");
+    assert_eq!(t.end(), 9);
+    assert_eq!(t.line_count(), 2);
+    assert_eq!(t.get_line(0), "é😀");
+    assert_eq!(t.get_line(1), "À😀b");
+    assert_eq!(t.offset_to_pos(5), p(1, 0));
+    assert_eq!(t.offset_to_pos(t.end()), p(1, 4));
+    assert_eq!(t.pos_to_offset(p(1, 3)), 8);
+    // La colonne est bornée à la longueur UTF-16 de la ligne.
+    assert_eq!(t.pos_to_offset(p(0, 99)), 4);
+    for pos in 1..=t.end() {
+        assert_eq!(t.pos_to_offset(t.offset_to_pos(pos)), pos);
+    }
+    let s = t.surface_text();
+    assert_eq!(s.to_pos(4), 5);
+    assert_eq!(s.to_index(99), 8);
+}
+
+#[test]
+fn non_ascii_le_diff_est_en_unites_utf16() {
+    let avant = "😀 9\nLe passage";
+    let apres = "😀 10\nLe passage";
+    let d = diff_page_text(avant, apres);
+    // « passage » : unité 8 avant (position 9), 9 après (position 10).
+    assert_eq!(d.map_pos(9, Assoc::After), mp(10, false));
+    assert_eq!(d.map_pos(2, Assoc::After), mp(2, false));
+    // La fin du texte d'avant est bornée en unités (15), pas en octets.
+    assert_eq!(d.map_pos(500, Assoc::After), mp(17, false));
+}
+
 // describe('diffPageText — le JS de la page réécrit son texte')
 
 #[test]

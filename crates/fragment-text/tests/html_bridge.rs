@@ -86,6 +86,32 @@ fn jamais_une_note_un_pdf_un_fichier_sans_extension_ni_un_dossier_cache() {
 
 // flatten_page — la fonction `aplatir` du pont
 
+#[test]
+fn flatten_non_ascii_segments_en_unites_utf16() {
+    let body = vec![
+        HtmlNode::element("p", vec![HtmlNode::Text("é😀".to_owned())]),
+        HtmlNode::element("p", vec![HtmlNode::Text("fin".to_owned())]),
+    ];
+    let flat = flatten_page(&body);
+    assert_eq!(flat.text, "é😀\nfin");
+    // « é😀 » : 3 unités ; le \n : 1 ; « fin » commence à l'unité 4.
+    assert_eq!(
+        flat.segs,
+        vec![
+            TextSegment {
+                node: 0,
+                start: 0,
+                len: 3
+            },
+            TextSegment {
+                node: 1,
+                start: 4,
+                len: 3
+            },
+        ]
+    );
+}
+
 fn t(s: &str) -> HtmlNode {
     HtmlNode::text(s)
 }
