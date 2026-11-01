@@ -1,0 +1,73 @@
+# Parité des tests de fragment-cli : un tableau par module Rust.
+# `source` = cas de test (it/test, it.each compté par cas) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[protocol]
+ts = "app/src/shared/cli/protocol.ts"
+tests_ts = "app/src/shared/cli/protocol.test.ts"   # blocs fabriques, analyserArgv, LecteurDeTrame
+source = 10
+portes = 10
+non_portes = []
+
+[pipe]
+ts = "app/src/shared/cli/pipe.ts"
+tests_ts = "app/src/shared/cli/protocol.test.ts"   # bloc pipeNameFor
+source = 3
+portes = 3
+non_portes = []
+
+[instance_index]
+ts = "app/src/shared/cli/instanceIndex.ts"
+tests_ts = "app/src/shared/cli/instanceIndex.test.ts"
+source = 2
+portes = 1
+non_portes = [
+  { cas = "sonderTuyau — vivant quand on écoute, mort sinon", raison = "ouvre un vrai tuyau nommé / socket (net) : c'est le transport, hors du modèle pur ; la sonde est injectée (trait SondeInstances) et testée avec une sonde fausse dans le test porté d'instances_vivantes" },
+]
+
+[shim]
+ts = "app/src/shared/cli/shim.ts"
+tests_ts = "app/src/shared/cli/shim.test.ts"
+source = 13
+portes = 13
+non_portes = []
+
+[vault_registry]
+ts = "app/src/shared/cli/vaultRegistry.ts"
+tests_ts = "app/src/shared/cli/vaultRegistry.test.ts"
+source = 3
+portes = 3
+non_portes = []
+
+[client_pur]
+ts = "app/src/cli/clientPur.ts"
+tests_ts = "app/src/cli/clientPur.test.ts"
+source = 16   # dont l'it.each des 3 codes de tuyau mort
+portes = 16
+non_portes = []
+
+[vault_path]
+ts = "app/src/shared/vaultPath.ts"
+tests_ts = "app/src/shared/vaultPath.test.ts"
+source = 9
+portes = 9
+non_portes = []
+
+[serveur]
+ts = "app/src/ui/coreCommands/cliServer.ts"
+tests_ts = "app/src/ui/coreCommands/cliServer.test.ts"
+source = 3
+portes = 0
+non_portes = [
+  { cas = "un second serveur sur le même coffre → ErreurCoffreDejaServi, pas un EADDRINUSE brut", raison = "démarre de vrais serveurs sur un tuyau nommé : transport, hors du modèle pur (le type ErreurCoffreDejaServi est porté)" },
+  { cas = "deux coffres DIFFÉRENTS coexistent sans se percuter", raison = "vraies sockets (transport)" },
+  { cas = "nettoie un socket ORPHELIN puis démarre", raison = "vraies sockets et fichier .sock POSIX (transport)" },
+]
+
+[hote]
+ts = "app/src/ui/core/cli/types.ts, CliHost.ts, external/types.ts, ui/core/app.ts (InstanceInfo)"
+tests_ts = ""   # aucun .test.ts : types et contrat seulement
+source = 0
+portes = 0
+non_portes = []
