@@ -12,6 +12,7 @@
 
 pub mod editor;
 pub mod find_passage;
+pub mod html_text_model;
 pub mod text_delta;
 pub mod viewport;
 
@@ -21,5 +22,6 @@ pub use editor::{
     MappedRange, Rect, SurfaceText, TextSurface, full_text, has_text, is_editable, map_range,
 };
 pub use find_passage::{PassageError, TextMatch, find_in_text, find_passage, passage_error, pick};
+pub use html_text_model::{PAGE_CORNER, PageText, PageTextDiff, diff_page_text};
 pub use text_delta::{MappedChar, TextDelta, map_through_delta, text_delta};
 pub use viewport::{Bande, ViewportBand, Vp, bande, bande_appropriee, biais};
