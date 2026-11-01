@@ -5,11 +5,19 @@
 
 pub mod actions_model;
 pub mod attachment_blocks;
+pub mod card_model;
 pub mod contrat;
+pub mod controls_model;
+pub mod engine_model;
 pub mod events;
+pub mod harness_registry;
+pub mod lasso_prompt;
 pub(crate) mod motif;
+pub mod one_shot_options;
 pub mod quick_model;
 pub mod screen_model;
+pub mod side_chat_prompt;
 pub mod skills_model;
+pub mod text_access;
 pub mod trace_model;
 pub mod utf16;
