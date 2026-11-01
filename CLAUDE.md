@@ -23,7 +23,7 @@ Réécriture de Fragment (clone d'Obsidian pour humains et agents) en Rust sur G
 - Vérifier avant de pousser : `cargo fmt --all`, `cargo clippy -p <crate> --all-targets -- -D warnings`, `cargo test -p <crate>` (crates pures seulement en local). Le reste : `git push` puis `powershell -File scripts/ci.ps1 <PR>`.
 - Scripts : Windows PowerShell 5.1 (pas de `pwsh` sur le portable) ; fichiers `.ps1` en UTF-8 AVEC BOM, sinon 5.1 lit les accents en ANSI.
 - Pixels : `pixels/reference/` = Fragment (régénéré par `scripts/pixels-reference.ps1`, Vite de Fragment déjà lancé de préférence) ; `fragment-pixels` (feature `pixels` de fragment-app) produit `pixels/candidate/` ; `cargo xtask pixels` compare. Les « 22 scènes » de visual-diff = 11 scènes × 2 thèmes.
-- Beads : la base vit dans `C:/dev/fragment-rs-beads\.beads` (fichier local `.beads/redirect`) ; `.beads-export/issues.jsonl` est l'image commitée que lisent `port.yml` et les sessions cloud (ADR-002). Chaque tâche remplit le `parite.toml` de sa crate.
+- Beads : la base vit dans `C:/dev/fragment-rs-beads/.beads` (fichier local `.beads/redirect`) ; `.beads-export/issues.jsonl` est l'image commitée que lisent `port.yml` et les sessions cloud (ADR-002). Chaque tâche remplit le `parite.toml` de sa crate.
 - ★ Fragment est un dépôt GitHub PRIVÉ : la voie C le monte via le secret `FRAGMENT_READ_TOKEN` (sinon pas de référence TS en CI).
 
 ## Budget (résumé, détail §2 de program.md)
