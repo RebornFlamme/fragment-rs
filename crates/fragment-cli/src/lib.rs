@@ -8,6 +8,8 @@
 pub mod instance_index;
 pub mod pipe;
 pub mod protocol;
+pub mod shim;
+pub mod vault_registry;
 
 /// Nom de dossier d'un chemin, séparateurs `/` ET `\` reconnus.
 ///
