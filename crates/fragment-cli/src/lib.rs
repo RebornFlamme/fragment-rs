@@ -5,6 +5,7 @@
 //! instances (disque seulement, la sonde du tuyau est injectée), le shim, le registre
 //! des coffres, les décisions du client et le traitement d'une requête côté serveur.
 
+pub mod client_pur;
 pub mod instance_index;
 pub mod pipe;
 pub mod protocol;
