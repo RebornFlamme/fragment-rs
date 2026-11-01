@@ -22,7 +22,7 @@
 
 use std::collections::BTreeMap;
 
-use fragment_core::{EventRef, Events};
+use fragment_core::{EventRef, Events, SecretError, SecretStorage};
 
 /// L'adapter du coffre, réduit à ce que le trousseau lit et écrit.
 pub trait AdaptateurCoffre {
@@ -41,26 +41,25 @@ pub trait Chiffrement {
     fn decrypt(&self, b64: &str) -> Result<String, String>;
 }
 
-/// Erreurs d'écriture du trousseau.
-#[derive(Debug, thiserror::Error)]
-pub enum SecretError {
-    #[error("chiffrement : {0}")]
-    Chiffrement(String),
-    #[error("disque : {0}")]
-    Disque(#[from] std::io::Error),
-}
-
 /// clef → base64(chiffré).
 type SecretsFile = BTreeMap<String, String>;
 
-pub struct SecretStorage<A: AdaptateurCoffre, C: Chiffrement> {
+/// L'IMPLÉMENTATION du contrat `fragment_core::SecretStorage` : `.fragment/secrets.json`
+/// par l'adapter du coffre + un chiffrement injecté.
+///
+/// ★ ÉCART avec fragment-core (`secret_storage.rs`), qui renvoyait cette implémentation
+///   et les 5 cas de `SecretStorage.test.ts` à fragment-app : la logique (lecture tolérante,
+///   chiffrement par valeur, `change`, clefs triées) ne dépend ni de GPUI ni de l'OS, elle
+///   se teste ici avec un disque en mémoire. `fragment-app` n'aura qu'à fournir
+///   l'`AdaptateurCoffre` (le Vault) et le `Chiffrement` (le trousseau de l'OS).
+pub struct SecretStorageFichier<A: AdaptateurCoffre, C: Chiffrement> {
     config_dir: String,
     adapter: A,
     chiffrement: C,
     events: Events,
 }
 
-impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorage<A, C> {
+impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorageFichier<A, C> {
     /// `config_dir` : le dossier de configuration du coffre (`.fragment`).
     pub fn new(config_dir: &str, adapter: A, chiffrement: C) -> Self {
         Self {
@@ -80,10 +79,6 @@ impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorage<A, C> {
         self.events.on("change", move |_| cb())
     }
 
-    pub fn is_available(&self) -> bool {
-        self.chiffrement.is_available()
-    }
-
     fn read(&self) -> SecretsFile {
         // Absent ou illisible → aucun secret (réécrit au prochain set()).
         self.adapter
@@ -94,31 +89,38 @@ impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorage<A, C> {
     }
 
     fn write(&self, data: &SecretsFile) -> Result<(), SecretError> {
-        self.adapter.mkdir(&self.config_dir)?;
-        let json = serde_json::to_string_pretty(data)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        self.adapter.write(&self.path(), &json)?;
-        Ok(())
+        let autre = |e: std::io::Error| SecretError::Autre(e.to_string());
+        self.adapter.mkdir(&self.config_dir).map_err(autre)?;
+        let json =
+            serde_json::to_string_pretty(data).map_err(|e| SecretError::Autre(e.to_string()))?;
+        self.adapter.write(&self.path(), &json).map_err(autre)
+    }
+}
+
+impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorage for SecretStorageFichier<A, C> {
+    fn is_available(&self) -> bool {
+        self.chiffrement.is_available()
     }
 
     /// Les clefs stockées, triées — jamais les valeurs (aucun déchiffrement).
-    pub fn list(&self) -> Vec<String> {
+    fn list(&self) -> Vec<String> {
         self.read().into_keys().collect()
     }
 
     /// La valeur en clair, ou `None` si la clef est inconnue / indéchiffrable.
-    pub fn get(&self, key: &str) -> Option<String> {
+    fn get(&self, key: &str) -> Option<String> {
         let data = self.read();
         let b64 = data.get(key)?;
         self.chiffrement.decrypt(b64).ok()
     }
 
     /// Chiffre puis persiste. Échoue si le trousseau est indisponible (`encrypt` lève).
-    pub fn set(&self, key: &str, value: &str) -> Result<(), SecretError> {
-        let b64 = self
-            .chiffrement
-            .encrypt(value)
-            .map_err(SecretError::Chiffrement)?;
+    fn set(&self, key: &str, value: &str) -> Result<(), SecretError> {
+        let b64 = match self.chiffrement.encrypt(value) {
+            Ok(b64) => b64,
+            Err(_) if !self.chiffrement.is_available() => return Err(SecretError::Indisponible),
+            Err(e) => return Err(SecretError::Autre(e)),
+        };
         let mut data = self.read();
         data.insert(key.to_string(), b64);
         self.write(&data)?;
@@ -127,7 +129,7 @@ impl<A: AdaptateurCoffre, C: Chiffrement> SecretStorage<A, C> {
     }
 
     /// Retire la clef. No-op (sans événement) si absente.
-    pub fn delete(&self, key: &str) -> Result<(), SecretError> {
+    fn delete(&self, key: &str) -> Result<(), SecretError> {
         let mut data = self.read();
         if data.remove(key).is_none() {
             return Ok(());
@@ -189,10 +191,10 @@ mod tests {
         }
     }
 
-    fn setup() -> (SecretStorage<Disque, FauxChiffre>, Disque) {
+    fn setup() -> (SecretStorageFichier<Disque, FauxChiffre>, Disque) {
         let disque = Disque::default();
         (
-            SecretStorage::new(".fragment", disque.clone(), FauxChiffre),
+            SecretStorageFichier::new(".fragment", disque.clone(), FauxChiffre),
             disque,
         )
     }
@@ -269,9 +271,9 @@ mod tests {
                 Err("pas de trousseau".into())
             }
         }
-        let s = SecretStorage::new(".fragment", Disque::default(), Indispo);
+        let s = SecretStorageFichier::new(".fragment", Disque::default(), Indispo);
         assert!(!s.is_available());
-        assert!(matches!(s.set("k", "v"), Err(SecretError::Chiffrement(_))));
+        assert!(matches!(s.set("k", "v"), Err(SecretError::Indisponible)));
         assert_eq!(s.list(), Vec::<String>::new());
     }
 }

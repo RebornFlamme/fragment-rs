@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use fragment_artefacts::Origin;
+use fragment_core::move_key;
 use fragment_text::editor::{Assoc, EditorChange, MappedPos};
 use fragment_text::map_anchor::{TextAnchored, map_anchor};
 
@@ -555,7 +556,7 @@ impl AnnotationSource {
                 if let Some(moved) = move_key(&key, old_base, new_base)
                     && let Some(v) = map.remove(&key)
                 {
-                    map.insert(moved, v);
+                    map.insert(moved.to_string(), v);
                 }
             }
         }
@@ -565,29 +566,30 @@ impl AnnotationSource {
     }
 }
 
-/// Applique un renommage `old_base → new_base` à une clé (elle-même OU sous `old_base/`), sinon `None`.
-///
-/// ★ Port de `moveKey` (core/documents/documentKey.ts), recopié ici : le module
-///   `documents` de fragment-core est en cours de portage (tâche core-b).
-pub fn move_key(key: &str, old_base: &str, new_base: &str) -> Option<String> {
-    if key == old_base {
-        return Some(new_base.to_string());
-    }
-    key.strip_prefix(old_base)
-        .filter(|reste| reste.starts_with('/'))
-        .map(|reste| format!("{new_base}{reste}"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::geometry::p;
 
     #[test]
-    fn move_key_suit_le_renommage() {
-        assert_eq!(move_key("a", "a", "b"), Some("b".into()));
-        assert_eq!(move_key("a/x.md", "a", "b"), Some("b/x.md".into()));
-        assert_eq!(move_key("ab/x.md", "a", "b"), None);
+    fn un_renommage_deplace_les_donnees_et_l_historique_sous_la_nouvelle_cle() {
+        let src = AnnotationSource::new();
+        let input = |id: &str| StrokeInput {
+            id: Some(id.into()),
+            pos: 3,
+            points: vec![p(0.0, 0.0)],
+            color: "x".into(),
+            width: 1.0,
+            tool: "t".into(),
+            calque: None,
+        };
+        src.add("dossier/a.md", input("s1"), || "inutile".into());
+        src.add("autre/b.md", input("s2"), || "inutile".into());
+        src.rename("dossier", "renomme");
+        assert!(src.strokes("dossier/a.md").is_empty());
+        assert_eq!(src.strokes("renomme/a.md").len(), 1);
+        assert!(src.can_undo("renomme/a.md"));
+        assert_eq!(src.strokes("autre/b.md").len(), 1);
     }
 
     #[test]
