@@ -1,0 +1,79 @@
+# Parité des tests de fragment-chat : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+# Chemins TS relatifs à `app/src/ui/views/chat/` de Fragment.
+
+[api]
+ts = "api.ts"
+tests_ts = ""   # contrat seulement : pas de test TS ; deux tests ajoutés par le port (chat_message_at, sérialisation)
+source = 0
+portes = 0
+non_portes = []
+
+[chat_key]
+ts = "chatKey.ts"
+tests_ts = "chatSurfaceModel.test.ts (describe « clé de conversation »)"
+source = 1
+portes = 1
+non_portes = []
+
+[chat_session]
+ts = "ChatSession.ts"
+tests_ts = "ChatSession.test.ts"
+source = 7
+portes = 7
+non_portes = []
+
+[chat_surface_model]
+ts = "chatSurfaceModel.ts"
+tests_ts = "chatSurfaceModel.test.ts (hors « clé de conversation »)"
+source = 11
+portes = 11
+non_portes = []
+
+[follow_model]
+ts = "scroll/followModel.ts"
+tests_ts = "scroll/followModel.test.ts"
+source = 11
+portes = 11
+non_portes = []
+
+[rail]
+ts = "scroll/rail.ts"
+tests_ts = "scroll/rail.test.ts"
+source = 4
+portes = 4
+non_portes = [
+  { cas = "classe ChatRail (nav, boutons, carte d'aperçu, clavier ↑ ↓) — sans test TS", raison = "DOM : refaite dans fragment-ui ; le modèle (railProximity, RAIL_MIN_TURNS, RailTurn) est porté" },
+]
+
+[search_model]
+ts = "scroll/searchModel.ts"
+tests_ts = "scroll/searchModel.test.ts"
+source = 3
+portes = 3
+non_portes = []
+
+[history_model]
+ts = "components/historyModel.ts"
+tests_ts = "components/historyModel.test.ts"
+source = 7
+portes = 7
+non_portes = []
+
+[post_model]
+ts = "components/postModel.ts"
+tests_ts = "components/postModel.test.ts"
+source = 3
+portes = 3
+non_portes = []
+
+[format]
+ts = "format.ts"
+tests_ts = "format.test.ts"
+source = 5
+portes = 5
+non_portes = [
+  { cas = "renderText (blocs → DOM) — sans test TS", raison = "DOM : refait dans fragment-ui ; blocks et inlines (le modèle) sont portés" },
+]

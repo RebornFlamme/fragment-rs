@@ -7,6 +7,18 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+fragment-text = { path = "../fragment-text" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# ★ `String.prototype.normalize('NFD')` de `plier` (search_model.rs, history_model.rs).
+# Hors liste d'avance de program.md §4 : notée dans la PR (même crate que fragment-agent).
+unicode-normalization = "0.1"
+# ★ Les inlines du rendu de base (`**gras**`, `*italique*`, `` `code` ``) sont une regex dans le TS.
+# Hors liste d'avance : notée dans la PR (même crate que fragment-agent).
+regex = "1"
+# Calendrier (jour local, mois) de l'historique et de l'heure relative : `time` est autorisée d'avance.
+time = { version = "0.3", default-features = false, features = ["std"] }
 
 [lints]
 workspace = true
