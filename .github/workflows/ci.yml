@@ -59,6 +59,68 @@ jobs:
           shared-key: windows
       - run: cargo test --workspace --locked
 
+  # Fork n°1 (ADR-006) : vendor/gpui-base = gpui-base à la version ÉPINGLÉE par gpui-kit + un patch
+  # minimal. Ce job rend la dette de rebase visible : il échoue si (1) la version vendored n'est plus
+  # celle du Cargo.lock, (2) un fichier non déclaré dans vendor/gpui-base/NOTICE diverge de l'original,
+  # (3) le patch (diff vendor/ contre l'original) ne s'applique plus proprement à l'original.
+  fork-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Diff de vendor/gpui-base contre l'original épinglé
+        shell: bash
+        run: |
+          set -euo pipefail
+          v=$(grep -A1 '^name = "gpui-base"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          echo "gpui-base épinglé (Cargo.lock) : $v"
+          vv=$(sed -n 's/^version = "\(.*\)"$/\1/p' vendor/gpui-base/Cargo.toml | head -1)
+          if [ "$v" != "$vv" ]; then
+            echo "::error::vendor/gpui-base est en $vv mais gpui-kit épingle $v : rebaser le fork (ADR-006)"
+            exit 1
+          fi
+          tmp=$(mktemp -d)
+          curl -fsSL "https://static.crates.io/crates/gpui-base/gpui-base-$v.crate" -o "$tmp/o.crate"
+          sha=$(sed -n 's/^ *sha256 \([0-9a-f]\{64\}\)$/\1/p' vendor/gpui-base/NOTICE)
+          echo "$sha  $tmp/o.crate" | sha256sum -c -
+          tar xzf "$tmp/o.crate" -C "$tmp"
+          orig="$tmp/gpui-base-$v"
+          # Fichiers déclarés modifiés dans NOTICE.
+          grep -E '^  [A-Za-z0-9_./-]+\.rs ' vendor/gpui-base/NOTICE | awk '{print "src/input/"$1}' | sort > "$tmp/declared"
+          # Fichiers qui divergent réellement (NOTICE est notre ajout, Cargo.lock n'est pas vendored).
+          (cd vendor/gpui-base && find . -type f ! -name NOTICE | sed 's|^\./||' | sort) > "$tmp/v.files"
+          (cd "$orig" && find . -type f ! -name Cargo.lock | sed 's|^\./||' | sort) > "$tmp/o.files"
+          : > "$tmp/changed"
+          for f in $(sort -u "$tmp/v.files" "$tmp/o.files"); do
+            if [ ! -f "vendor/gpui-base/$f" ] || [ ! -f "$orig/$f" ] || ! cmp -s "vendor/gpui-base/$f" "$orig/$f"; then
+              echo "$f" >> "$tmp/changed"
+            fi
+          done
+          sort -o "$tmp/changed" "$tmp/changed"
+          echo "--- fichiers modifiés (réel) ---"; cat "$tmp/changed"
+          if ! diff -u "$tmp/declared" "$tmp/changed"; then
+            echo "::error::les fichiers qui divergent de l'original ne sont pas ceux déclarés dans vendor/gpui-base/NOTICE"
+            exit 1
+          fi
+          # Le patch : produit, puis ré-appliqué à une copie neuve de l'original.
+          mkdir "$tmp/a" "$tmp/b" "$tmp/c"
+          cp -r "$orig/." "$tmp/a/"; rm -f "$tmp/a/Cargo.lock"
+          cp -r vendor/gpui-base/. "$tmp/b/"; rm -f "$tmp/b/NOTICE"
+          cp -r "$tmp/a/." "$tmp/c/"
+          (cd "$tmp" && diff -ruN a b > fork.patch || true)
+          (cd "$tmp/c" && patch -p1 --no-backup-if-mismatch < ../fork.patch > /dev/null)
+          if ! diff -r "$tmp/c" "$tmp/b" > /dev/null; then
+            echo "::error::le patch ne s'applique plus proprement à l'original"
+            exit 1
+          fi
+          added=$(grep -c '^+[^+]' "$tmp/fork.patch" || true)
+          removed=$(grep -c '^-[^-]' "$tmp/fork.patch" || true)
+          echo "Taille du patch : +$added -$removed lignes sur $(wc -l < "$tmp/changed") fichiers"
+          cp "$tmp/fork.patch" "$GITHUB_WORKSPACE/gpui-base-fork.patch"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gpui-base-fork-patch
+          path: gpui-base-fork.patch
+
   check-app:
     runs-on: windows-latest
     steps:
