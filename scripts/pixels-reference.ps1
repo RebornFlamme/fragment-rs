@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Régénère la référence pixel : joue les scènes pixels/scenes/*.spec.ts sur Fragment
   (harnais e2e, Playwright de Fragment/app/node_modules) et écrit pixels/reference/*.png.
@@ -20,6 +20,10 @@ $ref      = Join-Path $racine 'pixels\reference'
 
 if (-not (Test-Path $pw))                              { throw "Playwright introuvable : $pw (npm install fait dans Fragment/app ?)" }
 if (-not (Test-Path (Join-Path $fragment 'dist-electron\main.js'))) { throw "Build Electron manquant : $fragment\dist-electron\main.js" }
+# ★ Lecture seule stricte : sans serveur Vite déjà lancé, la config le démarrerait et Vite écrirait
+# son cache dans Fragment/app/node_modules/.vite. On refuse plutôt (décision du chef, 01/11).
+$vite = Test-NetConnection -ComputerName localhost -Port 5123 -InformationLevel Quiet -WarningAction SilentlyContinue
+if (-not $vite) { throw "Serveur Vite de Fragment absent (port 5123) : l'utilisateur lance « npm run dev:react » dans Fragment\app, puis relance ce script." }
 New-Item -ItemType Directory -Force -Path $ref | Out-Null
 
 $avant = Get-Date

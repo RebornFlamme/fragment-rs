@@ -179,8 +179,8 @@ Conventions : snake_case pour les fonctions, CamelCase pour les types, vocabulai
 | PassageRef | interface | struct PassageRef | fragment-text | |
 | ToolbarOrientation | alias (union) | enum ToolbarOrientation | fragment-ui | |
 | VaultEventInfo | interface | struct VaultEventInfo | fragment-core | |
-| SettingControl | alias (union) | enum SettingControl | fragment-ui | |
-| SettingControlBase | interface | struct SettingControlBase | fragment-ui | |
+| SettingControl | alias (union) | enum SettingControl | fragment-core | |
+| SettingControlBase | interface | struct SettingControlBase | fragment-core | |
 | SettingToggleControl | interface | struct SettingToggleControl | fragment-ui | |
 | SettingTextControl | interface | struct SettingTextControl | fragment-ui | |
 | SettingTextAreaControl | interface | struct SettingTextAreaControl | fragment-ui | |
@@ -191,18 +191,18 @@ Conventions : snake_case pour les fonctions, CamelCase pour les types, vocabulai
 | SettingFileControl | interface | struct SettingFileControl | fragment-ui | |
 | SettingFolderControl | interface | struct SettingFolderControl | fragment-ui | |
 | SettingSecretControl | interface | struct SettingSecretControl | fragment-ui | |
-| SettingDefinition | alias (union) | enum SettingDefinition | fragment-ui | |
-| SettingDefinitionBase | interface | struct SettingDefinitionBase | fragment-ui | |
-| SettingDefinitionControl | interface | struct SettingDefinitionControl | fragment-ui | |
-| SettingDefinitionItem | interface | struct SettingDefinitionItem | fragment-ui | |
-| SettingDefinitionGroup | interface | struct SettingDefinitionGroup | fragment-ui | |
-| SettingDefinitionPage | interface | struct SettingDefinitionPage | fragment-ui | |
-| SettingDefinitionList | interface | struct SettingDefinitionList | fragment-ui | |
-| SettingDefinitionEmpty | interface | struct SettingDefinitionEmpty | fragment-ui | |
-| SettingDefinitionAction | interface | struct SettingDefinitionAction | fragment-ui | |
+| SettingDefinition | alias (union) | enum SettingDefinition | fragment-core | |
+| SettingDefinitionBase | interface | struct SettingDefinitionBase | fragment-core | |
+| SettingDefinitionControl | interface | struct SettingDefinitionControl | fragment-core | |
+| SettingDefinitionItem | interface | struct SettingDefinitionItem | fragment-core | |
+| SettingDefinitionGroup | interface | struct SettingDefinitionGroup | fragment-core | |
+| SettingDefinitionPage | interface | struct SettingDefinitionPage | fragment-core | |
+| SettingDefinitionList | interface | struct SettingDefinitionList | fragment-core | |
+| SettingDefinitionEmpty | interface | struct SettingDefinitionEmpty | fragment-core | |
+| SettingDefinitionAction | interface | struct SettingDefinitionAction | fragment-core | |
 | SettingDefinitionRender | interface | struct SettingDefinitionRender | fragment-ui | |
-| SettingDefinitionAddItem | interface | struct SettingDefinitionAddItem | fragment-ui | |
-| SettingDefinitionTree | interface | struct SettingDefinitionTree | fragment-ui | |
+| SettingDefinitionAddItem | interface | struct SettingDefinitionAddItem | fragment-core | |
+| SettingDefinitionTree | interface | struct SettingDefinitionTree | fragment-core | |
 | SettingTreeNode | interface | struct SettingTreeNode | fragment-ui | |
 | SettingGroupItem | alias (union) | enum SettingGroupItem | fragment-ui | |
 
@@ -230,7 +230,7 @@ Tous déclarés par `defineRegistry` / `defineOrderedRegistry` ; en Rust : `Regi
 | chat:part@1 | `app/src/ui/views/chat/api.ts` | ordonné de `ChatPartRenderer` : type, render(el, part, ctx) -> handle | trait ChatPartRenderer | fragment-chat |
 | chat:text@1 | `app/src/ui/views/chat/api.ts` | ordonné de `ChatTextRenderer` : id, appliesTo, render(text, ctx) | trait ChatTextRenderer | fragment-chat |
 | markdown:render@1 | `app/src/ui/views/markdown/api.ts` | `MarkdownRenderService` : mount(el, text, opts) | trait MarkdownRenderService | fragment-markdown |
-| doc-widget:host@1 | `app/src/ui/views/doc-widget/api.ts` | `DocWidgetHost` : open, close, setOpen, list(file) | trait DocWidgetHost | fragment-ui |
+| doc-widget:host@1 | `app/src/ui/views/doc-widget/api.ts` | `DocWidgetHost` : open, close, setOpen, list(file) | trait DocWidgetHost | fragment-artefacts |
 
 ## Contrôle
 
@@ -253,3 +253,12 @@ Recomptés par lecture des `export` de public-api.ts (blocs `export { a, b }`, `
 7. `ViewCreator`, `View*` : dans fragment-core sans rendu ; la vue GPUI est construite côté ui.
 8. `chat:*` ChatSlot : le `render(el)` DOM n'a pas d'équivalent ; le contrat Rust garde id/align/appliesTo, le rendu est fragment-ui.
 9. `EXIT` vient de `shared/cli/protocol.ts`, pas de `ui/core`.
+
+## Décisions du chef (relecture du 01/11/2026)
+
+Règle appliquée : le TRAIT ou la donnée d'un contrat vit dans une crate de modèle ; `fragment-ui` n'est jamais une dépendance d'une crate de modèle, il implémente.
+1. `SettingControl*`, `SettingDefinition*` (réglages DÉCLARATIFS, `getSettingDefinitions`) → **fragment-core** : ce sont des données que lisent les plugins internes, l'hôte JS (fragment-plugins) et la fenêtre de réglages. Seul `SettingDefinitionRender` (rendu libre) reste dans fragment-ui.
+2. `doc-widget:host@1` (`DocWidgetHost`) → **fragment-artefacts** (trait) ; l'implémentation (le doc-widget) est dans fragment-ui. Sinon l'agent et le lecteur dépendraient de l'UI.
+3. Cas 1, 2, 4-9 ci-dessus : acceptés tels quels.
+4. Écarts relevés dans `docs/constantes-rendu.md` à propos de `program.md` : l'en-tête de vue vaut 36 px dans `ui/index.css:63` (et non 37/54) ; les icônes d'échelle valent 14/16/18 px (22 px = pastilles d'avatar seulement) ; 38 px = barre d'icônes du doc-widget seulement. La valeur LUE dans le CSS fait foi (règle du programme) ; `program.md` cite des valeurs indicatives.
+
