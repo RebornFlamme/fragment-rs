@@ -139,7 +139,9 @@ if (-not $SansBeads) {
     $seed = Get-Content 'scripts/beads-seed.json' -Raw -Encoding UTF8 | ConvertFrom-Json
     $existants = @{}
     $liste = bd list --all --json 2>$null
-    if ($LASTEXITCODE -eq 0 -and $liste) { foreach ($i in @(($liste | Out-String) | ConvertFrom-Json)) { if ($i.id) { $existants[$i.id] = $true } } }
+    if ($LASTEXITCODE -eq 0 -and $liste) { # ★ PS 5.1 : ConvertFrom-Json rend un tableau JSON comme UN objet ; passer par une variable pour l'itérer.
+        $objets = ($liste | Out-String) | ConvertFrom-Json
+        foreach ($i in $objets) { if ($i.id) { $existants[[string]$i.id] = $true } } }
     $tmp = [System.IO.Path]::GetTempFileName()
     foreach ($e in $seed.epics) {
         if (-not $existants.ContainsKey($e.id)) {
