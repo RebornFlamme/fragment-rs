@@ -40,3 +40,15 @@ pub use registry_hub::{
     Keyed, Kind, Ordered, RegistryDefinition, RegistryError, RegistryHub, RegistryKind,
     define_ordered_registry, define_registry,
 };
+pub mod capture_hotkey;
+pub mod command;
+pub mod keymap;
+pub mod plugin;
+pub use capture_hotkey::{capture_hotkey, find_hotkey_conflict};
+pub use command::{CheckResult, Command, CommandHost, CommandManager, EditorContext};
+pub use keymap::{
+    Hotkey, HotkeyManager, HotkeyStore, InputEvent, KeyEvent, Keymap, KeymapContext,
+    KeymapEventHandler, KeymapResult, Modifier, Modifiers, PaneType, Plateforme, PointerEvent,
+    Scope, format_hotkey,
+};
+pub use plugin::{Plugin, PluginBase, PluginHost, PluginManifest};
