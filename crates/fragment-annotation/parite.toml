@@ -55,3 +55,20 @@ tests_ts = "app/src/ui/views/artefacts/menuModel.test.ts"
 source = 5
 portes = 5
 non_portes = []
+
+# ★ doc-widget : rangés ici faute de crate plus proche (marqueurs de la marge, comme annotation:markers).
+[anchor_link]
+ts = "app/src/ui/views/doc-widget/anchorLink.ts"
+tests_ts = "app/src/ui/views/doc-widget/anchorLink.test.ts"
+source = 4
+portes = 4
+non_portes = [
+  { cas = "(aucun test TS) LinkMarker.draw, classe Liens, anchorLinks(surface)", raison = "présentation : SVG, calque `addLayer`, requestAnimationFrame, queueMicrotask, WeakMap par surface — fragment-ui. La clé de géométrie (lien_cle, geometry_key) est portée et testée (cas ajoutés)." },
+]
+
+[cluster_filter]
+ts = "app/src/ui/views/doc-widget/clusterFilter.ts"
+tests_ts = "app/src/ui/views/doc-widget/clusterFilter.test.ts"
+source = 5
+portes = 5
+non_portes = []

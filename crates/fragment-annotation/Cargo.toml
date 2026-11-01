@@ -14,5 +14,8 @@ fragment-text = { path = "../fragment-text" }
 # Op / DurableAnchor / resolve_anchor : la persistance parle le langage du journal.
 fragment-artefacts = { path = "../fragment-artefacts" }
 
+# Pliage des accents de cluster_filter::normaliser ; déjà dans Cargo.lock (fragment-core).
+unicode-normalization = "0.1"
+
 [lints]
 workspace = true

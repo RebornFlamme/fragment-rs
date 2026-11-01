@@ -102,8 +102,11 @@ pub fn simplify(points: &[Point], epsilon: f64) -> Vec<Point> {
 }
 
 /// Arrondi à 2 décimales puis affichage « JS » (`3`, pas `3.0` ; jamais `-0`).
+///
+/// ★ `Math.round` arrondit le demi vers +∞ (`-2.5` → `-2`) ; `f64::round` s'éloigne de
+///   zéro (`-3`). Les écarts dx/dy sont souvent négatifs : on reproduit `Math.round`.
 fn n(v: f64) -> String {
-    let r = (v * 100.0).round() / 100.0;
+    let r = ((v * 100.0 + 0.5).floor()) / 100.0;
     // `+ 0.0` : -0.0 + 0.0 = +0.0 (Number.toString() de JS écrit « 0 »).
     format!("{}", r + 0.0)
 }
