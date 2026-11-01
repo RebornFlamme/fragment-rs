@@ -17,3 +17,6 @@ pub mod types;
 pub mod widget_activation;
 
 pub mod gutter_arbiter;
+
+pub mod overlay_host;
+pub mod widget_layer;

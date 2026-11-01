@@ -347,10 +347,10 @@ impl ActivationEntry {
         let weak = Rc::downgrade(&st);
         let el = self.el;
         Box::new(move || {
-            if let Some(st) = weak.upgrade() {
-                if let Some(e) = st.borrow_mut().entries.get_mut(&el) {
-                    e.cbs.retain(|(i, _)| *i != id);
-                }
+            if let Some(st) = weak.upgrade()
+                && let Some(e) = st.borrow_mut().entries.get_mut(&el)
+            {
+                e.cbs.retain(|(i, _)| *i != id);
             }
         })
     }
@@ -370,10 +370,10 @@ impl ActivationEntry {
 
     /// Manuel : un geste en lui ne l'active ni ne le désactive.
     pub fn set_manual(&self, manual: bool) {
-        if let Some(st) = self.vivante() {
-            if let Some(e) = st.borrow_mut().entries.get_mut(&self.el) {
-                e.manual = manual;
-            }
+        if let Some(st) = self.vivante()
+            && let Some(e) = st.borrow_mut().entries.get_mut(&self.el)
+        {
+            e.manual = manual;
         }
     }
 
@@ -425,10 +425,10 @@ impl ActivationEntry {
                 s.actif = None;
             }
             // Le geste en cours perd sa cible si c'était cet élément.
-            if let Some(g) = s.geste {
-                if s.cibles.get(&g) == Some(&Some(self.el)) {
-                    s.cibles.insert(g, None);
-                }
+            if let Some(g) = s.geste
+                && s.cibles.get(&g) == Some(&Some(self.el))
+            {
+                s.cibles.insert(g, None);
             }
             let v: Vec<RappelVue> = s.view_cbs.iter().map(|(_, c)| Rc::clone(c)).collect();
             (retiree, etait_actif, v)

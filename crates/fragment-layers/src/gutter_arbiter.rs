@@ -383,11 +383,11 @@ impl Inner {
                     .map_or(voulu, |i| tops[i]);
                 self.elements.set_top(s.el, top);
                 let mut st = self.st.borrow_mut();
-                if let Some(slot) = st.slot_mut(s.id) {
-                    if slot.placed != Some(top) {
-                        slot.placed = Some(top);
-                        moved.push(s.id);
-                    }
+                if let Some(slot) = st.slot_mut(s.id)
+                    && slot.placed != Some(top)
+                {
+                    slot.placed = Some(top);
+                    moved.push(s.id);
                 }
             }
             // 3. L'annonce, si la composition a changé.
@@ -495,10 +495,10 @@ impl GutterSlot {
         self.avec(|s| s.listeners.push((cb_id, rappel)));
         let (arb, id) = (self.arb.clone(), self.id);
         Box::new(move || {
-            if let Some(inner) = arb.upgrade() {
-                if let Some(s) = inner.st.borrow_mut().slot_mut(id) {
-                    s.listeners.retain(|(i, _)| *i != cb_id);
-                }
+            if let Some(inner) = arb.upgrade()
+                && let Some(s) = inner.st.borrow_mut().slot_mut(id)
+            {
+                s.listeners.retain(|(i, _)| *i != cb_id);
             }
         })
     }
@@ -521,10 +521,10 @@ impl GutterSlot {
         self.avec(|s| s.room_listeners.push((cb_id, rappel)));
         let (arb, id) = (self.arb.clone(), self.id);
         Box::new(move || {
-            if let Some(inner) = arb.upgrade() {
-                if let Some(s) = inner.st.borrow_mut().slot_mut(id) {
-                    s.room_listeners.retain(|(i, _)| *i != cb_id);
-                }
+            if let Some(inner) = arb.upgrade()
+                && let Some(s) = inner.st.borrow_mut().slot_mut(id)
+            {
+                s.room_listeners.retain(|(i, _)| *i != cb_id);
             }
         })
     }

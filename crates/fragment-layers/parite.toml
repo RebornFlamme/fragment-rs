@@ -1,0 +1,101 @@
+# Table de parité de fragment-layers (program.md §6, ADR-002 : un `parite.toml` par
+# crate ; `docs/parite-tests.md` est régénéré par le chef, `cargo xtask parite`).
+# Schéma : celui de crates/fragment-text/parite.toml.
+#
+# Périmètre : le MODÈLE des calques (ancres, remappage, bande de marge, arbitrage,
+# actif). La présentation (DOM → éléments gpui) est la phase 3 (fragment-ui) ; elle
+# implémente `OverlayHost` / `WidgetElements` / `SlotElements` et traduit ses
+# événements en appels du modèle.
+
+crate = "fragment-layers"
+tache = "fr-p1-layers"
+
+[[module]]
+source = "ui/core/layers/gutterStack.ts"
+tests_source = "ui/core/layers/gutterStack.test.ts"
+rust = "src/gutter_stack.rs"
+tests_rust = "tests/gutter_stack.rs"
+cas_source = 21
+cas_portes = 21
+cas_ajoutes = 0
+note = "Calcul pur en f64 (±∞ comme en TS). Le PRNG mulberry32 est refait à l'identique en u32 (wrapping) ; le mélange de l'entrée du test de propriétés (`sort(() => r() - 0.5)`, dépendant du moteur) devient un Fisher-Yates à la même graine — même propriété testée."
+
+[[module]]
+source = "ui/core/layers/types.ts"
+tests_source = ""
+rust = "src/types.rs"
+tests_rust = "tests/types.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+note = "Les types de DONNÉES (CompactInfo, GutterMember, GutterCluster, LayerInstanceRef, LayerPreset, layer_instance_key, LayerMenuSection, GutterSide, OverlayPlane). L'élément DOM devient `ElementId` (opaque), la feuille `LeafId`. `GutterMember::pos` est un rappel (l'ancre est LUE à l'usage, jamais copiée) ; l'identité (`===`) devient `Rc::ptr_eq`. LayerMenuSection COLLECTE ses actions au lieu de rendre un HTMLElement."
+
+[[module.non_porte]]
+cas = "CompactInfo.menu(menu: Menu)"
+raison = "prend le `Menu` de l'application (fragment-ui, rendu gpui-kit) : la crate ne connaît aucune vue ; fragment-ui ajoutera ce rappel en enveloppant CompactInfo (phase 3)"
+
+[[module]]
+source = "ui/core/layers/types.ts (OverlayHost, LayerContext, LayerSpec)"
+tests_source = ""
+rust = "src/overlay_host.rs"
+tests_rust = "tests/overlay_host.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+note = "OverlayHost en trait (+ `content_client_rect`, ajout : le `contentEl` du TS n'est pas dans DocumentSurface). WidgetElements : les `el.style.*` et mesures que WidgetLayer lisait/écrivait sur le DOM. LayerContext ne garde que le pur (editor, doc lu à l'usage, overlays, instance, close) ; LayerSpec.appliesTo prend la vue en `&dyn Any` (View n'est pas dans le cœur)."
+
+[[module.non_porte]]
+cas = "LayerContext.view / file / app / scope / paneEl"
+raison = "objets de l'application et de la présentation (View, TFile, App, Scope, HTMLElement) : fragment-ui les ajoute en enveloppant le contexte (phase 3)"
+
+[[module]]
+source = "ui/core/layers/WidgetActivation.ts"
+tests_source = "ui/core/layers/WidgetActivation.test.ts"
+rust = "src/widget_activation.rs"
+tests_rust = "tests/widget_activation.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 3
+note = "Machine à états sans DOM : l'hôte traduit pointerdown/pointerup/setTimeout/focusin en `pointer_down` / `pointer_up` / `run_timers` / `focus_in` ; la classe `is-widget-active` se lit par `active_el` / `on_active_change`. « contient » vient d'un trait `ElementTree`. Les gestes du TS (un objet par pointerdown) gardent leur identité par un numéro. 3 cas ajoutés : menu/modale (in_overlay), élément retiré pendant le geste, désabonnement."
+
+[[module.non_porte]]
+cas = "les `console.error` autour des rappels (notifier)"
+raison = "un rappel qui panique remonte à l'hôte ; pas de try/catch silencieux en Rust"
+
+[[module]]
+source = "ui/core/layers/GutterArbiter.ts"
+tests_source = "ui/core/layers/GutterArbiter.test.ts"
+rust = "src/gutter_arbiter.rs"
+tests_rust = "tests/gutter_arbiter.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 4
+note = "Le DOM de l'arbitre (getClientRects, offsetHeight, style.top, `--gutter-room`, classe `is-gutter-clustered`) passe par le trait SlotElements ; le ResizeObserver devient `invalidate()` appelé par l'hôte. ★ Le temps : `queueMicrotask` devient un drapeau (`needs_flush`) vidé par `run_microtasks()` — passe en attente, puis annonces de grappes (hors passe). Les rappels s'exécutent sur un INSTANTANÉ des slots (une passe peut en poser/retirer). 4 cas ajoutés : placement/on_move, place annoncée avant la mesure, non affiché + actif épinglé, retrait d'un slot."
+
+[[module]]
+source = "ui/core/layers/WidgetLayer.ts"
+tests_source = "ui/core/layers/WidgetLayer.test.ts"
+rust = "src/widget_layer.rs"
+tests_rust = "tests/widget_layer.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 23
+note = "Le MODÈLE : WidgetAnchor (enum + `TextAnchored` pour `map_anchor` de fragment-text), remappage et détachement en viewport, passe lire-puis-écrire, bande de marge, masquage prioritaire, widgets déclarés (LazyWidget) construits/détruits par le viewport. `mapAnchor.test.ts` (3 cas) est déjà porté dans fragment-text sur une union locale : 1 cas ajouté ici le rejoue sur la vraie `WidgetAnchor`. `toDOM` asynchrone → `DomBuild::Pending` + `deliver(ticket)` (le ticket est le `jeton` du TS). queueMicrotask `revoir` → `run_microtasks`, requestAnimationFrame → `run_frame`, focusout → `focus_out`, editor.onChange → `on_editor_change`. L'identité d'ancre (`w.anchor !== a`) devient un numéro de génération. 23 cas ajoutés (le TS n'en teste que 3 hors mapAnchor : le reste n'était couvert que par les e2e)."
+
+[[module.non_porte]]
+cas = "la présentation de WidgetLayer (el.style.*, offsetLeft, getBoundingClientRect, document.activeElement, addEventListener('focusout'))"
+raison = "DOM : trait WidgetElements, implémenté par fragment-ui (phase 3)"
+
+[[module.non_porte]]
+cas = "gutterAnchorAt : editor.contentEl.getBoundingClientRect()"
+raison = "contentEl n'est pas dans le contrat de DocumentSurface : remplacé par OverlayHost::content_client_rect (ajout au contrat)"
+
+[[module.non_porte]]
+cas = "les `console.error` autour de toDOM / mounted / destroy"
+raison = "pas de try/catch silencieux en Rust ; `DomBuild::Failed` couvre le cas « toDOM a levé »"
+
+[total]
+cas_source = 35
+cas_portes = 35
+cas_non_portes = 0
+cas_ajoutes = 36
