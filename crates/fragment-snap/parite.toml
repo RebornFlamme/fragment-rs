@@ -1,0 +1,14 @@
+# Parité des tests de fragment-snap : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+
+[snap_model]
+ts = "app/src/ui/snap/snapModel.ts"
+tests_ts = "app/src/ui/snap/snapModel.test.ts"
+source = 20
+portes = 20
+non_portes = []
+
+# Non porté ici (présentation, à fragment-ui) :
+#   app/src/ui/snap/SnapPlugin.ts — commandes Ctrl+Alt+flèche, tranches CSS, lecture/écriture
+#   de workspace.json et flex-grow réels : DOM / workspace, aucun test unitaire.
