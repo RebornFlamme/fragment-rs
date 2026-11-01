@@ -12,6 +12,7 @@
 
 pub mod editor;
 pub mod find_passage;
+pub mod html_bridge;
 pub mod html_text_model;
 pub mod map_anchor;
 pub mod range_highlights;
@@ -26,6 +27,10 @@ pub use editor::{
     MappedRange, Rect, SurfaceText, TextSurface, full_text, has_text, is_editable, map_range,
 };
 pub use find_passage::{PassageError, TextMatch, find_in_text, find_passage, passage_error, pick};
+pub use html_bridge::{
+    FlatText, HTML_BRIDGE_MARK, HtmlNode, TextSegment, flatten_page, inject_html_bridge,
+    page_servable,
+};
 pub use html_text_model::{PAGE_CORNER, PageText, PageTextDiff, diff_page_text};
 pub use map_anchor::{MappedAnchor, TextAnchored, map_anchor};
 pub use range_highlights::{HighlightBox, HighlightHandle, HighlightRange, RangeHighlights};
