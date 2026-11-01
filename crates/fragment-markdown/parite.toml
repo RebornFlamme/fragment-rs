@@ -1,0 +1,56 @@
+# Parité des tests de fragment-markdown : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (préfixe `port_` : positions UTF-16, sorties relevées sur la
+# vraie lib `yaml`, pièges d'entités HTML…) ne sont pas comptés ici.
+# Chemins TS relatifs à `app/src/ui/` de Fragment.
+
+[table_model]
+ts = "views/markdown/table/tableModel.ts"
+tests_ts = "views/markdown/table/tableModel.test.ts"
+source = 18
+portes = 18
+non_portes = []
+
+[frontmatter_model]
+ts = "views/markdown/properties/frontmatterModel.ts"
+tests_ts = "views/markdown/properties/frontmatterModel.test.ts"
+source = 13
+portes = 13
+non_portes = []
+
+[editor_transforms]
+ts = "views/markdown/editorTransforms.ts"
+tests_ts = "views/markdown/editorTransforms.test.ts"
+source = 43
+portes = 43
+non_portes = []
+
+# ★ Les 4 premiers cas du TS comparent la CHAÎNE HTML sérialisée par DOMPurify (parseur DOM) :
+#   ils sont portés AU NIVEAU DE LA POLITIQUE (mêmes balises/attributs, verdict élément par
+#   élément via `filter_element`). Le test de la sortie sérialisée elle-même reste côté vue.
+[sanitize_html]
+ts = "views/markdown/sanitizeHtml.ts"
+tests_ts = "views/markdown/sanitizeHtml.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# Le montage de l'éditeur CodeMirror (`readOnlyMarkdown(app).mount`) n'a pas de test TS :
+# c'est de la présentation (fragment-ui). Seul `delta` est un modèle pur.
+[read_only_markdown]
+ts = "views/markdown/readOnlyMarkdown.ts"
+tests_ts = "views/markdown/readOnlyMarkdown.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# ★ Rendu → ARBRE de nœuds (pas de DOM) : les cas « liens » et « HTML brut » sont portés
+#   sur l'arbre (`href` résolu, `data-src`, `Node::Html` + politique de sanitize_html) ; le
+#   `click()` → `openLink` et le chargement effectif des images (`loadImage`) sont de la vue.
+[readme_markdown]
+ts = "settings/readmeMarkdown.ts"
+tests_ts = "settings/readmeMarkdown.test.ts"
+source = 4
+portes = 4
+non_portes = []

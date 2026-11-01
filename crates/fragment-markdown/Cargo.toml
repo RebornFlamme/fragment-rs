@@ -7,6 +7,16 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+fragment-text = { path = "../fragment-text" }
+fragment-core = { path = "../fragment-core" }
+serde_json.workspace = true
+# ★ Le YAML du frontmatter (la lib `yaml` du TS) : autorisée d'avance (program.md §4).
+yaml-rust2 = "0.13"
+# ★ `localeCompare(…, { numeric: true, sensitivity: 'base' })` du tri des tableaux : pliage des accents.
+unicode-normalization = "0.1"
+# ★ Les regex littérales du TS (editorTransforms, readmeMarkdown). Hors liste d'avance : déjà
+#   utilisée par fragment-chat, notée dans la PR.
+regex = "1"
 
 # Spike S1 (tests/spike_s1.rs, examples/spike_s1.rs) : GPUI n'est tirée que sous Windows, comme
 # `fragment-ui` — le job `test-linux` n'installe pas les bibliothèques système de GPUI.
