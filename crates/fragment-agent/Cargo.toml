@@ -16,5 +16,8 @@ regex = "1"
 # ★ `Date.parse` des horodatages ISO du transcript (events.rs). Hors liste d'avance : notée dans la PR.
 time = { version = "0.3", default-features = false, features = ["parsing", "std"] }
 
+# ★ `String.prototype.normalize('NFD')` de `idDe` (actions_model.rs). Hors liste d'avance : notée dans la PR.
+unicode-normalization = "0.1"
+
 [lints]
 workspace = true
