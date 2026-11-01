@@ -26,7 +26,7 @@ export default class GlobePlugin {
           render: () => ({
             t: "div",
             style: { w: "100%", h: 200, bg: "primary", rounded: 100 },
-            children: [{ t: "label", text: "globe" }],
+            children: [{ t: "label", text: "globe" }, "globe"],
           }),
         });
         return () => handle.remove();

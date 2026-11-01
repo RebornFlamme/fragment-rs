@@ -26,7 +26,7 @@ export default class Demo {
       side: "right",
       pos: 12,
       dy: 4,
-      render: () => ({ t: "label", text: "compteur " + this.count }),
+      render: () => ({ t: "div", children: ["compteur " + this.count] }),
     });
   }
 
@@ -39,7 +39,8 @@ export default class Demo {
         style: { gap: 8, p: 4 },
         children: [
           { t: "text", value: "ligne " + i },
-          { t: "label", text: "compteur " + this.count },
+          { t: "label", text: "étiquette " + i },
+          "compteur " + this.count,
           { t: "progress", id: "p" + i, value: (i * 7) % 100 },
         ],
       });
