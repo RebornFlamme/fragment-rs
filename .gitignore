@@ -6,3 +6,4 @@
 .beads/*.db*
 .beads/dolt/
 /.beads/redirect
+/.claude/worktrees/
