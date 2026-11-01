@@ -40,12 +40,16 @@ fn suppression_a_bcd_e_vers_a_e() {
 }
 
 #[test]
-fn les_bornes_tombent_sur_une_frontiere_de_caractere_utf8() {
-    // « é » (C3 A9) et « è » (C3 A8) partagent leur premier octet.
-    assert_eq!(text_delta("é", "è"), d(0, 2, 2));
-    assert_eq!(text_delta("aé", "aè"), d(1, 3, 2));
-    // Même chose par la fin : « éa » / « èa », le suffixe commun « a » s'arrête au « a ».
-    assert_eq!(text_delta("éa", "èa"), d(0, 2, 2));
+fn non_ascii_les_positions_sont_des_unites_utf16_comme_le_ts() {
+    // « é » et « è » : UNE unité UTF-16 chacun (le TS : charCodeAt).
+    assert_eq!(text_delta("é", "è"), d(0, 1, 1));
+    assert_eq!(text_delta("aé", "aè"), d(1, 2, 1));
+    assert_eq!(text_delta("éa", "èa"), d(0, 1, 1));
+    // Un émoji pèse DEUX unités (paire de substitution).
+    assert_eq!(text_delta("a😀b", "ab"), d(1, 3, 0));
+    assert_eq!(text_delta("ab", "a😀b"), d(1, 1, 2));
+    // Comme en TS : 😀 (D83D DE00) et 😁 (D83D DE01) partagent leur unité haute.
+    assert_eq!(text_delta("😀", "😁"), d(1, 2, 1));
 }
 
 // map_through_delta — un caractère de l'ancien texte → le nouveau

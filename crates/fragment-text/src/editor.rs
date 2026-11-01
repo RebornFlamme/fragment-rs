@@ -23,8 +23,9 @@
 //  ★ Unité des positions : des `usize`, OPAQUES (la surface décide ce qu'elles
 //    désignent : offset d'une note, `(page−1)·1e6+1+car.` d'un PDF, index + 1
 //    d'une page HTML). Quand une position EST un index dans un texte, c'est un
-//    index d'OCTETS UTF-8 (le TS comptait des unités UTF-16) : c'est l'unité des
-//    `&str` et de tout moteur de texte Rust.
+//    index en UNITÉS DE CODE UTF-16, comme `String.length` en TS (ADR-004) : les
+//    fichiers, les ancres persistées et l'API des plugins parlent cette unité.
+//    Pour découper un `&str`, passer par `crate::utf16`.
 //
 //  Le DOM de la surface (`contentEl`, `scrollEl`, `cm`, `Marker`, `addLayer`)
 //  est de la présentation : il n'entre pas dans ce contrat, fragment-ui le porte.
@@ -34,12 +35,15 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct EditorPosition {
     pub line: usize,
+    /// Colonne dans la ligne, en unités de code UTF-16 (ADR-004).
     pub ch: usize,
 }
 
 /// Une plage de positions absolues dans le document.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub struct EditorRange {
+    /// Positions absolues ; quand la surface est un texte, en unités de code
+    /// UTF-16 (ADR-004).
     pub from: usize,
     pub to: usize,
 }
@@ -64,7 +68,8 @@ pub struct Rect {
 /// supprimé ? » est une information EN PLUS, dont chacun fait ce qu'il veut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MappedPos {
-    /// La position dans le NOUVEAU document — toujours dans les bornes.
+    /// La position dans le NOUVEAU document — toujours dans les bornes (texte :
+    /// unités de code UTF-16, ADR-004).
     pub pos: usize,
     /// Le texte ancré a-t-il disparu ? `pos` est alors le point d'effondrement.
     pub deleted: bool,
@@ -154,6 +159,7 @@ impl std::fmt::Debug for EditorChange {
 /// Une plage remappée par [`map_range`]. `deleted` : le DÉBUT a disparu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MappedRange {
+    /// Positions de la surface (texte : unités de code UTF-16, ADR-004).
     pub from: usize,
     pub to: usize,
     pub deleted: bool,
@@ -271,6 +277,8 @@ pub trait TextSurface: DocumentSurface {
 /// l'identité ; sur une surface à pas fixe (une conversation : une plage par
 /// message), l'index dans `text` n'est pas la position.
 pub struct SurfaceText {
+    /// Le texte ; ses index (`to_pos`, `to_index`) sont en unités de code UTF-16
+    /// (ADR-004) : le découper passe par `crate::utf16`.
     pub text: String,
     to_pos: Box<dyn Fn(usize) -> usize>,
     to_index: Box<dyn Fn(usize) -> usize>,
@@ -299,12 +307,12 @@ impl SurfaceText {
         }
     }
 
-    /// index dans `text` → position (un index entre deux unités : fin de la précédente).
+    /// index UTF-16 dans `text` → position (un index entre deux unités : fin de la précédente).
     pub fn to_pos(&self, index: usize) -> usize {
         (self.to_pos)(index)
     }
 
-    /// position → index dans `text` (bornée à son unité ; hors unité : l'unité suivante).
+    /// position → index UTF-16 dans `text` (bornée à son unité ; hors unité : l'unité suivante).
     pub fn to_index(&self, pos: usize) -> usize {
         (self.to_index)(pos)
     }
@@ -321,6 +329,7 @@ impl std::fmt::Debug for SurfaceText {
 /// Un changement : remplace `[from, to)` par `insert`. `to` absent = insertion.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EditorChangeSpec {
+    /// Positions dans le document d'avant, en unités de code UTF-16 (ADR-004).
     pub from: usize,
     pub to: Option<usize>,
     pub insert: String,
@@ -329,6 +338,7 @@ pub struct EditorChangeSpec {
 /// La sélection voulue APRÈS une transaction. `head` absent = curseur à `anchor`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EditorSelectionSpec {
+    /// Positions dans le document d'après, en unités de code UTF-16 (ADR-004).
     pub anchor: usize,
     pub head: Option<usize>,
 }

@@ -42,8 +42,8 @@ rust = "src/find_passage.rs"
 tests_rust = "tests/find_passage.rs"
 cas_source = 4
 cas_portes = 4
-cas_ajoutes = 0
-note = "Index en octets UTF-8 (TS : unités UTF-16). Le `\\s` de JavaScript est reproduit à l'identique (est_blanc), pas char::is_whitespace."
+cas_ajoutes = 1
+note = "Index en unités de code UTF-16, comme le TS (ADR-004 ; 1 cas non-ASCII ajouté). Le `\\s` de JavaScript est reproduit à l'identique (est_blanc), pas char::is_whitespace."
 
 [[module]]
 source = "ui/core/editor/revealPassage.ts"
@@ -52,8 +52,8 @@ rust = "src/reveal_passage.rs"
 tests_rust = "tests/reveal_passage.rs"
 cas_source = 5
 cas_portes = 5
-cas_ajoutes = 0
-note = "Seul le modèle pur locatePassage est porté (revealPassage : surlignage + défilement = présentation). findQuote (artefacts/anchor.ts) est injecté par le trait QuoteFinder ; find_quote_exact fournit l'étage « à l'identique », la cascade complète viendra de fragment-artefacts."
+cas_ajoutes = 1
+note = "Positions en unités UTF-16 (ADR-004 ; 1 cas non-ASCII ajouté). Seul le modèle pur locatePassage est porté (revealPassage : surlignage + défilement = présentation). findQuote (artefacts/anchor.ts) est injecté par le trait QuoteFinder ; find_quote_exact fournit l'étage « à l'identique », la cascade complète viendra de fragment-artefacts."
 
 [[module]]
 source = "ui/core/editor/rangeHighlights.ts"
@@ -93,7 +93,7 @@ tests_rust = "tests/text_delta.rs"
 cas_source = 0
 cas_portes = 0
 cas_ajoutes = 8
-note = "Pas de fichier de tests TS : cas écrits d'après le contrat et les données de htmlTextModel.test.ts. ★ Comparaison par octets, bornes ramenées à une frontière de caractère UTF-8."
+note = "Pas de fichier de tests TS : cas écrits d'après le contrat et les données de htmlTextModel.test.ts. ★ Comparaison unité UTF-16 par unité, comme le TS (ADR-004) ; un cas non-ASCII (é, émojis) en tient lieu."
 
 [[module]]
 source = "shared/htmlBridge.ts (partie pure)"
@@ -102,8 +102,8 @@ rust = "src/html_bridge.rs"
 tests_rust = "tests/html_bridge.rs"
 cas_source = 7
 cas_portes = 5
-cas_ajoutes = 5
-note = "inject_html_bridge prend le script en paramètre (le script JS du pont n'est pas porté) ; flatten_page porte la fonction `aplatir` du script sur un arbre de nœuds minimal (5 cas ajoutés, dont la page e2e `texte.html` de html-text.spec.ts)."
+cas_ajoutes = 6
+note = "inject_html_bridge prend le script en paramètre (le script JS du pont n'est pas porté) ; flatten_page porte la fonction `aplatir` du script sur un arbre de nœuds minimal (6 cas ajoutés : la page e2e `texte.html` de html-text.spec.ts et un cas non-ASCII)."
 
 [[module.non_porte]]
 cas = "le script est du JS valide"
@@ -120,10 +120,11 @@ rust = "src/html_text_model.rs"
 tests_rust = "tests/html_text_model.rs"
 cas_source = 9
 cas_portes = 9
-cas_ajoutes = 0
+cas_ajoutes = 2
+note = "Positions, colonnes et segments en unités UTF-16 (ADR-004) ; 2 cas non-ASCII ajoutés."
 
 [total]
 cas_source = 40
 cas_portes = 38
 cas_non_portes = 2
-cas_ajoutes = 13
+cas_ajoutes = 17

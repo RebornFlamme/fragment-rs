@@ -74,39 +74,42 @@ pub(crate) fn trim_js(s: &str) -> &str {
     s.trim_matches(est_blanc)
 }
 
-/// Les occurrences de `passage` dans `text`, blancs repliés, en index (octets) du
-/// texte d'ORIGINE. Pur.
+/// Les occurrences de `passage` dans `text`, blancs repliés, en index UTF-16
+/// (ADR-004) du texte d'ORIGINE. Pur.
 pub fn find_in_text(text: &str, passage: &str) -> Vec<TextMatch> {
     let cherche = trim_js(&replier(passage)).to_owned();
     if cherche.is_empty() {
         return Vec::new();
     }
-    // Le texte replié, et pour chaque OCTET replié l'index d'origine (un
-    // caractère multi-octets garde ses octets consécutifs : la fin d'une
-    // occurrence se relit par son dernier octet + 1).
+    // Le texte replié, et pour chaque OCTET replié le couple (début, fin) UTF-16 du
+    // caractère d'origine — un caractère multi-octets répète le sien. Comme en TS,
+    // un blanc replié se relit par son premier blanc + 1.
     let mut plie = String::with_capacity(text.len());
-    let mut origine: Vec<usize> = Vec::with_capacity(text.len());
+    let mut origine: Vec<(usize, usize)> = Vec::with_capacity(text.len());
     let mut blanc = false;
-    for (i, c) in text.char_indices() {
+    let mut u = 0;
+    for c in text.chars() {
+        let l = c.len_utf16();
         if est_blanc(c) {
             if !blanc {
                 plie.push(' ');
-                origine.push(i);
+                origine.push((u, u + 1));
             }
             blanc = true;
         } else {
             plie.push(c);
-            origine.extend(i..i + c.len_utf8());
+            origine.extend(std::iter::repeat_n((u, u + l), c.len_utf8()));
             blanc = false;
         }
+        u += l;
     }
     let mut out = Vec::new();
     let mut depuis = 0;
     while let Some(rel) = plie[depuis..].find(cherche.as_str()) {
         let k = depuis + rel;
         out.push(TextMatch {
-            start: origine[k],
-            end: origine[k + cherche.len() - 1] + 1,
+            start: origine[k].0,
+            end: origine[k + cherche.len() - 1].1,
         });
         depuis = k + cherche.len();
     }

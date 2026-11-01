@@ -22,6 +22,8 @@ use crate::editor::{Assoc, MappedPos, map_range};
 
 /// Ce que la règle a besoin de lire et d'écrire sur une ancre.
 pub trait TextAnchored: Sized {
+    // Les positions de la plage sont celles de la surface (texte : unités de code
+    // UTF-16, ADR-004) ; la règle ne les interprète pas.
     /// La plage suivie : `(pos, to)` — `to` absent = un point. `None` : une ancre
     /// à l'écran (`viewport`), qui ne suit pas le texte.
     fn span(&self) -> Option<(usize, Option<usize>)>;

@@ -7,8 +7,9 @@
 //! traits que les surfaces implémentent (`DocumentSurface`, `TextSurface`,
 //! `Editor`).
 //!
-//! ★ Les positions qui SONT des index dans un texte sont des index d'OCTETS
-//!   UTF-8 (le TS comptait des unités UTF-16) : voir `editor.rs`.
+//! ★ Les positions qui SONT des index dans un texte sont des index en UNITÉS DE
+//!   CODE UTF-16, comme `String.length` en TS (ADR-004) : le module `utf16` est LA
+//!   conversion avec les octets d'un `&str`.
 
 pub mod editor;
 pub mod find_passage;
@@ -18,6 +19,7 @@ pub mod map_anchor;
 pub mod range_highlights;
 pub mod reveal_passage;
 pub mod text_delta;
+pub mod utf16;
 pub mod viewport;
 pub mod visibility;
 
@@ -38,5 +40,6 @@ pub use reveal_passage::{
     PASSAGE_KEY, PassageRef, QuoteFinder, find_quote_exact, locate_passage, locate_passage_with,
 };
 pub use text_delta::{MappedChar, TextDelta, map_through_delta, text_delta};
+pub use utf16::{byte_to_utf16, slice_utf16, utf16_len, utf16_to_byte};
 pub use viewport::{Bande, ViewportBand, Vp, bande, bande_appropriee, biais};
 pub use visibility::{PosVisibility, pos_visibility};
