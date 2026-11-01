@@ -16,56 +16,56 @@
       "done": "chaque it/test TS a son #[test] du même nom ; vert en CI ; parite.toml de la crate rempli (docs/parite-tests.md est régénéré par le chef) ; PR fusionnée"
     },
     {
-      "id": "fr-p1-text", "parent": "fr-p1", "title": "p1-text : fragment-text", "voie": "C",
+      "id": "fr-p1-text", "parent": "fr-p1", "title": "p1-text : fragment-text", "voie": "B",
       "reference": "R\\ui\\core\\editor\\viewport.ts, findPassage.ts, revealPassage.ts (modèle locatePassage), rangeHighlights.ts, mapRange.test.ts, R\\ui\\core\\layers\\mapAnchor.test.ts, R\\shared\\htmlBridge.ts (partie pure), R\\ui\\views\\html\\htmlTextModel.ts, R\\ui\\core\\editor\\textDelta.ts",
       "owns": "crates/fragment-text/**",
       "verify": "cargo test -p fragment-text ; clippy -D warnings",
       "done": "cas TS portés un pour un ; vert en CI ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-layers", "parent": "fr-p1", "title": "p1-layers : fragment-layers (modèle)", "voie": "C", "deps": ["fr-p1-text"],
+      "id": "fr-p1-layers", "parent": "fr-p1", "title": "p1-layers : fragment-layers (modèle)", "voie": "B", "deps": ["fr-p1-text"],
       "reference": "R\\ui\\core\\layers\\gutterStack.ts, GutterArbiter.ts, WidgetActivation.ts, WidgetLayer.ts (MODÈLE seulement : ancres, remappage, bande)",
       "owns": "crates/fragment-layers/**",
       "verify": "cargo test -p fragment-layers ; clippy -D warnings",
       "done": "cas TS portés ; la présentation de WidgetLayer listée comme non portée (phase 3) dans le parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-core-a", "parent": "fr-p1", "title": "p1-core-a : fragment-core (commandes, registres, clavier, utilitaires)", "voie": "C",
+      "id": "fr-p1-core-a", "parent": "fr-p1", "title": "p1-core-a : fragment-core (commandes, registres, clavier, utilitaires)", "voie": "B",
       "reference": "R\\ui\\core\\CommandManager.ts, RegistryHub.ts, plugins.ts (modèle d'activation), keymap\\keymap.ts, captureHotkey.ts, swipe.ts, fuzzySearch.ts, lru.ts, diffMinimal.ts, frontmatter.ts, links\\resolveLink.ts, plugins\\registry\\semver.ts",
       "owns": "crates/fragment-core/src/lib.rs, crates/fragment-core/src/{command,registry_hub,plugins,keymap,capture_hotkey,swipe,fuzzy_search,lru,diff_minimal,frontmatter,resolve_link,semver}.rs, crates/fragment-core/Cargo.toml",
       "verify": "cargo test -p fragment-core ; clippy -D warnings",
       "done": "cas TS portés ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-core-b", "parent": "fr-p1", "title": "p1-core-b : fragment-core (workspace, documents, divers)", "voie": "C", "deps": ["fr-p1-core-a"],
+      "id": "fr-p1-core-b", "parent": "fr-p1", "title": "p1-core-b : fragment-core (workspace, documents, divers)", "voie": "B", "deps": ["fr-p1-core-a"],
       "reference": "R\\ui\\core\\workspace\\layout.ts, LeafHistory.ts, breadcrumb.ts, documents\\DocumentManager.ts, documentKey.ts, embed\\embedDocument.ts (résolution), vault\\attachments.ts, settings\\theme.ts, window\\zoom.ts, DragManager.ts (2 échecs préexistants : reproduire ou documenter), external\\dispatch.ts, cli\\dispatch.ts, api.ts / public-api.ts (test de parité avec docs/contrats.md)",
       "owns": "crates/fragment-core/src/lib.rs (ajout de modules seulement), crates/fragment-core/src/{workspace,leaf_history,breadcrumb,documents,document_key,embed,attachments,theme_setting,zoom,drag,dispatch,api}.rs, crates/fragment-core/tests/contrats.rs",
       "verify": "cargo test -p fragment-core ; clippy -D warnings",
       "done": "cas TS portés ; test de parité des exports contre docs/contrats.md ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-cli", "parent": "fr-p1", "title": "p1-cli : fragment-cli", "voie": "C",
+      "id": "fr-p1-cli", "parent": "fr-p1", "title": "p1-cli : fragment-cli", "voie": "B",
       "reference": "R\\shared\\cli\\protocol.ts, instanceIndex.ts, shim.ts, vaultRegistry.ts, R\\shared\\vaultPath.ts, R\\cli\\clientPur.ts, R\\ui\\core\\coreCommands\\cliServer.ts, R\\electron\\secrets.ts (modèle)",
       "owns": "crates/fragment-cli/**",
       "verify": "cargo test -p fragment-cli ; clippy -D warnings",
       "done": "cas TS portés ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-markdown", "parent": "fr-p1", "title": "p1-markdown : fragment-markdown (modèles)", "voie": "C", "deps": ["fr-p1-core-a"],
+      "id": "fr-p1-markdown", "parent": "fr-p1", "title": "p1-markdown : fragment-markdown (modèles)", "voie": "B", "deps": ["fr-p1-core-a"],
       "reference": "R\\ui\\views\\markdown\\table\\tableModel.ts, properties\\frontmatterModel.ts, editorTransforms.ts, sanitizeHtml.ts (la POLITIQUE), readOnlyMarkdown.ts (modèle), R\\ui\\settings\\readmeMarkdown.ts (rendu → arbre)",
       "owns": "crates/fragment-markdown/**",
       "verify": "cargo test -p fragment-markdown ; clippy -D warnings",
       "done": "cas TS portés ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-pdf", "parent": "fr-p1", "title": "p1-pdf : fragment-pdf (modèles)", "voie": "C",
+      "id": "fr-p1-pdf", "parent": "fr-p1", "title": "p1-pdf : fragment-pdf (modèles)", "voie": "B",
       "reference": "R\\ui\\views\\pdf\\pdfGeometry.ts, pdfZoom.ts, pdfOutline.ts, pdfFindOffsets.ts, PdfEditor.ts (modèle des positions (page−1)·1e6+1+car.)",
       "owns": "crates/fragment-pdf/**",
       "verify": "cargo test -p fragment-pdf ; clippy -D warnings",
       "done": "cas TS portés (pas de pdfium à ce stade) ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-chat", "parent": "fr-p1", "title": "p1-chat : fragment-chat (modèles)", "voie": "C", "deps": ["fr-p1-text"],
+      "id": "fr-p1-chat", "parent": "fr-p1", "title": "p1-chat : fragment-chat (modèles)", "voie": "B", "deps": ["fr-p1-text"],
       "reference": "R\\ui\\views\\chat\\ChatSession.ts, chatSurfaceModel.ts, scroll\\followModel.ts, rail.ts, searchModel.ts, components\\historyModel.ts, postModel.ts, format.ts",
       "owns": "crates/fragment-chat/**",
       "verify": "cargo test -p fragment-chat ; clippy -D warnings",
@@ -79,7 +79,7 @@
       "done": "cas TS portés ; parite.toml de la crate ; PR fusionnée"
     },
     {
-      "id": "fr-p1-divers", "parent": "fr-p1", "title": "p1-divers : annotation, snap, theme, plugins (modèles)", "voie": "C", "deps": ["fr-p1-core-a"],
+      "id": "fr-p1-divers", "parent": "fr-p1", "title": "p1-divers : annotation, snap, theme, plugins (modèles)", "voie": "B", "deps": ["fr-p1-core-a"],
       "reference": "R\\ui\\views\\annotation\\{geometry,shapes,AnnotationSession,AnnotationPersistence}.ts, views\\artefacts\\menuModel.ts, views\\doc-widget\\{anchorLink,clusterFilter}.ts, snap\\snapModel.ts, theme\\themeModel.ts, plugins\\registry\\GithubRegistrySource.ts (faux dépôt), coreCommands\\WorkspaceCommandsPlugin.ts (modèle de marge), views\\command-palette\\CommandPalettePlugin.ts (filtrage), core\\Toolbar.ts (modèle des sections), settings\\Setting.ts, SettingPage.ts, SecretStorage.ts, definitionTree.test.ts — vérifier les chemins par Glob",
       "owns": "crates/fragment-annotation/**, crates/fragment-snap/**, crates/fragment-theme/**, crates/fragment-plugins/**",
       "verify": "cargo test -p fragment-annotation -p fragment-snap -p fragment-theme -p fragment-plugins ; clippy -D warnings",

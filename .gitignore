@@ -5,5 +5,4 @@
 /pixels/.out/
 .beads/*.db*
 .beads/dolt/
-/fragment-ref/
 /.beads/redirect

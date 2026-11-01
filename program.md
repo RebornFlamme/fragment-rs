@@ -20,7 +20,7 @@
 | Éditeur de Zed | **NON** vendorisé (GPL-3, incompatible MIT). GPUI seul est Apache-2. | On construit l'éditeur live preview sur les primitives texte de gpui-kit / GPUI. |
 | Registre des tâches | **Beads** (`bd`), préfixe `fr-` | Dépendances, `bd ready`, claim atomique, hooks Claude Code, Windows. |
 | Orchestration | Agent Teams natifs de Claude Code (lead = chef, équipiers Sonnet, sous-agents Haiku) | Gas Town exige tmux/WSL et vise 20-30 agents : hors budget. Pas d'équipes imbriquées : un équipier délègue à des SOUS-AGENTS, pas à une équipe. |
-| Budget | **Trois voies** (§2) : l'abonnement Max (fenêtres 5 h / hebdo) pour l'orchestrateur et le chef, **250 $ de crédits cloud** pour les équipiers en sessions cloud, **les crédits API** pour le mécanique en masse dans GitHub Actions. Sur l'abonnement : pause stricte, usage supplémentaire payant DÉSACTIVÉ. | Décision utilisateur (01/11). Les deux voies à crédits ne touchent pas aux fenêtres de l'abonnement : c'est là que va le volume. |
+| Budget | **Deux voies** (§2) : l'abonnement Max (fenêtres 5 h / hebdo) pour l'orchestrateur et le chef, **250 $ de crédits cloud** pour les équipiers en sessions cloud (volume ET mécanique). **Pas de clé API** : la voie « GitHub Actions + `claude -p` » est ABANDONNÉE (décision utilisateur 01/11 : « l'API ça me fait peur »). Sur l'abonnement : pause stricte, usage supplémentaire payant DÉSACTIVÉ. | Les crédits cloud ne touchent pas aux fenêtres de l'abonnement : c'est là que va tout le volume. GitHub Actions ne sert qu'à COMPILER et TESTER. |
 | Compilation lourde | GitHub Actions (Windows + Linux). En local : `cargo check -p` / `cargo test -p` des crates pures seulement. | Un portable sous OneDrive ne compile pas GPUI en boucle pour 10 agents. |
 | Référence | Le dépôt Fragment : `C:\Users\julie\OneDrive\Documents\Projects\Fragment` — **LECTURE SEULE** pour toute session de ce programme. | On lit la spec, on n'y écrit jamais. |
 
@@ -52,9 +52,11 @@ Orchestrateur (Fable 5.1, session « Fragment »)
 
 **Voie B — Crédits cloud (250 $).** Les équipiers de phases 1 à 3 tournent en **sessions cloud** (le chef les démarre par `start_session` avec `target: "cloud"`, dépôt GitHub public requis — c'est fait — et un environnement cloud configuré dans l'app). Une session cloud continue quand le portable dort et n'envoie pas de note de fin : le point de synchronisation est le registre (Beads) et `gh pr list`. ★ À la PREMIÈRE session cloud, le chef lit `get_usage` avant et après : si les fenêtres Max ne bougent pas, la voie B est confirmée et prend tout le volume ; sinon il le note au journal et l'orchestrateur tranche. Modèle : Sonnet 5.5. Les sessions cloud partent de la branche par défaut du dépôt (`main`) : une tâche = une branche = une PR, comme en local.
 
-**Voie C — Crédits API (GitHub Actions).** Le MÉCANIQUE en masse (phase 1 : traduction des 99 modules tests-d'abord ; phase 4 : les tables de parité) tourne dans un workflow `port.yml` (`workflow_dispatch`, input `task=fr-xxxx`) : checkout, lecture du bead, `claude -p "<brief>" --model claude-sonnet-5-5 --max-budget-usd 3` (le drapeau de budget si la version du runner l'offre, sinon `--max-turns`), avec `ANTHROPIC_API_KEY` en secret du dépôt que **l'utilisateur pose lui-même** (`gh secret set ANTHROPIC_API_KEY`) — jamais un agent, jamais dans un fichier. Le job pousse `task/<id>` et ouvre la PR ; la CI normale la vérifie. Pas d'Agent Team en mode `-p` (un job = un agent) : c'est voulu. Le chef lance jusqu'à 6 jobs en parallèle, note le nombre de jobs et le plafond par job dans le journal ; le solde API se lit sur la console Anthropic (l'orchestrateur le demande à l'utilisateur en fin de journée).
+**Voie C — ABANDONNÉE (01/11).** Il n'y a PAS de clé API dans ce programme : pas de `port.yml`, pas de `claude -p` en Actions, pas de secret `ANTHROPIC_API_KEY`. Si un `port.yml` existe, le supprimer. Le mécanique (phase 1 : les 99 modules tests-d'abord ; phase 4 : les tables) va en voie B, par LOTS : une session cloud Sonnet reçoit un groupe entier du §5.1 (ex. `p1-chat`, 8 modules) et enchaîne les modules dans la même session, un commit par module, une PR par groupe.
 
-**Règle d'affectation.** Mécanique, bien spécifié, oracle = tests → voie C. Tâche d'un jour avec jugement (spike, tranche) → voie B. Coordination, revue, fusion, décision → voie A. En cas de doute : B.
+**La référence TS depuis le cloud.** Le dépôt Fragment est PRIVÉ sur GitHub et n'est pas sur la machine d'une session cloud. À la PREMIÈRE session cloud, le chef lui fait vérifier `gh repo view RebornFlamme/Fragment` : si l'app GitHub de Claude a accès au dépôt, la session le clone en lecture dans `/tmp/Fragment` et lit la référence là. Sinon, le chef remonte à l'orchestrateur, qui demande à l'utilisateur SOIT d'autoriser l'app GitHub de Claude sur le dépôt Fragment, SOIT de poser un jeton fine-grained en lecture seule (`Contents: read` sur Fragment uniquement) comme variable d'environnement `FRAGMENT_READ_TOKEN` de l'ENVIRONNEMENT CLOUD (pas un secret du dépôt public). Jamais une copie des sources de Fragment dans `fragment-rs` : le dépôt est public, Fragment est privé.
+
+**Règle d'affectation.** Tout ce qui écrit du code → voie B (cloud, Sonnet). Coordination, revue, fusion, décision → voie A. Un équipier LOCAL seulement si le cloud est indisponible et que la marge de la fenêtre 5 h le permet.
 
 **Lecture (voie A).** Le chef lit l'usage par l'outil de l'app `mcp__ccd_session_mgmt__get_usage` (champs `percentUsed`, `resetsIn`, `resetsAt` par fenêtre) : AVANT chaque vague, et à chaque fin de tâche d'un équipier.
 
@@ -99,7 +101,6 @@ fragment-rs/
   .cargo/config.toml         # [build] target-dir = "C:/dev/fragment-rs-target" (hors OneDrive) ; [alias] xtask
   .github/workflows/ci.yml   # fmt, clippy -D warnings, test (ubuntu + windows), cache
   .github/workflows/build.yml# binaire Windows en artifact sur main
-  .github/workflows/port.yml # voie C : `claude -p` sur une tâche Beads, ouvre une PR (secret ANTHROPIC_API_KEY posé par l'utilisateur)
   .claude/settings.json      # agent teams, modèle des sous-agents, permissions
   CLAUDE.md                  # court : renvoie ici + conventions Rust
   program.md                 # CE FICHIER
@@ -151,7 +152,7 @@ fragment-rs/
 ### Phase 0 — Amorçage (chef + 1 équipier, ≤ 1 vague)
 
 Livrables :
-0. L'utilisateur pose le secret API (`gh secret set ANTHROPIC_API_KEY -R RebornFlamme/fragment-rs`) et vérifie qu'un environnement cloud existe dans l'app ; le chef le lui demande via l'orchestrateur dès que le dépôt existe, et n'attend pas pour le reste.
+0. L'utilisateur vérifie qu'un environnement cloud existe dans l'app et que les sessions cloud peuvent lire le dépôt Fragment (§2, « La référence TS depuis le cloud ») ; le chef le lui demande via l'orchestrateur dès que le dépôt existe, et n'attend pas pour le reste. Aucune clé API, jamais.
 1. Dépôt créé (`gh repo create RebornFlamme/fragment-rs --public --source . --push`), workspace Cargo avec toutes les crates VIDES (un `lib.rs` par crate), `fragment-app` = une fenêtre gpui-kit « Fragment » avec un dock vide. CI verte, `build.yml` produit l'artifact.
 2. Beads initialisé, épics `fr-p0`…`fr-p4`, tâches de la phase 1 créées (une par groupe du §5.1) avec dépendances.
 3. `docs/contrats.md` : pour CHAQUE export de `Fragment/app/src/ui/core/public-api.ts` (≈ 150 noms) et chaque registre `*@1` (19, déclarés dans les `api.ts`/`contract.ts` des plugins), la forme Rust (trait / struct / enum / « présentation, pas de contrat ») et la crate. C'est le contrat gelé : un changement = ADR.
@@ -161,7 +162,7 @@ Livrables :
 
 Porte : CI verte sur `main`, `bd ready` rend les tâches de phase 1, `docs/contrats.md` relu par le chef sans trou. L'orchestrateur valide par lecture du journal.
 
-### Phase 1 — Les modules purs, tests d'abord (voie C en masse + 1 équipier cloud pour les gros, 2 à 3 vagues)
+### Phase 1 — Les modules purs, tests d'abord (sessions cloud Sonnet, un groupe par session, 3 en parallèle, 2 à 3 vagues)
 
 99 paires `x.ts` / `x.test.ts` dans Fragment = 15 766 lignes TS, 9 096 lignes de tests. Règle : **traduire le fichier de tests d'abord** (un `#[test]` par `it`/`test`, MÊME nom en snake_case, mêmes données), puis l'implémentation jusqu'au vert. Un test TS non portable (DOM) est listé dans `docs/parite-tests.md` avec la raison. Les sous-agents Haiku traduisent les tests ; l'équipier Sonnet implémente.
 
@@ -251,8 +252,7 @@ Une TRANCHE est finie quand toutes ses scènes passent. Pas de « on verra le pi
 | Phase 0 complète | chef | `pwsh scripts/bootstrap.ps1` (crée le dépôt public, le workspace, la CI, Beads, pousse ; idempotent ; écrit `docs/journal.md` entrée 0). Le chef ÉCRIT ce script en premier, puis le lance. |
 | Lire l'état d'une vague | chef | `pwsh scripts/wave.ps1` → `bd ready`, `bd list --status in_progress`, PR ouvertes (`gh pr list`), dernier run CI, à coller dans le journal avec l'usage (`get_usage`). |
 | Lire un échec CI | tous | `pwsh scripts/ci.ps1 <pr-number>` → statut des jobs + `--log-failed` du premier job rouge, tronqué à 200 lignes. |
-| Lancer une tâche mécanique en voie C | chef | `gh workflow run port.yml -f task=fr-xxxx` puis `gh run list --workflow=port.yml` ; la PR arrive seule. |
-| Lancer un équipier en voie B | chef | `start_session` (`target: "cloud"`, `model: claude-sonnet-5-5`, brief ≤ 400 mots, `bd update <id> --claim` fait par le chef AVANT). |
+| Lancer un équipier en voie B | chef | `start_session` (`target: "cloud"`, `model: claude-sonnet-5-5`, brief ≤ 400 mots, `bd update <id> --claim` fait par le chef AVANT ; un groupe entier du §5.1 par session en phase 1). |
 | Vérifier une crate pure | équipier | `cargo test -p <crate>` (local ou cloud, rapide). |
 | Vérifier le reste | équipier | `git push` → CI. Jamais `cargo build -p fragment-app` en local. |
 | Fusionner | chef | `gh pr merge <n> --squash --delete-branch` après lecture du diff (`gh pr diff <n>`). |

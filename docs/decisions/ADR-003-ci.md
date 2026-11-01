@@ -23,7 +23,7 @@
 
 **`build.yml`** (push sur `main`) : `cargo build --release -p fragment-app --bin fragment` sous Windows, artifact `fragment-rs-win-x64` (zip : `fragment.exe` + LICENSE).
 
-**`port.yml`** (voie C, manuel, input `task`) : lit la tâche dans `.beads-export/issues.jsonl` (ADR-002), monte la référence Fragment dans `fragment-ref/` si le secret `FRAGMENT_READ_TOKEN` existe (★ Fragment est un dépôt PRIVÉ), lance `claude -p … --model claude-sonnet-5-5 --max-budget-usd <budget> --dangerously-skip-permissions` (le drapeau de budget existe dans Claude Code 2.1.316), pousse `task/<id>` et ouvre la PR. Secrets posés par l'utilisateur seul.
+**Pas de workflow agent.** Décision utilisateur (01/11) : aucune clé API dans ce programme ; GitHub Actions ne fait que compiler et tester. Le portage se fait en sessions cloud (program.md §2).
 
 **Pixels.** La capture passe par `Window::render_to_image` (feature `test-support` de GPUI) dans une vraie fenêtre : DirectX rend dans une texture hors écran puis la relit ; sur un runner sans GPU, l'adaptateur est WARP. Phase 0 : la scène `fenetre-vide` est capturée deux fois et les deux images sont comparées (attendu : 0 pixel), et le nombre de couleurs distinctes est journalisé (une image unie trahirait un rendu absent).
 

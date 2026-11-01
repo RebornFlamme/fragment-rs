@@ -166,7 +166,7 @@ if (-not $SansBeads) {
             if ($d) { bd dep add $x.id $d 2>$null | Out-Null }
         }
     }
-    # Export commité : la CI (port.yml) et les sessions cloud lisent les tâches ici.
+    # Export commité : les sessions cloud lisent les tâches ici (ADR-002).
     New-Item -ItemType Directory -Force '.beads-export' | Out-Null
     Natif @('bd', 'export', '-o', '.beads-export/issues.jsonl')
     Natif @('git', 'add', '.beads-export/issues.jsonl', '.claude', 'CLAUDE.md')
@@ -180,4 +180,4 @@ if (-not $SansBeads) {
 }
 
 Etape 'Fini'
-Write-Host "Rappel (utilisateur, une fois) : gh secret set ANTHROPIC_API_KEY -R $Depot ; gh secret set FRAGMENT_READ_TOKEN -R $Depot (lecture seule de RebornFlamme/Fragment)."
+Write-Host "Rappel (utilisateur) : un environnement cloud doit exister dans l'app et pouvoir lire RebornFlamme/Fragment (program.md §2). Aucune clé API."
