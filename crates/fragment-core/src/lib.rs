@@ -19,3 +19,9 @@ pub use frontmatter::parse_front_matter_string_array;
 pub use lru::Lru;
 pub use semver::{compare_versions, is_newer_version};
 pub use swipe::{SWIPE_LEFT, SWIPE_RIGHT, SWIPE_SEUIL, SwipeDetector, SwipeDirection};
+pub mod fuzzy_search;
+pub mod resolve_link;
+pub use fuzzy_search::{
+    FuzzyMatch, FuzzySearch, SearchMatches, SearchResult, prepare_fuzzy_search,
+};
+pub use resolve_link::{LinkFile, LinkVault, ParsedLink, parse_linktext, resolve_link};
