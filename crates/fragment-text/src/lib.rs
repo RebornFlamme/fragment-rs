@@ -1,3 +1,19 @@
-//! TextSurface/DocumentSurface/SurfaceText, positions et plages, mapRange/mapAnchor, rangeHighlights, viewport, findPassage, revealPassage, textDelta.
+//! TextSurface/DocumentSurface/SurfaceText, positions et plages, mapRange/mapAnchor,
+//! rangeHighlights, viewport, findPassage, revealPassage, textDelta, modèle de texte HTML.
 //!
-//! Crate VIDE en phase 0 : les modules arrivent avec les tâches de phase 1 (program.md §5).
+//! Port des modules PURS de `app/src/ui/core/editor/` (et de leurs voisins) de
+//! Fragment. Rien ici ne connaît une vue par son nom ni un moteur de rendu :
+//! la crate parle en positions opaques, en rectangles document-relatifs et en
+//! traits que les surfaces implémentent (`DocumentSurface`, `TextSurface`,
+//! `Editor`).
+//!
+//! ★ Les positions qui SONT des index dans un texte sont des index d'OCTETS
+//!   UTF-8 (le TS comptait des unités UTF-16) : voir `editor.rs`.
+
+pub mod editor;
+
+pub use editor::{
+    Assoc, ChangeOrigin, DocumentSurface, Editor, EditorChange, EditorChangeSpec, EditorPosition,
+    EditorRange, EditorSelectionSpec, EditorTransactionSpec, FullText, MapPos, MappedPos,
+    MappedRange, Rect, SurfaceText, TextSurface, full_text, has_text, is_editable, map_range,
+};
