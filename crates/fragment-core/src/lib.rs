@@ -57,3 +57,71 @@ pub use plugins::{
     CatalogEntry, CommunityLoader, Listing, PluginAssets, PluginCtor, PluginError,
     PluginRegistrySource, PluginStorage, PluginUpdate, Plugins, SourceId, id_plugin_valide,
 };
+
+// ─── Seconde moitié (fr-p1-core-b) : documents, workspace (données), divers ───
+pub mod breadcrumb;
+pub mod document_key;
+pub mod documents;
+pub mod leaf_history;
+pub mod workspace;
+pub use breadcrumb::{
+    BREADCRUMB_MAX_DEPTH, BreadcrumbFolder, BreadcrumbSegment, ancestor_folders,
+    breadcrumb_segments,
+};
+pub use document_key::{
+    DocumentKey, ParsedDocumentKey, format_document_key, is_under, is_vault_key, move_key,
+    parse_document_key,
+};
+pub use documents::{
+    DocumentError, DocumentEvent, DocumentEventType, DocumentManager, DocumentProvider,
+    EventOrigin, OWNER_CORE,
+};
+pub use leaf_history::{HISTORY_MAX, HistoryEntry, LeafHistory};
+pub use workspace::layout::{
+    LayoutNode, LeafLayout, SplitLayout, TabsLayout, WorkspaceLayout, is_workspace_layout,
+};
+pub use workspace::{OpenViewState, SplitDirection, ViewState, ViewStateResult};
+pub mod attachments;
+pub mod debounce;
+pub mod dispatch;
+pub mod drag;
+pub mod embed;
+pub mod external;
+pub mod platform;
+pub mod secret_storage;
+pub mod settings;
+pub mod theme_setting;
+pub mod window_host;
+pub mod zoom;
+pub use attachments::{
+    AttachmentLocation, LocalDateTime, attachment_folder_for, extension_for_mime, pasted_image_name,
+};
+pub use debounce::{Debouncer, debounce};
+pub use dispatch::{ExternalCommands, dispatch_external, executer_requete_cli, handle_protocol};
+pub use drag::{DragData, DragHost, DragManager, DropExternal, FileMove, GHOST_OFFSET};
+pub use embed::{
+    EMPTY_VIEW_TYPE, EmbedHost, EmbedKind, MAX_EMBED_DEPTH, WheelDelta, embed_kind, wheel_pixels,
+};
+pub use external::{
+    EXTERNAL_HANDLER_ERROR, EXTERNAL_UNKNOWN, ExternalCommandSpec, ExternalError, ExternalHandler,
+    ExternalParams, ExternalResult, HandlerError,
+};
+pub use platform::{PLATFORM, PlatformFlags};
+pub use secret_storage::{SecretError, SecretStorage};
+pub use settings::{
+    SettingColorControl, SettingControl, SettingControlBase, SettingDefinition,
+    SettingDefinitionAction, SettingDefinitionAddItem, SettingDefinitionBase,
+    SettingDefinitionControl, SettingDefinitionEmpty, SettingDefinitionGroup,
+    SettingDefinitionItem, SettingDefinitionList, SettingDefinitionPage, SettingDefinitionTree,
+    SettingDropdownControl, SettingExtraButtonControl, SettingFileControl, SettingFolderControl,
+    SettingGroupItem, SettingNumberControl, SettingSecretControl, SettingSliderControl,
+    SettingTextAreaControl, SettingTextControl, SettingToggleControl, SettingTreeNode,
+};
+pub use theme_setting::{
+    ANCIEN_ACCENT_PAR_DEFAUT, SchemaCouleurs, SchemaEffectif, accent_choisi, schema_effectif,
+};
+pub use window_host::{CaptureRect, WindowHost, WindowHostError};
+pub use zoom::{
+    SensZoom, ZOOM_DEFAUT, ZOOM_MAX, ZOOM_MIN, ZOOM_PALIERS, format_zoom, normaliser_zoom,
+    normaliser_zoom_valeur, zoom_suivant,
+};

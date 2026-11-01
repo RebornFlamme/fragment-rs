@@ -187,3 +187,182 @@ cas_source = 6
 cas_portes = 6
 cas_ajoutes = 0
 notes = "capture_hotkey(keymap, on_result) → disposer ; la portée se dépile depuis son propre handler via un lien faible. find_hotkey_conflict prend les commandes et la fonction hotkeys_for_command (les deux fakes du test TS) plutôt qu'un App."
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Seconde moitié — tâche fr-p1-core-b (documents, workspace en données, divers)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[module]]
+ts = "app/src/ui/core/documents/documentKey.ts"
+rs = "crates/fragment-core/src/document_key.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 2
+notes = "★ Source unique de is_vault_key / move_key / is_under (fragment-artefacts en a des copies ★ à supprimer). DocumentKey = newtype de String, sérialisé comme la chaîne nue. Les fonctions prennent &str."
+
+[[module]]
+ts = "app/src/ui/core/documents/DocumentManager.ts + documents/types.ts"
+rs = "crates/fragment-core/src/documents.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 1
+notes = "Source unique de DocumentEvent / EventOrigin (fragment-artefacts : copies ★). DocumentEvent gagne `folder: bool` (le `folder?` du TS) que la copie d'artefacts n'a pas. `register` rend Result (les `throw` du TS) ; `on` est typé par DocumentEventType. Le `console.warn` n'est pas capturé : on vérifie que l'abonné n'est pas appelé."
+
+[[module.non_portes]]
+quoi = "vaultProvider.ts (le coffre comme fournisseur du schéma vide)"
+pourquoi = "dépend du Vault, hors périmètre de cette tâche"
+
+[[module]]
+ts = "app/src/ui/core/workspace/types.ts"
+rs = "crates/fragment-core/src/workspace.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+notes = "Interfaces seules : ViewState, OpenViewState, ViewStateResult, SplitDirection (serde, JSON identique à workspace.json). PaneType est RÉEXPORTÉ de keymap::types, pas redéfini."
+
+[[module.non_portes]]
+quoi = "Workspace, WorkspaceLeaf, WorkspaceItem/Parent/Split/Root/Sidedock/Tabs, View, ItemView, FileView, EditableFileView, TextFileView, ViewCreator"
+pourquoi = "classes à état liées au Vault et aux vues : tâche suivante (listées comme attendues dans tests/contrats.rs)"
+
+[[module]]
+ts = "app/src/ui/core/workspace/layout.ts"
+rs = "crates/fragment-core/src/workspace/layout.rs"
+cas_source = 14
+cas_portes = 14
+cas_ajoutes = 2
+notes = "L'`it.each` à 4 lignes est porté en 4 tests (refuse_null, refuse_un_tableau, refuse_une_chaine, refuse_un_objet_vide). Le garde travaille sur serde_json::Value (le JSON vient du disque) ; WorkspaceLayout::from_value valide puis convertit. ★ Les racines main/left/right gardent type = split dans le JSON (module `racine`). `eState` est une Value libre. Les nombres repassent en flottants à la réécriture (280 -> 280.0) : le JS les relit à l'identique."
+
+[[module]]
+ts = "app/src/ui/core/workspace/LeafHistory.ts"
+rs = "crates/fragment-core/src/leaf_history.rs"
+cas_source = 7
+cas_portes = 7
+cas_ajoutes = 1
+notes = "isAlive injecté en Box<dyn Fn(&str) -> bool>. HistoryEntry.doc: Option<DocumentKey>, eState: Option<Value>."
+
+[[module]]
+ts = "app/src/ui/core/workspace/breadcrumb.ts"
+rs = "crates/fragment-core/src/breadcrumb.rs"
+cas_source = 7
+cas_portes = 7
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/src/ui/core/embed/embedDocument.ts + embed/embedFrame.ts (wheelPixels)"
+rs = "crates/fragment-core/src/embed.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 1
+notes = "Seule la RÉSOLUTION (embed_kind, MAX_EMBED_DEPTH) et wheel_pixels sont dans le cœur ; l'App lue par embedKind devient le trait EmbedHost."
+
+[[module.non_portes]]
+quoi = "embedDocument(o) (montage : cadre, HostedView, DOM), EmbedFrame, scrollContainer"
+pourquoi = "présentation : fragment-ui (docs/contrats.md : embedDocument -> fragment-ui)"
+
+[[module]]
+ts = "app/src/ui/core/vault/attachments.ts"
+rs = "crates/fragment-core/src/attachments.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 2
+notes = "pasted_image_name prend une LocalDateTime (pas de chrono dans le cœur) : l'hôte lit l'heure locale. AttachmentLocation vient de settings/config.ts."
+
+[[module]]
+ts = "app/src/ui/core/settings/theme.ts (+ accentChoisi de settings/config.ts)"
+rs = "crates/fragment-core/src/theme_setting.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 1
+notes = "Partie pure seulement (schema_effectif, accent_choisi). accent_choisi prend Option<&str> (None = undefined ou non-texte)."
+
+[[module.non_portes]]
+quoi = "appliquerSchema / peindre (classes de <body>, matchMedia)"
+pourquoi = "DOM : fragment-theme / fragment-ui"
+
+[[module]]
+ts = "app/src/ui/core/window/zoom.ts"
+rs = "crates/fragment-core/src/zoom.rs"
+cas_source = 9
+cas_portes = 9
+cas_ajoutes = 0
+notes = "normaliser_zoom prend un f64 ; normaliser_zoom_valeur prend une Value JSON (le cas `rend le défaut pour une valeur illisible`). Le sens +1/-1 devient SensZoom."
+
+[[module]]
+ts = "app/src/ui/core/DragManager.ts"
+rs = "crates/fragment-core/src/drag.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 7
+notes = "★ 2 échecs TS préexistants. Le cas 1 est porté et PASSE. Le cas 2 est #[ignore] avec son attente d'origine (attente périmée : hors sidedock le code ouvre désormais dans la pile) ; cas_ajoutes décrit le comportement actuel. Cause probable des deux échecs côté TS : jsdom sans document.elementFromPoint (lecture du code, test non relancé). Le routage est derrière le trait DragHost ; capture de pointeur et fantôme restent dans fragment-ui."
+
+[[module]]
+ts = "app/src/ui/core/external/dispatch.ts + external/types.ts + App.handleProtocol (app.ts)"
+rs = "crates/fragment-core/src/dispatch.rs + external.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 1
+notes = "Handlers SYNCHRONES (pas d'exécuteur dans le cœur) : le cas `attend l'async` ne teste plus l'attente. handleProtocol est une fonction libre ; l'avertissement est vérifié par un logger de test. Un handler qui panique devient un échec code 1."
+
+[[module]]
+ts = "app/src/ui/core/cli/dispatch.ts"
+rs = "crates/fragment-core/src/dispatch.rs"
+cas_source = 13
+cas_portes = 5
+cas_ajoutes = 0
+notes = "executer_requete_cli prend la trame DÉMONTÉE (CliRequest vit dans fragment-cli, qui dépend du cœur). Les 5 cas de `executerRequeteCli` sont portés."
+
+[[module.non_portes]]
+quoi = "8 cas de `CliPlugin — les intégrées` (help, version, commands, command id=…)"
+pourquoi = "testent coreCommands/CliPlugin (greffon de fragment-cli / fragment-plugins), pas le dispatcher"
+
+[[module]]
+ts = "app/src/ui/core/settings/definition.ts (types)"
+rs = "crates/fragment-core/src/settings.rs"
+cas_source = 1
+cas_portes = 0
+cas_ajoutes = 3
+notes = "Les types déclaratifs (SettingControl*, SettingDefinition*, SettingTreeNode) en données ; l'unique test TS (definitionTree.test.ts) rend du DOM (jsdom) : il part avec le rendu dans fragment-ui, remplacé ici par un test du chargement paresseux. SettingDefinitionRender -> SettingDefinition::Custom(Rc<dyn Any>)."
+
+[[module.non_portes]]
+quoi = "renderDefinition / renderDefinitions / addSetting / applyControl / renderTreeLevel"
+pourquoi = "rendu DOM : fragment-ui"
+
+[[module]]
+ts = "app/src/ui/core/window/WindowHost.ts"
+rs = "crates/fragment-core/src/window_host.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Contrat (trait WindowHost + CaptureRect) ; méthodes synchrones, l'hôte enrobe l'async."
+
+[[module]]
+ts = "app/src/ui/core/settings/SecretStorage.ts"
+rs = "crates/fragment-core/src/secret_storage.rs"
+cas_source = 5
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Contrat seul (trait SecretStorage). Les 5 cas du TS testent l'implémentation (secrets.json + chiffrement factice) : ils partent dans fragment-app avec elle."
+
+[[module]]
+ts = "app/src/ui/core/Platform.ts"
+rs = "crates/fragment-core/src/platform.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Drapeaux de COMPILATION (cfg!) au lieu du userAgent."
+
+[[module]]
+ts = "app/src/ui/core/debounce.ts"
+rs = "crates/fragment-core/src/debounce.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 5
+notes = "Automate à temps injecté (now_ms) au lieu de setTimeout : même sémantique reset_timer / run / cancel."
+
+[[module]]
+ts = "(contrat) docs/contrats.md table 1"
+rs = "crates/fragment-core/tests/contrats.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "Parité des noms fragment-core : 48 portés (compilés), 20 attendus non portés (Vault, vues, objets du workspace, App)."
