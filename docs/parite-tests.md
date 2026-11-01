@@ -8,7 +8,7 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 712 | 683 | 101 | 29 | 95.9 % |
+| 800 | 767 | 101 | 33 | 95.9 % |
 
 **PORTE ATTEINTE** : 95.9 % des cas source portés.
 
@@ -17,7 +17,7 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 ## Crates sans modules portés
 
-fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-snap, fragment-theme, fragment-ui (pas de `parite.toml`).
+fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 
 ## fragment-agent
 
@@ -46,6 +46,24 @@ fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-sna
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
 | fragment-agent | 117 | 109 | 0 | 8 | 93.2 % |
+
+## fragment-annotation
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| anchor_link | app/src/ui/views/doc-widget/anchorLink.ts | 4 | 4 | 0 | — |
+| api | app/src/ui/views/annotation/api.ts | 0 | 0 | 0 | — |
+| artefacts_menu | app/src/ui/views/artefacts/menuModel.ts | 5 | 5 | 0 | — |
+| cluster_filter | app/src/ui/views/doc-widget/clusterFilter.ts | 5 | 5 | 0 | — |
+| geometry | app/src/ui/views/annotation/geometry.ts | 15 | 15 | 0 | — |
+| persistence | app/src/ui/views/annotation/AnnotationPersistence.ts | 4 | 1 | 0 | 3 — persiste un record par trait et les calques, recharge sans écriture d’écho : test d'intégration sur un vrai ArtefactManager + App async (microtâches) ; la partie pure (encodage `operation`, décodage) est testée par des cas ajoutés, l'orchestration revient à l'hôte ; une lecture lente ne ressuscite pas un trait supprimé ni ne perd une édition locale : dépend de l'async du manager ; la règle (révision périmée) est portée dans `Revisions` et testée par un cas ajouté ; la suppression distante et le déplacement de scope retirent la projection locale : dépend de `ArtefactManager.subscribe` et du filtrage de scope du manager (déjà testés dans fragment-artefacts) |
+| session | app/src/ui/views/annotation/AnnotationSession.ts | 7 | 6 | 0 | 1 — monte et démonte les enfants tiers à chaud sans perdre les données : les extensions (`annotation:extensions@1`) sont des `Component` enfants montés par la session : cycle de vie GPUI, à porter avec le plugin d'annotation de fragment-ui |
+| shapes | app/src/ui/views/annotation/shapes.ts | 4 | 4 | 0 | — |
+| source | app/src/ui/views/annotation/AnnotationSource.ts | 0 | 0 | 0 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-annotation | 44 | 40 | 0 | 4 | 90.9 % |
 
 ## fragment-artefacts
 
@@ -142,7 +160,7 @@ fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-sna
 | crates/fragment-core/src/dispatch.rs | app/src/ui/core/cli/dispatch.ts | 13 | 5 | 0 | 8 — 8 cas de `CliPlugin — les intégrées` (help, version, commands, command id=…) : testent coreCommands/CliPlugin (greffon de fragment-cli / fragment-plugins), pas le dispatcher |
 | crates/fragment-core/src/settings.rs | app/src/ui/core/settings/definition.ts (types) | 1 | 0 | 3 | 1 — renderDefinition / renderDefinitions / addSetting / applyControl / renderTreeLevel : rendu DOM : fragment-ui |
 | crates/fragment-core/src/window_host.rs | app/src/ui/core/window/WindowHost.ts | 0 | 0 | 1 | — |
-| crates/fragment-core/src/secret_storage.rs | app/src/ui/core/settings/SecretStorage.ts | 5 | 0 | 1 | 5 — les 5 cas de SecretStorage.test.ts : Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation (tranche T1/T10). |
+| crates/fragment-core/src/secret_storage.rs | app/src/ui/core/settings/SecretStorage.ts | 5 | 0 | 1 | 5 — les 5 cas de SecretStorage.test.ts : Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation dans fragment-plugins (PR #16, 5/5) : compter ces cas une seule fois. |
 | crates/fragment-core/src/platform.rs | app/src/ui/core/Platform.ts | 0 | 0 | 1 | — |
 | crates/fragment-core/src/debounce.rs | app/src/ui/core/debounce.ts | 0 | 0 | 5 | — |
 | crates/fragment-core/tests/contrats.rs | (contrat) docs/contrats.md table 1 | 0 | 0 | 2 | — |
@@ -195,6 +213,31 @@ fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-sna
 |---|---|---|---|---|---|
 | fragment-pdf | 33 | 33 | 0 | 0 | 100.0 % |
 
+## fragment-plugins
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| command_palette | app/src/ui/views/command-palette/CommandPalettePlugin.ts | 2 | 2 | 0 | — |
+| github_registry_source | app/src/ui/core/plugins/registry/GithubRegistrySource.ts | 8 | 8 | 0 | — |
+| margin_mode | app/src/ui/coreCommands/marginMode.ts | 0 | 0 | 0 | — |
+| registry_types | app/src/ui/core/plugins/registry/types.ts | 0 | 0 | 0 | — |
+| secret_storage | app/src/ui/core/settings/SecretStorage.ts | 5 | 5 | 0 | — |
+| workspace_commands | app/src/ui/coreCommands/WorkspaceCommandsPlugin.ts | 5 | 5 | 0 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-plugins | 20 | 20 | 0 | 0 | 100.0 % |
+
+## fragment-snap
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| snap_model | app/src/ui/snap/snapModel.ts | 20 | 20 | 0 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-snap | 20 | 20 | 0 | 0 | 100.0 % |
+
 ## fragment-text
 
 | Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
@@ -213,4 +256,15 @@ fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-sna
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
 | fragment-text | 40 | 38 | 18 | 2 | 95.0 % |
+
+## fragment-theme
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| manager | app/src/ui/theme/api.ts | 0 | 0 | 0 | — |
+| theme_model | app/src/ui/theme/themeModel.ts | 4 | 4 | 0 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-theme | 4 | 4 | 0 | 0 | 100.0 % |
 

@@ -345,7 +345,7 @@ notes = "Contrat seul (trait SecretStorage). Les 5 cas du TS testent l'implémen
 
 [[module.non_portes]]
 quoi = "les 5 cas de SecretStorage.test.ts"
-raison = "Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation (tranche T1/T10)."
+raison = "Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation dans fragment-plugins (PR #16, 5/5) : compter ces cas une seule fois."
 
 [[module]]
 ts = "app/src/ui/core/Platform.ts"
