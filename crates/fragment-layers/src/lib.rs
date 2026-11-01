@@ -15,3 +15,5 @@ pub mod gutter_stack;
 pub mod types;
 
 pub mod widget_activation;
+
+pub mod gutter_arbiter;
