@@ -343,6 +343,10 @@ cas_portes = 0
 cas_ajoutes = 1
 notes = "Contrat seul (trait SecretStorage). Les 5 cas du TS testent l'implémentation (secrets.json + chiffrement factice) : ils partent dans fragment-app avec elle."
 
+[[module.non_portes]]
+quoi = "les 5 cas de SecretStorage.test.ts"
+raison = "Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation (tranche T1/T10)."
+
 [[module]]
 ts = "app/src/ui/core/Platform.ts"
 rs = "crates/fragment-core/src/platform.rs"

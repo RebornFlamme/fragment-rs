@@ -12,7 +12,7 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 **PORTE ATTEINTE** : 95.9 % des cas source portés.
 
-- Modules non portés sans raison : fragment-core / crates/fragment-core/src/secret_storage.rs
+- Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
 
 ## Crates sans modules portés
@@ -142,7 +142,7 @@ fragment-annotation, fragment-app, fragment-html, fragment-plugins, fragment-sna
 | crates/fragment-core/src/dispatch.rs | app/src/ui/core/cli/dispatch.ts | 13 | 5 | 0 | 8 — 8 cas de `CliPlugin — les intégrées` (help, version, commands, command id=…) : testent coreCommands/CliPlugin (greffon de fragment-cli / fragment-plugins), pas le dispatcher |
 | crates/fragment-core/src/settings.rs | app/src/ui/core/settings/definition.ts (types) | 1 | 0 | 3 | 1 — renderDefinition / renderDefinitions / addSetting / applyControl / renderTreeLevel : rendu DOM : fragment-ui |
 | crates/fragment-core/src/window_host.rs | app/src/ui/core/window/WindowHost.ts | 0 | 0 | 1 | — |
-| crates/fragment-core/src/secret_storage.rs | app/src/ui/core/settings/SecretStorage.ts | 5 | 0 | 1 | **5 non porté(s) sans raison** |
+| crates/fragment-core/src/secret_storage.rs | app/src/ui/core/settings/SecretStorage.ts | 5 | 0 | 1 | 5 — les 5 cas de SecretStorage.test.ts : Ils testent l'implémentation (secrets.json + chiffrement) qui vit dans fragment-app ; le cœur ne porte que le trait. Portés avec l'implémentation (tranche T1/T10). |
 | crates/fragment-core/src/platform.rs | app/src/ui/core/Platform.ts | 0 | 0 | 1 | — |
 | crates/fragment-core/src/debounce.rs | app/src/ui/core/debounce.ts | 0 | 0 | 5 | — |
 | crates/fragment-core/tests/contrats.rs | (contrat) docs/contrats.md table 1 | 0 | 0 | 2 | — |
