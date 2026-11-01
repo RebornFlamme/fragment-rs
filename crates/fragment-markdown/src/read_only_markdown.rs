@@ -14,7 +14,6 @@
 //! Positions (ADR-004) : unités de code UTF-16.
 
 use fragment_core::diff_minimal;
-use fragment_text::byte_to_utf16;
 
 /// Un remplacement `[from, to) → insert` ; `from`/`to` en unités UTF-16 de `avant`.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,15 +25,13 @@ pub struct Delta {
 
 /// Le changement minimal de `avant` à `apres` : préfixe et suffixe communs gardés.
 ///
-/// ★ Délègue à `fragment_core::diff_minimal` (même algorithme que le TS, qui
-///   comparait des unités UTF-16 ; ici des octets, recalés sur des frontières
-///   de caractère) puis convertit les bornes en UTF-16 : ADR-004. Écart assumé :
-///   le TS pouvait couper une paire de substitution en deux ; une `String` Rust
-///   ne le peut pas, la borne recule au caractère entier.
+/// ★ Délègue à `fragment_core::diff_minimal`, qui rend déjà des bornes en UTF-16
+///   (ADR-004). Écart assumé : le TS pouvait couper une paire de substitution en
+///   deux ; une `String` Rust ne le peut pas, la borne recule au caractère entier.
 pub fn delta(avant: &str, apres: &str) -> Option<Delta> {
     diff_minimal(avant, apres).map(|r| Delta {
-        from: byte_to_utf16(avant, r.from),
-        to: byte_to_utf16(avant, r.to),
+        from: r.from,
+        to: r.to,
         insert: r.insert,
     })
 }
