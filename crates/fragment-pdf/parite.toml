@@ -1,0 +1,42 @@
+# Parité des tests de fragment-pdf : un tableau par module Rust.
+# `source` = cas de test (it/test, it.each compté par cas) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[pdf_geometry]
+ts = "app/src/ui/views/pdf/pdfGeometry.ts"
+tests_ts = "app/src/ui/views/pdf/pdfGeometry.test.ts"
+source = 7
+portes = 7
+non_portes = []
+
+[pdf_zoom]
+ts = "app/src/ui/views/pdf/pdfZoom.ts"
+tests_ts = "app/src/ui/views/pdf/pdfZoom.test.ts"
+source = 7
+portes = 7
+non_portes = []
+
+[pdf_outline]
+ts = "app/src/ui/views/pdf/pdfOutline.ts"
+tests_ts = "app/src/ui/views/pdf/pdfOutline.test.ts"
+source = 3
+portes = 3
+# resoudreOutline / resoudreDestination n'ont pas de test TS (ils exigent un PDFDocumentProxy).
+non_portes = []
+
+[pdf_find_offsets]
+ts = "app/src/ui/views/pdf/pdfFindOffsets.ts"
+tests_ts = "app/src/ui/views/pdf/pdfFindOffsets.test.ts"
+source = 7
+portes = 7
+non_portes = []
+
+[pdf_editor]
+ts = "app/src/ui/views/pdf/PdfEditor.ts"
+tests_ts = "app/src/ui/views/pdf/PdfEditor.test.ts"   # blocs « espace d'offsets » et indexerTexte
+source = 9
+portes = 9
+# La surface `PdfEditor` (viewportRange, renderedRanges, addLayer…) n'a pas de test unitaire TS :
+# « exige un vrai document et part en e2e » (en-tête de PdfEditor.test.ts) → tranche T4.
+non_portes = []

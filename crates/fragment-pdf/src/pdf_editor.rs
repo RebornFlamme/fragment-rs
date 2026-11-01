@@ -86,6 +86,7 @@ pub fn indexer_texte<T: Clone>(divs: &[Option<T>], strs: &[&str]) -> PdfPageText
     let mut text = String::new();
     let mut longueur = 0usize;
     for (i, s) in strs.iter().enumerate() {
+        // TODO(contrat) : remplacer par fragment_text::utf16 (ADR-004).
         let len = s.encode_utf16().count();
         // Un item sans span n'a pas de géométrie : on le saute, mais son texte
         // compte quand même dans les offsets, sinon la sélection et le

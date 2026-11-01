@@ -31,11 +31,13 @@ pub struct Plage {
 }
 
 /// Longueur d'une chaîne en unités UTF-16 (le `.length` de JavaScript).
+// TODO(contrat) : remplacer par fragment_text::utf16 (ADR-004).
 fn len16(s: &str) -> usize {
     s.encode_utf16().count()
 }
 
 /// Le préfixe d'une chaîne, en unités UTF-16 (coupe à `n` unités).
+// TODO(contrat) : remplacer par fragment_text::utf16 (ADR-004).
 fn prefixe16(s: &str, n: usize) -> String {
     let unites: Vec<u16> = s.encode_utf16().take(n).collect();
     String::from_utf16_lossy(&unites)
