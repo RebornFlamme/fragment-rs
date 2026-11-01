@@ -52,3 +52,8 @@ pub use keymap::{
     Scope, format_hotkey,
 };
 pub use plugin::{Plugin, PluginBase, PluginHost, PluginManifest};
+pub mod plugins;
+pub use plugins::{
+    CatalogEntry, CommunityLoader, Listing, PluginAssets, PluginCtor, PluginError,
+    PluginRegistrySource, PluginStorage, PluginUpdate, Plugins, SourceId, id_plugin_valide,
+};
