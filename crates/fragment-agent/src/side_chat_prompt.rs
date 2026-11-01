@@ -18,16 +18,29 @@ pub const SIDE_CHAT_SYSTEM: &str = "The user selected a passage — in the docum
 /// Le document tel que l'agent le reçoit au premier tour.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DocumentSource {
-    Text { path: String, text: String },
+    Text {
+        path: String,
+        text: String,
+    },
     /// Le texte n'est pas entièrement disponible (PDF non peint) : l'agent lit le fichier.
-    File { path: String, absolute_path: String },
+    File {
+        path: String,
+        absolute_path: String,
+    },
 }
 
 fn document(doc: &DocumentSource) -> String {
     match doc {
-        DocumentSource::Text { path, text } => format!("<document path=\"{path}\">\n{text}\n</document>"),
-        DocumentSource::File { path, absolute_path } => {
-            format!("<document path=\"{path}\">\nThe document is the file {absolute_path}: read it with Read.\n</document>")
+        DocumentSource::Text { path, text } => {
+            format!("<document path=\"{path}\">\n{text}\n</document>")
+        }
+        DocumentSource::File {
+            path,
+            absolute_path,
+        } => {
+            format!(
+                "<document path=\"{path}\">\nThe document is the file {absolute_path}: read it with Read.\n</document>"
+            )
         }
     }
 }
@@ -51,7 +64,10 @@ mod tests {
     use super::*;
 
     fn doc() -> DocumentSource {
-        DocumentSource::Text { path: "a.md".into(), text: "Bonjour".into() }
+        DocumentSource::Text {
+            path: "a.md".into(),
+            text: "Bonjour".into(),
+        }
     }
 
     // describe('askPrompt') de cardModel.test.ts
@@ -59,13 +75,19 @@ mod tests {
     #[test]
     fn preambule_document_passage_cite_sans_numeros_de_paragraphe() {
         let p = side_chat_preamble(&doc(), "Nat\nSec");
-        assert_eq!(p, "<document path=\"a.md\">\nBonjour\n</document>\n\nAbout \"Nat Sec\":");
+        assert_eq!(
+            p,
+            "<document path=\"a.md\">\nBonjour\n</document>\n\nAbout \"Nat Sec\":"
+        );
         assert!(!p.contains('¶'));
     }
 
     #[test]
     fn pdf_sans_texte_complet_lagent_lit_le_fichier_read_sinon_aucun_outil() {
-        let pdf = DocumentSource::File { path: "p.pdf".into(), absolute_path: "C:/v/p.pdf".into() };
+        let pdf = DocumentSource::File {
+            path: "p.pdf".into(),
+            absolute_path: "C:/v/p.pdf".into(),
+        };
         assert!(side_chat_preamble(&pdf, "x").contains("read it with Read"));
         assert_eq!(tools_for(&pdf), vec!["Read".to_string()]);
         assert_eq!(tools_for(&doc()), Vec::<String>::new());

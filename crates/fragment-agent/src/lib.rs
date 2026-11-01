@@ -14,6 +14,8 @@ pub mod harness_registry;
 pub mod lasso_prompt;
 pub(crate) mod motif;
 pub mod one_shot_options;
+pub mod permission_model;
+pub mod policy_model;
 pub mod quick_model;
 pub mod screen_model;
 pub mod side_chat_prompt;

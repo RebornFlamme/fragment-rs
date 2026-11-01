@@ -57,7 +57,9 @@ pub fn parse_version(text: &str) -> Option<[u64; 3]> {
 
 /// `version` ≥ `minimum` (versions semver simples). Illisible → faux.
 pub fn at_least(version: &str, minimum: &str) -> bool {
-    let (Some(a), Some(b)) = (parse_version(version), parse_version(minimum)) else { return false };
+    let (Some(a), Some(b)) = (parse_version(version), parse_version(minimum)) else {
+        return false;
+    };
     for i in 0..3 {
         if a[i] != b[i] {
             return a[i] > b[i];
@@ -68,7 +70,11 @@ pub fn at_least(version: &str, minimum: &str) -> bool {
 
 /// Le nom du binaire natif sur cette plateforme.
 pub fn binary_name(platform: &str) -> &'static str {
-    if platform == "win32" { "claude.exe" } else { "claude" }
+    if platform == "win32" {
+        "claude.exe"
+    } else {
+        "claude"
+    }
 }
 
 /// Le paquet npm du binaire de cette plateforme — le même nom que les
@@ -77,7 +83,14 @@ pub fn engine_package(platform: &str, arch: &str, musl: bool) -> Option<String> 
     if !["win32", "darwin", "linux"].contains(&platform) || !["x64", "arm64"].contains(&arch) {
         return None;
     }
-    Some(format!("@anthropic-ai/claude-agent-sdk-{platform}-{arch}{}", if platform == "linux" && musl { "-musl" } else { "" }))
+    Some(format!(
+        "@anthropic-ai/claude-agent-sdk-{platform}-{arch}{}",
+        if platform == "linux" && musl {
+            "-musl"
+        } else {
+            ""
+        }
+    ))
 }
 
 /// L'URL des métadonnées d'une version d'un paquet sur le registre npm (le `/` du scope encodé).
@@ -105,20 +118,30 @@ pub fn installed_candidates(platform: &str, home: &str, path_env: &str) -> Vec<S
     let win = platform == "win32";
     let sep = if win { '\\' } else { '/' };
     let exe = binary_name(platform);
-    let mut liste = vec![joindre(&[home, ".local", "bin"].join(&sep.to_string()), sep, exe)];
+    let mut liste = vec![joindre(
+        &[home, ".local", "bin"].join(&sep.to_string()),
+        sep,
+        exe,
+    )];
     if platform == "darwin" {
         liste.push("/opt/homebrew/bin/claude".to_string());
         liste.push("/usr/local/bin/claude".to_string());
     }
     for dir in path_env.split(if win { ';' } else { ':' }) {
         let d = dir.trim();
-        let d = d.strip_prefix('"').and_then(|x| x.strip_suffix('"')).unwrap_or(d);
+        let d = d
+            .strip_prefix('"')
+            .and_then(|x| x.strip_suffix('"'))
+            .unwrap_or(d);
         if !d.is_empty() {
             liste.push(joindre(d, sep, exe));
         }
     }
     let mut vus: HashSet<String> = HashSet::new();
-    liste.into_iter().filter(|p| vus.insert(if win { p.to_lowercase() } else { p.clone() })).collect()
+    liste
+        .into_iter()
+        .filter(|p| vus.insert(if win { p.to_lowercase() } else { p.clone() }))
+        .collect()
 }
 
 /// Les premiers octets d'un fichier : un script (`#!`, un shim npm) n'est pas le binaire natif.
@@ -150,7 +173,11 @@ pub struct Marque {
 
 /// Le nom du dossier d'une version téléchargée : `<paquet sans scope>-<version>`.
 pub fn nom_dossier_version(info: &SdkInfo) -> String {
-    format!("{}-{}", info.pkg.split('/').nth(1).unwrap_or(&info.pkg), info.pkg_version)
+    format!(
+        "{}-{}",
+        info.pkg.split('/').nth(1).unwrap_or(&info.pkg),
+        info.pkg_version
+    )
 }
 
 /// Le binaire déjà téléchargé est-il celui de cette version (marque cohérente, taille exacte) ?
@@ -182,7 +209,11 @@ fn chaine(b: &[u8], debut: usize, longueur: usize) -> String {
 /// `parseInt(s, 8)` : lit les chiffres octaux du début, 0 si aucun.
 fn octal(b: &[u8], debut: usize, longueur: usize) -> u64 {
     let s = chaine(b, debut, longueur);
-    let chiffres: String = s.trim().chars().take_while(|c| ('0'..='7').contains(c)).collect();
+    let chiffres: String = s
+        .trim()
+        .chars()
+        .take_while(|c| ('0'..='7').contains(c))
+        .collect();
     u64::from_str_radix(&chiffres, 8).unwrap_or(0)
 }
 
@@ -192,7 +223,9 @@ static PAX: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"\d+ ([^=]+)=([^\n]*)
 fn chemin_pax(donnees: &[u8]) -> Option<String> {
     let texte = String::from_utf8_lossy(donnees);
     let re = PAX.regex()?;
-    re.captures_iter(&texte).find(|m| &m[1] == "path").map(|m| m[2].to_string())
+    re.captures_iter(&texte)
+        .find(|m| &m[1] == "path")
+        .map(|m| m[2].to_string())
 }
 
 /// Un lecteur d'archive tar EN FLUX (ustar + en-têtes PAX) : on lui pousse les
@@ -214,7 +247,17 @@ pub struct TarReader {
 
 impl TarReader {
     pub fn new(on_entry: impl FnMut(TarEntry) -> Option<Evier> + 'static) -> Self {
-        TarReader { entete: [0; 512], remplis: 0, reste: 0, bourrage: 0, evier: None, pax: None, nom_pax: None, ended: false, on_entry: Box::new(on_entry) }
+        TarReader {
+            entete: [0; 512],
+            remplis: 0,
+            reste: 0,
+            bourrage: 0,
+            evier: None,
+            pax: None,
+            nom_pax: None,
+            ended: false,
+            on_entry: Box::new(on_entry),
+        }
     }
 
     pub fn push(&mut self, morceau: &[u8]) {
@@ -261,7 +304,11 @@ impl TarReader {
             return;
         }
         let nom = chaine(&h, 0, 100);
-        let prefixe = if chaine(&h, 257, 5) == "ustar" { chaine(&h, 345, 155) } else { String::new() };
+        let prefixe = if chaine(&h, 257, 5) == "ustar" {
+            chaine(&h, 345, 155)
+        } else {
+            String::new()
+        };
         let taille = octal(&h, 124, 12);
         let genre = if h[156] == 0 { '0' } else { char::from(h[156]) };
         self.reste = taille;
@@ -270,8 +317,18 @@ impl TarReader {
         if genre == 'x' {
             self.pax = Some(Vec::new());
         } else if genre != 'g' {
-            let complet = self.nom_pax.take().unwrap_or_else(|| if prefixe.is_empty() { nom } else { format!("{prefixe}/{nom}") });
-            self.evier = (self.on_entry)(TarEntry { name: complet, size: taille, r#type: genre });
+            let complet = self.nom_pax.take().unwrap_or_else(|| {
+                if prefixe.is_empty() {
+                    nom
+                } else {
+                    format!("{prefixe}/{nom}")
+                }
+            });
+            self.evier = (self.on_entry)(TarEntry {
+                name: complet,
+                size: taille,
+                r#type: genre,
+            });
         }
         if taille == 0 {
             self.finir_entree();
@@ -315,10 +372,22 @@ mod tests {
 
     #[test]
     fn suit_les_noms_des_optional_dependencies_du_sdk() {
-        assert_eq!(engine_package("win32", "x64", false).as_deref(), Some("@anthropic-ai/claude-agent-sdk-win32-x64"));
-        assert_eq!(engine_package("darwin", "arm64", false).as_deref(), Some("@anthropic-ai/claude-agent-sdk-darwin-arm64"));
-        assert_eq!(engine_package("linux", "x64", true).as_deref(), Some("@anthropic-ai/claude-agent-sdk-linux-x64-musl"));
-        assert_eq!(engine_package("darwin", "x64", true).as_deref(), Some("@anthropic-ai/claude-agent-sdk-darwin-x64"));
+        assert_eq!(
+            engine_package("win32", "x64", false).as_deref(),
+            Some("@anthropic-ai/claude-agent-sdk-win32-x64")
+        );
+        assert_eq!(
+            engine_package("darwin", "arm64", false).as_deref(),
+            Some("@anthropic-ai/claude-agent-sdk-darwin-arm64")
+        );
+        assert_eq!(
+            engine_package("linux", "x64", true).as_deref(),
+            Some("@anthropic-ai/claude-agent-sdk-linux-x64-musl")
+        );
+        assert_eq!(
+            engine_package("darwin", "x64", true).as_deref(),
+            Some("@anthropic-ai/claude-agent-sdk-darwin-x64")
+        );
         assert_eq!(engine_package("freebsd", "x64", false), None);
         assert_eq!(engine_package("win32", "ia32", false), None);
     }
@@ -326,7 +395,11 @@ mod tests {
     #[test]
     fn url_du_registre_le_scope_encode() {
         assert_eq!(
-            registry_url("https://registry.npmjs.org/", "@anthropic-ai/claude-agent-sdk-win32-x64", "0.3.295"),
+            registry_url(
+                "https://registry.npmjs.org/",
+                "@anthropic-ai/claude-agent-sdk-win32-x64",
+                "0.3.295"
+            ),
             "https://registry.npmjs.org/@anthropic-ai%2fclaude-agent-sdk-win32-x64/0.3.295"
         );
     }
@@ -344,8 +417,15 @@ mod tests {
     #[test]
     fn windows_local_bin_dabord_puis_le_path_des_exe_sans_doublon() {
         assert_eq!(
-            installed_candidates("win32", "C:\\Users\\j", "C:\\Users\\j\\.local\\bin;\"C:\\npm\";;C:\\NPM\\"),
-            vec!["C:\\Users\\j\\.local\\bin\\claude.exe".to_string(), "C:\\npm\\claude.exe".to_string()]
+            installed_candidates(
+                "win32",
+                "C:\\Users\\j",
+                "C:\\Users\\j\\.local\\bin;\"C:\\npm\";;C:\\NPM\\"
+            ),
+            vec![
+                "C:\\Users\\j\\.local\\bin\\claude.exe".to_string(),
+                "C:\\npm\\claude.exe".to_string()
+            ]
         );
     }
 
@@ -353,7 +433,12 @@ mod tests {
     fn macos_aussi_homebrew() {
         assert_eq!(
             installed_candidates("darwin", "/Users/j", "/usr/bin:/opt/homebrew/bin"),
-            vec!["/Users/j/.local/bin/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude", "/usr/bin/claude"]
+            vec![
+                "/Users/j/.local/bin/claude",
+                "/opt/homebrew/bin/claude",
+                "/usr/local/bin/claude",
+                "/usr/bin/claude"
+            ]
         );
     }
 
@@ -367,12 +452,31 @@ mod tests {
 
     #[test]
     fn dossier_de_version_et_marque() {
-        let info = SdkInfo { claude_code: "2.1.295".into(), pkg: "@anthropic-ai/claude-agent-sdk-win32-x64".into(), pkg_version: "0.3.295".into() };
-        assert_eq!(nom_dossier_version(&info), "claude-agent-sdk-win32-x64-0.3.295");
-        let m = Marque { pkg: info.pkg.clone(), version: "0.3.295".into(), integrity: "sha512-x".into(), size: 10 };
+        let info = SdkInfo {
+            claude_code: "2.1.295".into(),
+            pkg: "@anthropic-ai/claude-agent-sdk-win32-x64".into(),
+            pkg_version: "0.3.295".into(),
+        };
+        assert_eq!(
+            nom_dossier_version(&info),
+            "claude-agent-sdk-win32-x64-0.3.295"
+        );
+        let m = Marque {
+            pkg: info.pkg.clone(),
+            version: "0.3.295".into(),
+            integrity: "sha512-x".into(),
+            size: 10,
+        };
         assert!(marque_coherente(&m, &info, 10));
         assert!(!marque_coherente(&m, &info, 9));
-        assert!(!marque_coherente(&m, &SdkInfo { pkg_version: "0.3.296".into(), ..info }, 10));
+        assert!(!marque_coherente(
+            &m,
+            &SdkInfo {
+                pkg_version: "0.3.296".into(),
+                ..info
+            },
+            10
+        ));
     }
 
     // ── TarReader ──
@@ -380,7 +484,8 @@ mod tests {
     /// Port de tarFixture.ts : une archive ustar écrite à la main.
     fn entete(name: &str, size: usize, genre: u8) -> Vec<u8> {
         let mut h = vec![0_u8; 512];
-        let mut ecrire = |texte: &[u8], debut: usize| h[debut..debut + texte.len()].copy_from_slice(texte);
+        let mut ecrire =
+            |texte: &[u8], debut: usize| h[debut..debut + texte.len()].copy_from_slice(texte);
         let nom: Vec<u8> = name.bytes().take(100).collect();
         ecrire(&nom, 0);
         ecrire(b"0000644\0", 100);
@@ -411,7 +516,11 @@ mod tests {
     }
 
     fn ent(name: &str, data: &[u8]) -> Ent {
-        Ent { name: name.into(), data: data.to_vec(), pax: false }
+        Ent {
+            name: name.into(),
+            data: data.to_vec(),
+            pax: false,
+        }
     }
 
     fn tar(entrees: &[Ent]) -> Vec<u8> {
@@ -444,26 +553,47 @@ mod tests {
             v2.borrow_mut().insert(e.name.clone(), Vec::new());
             let v3 = Rc::clone(&v2);
             Some(Box::new(move |m: &[u8]| {
-                v3.borrow_mut().entry(e.name.clone()).or_default().extend_from_slice(m);
+                v3.borrow_mut()
+                    .entry(e.name.clone())
+                    .or_default()
+                    .extend_from_slice(m);
             }))
         });
         for c in archive.chunks(pas) {
             r.push(c);
         }
-        let texte = vus.borrow().iter().map(|(k, v)| (k.clone(), String::from_utf8_lossy(v).into_owned())).collect();
+        let texte = vus
+            .borrow()
+            .iter()
+            .map(|(k, v)| (k.clone(), String::from_utf8_lossy(v).into_owned()))
+            .collect();
         (texte, r.ended)
     }
 
     fn attendu(paires: &[(&str, String)]) -> HashMap<String, String> {
-        paires.iter().map(|(k, v)| (k.to_string(), v.clone())).collect()
+        paires
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.clone()))
+            .collect()
     }
 
     #[test]
     fn lit_chaque_entree_quel_que_soit_le_decoupage_des_morceaux() {
-        let archive = tar(&[ent("package/README.md", b"lisez-moi"), ent("package/claude.exe", "B".repeat(1300).as_bytes()), ent("package/vide", b"")]);
+        let archive = tar(&[
+            ent("package/README.md", b"lisez-moi"),
+            ent("package/claude.exe", "B".repeat(1300).as_bytes()),
+            ent("package/vide", b""),
+        ]);
         for pas in [1, 7, 511, 512, 513, 100_000] {
             let (vus, fin) = lire(&archive, pas);
-            assert_eq!(vus, attendu(&[("package/README.md", "lisez-moi".into()), ("package/claude.exe", "B".repeat(1300)), ("package/vide", String::new())]));
+            assert_eq!(
+                vus,
+                attendu(&[
+                    ("package/README.md", "lisez-moi".into()),
+                    ("package/claude.exe", "B".repeat(1300)),
+                    ("package/vide", String::new())
+                ])
+            );
             assert!(fin);
         }
     }
@@ -471,8 +601,18 @@ mod tests {
     #[test]
     fn un_en_tete_pax_donne_le_nom_long_de_lentree_suivante() {
         let long = format!("package/{}/claude", "d".repeat(120));
-        let archive = tar(&[Ent { name: long.clone(), data: b"x".to_vec(), pax: true }, ent("package/b", b"y")]);
-        assert_eq!(lire(&archive, 300).0, attendu(&[(&long, "x".into()), ("package/b", "y".into())]));
+        let archive = tar(&[
+            Ent {
+                name: long.clone(),
+                data: b"x".to_vec(),
+                pax: true,
+            },
+            ent("package/b", b"y"),
+        ]);
+        assert_eq!(
+            lire(&archive, 300).0,
+            attendu(&[(&long, "x".into()), ("package/b", "y".into())])
+        );
     }
 
     #[test]

@@ -54,7 +54,8 @@ pub fn plugin_files(glob: &BTreeMap<String, String>, manifest: &str, prefix: &st
 
 /// Le nom du plugin, lu dans son manifeste.
 pub fn plugin_name(manifest: &str) -> Result<String, ErreurSkills> {
-    let v: Value = serde_json::from_str(manifest).map_err(|e| ErreurSkills::ManifesteIllisible(e.to_string()))?;
+    let v: Value = serde_json::from_str(manifest)
+        .map_err(|e| ErreurSkills::ManifesteIllisible(e.to_string()))?;
     match v.get("name").and_then(Value::as_str) {
         Some(n) if !n.is_empty() => Ok(n.to_string()),
         _ => Err(ErreurSkills::ManifesteSansNom),
@@ -65,7 +66,14 @@ static CHEMIN_SKILL: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"^skills/([^
 
 /// Les noms QUALIFIÉS (`<plugin>:<skill>`) des skills : un `skills/<nom>/SKILL.md` chacun, triés.
 pub fn skill_names(files: &PluginFiles, plugin: &str) -> Vec<String> {
-    let mut noms: Vec<String> = files.keys().filter_map(|c| CHEMIN_SKILL.captures(c).map(|m| format!("{plugin}:{}", &m[1]))).collect();
+    let mut noms: Vec<String> = files
+        .keys()
+        .filter_map(|c| {
+            CHEMIN_SKILL
+                .captures(c)
+                .map(|m| format!("{plugin}:{}", &m[1]))
+        })
+        .collect();
     noms.sort();
     noms
 }
@@ -100,7 +108,11 @@ pub struct PlanMiroir {
 /// fichier livré est écrit s'il manque ou si sa version livrée diffère de la
 /// dernière livrée (`livre`, empreintes) ; sinon la version de l'agent reste.
 /// Rien n'est jamais retiré : un skill AJOUTÉ par l'agent vit.
-pub fn plan_mirror(files: &PluginFiles, existing: &PluginFiles, livre: &BTreeMap<String, String>) -> PlanMiroir {
+pub fn plan_mirror(
+    files: &PluginFiles,
+    existing: &PluginFiles,
+    livre: &BTreeMap<String, String>,
+) -> PlanMiroir {
     let mut nouveau = BTreeMap::new();
     let mut write = Vec::new();
     // BTreeMap itère déjà trié (le `.sort()` du TS).
@@ -112,7 +124,10 @@ pub fn plan_mirror(files: &PluginFiles, existing: &PluginFiles, livre: &BTreeMap
         }
         nouveau.insert(p.clone(), h);
     }
-    PlanMiroir { write, livre: nouveau }
+    PlanMiroir {
+        write,
+        livre: nouveau,
+    }
 }
 
 static VARIABLE: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"\{\{([A-Za-z0-9_]+)\}\}"));
@@ -148,7 +163,11 @@ pub fn with_skill_tool(tools: &[String]) -> Vec<String> {
 /// Le prompt du chat, suivi du préprompt pédagogique en section « Pédagogie ».
 pub fn with_pedagogy(base: &str, preprompt: &str) -> String {
     let p = preprompt.trim();
-    if p.is_empty() { base.to_string() } else { format!("{base}\n\n# Pédagogie\n\n{p}") }
+    if p.is_empty() {
+        base.to_string()
+    } else {
+        format!("{base}\n\n# Pédagogie\n\n{p}")
+    }
 }
 
 /// Le prompt système d'un tour : TOUJOURS le prompt Fragment (+ la pédagogie quand
@@ -173,11 +192,16 @@ mod tests {
     const MANIFEST: &str = r#"{"name":"fragment-explain","version":"0.1.0"}"#;
 
     fn m(paires: &[(&str, &str)]) -> BTreeMap<String, String> {
-        paires.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        paires
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     fn livre(f: &[(&str, &str)]) -> BTreeMap<String, String> {
-        f.iter().map(|(k, v)| (k.to_string(), empreinte(v))).collect()
+        f.iter()
+            .map(|(k, v)| (k.to_string(), empreinte(v)))
+            .collect()
     }
 
     // ── pluginFiles / skillNames ──
@@ -185,12 +209,26 @@ mod tests {
     #[test]
     fn ramene_les_chemins_vite_a_la_racine_du_plugin_et_ajoute_le_manifeste() {
         let files = plugin_files(
-            &m(&[("./skills/skills/a/SKILL.md", "A"), ("./skills/skills/a/references/r.md", "R"), ("./autre/x.md", "X")]),
+            &m(&[
+                ("./skills/skills/a/SKILL.md", "A"),
+                ("./skills/skills/a/references/r.md", "R"),
+                ("./autre/x.md", "X"),
+            ]),
             MANIFEST,
             "./skills/",
         );
-        assert_eq!(files, m(&[(MANIFEST_PATH, MANIFEST), ("skills/a/SKILL.md", "A"), ("skills/a/references/r.md", "R")]));
-        assert_eq!(skill_names(&files, &plugin_name(MANIFEST).unwrap()), vec!["fragment-explain:a".to_string()]);
+        assert_eq!(
+            files,
+            m(&[
+                (MANIFEST_PATH, MANIFEST),
+                ("skills/a/SKILL.md", "A"),
+                ("skills/a/references/r.md", "R")
+            ])
+        );
+        assert_eq!(
+            skill_names(&files, &plugin_name(MANIFEST).unwrap()),
+            vec!["fragment-explain:a".to_string()]
+        );
     }
 
     #[test]
@@ -202,40 +240,65 @@ mod tests {
 
     #[test]
     fn premiere_livraison_tout_ce_qui_manque_est_ecrit_les_empreintes_sont_rendues() {
-        let r = plan_mirror(&m(&[("a", "1"), ("b", "2")]), &PluginFiles::new(), &BTreeMap::new());
+        let r = plan_mirror(
+            &m(&[("a", "1"), ("b", "2")]),
+            &PluginFiles::new(),
+            &BTreeMap::new(),
+        );
         assert_eq!(r.write, vec!["a".to_string(), "b".to_string()]);
         assert_eq!(r.livre, livre(&[("a", "1"), ("b", "2")]));
     }
 
     #[test]
     fn lagent_a_modifie_un_fichier_livre_la_livraison_na_pas_change_sa_version_reste() {
-        let r = plan_mirror(&m(&[("a", "1")]), &m(&[("a", "amélioré par l’agent")]), &livre(&[("a", "1")]));
+        let r = plan_mirror(
+            &m(&[("a", "1")]),
+            &m(&[("a", "amélioré par l’agent")]),
+            &livre(&[("a", "1")]),
+        );
         assert_eq!(r.write, Vec::<String>::new());
     }
 
     #[test]
     fn la_livraison_a_change_mise_a_jour_de_lapp_elle_ecrase() {
-        let r = plan_mirror(&m(&[("a", "2")]), &m(&[("a", "amélioré par l’agent")]), &livre(&[("a", "1")]));
+        let r = plan_mirror(
+            &m(&[("a", "2")]),
+            &m(&[("a", "amélioré par l’agent")]),
+            &livre(&[("a", "1")]),
+        );
         assert_eq!(r.write, vec!["a".to_string()]);
     }
 
     #[test]
     fn rien_nest_jamais_retire_un_skill_ajoute_par_lagent_vit() {
-        let r = plan_mirror(&m(&[("a", "1")]), &m(&[("a", "1"), ("skills/neuf/SKILL.md", "à moi")]), &livre(&[("a", "1")]));
+        let r = plan_mirror(
+            &m(&[("a", "1")]),
+            &m(&[("a", "1"), ("skills/neuf/SKILL.md", "à moi")]),
+            &livre(&[("a", "1")]),
+        );
         assert_eq!(r.write, Vec::<String>::new());
         assert_eq!(r.livre, livre(&[("a", "1")]));
     }
 
     #[test]
     fn sans_empreintes_avant_cette_regle_un_fichier_identique_nest_pas_reecrit() {
-        assert_eq!(plan_mirror(&m(&[("a", "1")]), &m(&[("a", "1")]), &BTreeMap::new()).write, Vec::<String>::new());
+        assert_eq!(
+            plan_mirror(&m(&[("a", "1")]), &m(&[("a", "1")]), &BTreeMap::new()).write,
+            Vec::<String>::new()
+        );
     }
 
     // ── renderPrompt ──
 
     #[test]
     fn remplace_les_variables_connues_garde_les_autres() {
-        assert_eq!(render_prompt("vault={{vault}} dir={{dir}} {{x}}\n", &m(&[("vault", "Coffre"), ("dir", "C:/a")])), "vault=Coffre dir=C:/a {{x}}");
+        assert_eq!(
+            render_prompt(
+                "vault={{vault}} dir={{dir}} {{x}}\n",
+                &m(&[("vault", "Coffre"), ("dir", "C:/a")])
+            ),
+            "vault=Coffre dir=C:/a {{x}}"
+        );
     }
 
     // ── outils et prompt ──
@@ -249,21 +312,39 @@ mod tests {
 
     #[test]
     fn une_liste_restreinte_nomme_skill_sans_doublon() {
-        assert_eq!(with_skill_tool(&["Read".into()]), vec!["Read".to_string(), "Skill".to_string()]);
-        assert_eq!(with_skill_tool(&["Read".into(), "Skill".into()]), vec!["Read".to_string(), "Skill".to_string()]);
+        assert_eq!(
+            with_skill_tool(&["Read".into()]),
+            vec!["Read".to_string(), "Skill".to_string()]
+        );
+        assert_eq!(
+            with_skill_tool(&["Read".into(), "Skill".into()]),
+            vec!["Read".to_string(), "Skill".to_string()]
+        );
     }
 
     #[test]
     fn le_preprompt_suit_le_prompt_du_chat_en_section_pedagogie() {
-        assert_eq!(with_pedagogy("BASE", "  # P\n"), "BASE\n\n# Pédagogie\n\n# P");
+        assert_eq!(
+            with_pedagogy("BASE", "  # P\n"),
+            "BASE\n\n# Pédagogie\n\n# P"
+        );
         assert_eq!(with_pedagogy("BASE", "  "), "BASE");
     }
 
     #[test]
     fn le_profil_dune_session_ask_sajoute_au_prompt_fragment_pedagogie_il_ne_le_remplace_pas() {
-        assert_eq!(compose_system("BASE", Some("# P"), Some("ASK")), "BASE\n\n# Pédagogie\n\n# P\n\n# Cette conversation\n\nASK");
-        assert_eq!(compose_system("BASE", None, Some("ASK")), "BASE\n\n# Cette conversation\n\nASK");
-        assert_eq!(compose_system("BASE", Some("# P"), None), "BASE\n\n# Pédagogie\n\n# P");
+        assert_eq!(
+            compose_system("BASE", Some("# P"), Some("ASK")),
+            "BASE\n\n# Pédagogie\n\n# P\n\n# Cette conversation\n\nASK"
+        );
+        assert_eq!(
+            compose_system("BASE", None, Some("ASK")),
+            "BASE\n\n# Cette conversation\n\nASK"
+        );
+        assert_eq!(
+            compose_system("BASE", Some("# P"), None),
+            "BASE\n\n# Pédagogie\n\n# P"
+        );
         assert_eq!(compose_system("BASE", None, Some("  ")), "BASE");
     }
 

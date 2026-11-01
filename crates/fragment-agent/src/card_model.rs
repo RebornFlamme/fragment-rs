@@ -49,13 +49,24 @@ pub struct LegacyCardState {
 /// Le titre d'une conversation sur un passage : la question, sinon `Side Chat « passage »`.
 pub fn titre_side_chat(quote: &str, question: Option<&str>) -> String {
     if let Some(q) = question.filter(|q| !q.is_empty()) {
-        return if len_utf16(q) > 60 { format!("{}…", tete_utf16(q, 59)) } else { q.to_string() };
+        return if len_utf16(q) > 60 {
+            format!("{}…", tete_utf16(q, 59))
+        } else {
+            q.to_string()
+        };
     }
     let q = quote.split_whitespace().collect::<Vec<_>>().join(" ");
     if q.is_empty() {
         return "Side Chat".to_string();
     }
-    format!("Side Chat « {} »", if len_utf16(&q) > 40 { format!("{}…", tete_utf16(&q, 39)) } else { q })
+    format!(
+        "Side Chat « {} »",
+        if len_utf16(&q) > 40 {
+            format!("{}…", tete_utf16(&q, 39))
+        } else {
+            q
+        }
+    )
 }
 
 #[cfg(test)]
@@ -65,8 +76,14 @@ mod tests {
     #[test]
     fn titre_dune_conversation_side_chat_passage_ou_la_question() {
         assert_eq!(titre_side_chat("NatSec", None), "Side Chat « NatSec »");
-        assert_eq!(titre_side_chat("Kepler", Some("whats kepler?")), "whats kepler?");
+        assert_eq!(
+            titre_side_chat("Kepler", Some("whats kepler?")),
+            "whats kepler?"
+        );
         assert_eq!(titre_side_chat("", None), "Side Chat");
-        assert_eq!(titre_side_chat(&"x".repeat(80), None), format!("Side Chat « {}… »", "x".repeat(39)));
+        assert_eq!(
+            titre_side_chat(&"x".repeat(80), None),
+            format!("Side Chat « {}… »", "x".repeat(39))
+        );
     }
 }

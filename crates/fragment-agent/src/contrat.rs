@@ -77,7 +77,10 @@ pub enum ChatBlock {
 impl ChatBlock {
     /// Un bloc texte sans heure.
     pub fn texte(text: impl Into<String>) -> Self {
-        ChatBlock::Text { text: text.into(), at: None }
+        ChatBlock::Text {
+            text: text.into(),
+            at: None,
+        }
     }
 }
 
@@ -505,10 +508,17 @@ pub trait AgentHarness {
     fn capabilities(&self) -> HarnessCapabilities;
     /// Prêt ? (binaire présent, compte connecté) — le message explique sinon.
     fn status(&self) -> HarnessStatus {
-        HarnessStatus { ready: true, message: None }
+        HarnessStatus {
+            ready: true,
+            message: None,
+        }
     }
     fn models(&self) -> Vec<HarnessModel>;
-    fn run(&self, turn: HarnessTurn, io: &mut dyn HarnessIO) -> Result<Box<dyn HarnessRun>, ErreurHarness>;
+    fn run(
+        &self,
+        turn: HarnessTurn,
+        io: &mut dyn HarnessIO,
+    ) -> Result<Box<dyn HarnessRun>, ErreurHarness>;
     /// Le fil d'une conversation (le harness est LA source de ses messages). Vide s'il ne la connaît pas.
     fn history(&self, conv: &HarnessConversation) -> Vec<ChatEntry>;
     fn one_shot(&self, _req: HarnessOneShot) -> Result<Value, ErreurHarness> {
@@ -593,9 +603,23 @@ mod tests {
     #[test]
     fn les_evenements_se_serialisent_comme_le_ts() {
         let e = AgentEvent::TextDelta { text: "a".into() };
-        assert_eq!(serde_json::to_value(&e).unwrap_or_default(), serde_json::json!({"type": "text-delta", "text": "a"}));
-        let b = ChatBlock::Tool(BlocOutil { id: "t".into(), name: "Read".into(), summary: "a".into(), input: None, result: None, at: None, result_at: None });
-        assert_eq!(serde_json::to_value(&b).unwrap_or_default(), serde_json::json!({"kind": "tool", "id": "t", "name": "Read", "summary": "a"}));
+        assert_eq!(
+            serde_json::to_value(&e).unwrap_or_default(),
+            serde_json::json!({"type": "text-delta", "text": "a"})
+        );
+        let b = ChatBlock::Tool(BlocOutil {
+            id: "t".into(),
+            name: "Read".into(),
+            summary: "a".into(),
+            input: None,
+            result: None,
+            at: None,
+            result_at: None,
+        });
+        assert_eq!(
+            serde_json::to_value(&b).unwrap_or_default(),
+            serde_json::json!({"kind": "tool", "id": "t", "name": "Read", "summary": "a"})
+        );
     }
 
     #[test]

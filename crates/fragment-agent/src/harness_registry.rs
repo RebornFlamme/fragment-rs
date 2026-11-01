@@ -51,7 +51,11 @@ impl HarnessRegistry {
     pub fn register(&mut self, id: &str, harness: Rc<dyn AgentHarness>, priority: i32) -> Jeton {
         let jeton = Jeton(self.suivant);
         self.suivant += 1;
-        let c = Contribution { jeton, priority, harness };
+        let c = Contribution {
+            jeton,
+            priority,
+            harness,
+        };
         let pos = match self.entrees.iter().position(|(k, _)| k == id) {
             Some(p) => p,
             None => {
@@ -61,7 +65,10 @@ impl HarnessRegistry {
         };
         let liste = &mut self.entrees[pos].1;
         // Insérée APRÈS les contributions de priorité égale : « le dernier inscrit gagne ».
-        let rang = liste.iter().position(|x| x.priority > priority).unwrap_or(liste.len());
+        let rang = liste
+            .iter()
+            .position(|x| x.priority > priority)
+            .unwrap_or(liste.len());
         liste.insert(rang, c);
         jeton
     }
@@ -82,12 +89,18 @@ impl HarnessRegistry {
 
     /// Le harness d'id `id`, ou `None` (plugin absent ou désactivé).
     pub fn harness_of(&self, id: &str) -> Option<Rc<dyn AgentHarness>> {
-        self.entrees.iter().find(|(k, _)| k == id).and_then(|(_, l)| Self::resoudre(l))
+        self.entrees
+            .iter()
+            .find(|(k, _)| k == id)
+            .and_then(|(_, l)| Self::resoudre(l))
     }
 
     /// Tous les harness disponibles, dans l'ordre d'inscription des ids.
     pub fn harness_list(&self) -> Vec<Rc<dyn AgentHarness>> {
-        self.entrees.iter().filter_map(|(_, l)| Self::resoudre(l)).collect()
+        self.entrees
+            .iter()
+            .filter_map(|(_, l)| Self::resoudre(l))
+            .collect()
     }
 }
 
@@ -103,19 +116,28 @@ pub struct HarnessMeta {
 /// Le harness d'une conversation : celui de sa session si elle existe (une
 /// conversation ne change JAMAIS de moteur), sinon le choix en attente, sinon le
 /// défaut des réglages. Pur.
-pub fn harness_id_for(meta: Option<&HarnessMeta>, exists: bool, pending: Option<&str>, fallback: Option<&str>) -> String {
+pub fn harness_id_for(
+    meta: Option<&HarnessMeta>,
+    exists: bool,
+    pending: Option<&str>,
+    fallback: Option<&str>,
+) -> String {
     let non_vide = |s: Option<&str>| s.filter(|s| !s.is_empty()).map(str::to_string);
     if exists {
-        return non_vide(meta.and_then(|m| m.harness.as_deref())).unwrap_or_else(|| CLAUDE_HARNESS_ID.to_string());
+        return non_vide(meta.and_then(|m| m.harness.as_deref()))
+            .unwrap_or_else(|| CLAUDE_HARNESS_ID.to_string());
     }
-    non_vide(pending).or_else(|| non_vide(fallback)).unwrap_or_else(|| CLAUDE_HARNESS_ID.to_string())
+    non_vide(pending)
+        .or_else(|| non_vide(fallback))
+        .unwrap_or_else(|| CLAUDE_HARNESS_ID.to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::contrat::{
-        ChatEntry, ErreurHarness, HarnessCapabilities, HarnessConversation, HarnessIO, HarnessModel, HarnessRun, HarnessTurn, PolicySupport, ShellSupport,
+        ChatEntry, ErreurHarness, HarnessCapabilities, HarnessConversation, HarnessIO,
+        HarnessModel, HarnessRun, HarnessTurn, PolicySupport, ShellSupport,
     };
 
     struct Faux {
@@ -139,13 +161,22 @@ mod tests {
                 attachments: vec![],
                 structured_output: false,
                 permission_prompts: false,
-                policy: PolicySupport { tools: false, folders: false, network: false, shell: ShellSupport::None },
+                policy: PolicySupport {
+                    tools: false,
+                    folders: false,
+                    network: false,
+                    shell: ShellSupport::None,
+                },
             }
         }
         fn models(&self) -> Vec<HarnessModel> {
             vec![]
         }
-        fn run(&self, _turn: HarnessTurn, _io: &mut dyn HarnessIO) -> Result<Box<dyn HarnessRun>, ErreurHarness> {
+        fn run(
+            &self,
+            _turn: HarnessTurn,
+            _io: &mut dyn HarnessIO,
+        ) -> Result<Box<dyn HarnessRun>, ErreurHarness> {
             Err(ErreurHarness::NonSupporte("run"))
         }
         fn history(&self, _conv: &HarnessConversation) -> Vec<ChatEntry> {
@@ -154,7 +185,10 @@ mod tests {
     }
 
     fn harness(id: &str, label: &str) -> Rc<dyn AgentHarness> {
-        Rc::new(Faux { id: id.into(), label: label.into() })
+        Rc::new(Faux {
+            id: id.into(),
+            label: label.into(),
+        })
     }
 
     #[test]
@@ -175,7 +209,12 @@ mod tests {
         let mut reg = HarnessRegistry::new();
         let retirer = reg.register("codex", harness("codex", "codex"), 0);
         reg.register("claude", harness("claude", "claude"), -100);
-        let ids = |r: &HarnessRegistry| r.harness_list().iter().map(|h| h.id().to_string()).collect::<Vec<_>>();
+        let ids = |r: &HarnessRegistry| {
+            r.harness_list()
+                .iter()
+                .map(|h| h.id().to_string())
+                .collect::<Vec<_>>()
+        };
         assert_eq!(ids(&reg), vec!["codex".to_string(), "claude".to_string()]);
         reg.unregister("codex", retirer);
         assert!(reg.harness_of("codex").is_none());
@@ -187,10 +226,22 @@ mod tests {
     fn le_moteur_dune_conversation_fige_par_sa_session_sinon_le_choix_en_attente_sinon_le_defaut() {
         // Une session d'avant la v2 (sans `harness`) est une session Claude.
         let vide = HarnessMeta::default();
-        assert_eq!(harness_id_for(Some(&vide), true, Some("codex"), Some("codex")), CLAUDE_HARNESS_ID);
-        let codex = HarnessMeta { harness: Some("codex".into()), harness_state: None };
-        assert_eq!(harness_id_for(Some(&codex), true, Some("autre"), None), "codex");
-        assert_eq!(harness_id_for(None, false, Some("codex"), Some("echo")), "codex");
+        assert_eq!(
+            harness_id_for(Some(&vide), true, Some("codex"), Some("codex")),
+            CLAUDE_HARNESS_ID
+        );
+        let codex = HarnessMeta {
+            harness: Some("codex".into()),
+            harness_state: None,
+        };
+        assert_eq!(
+            harness_id_for(Some(&codex), true, Some("autre"), None),
+            "codex"
+        );
+        assert_eq!(
+            harness_id_for(None, false, Some("codex"), Some("echo")),
+            "codex"
+        );
         assert_eq!(harness_id_for(None, false, None, Some("echo")), "echo");
         assert_eq!(harness_id_for(None, false, None, None), CLAUDE_HARNESS_ID);
     }

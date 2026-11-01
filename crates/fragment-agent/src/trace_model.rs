@@ -58,7 +58,16 @@ pub struct TraceStep {
 
 impl TraceStep {
     fn vide(id: String, kind: StepKind) -> Self {
-        TraceStep { id, kind, text: None, name: None, input: None, result: None, started_at: None, ended_at: None }
+        TraceStep {
+            id,
+            kind,
+            text: None,
+            name: None,
+            input: None,
+            result: None,
+            started_at: None,
+            ended_at: None,
+        }
     }
 }
 
@@ -99,7 +108,16 @@ pub struct TraceBuilder {
 
 impl TraceBuilder {
     pub fn new(now: i64) -> Self {
-        TraceBuilder { trace: Trace { status: TraceStatus::Running, started_at: Some(now), ended_at: None, steps: Vec::new(), writing: None }, n: 0 }
+        TraceBuilder {
+            trace: Trace {
+                status: TraceStatus::Running,
+                started_at: Some(now),
+                ended_at: None,
+                steps: Vec::new(),
+                writing: None,
+            },
+            n: 0,
+        }
     }
 
     pub fn size(&self) -> usize {
@@ -118,17 +136,23 @@ impl TraceBuilder {
     /// « A réfléchi 7 s » pour un tour de 27 s passé à réfléchir). C'est la règle de
     /// `split_turn` : le direct et la relecture donnent le même chiffre.
     pub fn thinking(&mut self, text: &str, now: i64, nouveau: bool) {
-        if let Some(last) = self.trace.steps.last_mut() {
-            if !nouveau && last.kind == StepKind::Thinking && last.ended_at.is_none() {
-                last.text = Some(format!("{}{}", last.text.as_deref().unwrap_or(""), text));
-                return;
-            }
+        if let Some(last) = self.trace.steps.last_mut()
+            && !nouveau
+            && last.kind == StepKind::Thinking
+            && last.ended_at.is_none()
+        {
+            last.text = Some(format!("{}{}", last.text.as_deref().unwrap_or(""), text));
+            return;
         }
         let avait_precedente = !self.trace.steps.is_empty();
         self.fermer(now);
         // ★ `debut` se lit APRÈS `fermer` (comme en TS) : une pensée précédente ouverte vient d'être close à `now`.
         let debut = if avait_precedente {
-            self.trace.steps.last().and_then(|s| s.ended_at).unwrap_or(now)
+            self.trace
+                .steps
+                .last()
+                .and_then(|s| s.ended_at)
+                .unwrap_or(now)
         } else {
             self.trace.started_at.unwrap_or(now)
         };
@@ -165,7 +189,12 @@ impl TraceBuilder {
         // Le texte qui s'écrivait n'était pas la réponse (une narration) : on n'écrit plus.
         self.trace.writing = Some(false);
         self.trace.ended_at = None;
-        if self.trace.steps.iter().any(|s| s.kind == StepKind::Tool && s.id == b.id) {
+        if self
+            .trace
+            .steps
+            .iter()
+            .any(|s| s.kind == StepKind::Tool && s.id == b.id)
+        {
             return;
         }
         let mut s = TraceStep::vide(b.id, StepKind::Tool);
@@ -176,7 +205,12 @@ impl TraceBuilder {
     }
 
     pub fn result(&mut self, id: &str, result: ResultatOutil, now: i64) {
-        if let Some(s) = self.trace.steps.iter_mut().find(|x| x.kind == StepKind::Tool && x.id == id) {
+        if let Some(s) = self
+            .trace
+            .steps
+            .iter_mut()
+            .find(|x| x.kind == StepKind::Tool && x.id == id)
+        {
             s.result = Some(result);
             s.ended_at = Some(now);
         }
@@ -199,7 +233,11 @@ impl TraceBuilder {
                 s.ended_at = Some(now);
             }
         }
-        self.trace.status = if error { TraceStatus::Error } else { TraceStatus::Done };
+        self.trace.status = if error {
+            TraceStatus::Error
+        } else {
+            TraceStatus::Done
+        };
         // La réponse écrite ne compte pas : la trace s'est arrêtée quand elle a commencé.
         if self.trace.writing != Some(true) {
             self.trace.ended_at = Some(now);
@@ -222,7 +260,9 @@ pub struct TourDecoupe {
 /// La relecture d'un tour (les blocs d'une bulle assistant, dans l'ordre).
 /// `started_at` : l'heure de la question (le début du tour).
 pub fn split_turn(blocks: &[ChatBlock], started_at: Option<i64>) -> TourDecoupe {
-    let dernier = blocks.iter().rposition(|b| matches!(b, ChatBlock::Thinking { .. } | ChatBlock::Tool(_)));
+    let dernier = blocks
+        .iter()
+        .rposition(|b| matches!(b, ChatBlock::Thinking { .. } | ChatBlock::Tool(_)));
     let debut_reponse = dernier.map_or(0, |d| d + 1);
     let answer: Vec<String> = blocks[debut_reponse..]
         .iter()
@@ -231,7 +271,12 @@ pub fn split_turn(blocks: &[ChatBlock], started_at: Option<i64>) -> TourDecoupe 
             _ => None,
         })
         .collect();
-    let Some(dernier) = dernier else { return TourDecoupe { trace: None, answer } };
+    let Some(dernier) = dernier else {
+        return TourDecoupe {
+            trace: None,
+            answer,
+        };
+    };
     let mut steps: Vec<TraceStep> = Vec::new();
     let mut avant = started_at;
     for (i, b) in blocks[..=dernier].iter().enumerate() {
@@ -272,10 +317,22 @@ pub fn split_turn(blocks: &[ChatBlock], started_at: Option<i64>) -> TourDecoupe 
         ChatBlock::Text { at, .. } | ChatBlock::Thinking { at, .. } => *at,
         ChatBlock::Attachment { .. } => None,
     });
-    let erreur = steps.iter().any(|s| s.kind == StepKind::Tool && s.result.is_none());
+    let erreur = steps
+        .iter()
+        .any(|s| s.kind == StepKind::Tool && s.result.is_none());
     let started = started_at.or(steps.first().and_then(|s| s.started_at));
     TourDecoupe {
-        trace: Some(Trace { status: if erreur { TraceStatus::Error } else { TraceStatus::Done }, started_at: started, ended_at: fins.max(), steps, writing: None }),
+        trace: Some(Trace {
+            status: if erreur {
+                TraceStatus::Error
+            } else {
+                TraceStatus::Done
+            },
+            started_at: started,
+            ended_at: fins.max(),
+            steps,
+            writing: None,
+        }),
         answer,
     }
 }
@@ -327,40 +384,107 @@ pub fn file_icon(path: &str) -> &'static str {
 
 /// La valeur d'un paramètre `clé=valeur` d'une ligne de commande (guillemets compris).
 pub fn param(command: &str, cle: &str) -> Option<String> {
-    let motif = Motif::new(&format!(r#"(?:^|\s)({}=("([^"]*)"|'([^']*)'|(\S+)))"#, regex::escape(cle)));
+    let motif = Motif::new(&format!(
+        r#"(?:^|\s)({}=("([^"]*)"|'([^']*)'|(\S+)))"#,
+        regex::escape(cle)
+    ));
     let m = motif.captures(command)?;
     // groupes : 3 = double quote, 4 = simple, 5 = nu (comme m[2] ?? m[3] ?? m[4] du TS).
-    m.get(3).or_else(|| m.get(4)).or_else(|| m.get(5)).map(|g| g.as_str().to_string())
+    m.get(3)
+        .or_else(|| m.get(4))
+        .or_else(|| m.get(5))
+        .map(|g| g.as_str().to_string())
 }
 
 type Verbe = (&'static str, &'static str, &'static str);
 
 /// Les sous-commandes de `fragment` que l'agent emploie le plus, en mots.
 const FRAGMENT: [(&str, Verbe); 17] = [
-    ("agent:screen", ("monitor", "Regarde l’écran", "A regardé l’écran")),
+    (
+        "agent:screen",
+        ("monitor", "Regarde l’écran", "A regardé l’écran"),
+    ),
     ("agent:leaf", ("panel-top", "Lit la vue", "A lu la vue")),
-    ("agent:files", ("folder", "Liste les fichiers", "A listé les fichiers")),
-    ("agent:focus", ("crosshair", "Active une vue", "A activé une vue")),
-    ("annotation:draw", ("pen-line", "Dessine sur", "A dessiné sur")),
-    ("annotation:strokes", ("pen-line", "Lit les dessins de", "A lu les dessins de")),
-    ("annotation:erase", ("eraser", "Efface des traits", "A effacé des traits")),
-    ("artefacts:place", ("shapes", "Pose un objet dans", "A posé un objet dans")),
-    ("artefacts:list", ("shapes", "Liste les objets de", "A listé les objets de")),
-    ("artefacts:move", ("move", "Déplace un objet", "A déplacé un objet")),
-    ("artefacts:remove", ("shapes", "Retire un objet", "A retiré un objet")),
-    ("command", ("square-terminal", "Lance la commande", "A lancé la commande")),
-    ("commands", ("list", "Liste les commandes", "A listé les commandes")),
-    ("eval", ("code", "Exécute du code dans Fragment", "A exécuté du code dans Fragment")),
-    ("help", ("book-open", "Lit l’aide de Fragment", "A lu l’aide de Fragment")),
-    ("plugin-reload", ("refresh-cw", "Recharge le plugin", "A rechargé le plugin")),
-    ("plugins", ("puzzle", "Liste les plugins", "A listé les plugins")),
+    (
+        "agent:files",
+        ("folder", "Liste les fichiers", "A listé les fichiers"),
+    ),
+    (
+        "agent:focus",
+        ("crosshair", "Active une vue", "A activé une vue"),
+    ),
+    (
+        "annotation:draw",
+        ("pen-line", "Dessine sur", "A dessiné sur"),
+    ),
+    (
+        "annotation:strokes",
+        ("pen-line", "Lit les dessins de", "A lu les dessins de"),
+    ),
+    (
+        "annotation:erase",
+        ("eraser", "Efface des traits", "A effacé des traits"),
+    ),
+    (
+        "artefacts:place",
+        ("shapes", "Pose un objet dans", "A posé un objet dans"),
+    ),
+    (
+        "artefacts:list",
+        ("shapes", "Liste les objets de", "A listé les objets de"),
+    ),
+    (
+        "artefacts:move",
+        ("move", "Déplace un objet", "A déplacé un objet"),
+    ),
+    (
+        "artefacts:remove",
+        ("shapes", "Retire un objet", "A retiré un objet"),
+    ),
+    (
+        "command",
+        (
+            "square-terminal",
+            "Lance la commande",
+            "A lancé la commande",
+        ),
+    ),
+    (
+        "commands",
+        ("list", "Liste les commandes", "A listé les commandes"),
+    ),
+    (
+        "eval",
+        (
+            "code",
+            "Exécute du code dans Fragment",
+            "A exécuté du code dans Fragment",
+        ),
+    ),
+    (
+        "help",
+        (
+            "book-open",
+            "Lit l’aide de Fragment",
+            "A lu l’aide de Fragment",
+        ),
+    ),
+    (
+        "plugin-reload",
+        ("refresh-cw", "Recharge le plugin", "A rechargé le plugin"),
+    ),
+    (
+        "plugins",
+        ("puzzle", "Liste les plugins", "A listé les plugins"),
+    ),
 ];
 
 fn verbe_fragment(sous: &str) -> Option<Verbe> {
     FRAGMENT.iter().find(|(k, _)| *k == sous).map(|(_, v)| *v)
 }
 
-static CMD_FRAGMENT: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"(?i)^(?:&\s*)?fragment(?:\.cmd)?\s+(\S+)(.*)$"));
+static CMD_FRAGMENT: LazyLock<Motif> =
+    LazyLock::new(|| Motif::new(r"(?i)^(?:&\s*)?fragment(?:\.cmd)?\s+(\S+)(.*)$"));
 
 pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
     let v = |icon: &str, present: &str, passe: &str, target: Option<String>| StepView {
@@ -371,7 +495,13 @@ pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
     };
     match step.kind {
         StepKind::Thinking => return v("brain", "Réfléchit", "A réfléchi", None),
-        StepKind::Note => return StepView { icon: "message-square".into(), verb: step.text.clone().unwrap_or_default(), ..StepView::default() },
+        StepKind::Note => {
+            return StepView {
+                icon: "message-square".into(),
+                verb: step.text.clone().unwrap_or_default(),
+                ..StepView::default()
+            };
+        }
         StepKind::Tool => {}
     }
     let vide = Entree::new();
@@ -390,18 +520,33 @@ pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
         Some("Write") => fichier("Écrit", "A écrit", "file-plus"),
         Some("Edit") => fichier("Modifie", "A modifié", "pencil"),
         Some("Glob") => {
-            let mut r = v("search", "Cherche les fichiers", "A cherché les fichiers", Some(texte(i.get("pattern"))));
+            let mut r = v(
+                "search",
+                "Cherche les fichiers",
+                "A cherché les fichiers",
+                Some(texte(i.get("pattern"))),
+            );
             r.mono = Some(true);
             r
         }
-        Some("Grep") => v("search", "Cherche", "A cherché", Some(format!("« {} »", texte(i.get("pattern"))))),
+        Some("Grep") => v(
+            "search",
+            "Cherche",
+            "A cherché",
+            Some(format!("« {} »", texte(i.get("pattern")))),
+        ),
         Some("Skill") => {
             let brut = match i.get("skill").filter(|x| !x.is_null()) {
                 Some(s) => texte(Some(s)),
                 None => texte(i.get("name")),
             };
             let court = brut.rsplit(':').next().unwrap_or(&brut).to_string();
-            v("sparkles", "Utilise le skill", "A utilisé le skill", Some(court))
+            v(
+                "sparkles",
+                "Utilise le skill",
+                "A utilisé le skill",
+                Some(court),
+            )
         }
         Some("Bash") | Some("PowerShell") => {
             let cmd = texte(i.get("command")).trim().to_string();
@@ -411,7 +556,13 @@ pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
                 let (icon, present, passe) = connu.unwrap_or(("terminal", "Lance", "A lancé"));
                 let reste = &f[2];
                 let doc = param(reste, "doc");
-                let cible = doc.clone().or_else(|| param(reste, "id")).or_else(|| if connu.is_some() { None } else { Some(format!("fragment {sous}")) });
+                let cible = doc.clone().or_else(|| param(reste, "id")).or_else(|| {
+                    if connu.is_some() {
+                        None
+                    } else {
+                        Some(format!("fragment {sous}"))
+                    }
+                });
                 let affiche = cible.as_ref().map(|c| {
                     let n = nom(Some(&Value::String(c.clone())));
                     if n.is_empty() { c.clone() } else { n }
@@ -424,7 +575,11 @@ pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
                 }
                 return r;
             }
-            let court = if len_utf16(&cmd) > 60 { format!("{}…", tete_utf16(&cmd, 59)) } else { cmd };
+            let court = if len_utf16(&cmd) > 60 {
+                format!("{}…", tete_utf16(&cmd, 59))
+            } else {
+                cmd
+            };
             let mut r = v("terminal", "Exécute", "A exécuté", Some(court));
             r.mono = Some(true);
             r
@@ -442,7 +597,11 @@ pub fn duree(ms: i64) -> String {
         return format!("{s} s");
     }
     let m = s / 60;
-    if s % 60 != 0 { format!("{m} min {} s", s % 60) } else { format!("{m} min") }
+    if s % 60 != 0 {
+        format!("{m} min {} s", s % 60)
+    } else {
+        format!("{m} min")
+    }
 }
 
 fn pluriel(n: usize, un: &str, plusieurs: &str) -> String {
@@ -451,8 +610,17 @@ fn pluriel(n: usize, un: &str, plusieurs: &str) -> String {
 
 /// Le résumé d'une trace finie : « A réfléchi 3 s · lu 2 fichiers · 1 recherche · 3 commandes ».
 pub fn summarize(trace: &Trace) -> String {
-    let outils: Vec<&TraceStep> = trace.steps.iter().filter(|s| s.kind == StepKind::Tool).collect();
-    let compte = |noms: &[&str]| outils.iter().filter(|s| noms.contains(&s.name.as_deref().unwrap_or(""))).count();
+    let outils: Vec<&TraceStep> = trace
+        .steps
+        .iter()
+        .filter(|s| s.kind == StepKind::Tool)
+        .collect();
+    let compte = |noms: &[&str]| {
+        outils
+            .iter()
+            .filter(|s| noms.contains(&s.name.as_deref().unwrap_or("")))
+            .count()
+    };
     let pensee: i64 = trace
         .steps
         .iter()
@@ -464,7 +632,11 @@ pub fn summarize(trace: &Trace) -> String {
         .sum();
     let mut morceaux: Vec<String> = Vec::new();
     if trace.steps.iter().any(|s| s.kind == StepKind::Thinking) {
-        morceaux.push(if pensee >= 1000 { format!("a réfléchi {}", duree(pensee)) } else { "a réfléchi".into() });
+        morceaux.push(if pensee >= 1000 {
+            format!("a réfléchi {}", duree(pensee))
+        } else {
+            "a réfléchi".into()
+        });
     }
     let lus = compte(&["Read"]);
     if lus > 0 {
@@ -487,7 +659,11 @@ pub fn summarize(trace: &Trace) -> String {
         morceaux.push(pluriel(autres, "autre action", "autres actions"));
     }
     if morceaux.is_empty() {
-        return if trace.status == TraceStatus::Error { "Interrompu".into() } else { "Terminé".into() };
+        return if trace.status == TraceStatus::Error {
+            "Interrompu".into()
+        } else {
+            "Terminé".into()
+        };
     }
     let texte = morceaux.join(" · ");
     if trace.status == TraceStatus::Error {
@@ -506,7 +682,9 @@ pub fn orb_state_of(trace: &Trace) -> OrbState {
     if trace.writing == Some(true) {
         return OrbState::Composing;
     }
-    let Some(step) = current_step(trace) else { return OrbState::Solving };
+    let Some(step) = current_step(trace) else {
+        return OrbState::Solving;
+    };
     if step.kind != StepKind::Tool || step.ended_at.is_some() {
         return OrbState::Solving;
     }
@@ -525,7 +703,12 @@ pub fn seule_pensee(trace: &Trace) -> bool {
 
 /// L'étape EN COURS (la dernière sans fin), sinon la dernière.
 pub fn current_step(trace: &Trace) -> Option<&TraceStep> {
-    trace.steps.iter().rev().find(|s| s.ended_at.is_none() && s.kind != StepKind::Note).or_else(|| trace.steps.last())
+    trace
+        .steps
+        .iter()
+        .rev()
+        .find(|s| s.ended_at.is_none() && s.kind != StepKind::Note)
+        .or_else(|| trace.steps.last())
 }
 
 #[cfg(test)]
@@ -539,11 +722,18 @@ mod tests {
     }
 
     fn out(id: &str, name: &str, input: Option<Value>) -> OutilEntrant {
-        OutilEntrant { id: id.into(), name: name.into(), input: input.and_then(entree) }
+        OutilEntrant {
+            id: id.into(),
+            name: name.into(),
+            input: input.and_then(entree),
+        }
     }
 
     fn res(texte: &str) -> ResultatOutil {
-        ResultatOutil { is_error: false, text: texte.into() }
+        ResultatOutil {
+            is_error: false,
+            text: texte.into(),
+        }
     }
 
     // ── TraceBuilder — un tour en direct ──
@@ -557,22 +747,50 @@ mod tests {
         t.tool(out("a", "Grep", Some(json!({ "pattern": "photon" }))), 3000);
         t.result("a", res("cours.md"), 3200);
         t.note("Je lis la note.", 3300);
-        t.tool(out("b", "Read", Some(json!({ "file_path": "C:/v/cours.md" }))), 3400);
+        t.tool(
+            out("b", "Read", Some(json!({ "file_path": "C:/v/cours.md" }))),
+            3400,
+        );
         t.tool(out("b", "Read", None), 3401); // doublon ignoré
-        assert_eq!(current_step(&t.snapshot()).map(|s| s.id.clone()), Some("b".into()));
+        assert_eq!(
+            current_step(&t.snapshot()).map(|s| s.id.clone()),
+            Some("b".into())
+        );
         t.result("b", res("# Cours"), 3900);
         t.finish(5000, false);
         let s = t.snapshot();
         assert_eq!(s.status, TraceStatus::Done);
-        assert_eq!(s.steps.iter().map(|x| x.kind).collect::<Vec<_>>(), vec![StepKind::Thinking, StepKind::Tool, StepKind::Note, StepKind::Tool]);
-        assert_eq!((s.steps[0].text.as_deref(), s.steps[0].started_at, s.steps[0].ended_at), (Some("Je cherche la note."), Some(1000), Some(3000)));
-        assert_eq!((s.steps[1].started_at, s.steps[1].ended_at), (Some(3000), Some(3200)));
-        assert_eq!(s.steps[1].result.as_ref().map(|r| r.text.as_str()), Some("cours.md"));
+        assert_eq!(
+            s.steps.iter().map(|x| x.kind).collect::<Vec<_>>(),
+            vec![
+                StepKind::Thinking,
+                StepKind::Tool,
+                StepKind::Note,
+                StepKind::Tool
+            ]
+        );
+        assert_eq!(
+            (
+                s.steps[0].text.as_deref(),
+                s.steps[0].started_at,
+                s.steps[0].ended_at
+            ),
+            (Some("Je cherche la note."), Some(1000), Some(3000))
+        );
+        assert_eq!(
+            (s.steps[1].started_at, s.steps[1].ended_at),
+            (Some(3000), Some(3200))
+        );
+        assert_eq!(
+            s.steps[1].result.as_ref().map(|r| r.text.as_str()),
+            Some("cours.md")
+        );
         assert_eq!(s.ended_at, Some(5000));
     }
 
     #[test]
-    fn une_pensee_commence_a_la_fin_de_letape_precedente_sinon_au_debut_du_tour_pas_a_son_1er_delta_en_retard() {
+    fn une_pensee_commence_a_la_fin_de_letape_precedente_sinon_au_debut_du_tour_pas_a_son_1er_delta_en_retard()
+     {
         let mut t = TraceBuilder::new(1000);
         t.thinking("", 8000, true);
         t.tool(out("r", "Read", None), 9000);
@@ -580,14 +798,29 @@ mod tests {
         t.thinking("", 12000, true);
         t.ecrire(13000);
         let s = t.snapshot();
-        assert_eq!((s.steps[0].started_at, s.steps[0].ended_at), (Some(1000), Some(9000)));
-        assert_eq!((s.steps[2].started_at, s.steps[2].ended_at), (Some(9500), Some(13000)));
-        assert_eq!(summarize(&Trace { status: TraceStatus::Done, ..s.clone() }), "A réfléchi 12 s · lu 1 fichier");
+        assert_eq!(
+            (s.steps[0].started_at, s.steps[0].ended_at),
+            (Some(1000), Some(9000))
+        );
+        assert_eq!(
+            (s.steps[2].started_at, s.steps[2].ended_at),
+            (Some(9500), Some(13000))
+        );
+        assert_eq!(
+            summarize(&Trace {
+                status: TraceStatus::Done,
+                ..s.clone()
+            }),
+            "A réfléchi 12 s · lu 1 fichier"
+        );
         // La réponse s'écrit : la trace est finie là (son chrono s'arrête), pas à la fin du tour.
         assert_eq!((s.writing, s.ended_at), (Some(true), Some(13000)));
         t.finish(20000, false);
         let f = t.snapshot();
-        assert_eq!((f.status, f.writing, f.ended_at), (TraceStatus::Done, Some(false), Some(13000)));
+        assert_eq!(
+            (f.status, f.writing, f.ended_at),
+            (TraceStatus::Done, Some(false), Some(13000))
+        );
     }
 
     #[test]
@@ -596,14 +829,24 @@ mod tests {
         t.thinking("", 3000, true);
         t.ecrire(6000);
         assert!(seule_pensee(&t.snapshot()));
-        assert_eq!((t.snapshot().steps[0].started_at, t.snapshot().steps[0].ended_at), (Some(0), Some(6000)));
+        assert_eq!(
+            (
+                t.snapshot().steps[0].started_at,
+                t.snapshot().steps[0].ended_at
+            ),
+            (Some(0), Some(6000))
+        );
         t.tool(out("x", "Read", None), 7000);
-        assert_eq!((t.snapshot().writing, t.snapshot().ended_at), (Some(false), None));
+        assert_eq!(
+            (t.snapshot().writing, t.snapshot().ended_at),
+            (Some(false), None)
+        );
         assert!(!seule_pensee(&t.snapshot()));
     }
 
     #[test]
-    fn un_nouveau_bloc_de_pensee_apres_un_outil_est_une_nouvelle_etape_la_reponse_ferme_la_pensee() {
+    fn un_nouveau_bloc_de_pensee_apres_un_outil_est_une_nouvelle_etape_la_reponse_ferme_la_pensee()
+    {
         let mut t = TraceBuilder::new(0);
         t.thinking("a", 0, true);
         t.tool(out("x", "Read", None), 100);
@@ -611,8 +854,16 @@ mod tests {
         t.thinking("b", 300, false);
         t.fermer(400);
         let s = t.snapshot();
-        let pensees: Vec<(Option<String>, Option<i64>)> = s.steps.iter().filter(|x| x.kind == StepKind::Thinking).map(|x| (x.text.clone(), x.ended_at)).collect();
-        assert_eq!(pensees, vec![(Some("a".into()), Some(100)), (Some("b".into()), Some(400))]);
+        let pensees: Vec<(Option<String>, Option<i64>)> = s
+            .steps
+            .iter()
+            .filter(|x| x.kind == StepKind::Thinking)
+            .map(|x| (x.text.clone(), x.ended_at))
+            .collect();
+        assert_eq!(
+            pensees,
+            vec![(Some("a".into()), Some(100)), (Some("b".into()), Some(400))]
+        );
     }
 
     #[test]
@@ -642,8 +893,14 @@ mod tests {
     fn tout_jusquau_dernier_outil_pensee_la_trace_texte_intercale_note_le_reste_la_reponse() {
         let TourDecoupe { trace, answer } = split_turn(
             &[
-                ChatBlock::Thinking { text: "Hmm".into(), at: Some(1500) },
-                ChatBlock::Text { text: "Je regarde.".into(), at: Some(1500) },
+                ChatBlock::Thinking {
+                    text: "Hmm".into(),
+                    at: Some(1500),
+                },
+                ChatBlock::Text {
+                    text: "Je regarde.".into(),
+                    at: Some(1500),
+                },
                 ChatBlock::Tool(BlocOutil {
                     id: "t1".into(),
                     name: "Read".into(),
@@ -653,74 +910,183 @@ mod tests {
                     at: Some(2000),
                     result_at: Some(2500),
                 }),
-                ChatBlock::Thinking { text: "Donc…".into(), at: Some(4000) },
-                ChatBlock::Text { text: "Réponse.".into(), at: Some(4000) },
-                ChatBlock::Text { text: "Suite.".into(), at: Some(4100) },
+                ChatBlock::Thinking {
+                    text: "Donc…".into(),
+                    at: Some(4000),
+                },
+                ChatBlock::Text {
+                    text: "Réponse.".into(),
+                    at: Some(4000),
+                },
+                ChatBlock::Text {
+                    text: "Suite.".into(),
+                    at: Some(4100),
+                },
             ],
             Some(1000),
         );
         assert_eq!(answer, vec!["Réponse.".to_string(), "Suite.".to_string()]);
         let trace = trace.unwrap();
-        assert_eq!(trace.steps.iter().map(|s| s.kind).collect::<Vec<_>>(), vec![StepKind::Thinking, StepKind::Note, StepKind::Tool, StepKind::Thinking]);
-        assert_eq!((trace.steps[0].started_at, trace.steps[0].ended_at), (Some(1000), Some(1500)));
-        assert_eq!((trace.steps[3].started_at, trace.steps[3].ended_at), (Some(2500), Some(4000)));
+        assert_eq!(
+            trace.steps.iter().map(|s| s.kind).collect::<Vec<_>>(),
+            vec![
+                StepKind::Thinking,
+                StepKind::Note,
+                StepKind::Tool,
+                StepKind::Thinking
+            ]
+        );
+        assert_eq!(
+            (trace.steps[0].started_at, trace.steps[0].ended_at),
+            (Some(1000), Some(1500))
+        );
+        assert_eq!(
+            (trace.steps[3].started_at, trace.steps[3].ended_at),
+            (Some(2500), Some(4000))
+        );
         // Fin = la dernière étape (la réponse qui suit ne compte pas).
-        assert_eq!((trace.status, trace.started_at, trace.ended_at), (TraceStatus::Done, Some(1000), Some(4000)));
+        assert_eq!(
+            (trace.status, trace.started_at, trace.ended_at),
+            (TraceStatus::Done, Some(1000), Some(4000))
+        );
     }
 
     #[test]
     fn un_tour_sans_outil_ni_pensee_pas_de_trace() {
-        assert_eq!(split_turn(&[ChatBlock::texte("Salut")], None), TourDecoupe { trace: None, answer: vec!["Salut".into()] });
+        assert_eq!(
+            split_turn(&[ChatBlock::texte("Salut")], None),
+            TourDecoupe {
+                trace: None,
+                answer: vec!["Salut".into()]
+            }
+        );
     }
 
     #[test]
     fn un_outil_reste_sans_resultat_trace_en_erreur() {
-        let b = ChatBlock::Tool(BlocOutil { id: "x".into(), name: "Bash".into(), summary: String::new(), input: None, result: None, at: None, result_at: None });
-        assert_eq!(split_turn(&[b], None).trace.map(|t| t.status), Some(TraceStatus::Error));
+        let b = ChatBlock::Tool(BlocOutil {
+            id: "x".into(),
+            name: "Bash".into(),
+            summary: String::new(),
+            input: None,
+            result: None,
+            at: None,
+            result_at: None,
+        });
+        assert_eq!(
+            split_turn(&[b], None).trace.map(|t| t.status),
+            Some(TraceStatus::Error)
+        );
     }
 
     // ── describeStep ──
 
     fn outil(name: &str, input: Value) -> TraceStep {
-        TraceStep { name: Some(name.into()), input: entree(input), ..TraceStep::vide("x".into(), StepKind::Tool) }
+        TraceStep {
+            name: Some(name.into()),
+            input: entree(input),
+            ..TraceStep::vide("x".into(), StepKind::Tool)
+        }
     }
 
     #[test]
     fn verbes_au_present_pendant_au_passe_apres_cible_en_puce() {
-        let r = describe_step(&outil("Read", json!({ "file_path": "C:\\v\\Cours\\photon.md" })), true);
-        assert_eq!((r.verb.as_str(), r.target.as_deref(), r.target_icon.as_deref()), ("Lit", Some("photon.md"), Some("file-text")));
+        let r = describe_step(
+            &outil("Read", json!({ "file_path": "C:\\v\\Cours\\photon.md" })),
+            true,
+        );
+        assert_eq!(
+            (
+                r.verb.as_str(),
+                r.target.as_deref(),
+                r.target_icon.as_deref()
+            ),
+            ("Lit", Some("photon.md"), Some("file-text"))
+        );
         let r = describe_step(&outil("Read", json!({ "file_path": "a.pdf" })), false);
-        assert_eq!((r.verb.as_str(), r.target_icon.as_deref()), ("A lu", Some("file-type")));
+        assert_eq!(
+            (r.verb.as_str(), r.target_icon.as_deref()),
+            ("A lu", Some("file-type"))
+        );
         let r = describe_step(&outil("Grep", json!({ "pattern": "photon" })), false);
-        assert_eq!((r.verb.as_str(), r.target.as_deref()), ("A cherché", Some("« photon »")));
+        assert_eq!(
+            (r.verb.as_str(), r.target.as_deref()),
+            ("A cherché", Some("« photon »"))
+        );
         let r = describe_step(&outil("Glob", json!({ "pattern": "**/*.md" })), true);
-        assert_eq!((r.verb.as_str(), r.mono), ("Cherche les fichiers", Some(true)));
-        assert_eq!(describe_step(&outil("Edit", json!({ "file_path": "n.md" })), false).verb, "A modifié");
-        assert_eq!(describe_step(&outil("Skill", json!({ "skill": "fragment-explain:intuition" })), false).target.as_deref(), Some("intuition"));
-        let pensee = TraceStep { text: Some(String::new()), ..TraceStep::vide("t".into(), StepKind::Thinking) };
+        assert_eq!(
+            (r.verb.as_str(), r.mono),
+            ("Cherche les fichiers", Some(true))
+        );
+        assert_eq!(
+            describe_step(&outil("Edit", json!({ "file_path": "n.md" })), false).verb,
+            "A modifié"
+        );
+        assert_eq!(
+            describe_step(
+                &outil("Skill", json!({ "skill": "fragment-explain:intuition" })),
+                false
+            )
+            .target
+            .as_deref(),
+            Some("intuition")
+        );
+        let pensee = TraceStep {
+            text: Some(String::new()),
+            ..TraceStep::vide("t".into(), StepKind::Thinking)
+        };
         assert_eq!(describe_step(&pensee, true).verb, "Réfléchit");
     }
 
     #[test]
     fn les_commandes_fragment_en_mots_une_autre_commande_telle_quelle() {
-        let sh = |c: &str, running: bool| describe_step(&outil("PowerShell", json!({ "command": c })), running);
+        let sh = |c: &str, running: bool| {
+            describe_step(&outil("PowerShell", json!({ "command": c })), running)
+        };
         let r = sh("fragment agent:screen vault=Coffre", false);
-        assert_eq!((r.icon.as_str(), r.verb.as_str()), ("monitor", "A regardé l’écran"));
-        let r = sh("fragment annotation:draw doc=\"Cours/photon.md\" passage=\"x\" vault=C", true);
-        assert_eq!((r.verb.as_str(), r.target.as_deref()), ("Dessine sur", Some("photon.md")));
+        assert_eq!(
+            (r.icon.as_str(), r.verb.as_str()),
+            ("monitor", "A regardé l’écran")
+        );
+        let r = sh(
+            "fragment annotation:draw doc=\"Cours/photon.md\" passage=\"x\" vault=C",
+            true,
+        );
+        assert_eq!(
+            (r.verb.as_str(), r.target.as_deref()),
+            ("Dessine sur", Some("photon.md"))
+        );
         let r = sh("fragment command id=editor:toggle-bold vault=C", false);
-        assert_eq!((r.verb.as_str(), r.target.as_deref()), ("A lancé la commande", Some("editor:toggle-bold")));
-        assert_eq!(sh("fragment.cmd eval code=\"1+1\"", false).verb, "A exécuté du code dans Fragment");
+        assert_eq!(
+            (r.verb.as_str(), r.target.as_deref()),
+            ("A lancé la commande", Some("editor:toggle-bold"))
+        );
+        assert_eq!(
+            sh("fragment.cmd eval code=\"1+1\"", false).verb,
+            "A exécuté du code dans Fragment"
+        );
         let r = sh("fragment truc:inconnu", false);
-        assert_eq!((r.verb.as_str(), r.target.as_deref(), r.mono), ("A lancé", Some("fragment truc:inconnu"), Some(true)));
+        assert_eq!(
+            (r.verb.as_str(), r.target.as_deref(), r.mono),
+            ("A lancé", Some("fragment truc:inconnu"), Some(true))
+        );
         let r = sh("Get-ChildItem | Select-String x", false);
-        assert_eq!((r.icon.as_str(), r.verb.as_str(), r.mono), ("terminal", "A exécuté", Some(true)));
+        assert_eq!(
+            (r.icon.as_str(), r.verb.as_str(), r.mono),
+            ("terminal", "A exécuté", Some(true))
+        );
     }
 
     #[test]
     fn param_guillemets_doubles_simples_nus() {
-        assert_eq!(param("a doc=\"x y.md\" id='z' n=3", "doc").as_deref(), Some("x y.md"));
-        assert_eq!(param("a doc=\"x y.md\" id='z' n=3", "id").as_deref(), Some("z"));
+        assert_eq!(
+            param("a doc=\"x y.md\" id='z' n=3", "doc").as_deref(),
+            Some("x y.md")
+        );
+        assert_eq!(
+            param("a doc=\"x y.md\" id='z' n=3", "id").as_deref(),
+            Some("z")
+        );
         assert_eq!(param("a doc=\"x\" n=3", "n").as_deref(), Some("3"));
         assert_eq!(param("a", "doc"), None);
     }
@@ -739,12 +1105,21 @@ mod tests {
     fn summarize_compte_par_famille_pensee_avec_sa_duree() {
         let mut t = TraceBuilder::new(0);
         t.thinking("", 0, true);
-        for (id, nom, a, b) in [("a", "Read", 3000, 3100), ("b", "Read", 3200, 3300), ("c", "Grep", 3400, 3500), ("d", "PowerShell", 3600, 3700), ("e", "Edit", 3800, 3900)] {
+        for (id, nom, a, b) in [
+            ("a", "Read", 3000, 3100),
+            ("b", "Read", 3200, 3300),
+            ("c", "Grep", 3400, 3500),
+            ("d", "PowerShell", 3600, 3700),
+            ("e", "Edit", 3800, 3900),
+        ] {
             t.tool(out(id, nom, None), a);
             t.result(id, res(""), b);
         }
         t.finish(4000, false);
-        assert_eq!(summarize(&t.snapshot()), "A réfléchi 3 s · lu 2 fichiers · 1 recherche · 1 fichier modifié · 1 commande");
+        assert_eq!(
+            summarize(&t.snapshot()),
+            "A réfléchi 3 s · lu 2 fichiers · 1 recherche · 1 fichier modifié · 1 commande"
+        );
         let mut e = TraceBuilder::new(0);
         e.tool(out("x", "Bash", None), 1);
         e.finish(2, true);

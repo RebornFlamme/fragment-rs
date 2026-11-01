@@ -79,7 +79,9 @@ pub fn text_between(surface: &dyn SurfaceLecture, from: usize, to: usize) -> Str
 
 /// Les unités de la surface (lignes d'une note, pages d'un PDF), dans l'ordre.
 fn unites(surface: &dyn SurfaceLecture) -> Vec<String> {
-    (0..surface.line_count()).map(|i| surface.get_line(i)).collect()
+    (0..surface.line_count())
+        .map(|i| surface.get_line(i))
+        .collect()
 }
 
 /// Le document tel que l'agent le reçoit : son texte quand on l'a en entier ;
@@ -88,20 +90,37 @@ fn unites(surface: &dyn SurfaceLecture) -> Vec<String> {
 /// `path` est la CLÉ du document ; hors du coffre (une conversation), il n'y a
 /// pas de fichier à lire et l'agent voit son TITRE — le texte est alors toujours
 /// complet.
-pub fn document_source(app: &dyn HoteDocuments, surface: &dyn SurfaceLecture, path: &str) -> DocumentSource {
-    let label = if is_vault_key(path) { path.to_string() } else { app.title(path) };
+pub fn document_source(
+    app: &dyn HoteDocuments,
+    surface: &dyn SurfaceLecture,
+    path: &str,
+) -> DocumentSource {
+    let label = if is_vault_key(path) {
+        path.to_string()
+    } else {
+        app.title(path)
+    };
     if surface.file_is_source() && is_vault_key(path) {
         return fichier(app, path);
     }
     if let Some(valeur) = surface.get_value() {
-        return DocumentSource::Text { path: label, text: valeur };
+        return DocumentSource::Text {
+            path: label,
+            text: valeur,
+        };
     }
     if let Some(entier) = surface.get_text() {
-        return DocumentSource::Text { path: label, text: entier };
+        return DocumentSource::Text {
+            path: label,
+            text: entier,
+        };
     }
     let u = unites(surface);
     if !is_vault_key(path) || u.iter().all(|t| !t.trim().is_empty()) {
-        return DocumentSource::Text { path: label, text: u.join("\n\n") };
+        return DocumentSource::Text {
+            path: label,
+            text: u.join("\n\n"),
+        };
     }
     fichier(app, path)
 }
@@ -109,8 +128,15 @@ pub fn document_source(app: &dyn HoteDocuments, surface: &dyn SurfaceLecture, pa
 /// Le fichier lui-même, que l'agent lit (Read) — un PDF pas encore peint, la source d'une page HTML.
 pub fn fichier(app: &dyn HoteDocuments, path: &str) -> DocumentSource {
     let base = app.base_path().unwrap_or_default();
-    let absolute_path = if base.is_empty() { path.to_string() } else { format!("{}/{path}", base.trim_end_matches(['/', '\\'])) };
-    DocumentSource::File { path: path.to_string(), absolute_path }
+    let absolute_path = if base.is_empty() {
+        path.to_string()
+    } else {
+        format!("{}/{path}", base.trim_end_matches(['/', '\\']))
+    };
+    DocumentSource::File {
+        path: path.to_string(),
+        absolute_path,
+    }
 }
 
 #[cfg(test)]
@@ -124,7 +150,10 @@ mod tests {
     }
 
     fn lecture(units: &[&str], complet: bool) -> Lecture {
-        Lecture { units: units.iter().map(|s| s.to_string()).collect(), complet }
+        Lecture {
+            units: units.iter().map(|s| s.to_string()).collect(),
+            complet,
+        }
     }
 
     impl SurfaceLecture for Lecture {
@@ -135,10 +164,17 @@ mod tests {
             self.units.get(n).cloned().unwrap_or_default()
         }
         fn offset_to_pos(&self, o: usize) -> Pos {
-            Pos { line: o / 1000, ch: o % 1000 }
+            Pos {
+                line: o / 1000,
+                ch: o % 1000,
+            }
         }
         fn get_text(&self) -> Option<String> {
-            if self.complet { Some(self.units.join("\n\n")) } else { None }
+            if self.complet {
+                Some(self.units.join("\n\n"))
+            } else {
+                None
+            }
         }
     }
 
@@ -155,17 +191,32 @@ mod tests {
 
     #[test]
     fn une_conversation_le_texte_entier_etiquete_par_son_titre_pas_de_fichier_a_lire() {
-        let d = document_source(&App("Ma conversation"), &lecture(&["Question", "Réponse"], true), "chat:agent/x");
-        assert_eq!(d, DocumentSource::Text { path: "Ma conversation".into(), text: "Question\n\nRéponse".into() });
+        let d = document_source(
+            &App("Ma conversation"),
+            &lecture(&["Question", "Réponse"], true),
+            "chat:agent/x",
+        );
+        assert_eq!(
+            d,
+            DocumentSource::Text {
+                path: "Ma conversation".into(),
+                text: "Question\n\nRéponse".into()
+            }
+        );
     }
 
     #[test]
     fn un_pdf_du_coffre_ses_pages_si_toutes_sont_lues_sinon_le_fichier() {
         assert_eq!(
             document_source(&App("x"), &lecture(&["p1", "p2"], false), "a.pdf"),
-            DocumentSource::Text { path: "a.pdf".into(), text: "p1\n\np2".into() }
+            DocumentSource::Text {
+                path: "a.pdf".into(),
+                text: "p1\n\np2".into()
+            }
         );
-        assert!(matches!(document_source(&App("x"), &lecture(&["p1", ""], false), "a.pdf"), DocumentSource::File { ref path, .. } if path == "a.pdf"));
+        assert!(
+            matches!(document_source(&App("x"), &lecture(&["p1", ""], false), "a.pdf"), DocumentSource::File { ref path, .. } if path == "a.pdf")
+        );
     }
 
     #[test]

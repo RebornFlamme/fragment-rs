@@ -1,0 +1,149 @@
+# Parité des tests de fragment-agent : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+# Chemins TS relatifs à `app/src/ui/views/agent/` de Fragment.
+
+[contrat]
+ts = "contract.ts + types.ts + api.ts"
+tests_ts = ""   # types seulement : pas de test TS ; deux tests de sérialisation ajoutés par le port
+source = 0
+portes = 0
+non_portes = []
+
+[events]
+ts = "events.ts"
+tests_ts = "events.test.ts"
+source = 13
+portes = 13
+non_portes = []
+
+[attachment_blocks]
+ts = "attachmentBlocks.ts"
+tests_ts = "attachmentBlocks.test.ts"
+source = 4
+portes = 4
+non_portes = []
+
+[trace_model]
+ts = "trace/traceModel.ts"
+tests_ts = "trace/traceModel.test.ts"
+source = 15
+portes = 15
+non_portes = []
+
+[policy_model]
+ts = "policy/policyModel.ts + policy/presets.ts"
+tests_ts = "policy/policyModel.test.ts"
+source = 15
+portes = 15
+non_portes = []
+
+[permission_model]
+ts = "policy/permissionCard.ts (partie pure ; le rendu DOM de la carte reste côté UI)"
+tests_ts = "policy/permissionModel.test.ts"
+source = 2
+portes = 2
+non_portes = []
+
+[quick_model]
+ts = "quick/quickModel.ts"
+tests_ts = "quick/quickModel.test.ts"
+source = 8
+portes = 7
+non_portes = [
+  { cas = "chaque icône de la liste existe dans le jeu Lucide embarqué", raison = "dépend du paquet `lucide-static` (jeu d'icônes JS) : la vérification se fera côté fragment-ui, qui embarque le jeu d'icônes ; QUICK_ICONS est ici la liste de référence" },
+]
+
+[actions_model]
+ts = "actions/actionsModel.ts"
+tests_ts = "actions/actionsModel.test.ts"
+source = 11
+portes = 11
+non_portes = []
+
+[skills_model]
+ts = "skillsModel.ts"
+tests_ts = "skillsModel.test.ts"
+source = 14
+portes = 12
+non_portes = [
+  { cas = "le bundle réel : 7 skills, 22 fichiers, préprompt sans liens .agents/", raison = "lit le bundle Vite (`skillsPlugin.ts`, import `?raw` des skills) : l'embarquement des skills dans le binaire est une tâche du harness / de l'app, pas du modèle" },
+  { cas = "le prompt livré : maths en LaTeX seulement, non-rendus listés", raison = "lit `FRAGMENT_PROMPT` (skillsPlugin.ts, bundle Vite) : même raison" },
+]
+
+[screen_model]
+ts = "screenModel.ts"
+tests_ts = "screenModel.test.ts"
+source = 2
+portes = 2
+non_portes = []
+
+[one_shot_options]
+ts = "oneShotOptions.ts"
+tests_ts = "oneShotOptions.test.ts"
+source = 2
+portes = 2
+non_portes = []
+
+[controls_model]
+ts = "controls/controlsModel.ts"
+tests_ts = "controls/controlsModel.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+[card_model]
+ts = "side-chat/cardModel.ts"
+tests_ts = "side-chat/cardModel.test.ts"   # bloc cardModel
+source = 1
+portes = 1
+non_portes = []
+
+[side_chat_prompt]
+ts = "side-chat/sideChatPrompt.ts"
+tests_ts = "side-chat/cardModel.test.ts"   # bloc askPrompt (2 cas), le TS les range avec cardModel
+source = 2
+portes = 2
+non_portes = []
+
+[lasso_prompt]
+ts = "lasso/lassoPrompt.ts"
+tests_ts = "lasso/lassoPrompt.test.ts"
+source = 2
+portes = 2
+non_portes = []
+
+[text_access]
+ts = "side-chat/textAccess.ts"
+tests_ts = "side-chat/textAccess.test.ts"
+source = 2
+portes = 2
+non_portes = []
+
+[harness_registry]
+ts = "harness/registry.ts"
+tests_ts = "harness/registry.test.ts"
+source = 3
+portes = 3
+non_portes = []
+
+[engine_model]
+ts = "engine/engineModel.ts (+ parties pures de engine/engine.ts)"
+tests_ts = "engine/engineModel.test.ts"
+source = 11
+portes = 11
+non_portes = []
+
+[engine]
+ts = "engine/engine.ts (E/S : disque, processus, réseau — non porté)"
+tests_ts = "engine/engine.test.ts"
+source = 5
+portes = 0
+non_portes = [
+  { cas = "extrait le SEUL binaire, vérifié, et le retrouve ensuite sans réseau", raison = "faux registre npm HTTP + gunzip + sha512 + disque : transport et E/S, hors des modèles purs ; appartient au harness `claude` (processus enfant)" },
+  { cas = "empreinte fausse → refusé, rien posé", raison = "idem (téléchargement réel contre un faux serveur)" },
+  { cas = "archive sans binaire → refusé", raison = "idem" },
+  { cas = "une nouvelle version efface les anciennes", raison = "idem (disque)" },
+  { cas = "registre sans cette version → erreur claire", raison = "idem (HTTP 404)" },
+]

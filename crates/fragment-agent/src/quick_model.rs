@@ -37,8 +37,23 @@ pub struct QuickAction {
 /// Les icônes que le petit agent peut choisir : une liste FERMÉE (le schéma n'admet
 /// qu'elles). Chacune doit exister dans le jeu Lucide embarqué (vérifié côté UI).
 pub const QUICK_ICONS: [&str; 17] = [
-    "arrow-up-right", "panel-right", "file-text", "book-open", "bookmark", "search", "message-circle-question", "message-square", "lightbulb", "sigma",
-    "calculator", "table", "image", "list", "quote", "languages", "link",
+    "arrow-up-right",
+    "panel-right",
+    "file-text",
+    "book-open",
+    "bookmark",
+    "search",
+    "message-circle-question",
+    "message-square",
+    "lightbulb",
+    "sigma",
+    "calculator",
+    "table",
+    "image",
+    "list",
+    "quote",
+    "languages",
+    "link",
 ];
 
 /// L'icône quand le modèle n'en donne pas une de la liste.
@@ -72,16 +87,31 @@ pub fn action_schema(max: usize) -> Value {
 
 /// La sortie du modèle → des actions bien formées : libellé non vide, borné ; icône de la liste.
 pub fn validate(out: &Value, max: usize) -> Vec<QuickAction> {
-    let Some(liste) = out.get("actions").and_then(Value::as_array) else { return Vec::new() };
+    let Some(liste) = out.get("actions").and_then(Value::as_array) else {
+        return Vec::new();
+    };
     let mut res = Vec::new();
     for a in liste {
         if res.len() >= max {
             break;
         }
         let Some(o) = a.as_object() else { continue };
-        let Some(label) = o.get("label").and_then(Value::as_str).filter(|l| !l.trim().is_empty()) else { continue };
-        let icon = o.get("icon").and_then(Value::as_str).filter(|i| QUICK_ICONS.contains(i)).unwrap_or(QUICK_FALLBACK_ICON);
-        res.push(QuickAction { label: tete_utf16(label.trim(), LABEL_MAX).to_string(), icon: icon.to_string() });
+        let Some(label) = o
+            .get("label")
+            .and_then(Value::as_str)
+            .filter(|l| !l.trim().is_empty())
+        else {
+            continue;
+        };
+        let icon = o
+            .get("icon")
+            .and_then(Value::as_str)
+            .filter(|i| QUICK_ICONS.contains(i))
+            .unwrap_or(QUICK_FALLBACK_ICON);
+        res.push(QuickAction {
+            label: tete_utf16(label.trim(), LABEL_MAX).to_string(),
+            icon: icon.to_string(),
+        });
     }
     res
 }
@@ -93,7 +123,9 @@ static DEBUT_ACTIONS: LazyLock<Motif> = LazyLock::new(|| Motif::new(r#""actions"
 /// pour poser chaque bouton dès qu'il est écrit. Un objet n'est rendu que FERMÉ
 /// (accolade, hors chaîne) ; ce qui suit reste en attente.
 pub fn partial_actions(prefix: &str) -> Vec<Value> {
-    let Some(m) = DEBUT_ACTIONS.regex().and_then(|r| r.find(prefix)) else { return Vec::new() };
+    let Some(m) = DEBUT_ACTIONS.regex().and_then(|r| r.find(prefix)) else {
+        return Vec::new();
+    };
     let mut res = Vec::new();
     let mut profondeur = 0_i32;
     let mut debut: Option<usize> = None;
@@ -121,13 +153,12 @@ pub fn partial_actions(prefix: &str) -> Vec<Value> {
             }
             '}' => {
                 profondeur -= 1;
-                if profondeur == 0 {
-                    if let Some(d) = debut.take() {
-                        // Morceau illisible : ignoré.
-                        if let Ok(v) = serde_json::from_str::<Value>(&prefix[d..=i]) {
-                            res.push(v);
-                        }
-                    }
+                if profondeur == 0
+                    && let Some(d) = debut.take()
+                    // Morceau illisible : ignoré.
+                    && let Ok(v) = serde_json::from_str::<Value>(&prefix[d..=i])
+                {
+                    res.push(v);
                 }
             }
             ']' if profondeur == 0 => break,
@@ -170,18 +201,34 @@ pub fn quick_instructions(max: usize) -> String {
 }
 
 pub fn quick_prompt(i: &QuickInput) -> String {
-    let lieu = i.r#where.as_ref().map(|w| format!(" ({w})")).unwrap_or_default();
+    let lieu = i
+        .r#where
+        .as_ref()
+        .map(|w| format!(" ({w})"))
+        .unwrap_or_default();
     let quoi = if i.trigger == QuickTrigger::Selection {
-        format!("The user selected this text{lieu}:\n<selection>\n{}\n</selection>", i.text.as_deref().unwrap_or(""))
+        format!(
+            "The user selected this text{lieu}:\n<selection>\n{}\n</selection>",
+            i.text.as_deref().unwrap_or("")
+        )
     } else {
-        format!("The user {} a region{lieu} — the attached image.", if i.trigger == QuickTrigger::Lasso { "circled" } else { "framed" })
+        format!(
+            "The user {} a region{lieu} — the attached image.",
+            if i.trigger == QuickTrigger::Lasso {
+                "circled"
+            } else {
+                "framed"
+            }
+        )
     };
     format!("Document: \"{}\" (doc={}).\n{quoi}", i.title, i.doc)
 }
 
 /// Ce que reçoit l'agent du Side Chat après le préambule : l'action cliquée, et d'où elle vient.
 pub fn quick_task_prompt(label: &str) -> String {
-    format!("{label}\n\n(The user clicked this action, suggested automatically from the document: do it.)")
+    format!(
+        "{label}\n\n(The user clicked this action, suggested automatically from the document: do it.)"
+    )
 }
 
 /// Ce qui décide des propositions pour une SÉLECTION : la clé de son cache.
@@ -208,7 +255,16 @@ pub fn cache_key(i: &CacheInput) -> String {
         h = h.wrapping_mul(31).wrapping_add(i32::from(u));
         longueur += 1;
     }
-    json!([i.doc, i.from, i.to, longueur, h, i.model.as_deref().unwrap_or(""), i.max]).to_string()
+    json!([
+        i.doc,
+        i.from,
+        i.to,
+        longueur,
+        h,
+        i.model.as_deref().unwrap_or(""),
+        i.max
+    ])
+    .to_string()
 }
 
 /// Les réglages des actions rapides (`data.json` `quick`).
@@ -249,7 +305,10 @@ pub const QUICK_DEFAULT_MODEL: &str = "claude-sonnet-5-5";
 pub fn quick_settings(saved: Option<&QuickSettings>) -> QuickSettingsEffectifs {
     let defaut = QuickSettings::default();
     let s = saved.unwrap_or(&defaut);
-    let model = s.model.clone().unwrap_or_else(|| QUICK_DEFAULT_MODEL.to_string());
+    let model = s
+        .model
+        .clone()
+        .unwrap_or_else(|| QUICK_DEFAULT_MODEL.to_string());
     QuickSettingsEffectifs {
         // Une sélection est fréquente : coûteux et bruyant par défaut. Entourer / Encadrer sont des gestes voulus.
         selection: s.selection.unwrap_or(false),
@@ -271,9 +330,15 @@ mod tests {
         let actions = &s["properties"]["actions"];
         assert_eq!(actions["maxItems"], 3);
         assert_eq!(actions["items"]["required"], json!(["label", "icon"]));
-        assert_eq!(actions["items"]["properties"]["icon"]["enum"], json!(QUICK_ICONS));
+        assert_eq!(
+            actions["items"]["properties"]["icon"]["enum"],
+            json!(QUICK_ICONS)
+        );
         // Ni commandes, ni drapeaux, ni tâche : le petit agent ne fait que nommer ce que l'utilisateur veut.
-        let cles: Vec<&String> = actions["items"]["properties"].as_object().map(|o| o.keys().collect()).unwrap_or_default();
+        let cles: Vec<&String> = actions["items"]["properties"]
+            .as_object()
+            .map(|o| o.keys().collect())
+            .unwrap_or_default();
         assert_eq!(cles, vec!["icon", "label"]); // serde_json trie ses clés ; l'ensemble est {label, icon}
     }
 
@@ -289,20 +354,43 @@ mod tests {
             ] }),
             5,
         );
-        assert_eq!(v.iter().map(|a| a.label.chars().take(20).collect::<String>()).collect::<Vec<_>>(), vec!["Ouvrir la page 22", "Icône inconnue", &"x".repeat(20)]);
-        assert_eq!(v.iter().map(|a| a.icon.as_str()).collect::<Vec<_>>(), vec!["arrow-up-right", "message-square", "message-square"]);
+        assert_eq!(
+            v.iter()
+                .map(|a| a.label.chars().take(20).collect::<String>())
+                .collect::<Vec<_>>(),
+            vec!["Ouvrir la page 22", "Icône inconnue", &"x".repeat(20)]
+        );
+        assert_eq!(
+            v.iter().map(|a| a.icon.as_str()).collect::<Vec<_>>(),
+            vec!["arrow-up-right", "message-square", "message-square"]
+        );
         assert_eq!(v[2].label.chars().count(), 40);
         assert_eq!(validate(&json!("n’importe quoi"), 3), vec![]);
         let a = serde_json::to_value(&v[0]).unwrap();
-        assert_eq!(validate(&json!({ "actions": [a.clone(), a.clone(), a] }), 2).len(), 2);
+        assert_eq!(
+            validate(&json!({ "actions": [a.clone(), a.clone(), a] }), 2).len(),
+            2
+        );
     }
 
     #[test]
     fn le_flux_seules_les_actions_deja_fermees_dun_prefixe_du_json_morceaux_reels_du_sdk() {
         // Les morceaux relevés sur le vrai SDK (`input_json_delta` de l'outil StructuredOutput).
         let morceaux = [
-            "", "{\"actions\": [{\"label\":\"", "Ouvrir la page 22", "\",\"icon\":\"arrow", "-up-right\"},{\"", "label\":\"Vo", "ir le", " théorème 4.2\",\"", "icon\":\"book", "-open\"},{\"label\":",
-            "\"Résumer la preu", "ve\",\"icon\":\"light", "bulb\"}]", "}",
+            "",
+            "{\"actions\": [{\"label\":\"",
+            "Ouvrir la page 22",
+            "\",\"icon\":\"arrow",
+            "-up-right\"},{\"",
+            "label\":\"Vo",
+            "ir le",
+            " théorème 4.2\",\"",
+            "icon\":\"book",
+            "-open\"},{\"label\":",
+            "\"Résumer la preu",
+            "ve\",\"icon\":\"light",
+            "bulb\"}]",
+            "}",
         ];
         let mut vus = Vec::new();
         let mut json_acc = String::new();
@@ -314,7 +402,12 @@ mod tests {
         let complet: Value = serde_json::from_str(&json_acc).unwrap();
         assert_eq!(Value::Array(partial_actions(&json_acc)), complet["actions"]);
         // Accolades et guillemets échappés DANS un libellé ne trompent pas le découpage.
-        assert_eq!(partial_actions("{\"actions\":[{\"label\":\"a } \\\" {\",\"icon\":\"x\"},{\"label\":\"b"), vec![json!({ "label": "a } \" {", "icon": "x" })]);
+        assert_eq!(
+            partial_actions(
+                "{\"actions\":[{\"label\":\"a } \\\" {\",\"icon\":\"x\"},{\"label\":\"b"
+            ),
+            vec![json!({ "label": "a } \" {", "icon": "x" })]
+        );
         assert_eq!(partial_actions("{\"act"), Vec::<Value>::new());
     }
 
@@ -328,33 +421,111 @@ mod tests {
 
     #[test]
     fn le_prompt_selection_citee_forme_limage_le_libelle_part_avec_sa_provenance() {
-        let base = QuickInput { trigger: QuickTrigger::Selection, doc: "a.md".into(), title: "a".into(), r#where: Some("line 3".into()), text: Some("cf page 22".into()) };
+        let base = QuickInput {
+            trigger: QuickTrigger::Selection,
+            doc: "a.md".into(),
+            title: "a".into(),
+            r#where: Some("line 3".into()),
+            text: Some("cf page 22".into()),
+        };
         assert!(quick_prompt(&base).contains("<selection>\ncf page 22\n</selection>"));
-        let forme = QuickInput { trigger: QuickTrigger::Lasso, doc: "a.pdf".into(), title: "a".into(), r#where: Some("page 4".into()), text: None };
+        let forme = QuickInput {
+            trigger: QuickTrigger::Lasso,
+            doc: "a.pdf".into(),
+            title: "a".into(),
+            r#where: Some("page 4".into()),
+            text: None,
+        };
         assert!(quick_prompt(&forme).contains("circled a region (page 4)"));
         let t = quick_task_prompt("Ouvre la page 22.");
-        assert!(t.starts_with("Ouvre la page 22.\n\n") && t.contains("suggested automatically from the document"));
+        assert!(
+            t.starts_with("Ouvre la page 22.\n\n")
+                && t.contains("suggested automatically from the document")
+        );
     }
 
     #[test]
-    fn reglages_sonnet_par_defaut_auto_le_plus_rapide_du_moteur_un_none_ecrit_nefface_pas_un_defaut() {
+    fn reglages_sonnet_par_defaut_auto_le_plus_rapide_du_moteur_un_none_ecrit_nefface_pas_un_defaut()
+     {
         assert_eq!(
             quick_settings(None),
-            QuickSettingsEffectifs { selection: false, lasso: true, rect: true, max: 3, prewarm: false, model: Some("claude-sonnet-5-5".into()) }
+            QuickSettingsEffectifs {
+                selection: false,
+                lasso: true,
+                rect: true,
+                max: 3,
+                prewarm: false,
+                model: Some("claude-sonnet-5-5".into())
+            }
         );
         let avec = |s: QuickSettings| quick_settings(Some(&s));
-        assert_eq!(avec(QuickSettings { model: Some("auto".into()), ..Default::default() }).model, None);
-        assert_eq!(avec(QuickSettings { model: Some("claude-haiku-5-5".into()), ..Default::default() }).model.as_deref(), Some("claude-haiku-5-5"));
-        assert_eq!(avec(QuickSettings { max: None, lasso: Some(false), ..Default::default() }).max, 3);
-        assert!(!avec(QuickSettings { max: None, lasso: Some(false), ..Default::default() }).lasso);
+        assert_eq!(
+            avec(QuickSettings {
+                model: Some("auto".into()),
+                ..Default::default()
+            })
+            .model,
+            None
+        );
+        assert_eq!(
+            avec(QuickSettings {
+                model: Some("claude-haiku-5-5".into()),
+                ..Default::default()
+            })
+            .model
+            .as_deref(),
+            Some("claude-haiku-5-5")
+        );
+        assert_eq!(
+            avec(QuickSettings {
+                max: None,
+                lasso: Some(false),
+                ..Default::default()
+            })
+            .max,
+            3
+        );
+        assert!(
+            !avec(QuickSettings {
+                max: None,
+                lasso: Some(false),
+                ..Default::default()
+            })
+            .lasso
+        );
     }
 
     #[test]
     fn cache_meme_passage_et_memes_reglages_modele_nombre() {
-        let base = CacheInput { doc: "a".into(), from: 1, to: 2, text: "x".into(), model: None, max: 3 };
+        let base = CacheInput {
+            doc: "a".into(),
+            from: 1,
+            to: 2,
+            text: "x".into(),
+            model: None,
+            max: 3,
+        };
         assert_eq!(cache_key(&base), cache_key(&base.clone()));
-        assert_ne!(cache_key(&base), cache_key(&CacheInput { text: "y".into(), ..base.clone() }));
-        assert_ne!(cache_key(&base), cache_key(&CacheInput { model: Some("claude-sonnet-5-5".into()), ..base.clone() }));
-        assert_ne!(cache_key(&base), cache_key(&CacheInput { max: 2, ..base.clone() }));
+        assert_ne!(
+            cache_key(&base),
+            cache_key(&CacheInput {
+                text: "y".into(),
+                ..base.clone()
+            })
+        );
+        assert_ne!(
+            cache_key(&base),
+            cache_key(&CacheInput {
+                model: Some("claude-sonnet-5-5".into()),
+                ..base.clone()
+            })
+        );
+        assert_ne!(
+            cache_key(&base),
+            cache_key(&CacheInput {
+                max: 2,
+                ..base.clone()
+            })
+        );
     }
 }

@@ -39,7 +39,10 @@ pub fn one_shot_options(spec: &OneShotSpec) -> Value {
         "outputFormat": { "type": "json_schema", "schema": spec.schema },
     });
     // `model: spec.model || undefined` : une chaîne vide n'est pas un modèle.
-    if let (Some(m), Some(obj)) = (spec.model.as_deref().filter(|m| !m.is_empty()), o.as_object_mut()) {
+    if let (Some(m), Some(obj)) = (
+        spec.model.as_deref().filter(|m| !m.is_empty()),
+        o.as_object_mut(),
+    ) {
         obj.insert("model".into(), Value::String(m.to_string()));
     }
     o
@@ -65,7 +68,11 @@ mod tests {
     use super::*;
 
     fn spec() -> OneShotSpec {
-        OneShotSpec { system: "consignes".into(), schema: json!({ "type": "object" }), model: Some("claude-sonnet-5-5".into()) }
+        OneShotSpec {
+            system: "consignes".into(),
+            schema: json!({ "type": "object" }),
+            model: Some("claude-sonnet-5-5".into()),
+        }
     }
 
     #[test]
@@ -84,9 +91,36 @@ mod tests {
         let vide = BTreeMap::new();
         let k = one_shot_key(&one_shot_options(&spec()), &vide);
         assert_eq!(one_shot_key(&one_shot_options(&spec().clone()), &vide), k);
-        assert_ne!(one_shot_key(&one_shot_options(&OneShotSpec { system: "autres".into(), ..spec() }), &vide), k);
-        assert_ne!(one_shot_key(&one_shot_options(&OneShotSpec { schema: json!({ "type": "array" }), ..spec() }), &vide), k);
-        assert_ne!(one_shot_key(&one_shot_options(&OneShotSpec { model: Some("claude-haiku-5-5".into()), ..spec() }), &vide), k);
+        assert_ne!(
+            one_shot_key(
+                &one_shot_options(&OneShotSpec {
+                    system: "autres".into(),
+                    ..spec()
+                }),
+                &vide
+            ),
+            k
+        );
+        assert_ne!(
+            one_shot_key(
+                &one_shot_options(&OneShotSpec {
+                    schema: json!({ "type": "array" }),
+                    ..spec()
+                }),
+                &vide
+            ),
+            k
+        );
+        assert_ne!(
+            one_shot_key(
+                &one_shot_options(&OneShotSpec {
+                    model: Some("claude-haiku-5-5".into()),
+                    ..spec()
+                }),
+                &vide
+            ),
+            k
+        );
         let env = BTreeMap::from([("ANTHROPIC_API_KEY".to_string(), "x".to_string())]);
         assert_ne!(one_shot_key(&one_shot_options(&spec()), &env), k);
     }

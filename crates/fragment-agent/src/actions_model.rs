@@ -28,7 +28,11 @@ pub enum ActionTrigger {
     LassoRect,
 }
 
-pub const ACTION_TRIGGERS: [ActionTrigger; 3] = [ActionTrigger::Selection, ActionTrigger::Lasso, ActionTrigger::LassoRect];
+pub const ACTION_TRIGGERS: [ActionTrigger; 3] = [
+    ActionTrigger::Selection,
+    ActionTrigger::Lasso,
+    ActionTrigger::LassoRect,
+];
 pub const ACTION_FALLBACK_ICON: &str = "sparkles";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,7 +69,11 @@ pub fn declencheur(kind: &str, shape: Option<&str>) -> ActionTrigger {
     if kind == "selection" {
         return ActionTrigger::Selection;
     }
-    if shape == Some("lasso-rect") { ActionTrigger::LassoRect } else { ActionTrigger::Lasso }
+    if shape == Some("lasso-rect") {
+        ActionTrigger::LassoRect
+    } else {
+        ActionTrigger::Lasso
+    }
 }
 
 static SCHEMA: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"(?i)^([a-z][a-z0-9+.-]*):"));
@@ -83,15 +91,22 @@ pub fn extension_de(doc: &str) -> String {
 }
 
 /// Les actions valables pour cette barre, dans l'ordre enregistré.
-pub fn actions_pour(actions: &[CustomAction], ctx: &ContexteBarre<'_>, side_chat: bool) -> Vec<CustomAction> {
+pub fn actions_pour(
+    actions: &[CustomAction],
+    ctx: &ContexteBarre<'_>,
+    side_chat: bool,
+) -> Vec<CustomAction> {
     let t = declencheur(ctx.kind, ctx.shape);
     let ext = extension_de(ctx.doc);
     actions
         .iter()
         .filter(|a| {
             a.on.as_ref().is_none_or(|o| o.is_empty() || o.contains(&t))
-                && a.only.as_ref().is_none_or(|o| o.is_empty() || o.contains(&ext))
-                && (a.command.is_some() || (side_chat && a.prompt.as_deref().is_some_and(|p| !p.is_empty())))
+                && a.only
+                    .as_ref()
+                    .is_none_or(|o| o.is_empty() || o.contains(&ext))
+                && (a.command.is_some()
+                    || (side_chat && a.prompt.as_deref().is_some_and(|p| !p.is_empty())))
         })
         .cloned()
         .collect()
@@ -102,10 +117,18 @@ static NON_ALNUM: LazyLock<Motif> = LazyLock::new(|| Motif::new(r"[^a-z0-9]+"));
 /// Un id lisible tiré du libellé (sans accents, minuscules, tirets).
 pub fn id_de(label: &str) -> String {
     // NFD puis on retire les diacritiques combinants (U+0300–U+036F).
-    let sans: String = label.nfd().filter(|c| !('\u{0300}'..='\u{036f}').contains(c)).collect::<String>().to_lowercase();
+    let sans: String = label
+        .nfd()
+        .filter(|c| !('\u{0300}'..='\u{036f}').contains(c))
+        .collect::<String>()
+        .to_lowercase();
     let tirets = NON_ALNUM.replace_all(&sans, "-");
     let s = tirets.trim_matches('-');
-    if s.is_empty() { "action".to_string() } else { s.to_string() }
+    if s.is_empty() {
+        "action".to_string()
+    } else {
+        s.to_string()
+    }
 }
 
 /// Une liste séparée par des virgules → ses éléments (vides retirés).
@@ -113,7 +136,12 @@ pub fn liste(v: Option<&str>) -> Option<Vec<String>> {
     let l: Vec<String> = v
         .unwrap_or("")
         .split(',')
-        .map(|x| x.trim().strip_prefix('.').unwrap_or(x.trim()).to_lowercase())
+        .map(|x| {
+            x.trim()
+                .strip_prefix('.')
+                .unwrap_or(x.trim())
+                .to_lowercase()
+        })
         .filter(|x| !x.is_empty())
         .collect();
     if l.is_empty() { None } else { Some(l) }
@@ -151,23 +179,40 @@ pub fn valider(a: &ActionBrute, deps: &DepsValidation<'_>) -> Result<ActionValid
         return Err("Il faut un libellé (`label=`).".into());
     }
     let prompt = a.prompt.as_deref().map(str::trim).filter(|s| !s.is_empty());
-    let command = a.command.as_deref().map(str::trim).filter(|s| !s.is_empty());
+    let command = a
+        .command
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     if prompt.is_some() == command.is_some() {
-        return Err("Il faut SOIT une consigne (`prompt=`), SOIT une commande (`command=`).".into());
+        return Err(
+            "Il faut SOIT une consigne (`prompt=`), SOIT une commande (`command=`).".into(),
+        );
     }
-    if let Some(c) = command {
-        if !(deps.commande_existe)(c) {
-            return Err(format!("Commande inconnue : « {c} » (voir `fragment commands`)."));
-        }
+    if let Some(c) = command
+        && !(deps.commande_existe)(c)
+    {
+        return Err(format!(
+            "Commande inconnue : « {c} » (voir `fragment commands`)."
+        ));
     }
     let on_brut = a.on.as_ref().filter(|o| !o.is_empty());
     let mut on: Option<Vec<ActionTrigger>> = None;
     if let Some(liste) = on_brut {
         let mut v = Vec::new();
         for t in liste {
-            match ACTION_TRIGGERS.iter().find(|x| serde_json::to_value(x).ok().and_then(|j| j.as_str().map(|s| s == t)).unwrap_or(false)) {
+            match ACTION_TRIGGERS.iter().find(|x| {
+                serde_json::to_value(x)
+                    .ok()
+                    .and_then(|j| j.as_str().map(|s| s == t))
+                    .unwrap_or(false)
+            }) {
                 Some(x) => v.push(*x),
-                None => return Err(format!("Déclencheur inconnu : « {t} » (selection, lasso, lasso-rect).")),
+                None => {
+                    return Err(format!(
+                        "Déclencheur inconnu : « {t} » (selection, lasso, lasso-rect)."
+                    ));
+                }
             }
         }
         on = Some(v);
@@ -192,11 +237,18 @@ pub fn valider(a: &ActionBrute, deps: &DepsValidation<'_>) -> Result<ActionValid
         label,
         icon,
         prompt: prompt.map(str::to_string),
-        command: if prompt.is_some() { None } else { command.map(str::to_string) },
+        command: if prompt.is_some() {
+            None
+        } else {
+            command.map(str::to_string)
+        },
         on,
         only: a.only.clone().filter(|o| !o.is_empty()),
     };
-    Ok(ActionValidee { action, avertissement })
+    Ok(ActionValidee {
+        action,
+        avertissement,
+    })
 }
 
 /// Ajoute, ou REMPLACE à sa place celle du même id.
@@ -210,7 +262,11 @@ pub fn ajouter(actions: &[CustomAction], a: CustomAction) -> Vec<CustomAction> {
 }
 
 pub fn retirer(actions: &[CustomAction], id: &str) -> Option<Vec<CustomAction>> {
-    if actions.iter().any(|a| a.id == id) { Some(actions.iter().filter(|a| a.id != id).cloned().collect()) } else { None }
+    if actions.iter().any(|a| a.id == id) {
+        Some(actions.iter().filter(|a| a.id != id).cloned().collect())
+    } else {
+        None
+    }
 }
 
 /// Déplace une action à `index` (borné). `None` : id inconnu.
@@ -231,7 +287,14 @@ pub fn decrire(a: &CustomAction) -> String {
     };
     let sur = match &a.on {
         Some(o) if !o.is_empty() => {
-            let noms: Vec<String> = o.iter().filter_map(|t| serde_json::to_value(t).ok().and_then(|v| v.as_str().map(str::to_string))).collect();
+            let noms: Vec<String> = o
+                .iter()
+                .filter_map(|t| {
+                    serde_json::to_value(t)
+                        .ok()
+                        .and_then(|v| v.as_str().map(str::to_string))
+                })
+                .collect();
             format!("sur {}", noms.join(", "))
         }
         _ => "partout".to_string(),
@@ -240,7 +303,11 @@ pub fn decrire(a: &CustomAction) -> String {
         Some(o) if !o.is_empty() => format!("docs {}", o.join(", ")),
         _ => String::new(),
     };
-    let ou = [sur, docs].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ");
+    let ou = [sur, docs]
+        .into_iter()
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
     format!("{}\t{}\t[{}]\t{}\t({})", a.id, a.label, a.icon, quoi, ou)
 }
 
@@ -255,16 +322,30 @@ mod tests {
         id == "editor:toggle-highlight"
     }
     fn deps() -> DepsValidation<'static> {
-        DepsValidation { icone_existe: &icone_existe, commande_existe: &commande_existe }
+        DepsValidation {
+            icone_existe: &icone_existe,
+            commande_existe: &commande_existe,
+        }
     }
     fn a(id: &str) -> CustomAction {
-        CustomAction { id: id.into(), label: id.into(), icon: "sparkles".into(), prompt: Some("p".into()), command: None, on: None, only: None }
+        CustomAction {
+            id: id.into(),
+            label: id.into(),
+            icon: "sparkles".into(),
+            prompt: Some("p".into()),
+            command: None,
+            on: None,
+            only: None,
+        }
     }
     fn ids(l: &[CustomAction]) -> Vec<&str> {
         l.iter().map(|x| x.id.as_str()).collect()
     }
     fn brute(label: &str) -> ActionBrute {
-        ActionBrute { label: Some(label.into()), ..Default::default() }
+        ActionBrute {
+            label: Some(label.into()),
+            ..Default::default()
+        }
     }
 
     // ── déclencheur et document ──
@@ -273,7 +354,10 @@ mod tests {
     fn selection_zone_entouree_zone_encadree() {
         assert_eq!(declencheur("selection", None), ActionTrigger::Selection);
         assert_eq!(declencheur("lasso", Some("lasso")), ActionTrigger::Lasso);
-        assert_eq!(declencheur("lasso", Some("lasso-rect")), ActionTrigger::LassoRect);
+        assert_eq!(
+            declencheur("lasso", Some("lasso-rect")),
+            ActionTrigger::LassoRect
+        );
     }
 
     #[test]
@@ -289,9 +373,21 @@ mod tests {
     fn jeu() -> Vec<CustomAction> {
         vec![
             a("expliquer"),
-            CustomAction { prompt: None, command: Some("editor:toggle-highlight".into()), on: Some(vec![ActionTrigger::Selection]), only: Some(vec!["md".into()]), ..a("surligner") },
-            CustomAction { on: Some(vec![ActionTrigger::LassoRect]), ..a("cadre") },
-            CustomAction { only: Some(vec!["chat".into()]), ..a("chat") },
+            CustomAction {
+                prompt: None,
+                command: Some("editor:toggle-highlight".into()),
+                on: Some(vec![ActionTrigger::Selection]),
+                only: Some(vec!["md".into()]),
+                ..a("surligner")
+            },
+            CustomAction {
+                on: Some(vec![ActionTrigger::LassoRect]),
+                ..a("cadre")
+            },
+            CustomAction {
+                only: Some(vec!["chat".into()]),
+                ..a("chat")
+            },
         ]
     }
     fn ctx<'a>(kind: &'a str, shape: Option<&'a str>, doc: &'a str) -> ContexteBarre<'a> {
@@ -301,26 +397,76 @@ mod tests {
     #[test]
     fn filtre_par_declencheur_et_par_document_dans_lordre() {
         let actions = jeu();
-        assert_eq!(ids(&actions_pour(&actions, &ctx("selection", None, "a.md"), true)), vec!["expliquer", "surligner"]);
-        assert_eq!(ids(&actions_pour(&actions, &ctx("selection", None, "a.pdf"), true)), vec!["expliquer"]);
-        assert_eq!(ids(&actions_pour(&actions, &ctx("lasso", Some("lasso-rect"), "a.md"), true)), vec!["expliquer", "cadre"]);
-        assert_eq!(ids(&actions_pour(&actions, &ctx("selection", None, "chat:agent/x"), true)), vec!["expliquer", "chat"]);
+        assert_eq!(
+            ids(&actions_pour(
+                &actions,
+                &ctx("selection", None, "a.md"),
+                true
+            )),
+            vec!["expliquer", "surligner"]
+        );
+        assert_eq!(
+            ids(&actions_pour(
+                &actions,
+                &ctx("selection", None, "a.pdf"),
+                true
+            )),
+            vec!["expliquer"]
+        );
+        assert_eq!(
+            ids(&actions_pour(
+                &actions,
+                &ctx("lasso", Some("lasso-rect"), "a.md"),
+                true
+            )),
+            vec!["expliquer", "cadre"]
+        );
+        assert_eq!(
+            ids(&actions_pour(
+                &actions,
+                &ctx("selection", None, "chat:agent/x"),
+                true
+            )),
+            vec!["expliquer", "chat"]
+        );
     }
 
     #[test]
     fn sans_side_chat_possible_seules_les_commandes() {
-        assert_eq!(ids(&actions_pour(&jeu(), &ctx("selection", None, "a.md"), false)), vec!["surligner"]);
+        assert_eq!(
+            ids(&actions_pour(
+                &jeu(),
+                &ctx("selection", None, "a.md"),
+                false
+            )),
+            vec!["surligner"]
+        );
     }
 
     // ── valider ──
 
     #[test]
     fn une_consigne_id_tire_du_libelle() {
-        let r = valider(&ActionBrute { icon: Some("lightbulb".into()), prompt: Some(" Réécris. ".into()), ..brute("Réécrire en français") }, &deps());
+        let r = valider(
+            &ActionBrute {
+                icon: Some("lightbulb".into()),
+                prompt: Some(" Réécris. ".into()),
+                ..brute("Réécrire en français")
+            },
+            &deps(),
+        );
         assert_eq!(
             r,
             Ok(ActionValidee {
-                action: CustomAction { id: "reecrire-en-francais".into(), label: "Réécrire en français".into(), icon: "lightbulb".into(), prompt: Some("Réécris.".into()), command: None, on: None, only: None },
+                action: CustomAction {
+                    id: "reecrire-en-francais".into(),
+                    label: "Réécrire en français".into(),
+                    icon: "lightbulb".into(),
+                    prompt: Some("Réécris.".into()),
+                    command: None,
+                    on: None,
+                    only: None
+                },
                 avertissement: None,
             })
         );
@@ -354,27 +500,86 @@ mod tests {
 
     #[test]
     fn icone_inconnue_sparkles_signale() {
-        let r = valider(&ActionBrute { icon: Some("nope".into()), prompt: Some("p".into()), ..brute("X") }, &deps()).unwrap();
+        let r = valider(
+            &ActionBrute {
+                icon: Some("nope".into()),
+                prompt: Some("p".into()),
+                ..brute("X")
+            },
+            &deps(),
+        )
+        .unwrap();
         assert_eq!(r.action.icon, "sparkles");
-        assert!(r.avertissement.unwrap_or_default().contains("Icône inconnue"));
+        assert!(
+            r.avertissement
+                .unwrap_or_default()
+                .contains("Icône inconnue")
+        );
     }
 
     #[test]
     fn les_erreurs() {
         let p = |x: &str| Some(x.to_string());
-        assert!(valider(&ActionBrute { prompt: p("p"), ..brute("") }, &deps()).is_err());
+        assert!(
+            valider(
+                &ActionBrute {
+                    prompt: p("p"),
+                    ..brute("")
+                },
+                &deps()
+            )
+            .is_err()
+        );
         assert!(valider(&brute("X"), &deps()).is_err());
-        assert!(valider(&ActionBrute { prompt: p("p"), command: p("editor:toggle-highlight"), ..brute("X") }, &deps()).is_err());
-        assert!(valider(&ActionBrute { command: p("nope"), ..brute("X") }, &deps()).is_err());
-        assert!(valider(&ActionBrute { prompt: p("p"), on: Some(vec!["partout".into()]), ..brute("X") }, &deps()).is_err());
+        assert!(
+            valider(
+                &ActionBrute {
+                    prompt: p("p"),
+                    command: p("editor:toggle-highlight"),
+                    ..brute("X")
+                },
+                &deps()
+            )
+            .is_err()
+        );
+        assert!(
+            valider(
+                &ActionBrute {
+                    command: p("nope"),
+                    ..brute("X")
+                },
+                &deps()
+            )
+            .is_err()
+        );
+        assert!(
+            valider(
+                &ActionBrute {
+                    prompt: p("p"),
+                    on: Some(vec!["partout".into()]),
+                    ..brute("X")
+                },
+                &deps()
+            )
+            .is_err()
+        );
     }
 
     // ── la liste ──
 
     #[test]
     fn ajouter_remplace_a_sa_place_le_meme_id() {
-        let l = ajouter(&[a("a"), a("b")], CustomAction { label: "A2".into(), ..a("a") });
-        assert_eq!(l.iter().map(|x| x.label.as_str()).collect::<Vec<_>>(), vec!["A2", "b"]);
+        let l = ajouter(
+            &[a("a"), a("b")],
+            CustomAction {
+                label: "A2".into(),
+                ..a("a")
+            },
+        );
+        assert_eq!(
+            l.iter().map(|x| x.label.as_str()).collect::<Vec<_>>(),
+            vec!["A2", "b"]
+        );
         assert_eq!(ids(&ajouter(&l, a("c"))), vec!["a", "b", "c"]);
     }
 
@@ -391,7 +596,10 @@ mod tests {
     #[test]
     fn id_de_liste() {
         assert_eq!(id_de("  !!  "), "action");
-        assert_eq!(liste(Some("md, .PDF,,")), Some(vec!["md".to_string(), "pdf".to_string()]));
+        assert_eq!(
+            liste(Some("md, .PDF,,")),
+            Some(vec!["md".to_string(), "pdf".to_string()])
+        );
         assert_eq!(liste(Some("")), None);
     }
 }
