@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# Le journal est du NDJSON : chaque ligne est une Tx sérialisée (types.rs).
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# Les objets sont adressés par contenu : `objects/<sha256>.json` (objects.rs).
+sha2 = "0.10"
+# `crypto.randomUUID()` (id d'un record) et `crypto.getRandomValues` (device.rs).
+uuid = { version = "1", features = ["v4"] }
 
 [lints]
 workspace = true
