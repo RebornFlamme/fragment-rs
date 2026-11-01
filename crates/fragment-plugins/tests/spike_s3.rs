@@ -20,10 +20,12 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-use fragment_core::ViewState;
+use std::rc::Rc;
+
+use fragment_core::{Plugins, ViewState};
 use gpui_kit::TestAppContext;
 use gpui_shell::Capabilities;
-use host::{AppHost, Mode, PluginInstance, init_app};
+use host::{AppHost, FsStorage, Mode, PluginInstance, SpikeLoader, init_app, working_set_kb};
 use serde_json::{Value, json};
 
 static VAULTS: AtomicU64 = AtomicU64::new(0);
@@ -118,8 +120,9 @@ fn jumeau_gutter_globe_charge_puis_recharge_a_chaud(cx: &mut TestAppContext) {
     globe.open(cx).unwrap();
     assert_eq!(globe.build_error(), None);
     println!(
-        "S3|chargement|globe|stage_ms={}|load_ms={}|mount_ms={}|first_draw_ms={}|total_ms={}",
+        "S3|chargement|globe|stage_ms={}|runtime_ms={}|load_ms={}|mount_ms={}|first_draw_ms={}|total_ms={}",
         ms(globe.timings.stage),
+        ms(globe.timings.runtime),
         ms(globe.timings.load),
         ms(globe.timings.mount),
         ms(globe.timings.first_draw),
@@ -196,12 +199,35 @@ fn jumeau_gutter_globe_charge_puis_recharge_a_chaud(cx: &mut TestAppContext) {
 
     let total: Duration = samples.iter().sum();
     println!(
-        "S3|rechargement|n={}|moyenne_ms={}|min_ms={}|max_ms={}|dernier: stage={} load={} mount={} first_draw={}",
+        "S3|rechargement|vm_neuve|n={}|moyenne_ms={}|min_ms={}|max_ms={}|dernier: stage={} runtime={} load={} mount={} first_draw={}",
         samples.len(),
         ms(total / samples.len() as u32),
         ms(*samples.iter().min().unwrap()),
         ms(*samples.iter().max().unwrap()),
         ms(globe.timings.stage),
+        ms(globe.timings.runtime),
+        ms(globe.timings.load),
+        ms(globe.timings.mount),
+        ms(globe.timings.first_draw)
+    );
+
+    // Même rechargement, mais en gardant la VM (seul le module est réévalué).
+    let mut samples = Vec::new();
+    for _ in 0..5 {
+        let t = Instant::now();
+        globe = globe.reload_shared(cx).unwrap();
+        samples.push(t.elapsed());
+    }
+    assert_eq!(app.layers.size(), 1);
+    let total: Duration = samples.iter().sum();
+    println!(
+        "S3|rechargement|vm_gardee|n={}|moyenne_ms={}|min_ms={}|max_ms={}|dernier: stage={} runtime={} load={} mount={} first_draw={}",
+        samples.len(),
+        ms(total / samples.len() as u32),
+        ms(*samples.iter().min().unwrap()),
+        ms(*samples.iter().max().unwrap()),
+        ms(globe.timings.stage),
+        ms(globe.timings.runtime),
         ms(globe.timings.load),
         ms(globe.timings.mount),
         ms(globe.timings.first_draw)
@@ -624,4 +650,166 @@ fn feuilles_multiples_d_un_meme_plugin(cx: &mut TestAppContext) {
     let leaf_sees = leaves[0].debug_tree().contains("compteur 1");
     println!("S3|etat_partage_entre_feuilles|parent_voit={parent_sees}|feuille_voit={leaf_sees}");
     assert!(parent_sees);
+}
+
+// ── 10. Le vrai cycle de vie : fragment_core::Plugins + CommunityLoader ─────────────────────────
+
+#[gpui_kit::test]
+fn cycle_de_vie_par_plugins_et_community_loader(cx: &mut TestAppContext) {
+    init_app(cx);
+    let vault = Vault::new(&["demo"]);
+    let app = AppHost::new();
+    let loader = Rc::new(SpikeLoader {
+        app: app.clone(),
+        vault: vault.0.clone(),
+        created: Default::default(),
+    });
+    let storage = Rc::new(FsStorage(vault.0.clone()));
+
+    // Pas de community-plugins.json : mode restreint, rien n'est chargé (invariant §11.4).
+    let plugins = Plugins::new(storage.clone(), loader.clone(), ".fragment", "0.0.0");
+    plugins.initialize().unwrap();
+    assert!(plugins.restricted());
+    assert!(plugins.is_installed("demo"));
+    assert!(!plugins.is_loaded("demo"));
+    assert_eq!(app.commands.size(), 0);
+
+    // Activé : `reconcile` instancie par le loader, puis `load()` évalue le JS (sans fenêtre).
+    plugins.set_restricted(false).unwrap();
+    let t = Instant::now();
+    plugins.enable_plugin_and_save("demo").unwrap();
+    println!("S3|plugins|activation_ms={}", ms(t.elapsed()));
+    assert!(plugins.is_loaded("demo"));
+    assert_eq!(app.commands.size(), 2);
+    assert!(app.documents.provider("demo:x").is_some());
+    assert!(loader.created.borrow()[0].error.borrow().is_none());
+
+    // Rechargement à chaud par Plugins::reload_plugin : disable (pile de nettoyages) + load.
+    let main = vault.plugin("demo").join("main.js");
+    let source = fs::read_to_string(&main).unwrap();
+    fs::write(&main, source.replace("Incrémenter", "Incrémenter v2")).unwrap();
+    let t = Instant::now();
+    plugins.reload_plugin("demo").unwrap();
+    println!("S3|plugins|reload_plugin_ms={}", ms(t.elapsed()));
+    assert_eq!(app.commands.size(), 2, "pas de doublon");
+    assert_eq!(
+        app.commands.find_command("demo:inc").unwrap().name,
+        "Demo: Incrémenter v2"
+    );
+
+    // Désactivé : tout part.
+    plugins.disable_plugin_and_save("demo").unwrap();
+    assert!(!plugins.is_loaded("demo"));
+    assert_eq!(app.commands.size(), 0);
+    assert!(app.documents.provider("demo:x").is_none());
+    assert_eq!(app.widgets.size(), 0);
+}
+
+// ── 11. Isolation du TAS : un plugin ne voit pas les globaux d'un autre ─────────────────────────
+
+#[gpui_kit::test]
+fn isolation_du_tas_entre_plugins(cx: &mut TestAppContext) {
+    init_app(cx);
+    let vault = Vault::new(&["leak-a", "leak-b"]);
+    let app = AppHost::new();
+
+    let mut a = PluginInstance::load(
+        &app,
+        &vault.plugin("leak-a"),
+        Mode::Init,
+        Capabilities::new(),
+        json!({}),
+    )
+    .unwrap();
+    a.open(cx).unwrap();
+    println!("S3|tas|A|{:?}", a.shared.log_lines());
+
+    // B dans SA VM : ne voit rien.
+    let mut b = PluginInstance::load(
+        &app,
+        &vault.plugin("leak-b"),
+        Mode::Init,
+        Capabilities::new(),
+        json!({}),
+    )
+    .unwrap();
+    b.open(cx).unwrap();
+    let separate = b.shared.log_lines();
+    println!("S3|tas|B_vm_separee|{separate:?}");
+    assert!(
+        separate.iter().any(|l| l == "B|voit|undefined|undefined"),
+        "{separate:?}"
+    );
+
+    // B dans la VM d'A : constat (pas d'assertion), il décide du modèle « une VM par plugin ».
+    let mut c = PluginInstance::load_with(
+        &app,
+        &vault.plugin("leak-b"),
+        Mode::Init,
+        Capabilities::new(),
+        json!({}),
+        Some(a.runtime.clone()),
+    )
+    .unwrap();
+    c.open(cx).unwrap();
+    println!("S3|tas|B_vm_partagee|{:?}", c.shared.log_lines());
+}
+
+// ── 12. Mémoire par VM ──────────────────────────────────────────────────────────────────────────
+
+#[gpui_kit::test]
+fn memoire_par_vm(cx: &mut TestAppContext) {
+    init_app(cx);
+    let vault = Vault::new(&["e2e-globe"]);
+    let app = AppHost::new();
+    let n = 20;
+
+    let before = working_set_kb();
+    let mut separate = Vec::new();
+    for _ in 0..n {
+        separate.push(
+            PluginInstance::load(
+                &app,
+                &vault.plugin("e2e-globe"),
+                Mode::Load,
+                Capabilities::new(),
+                json!({}),
+            )
+            .unwrap(),
+        );
+    }
+    let after_separate = working_set_kb();
+
+    let shared_runtime = separate[0].runtime.clone();
+    let mut shared = Vec::new();
+    for _ in 0..n {
+        shared.push(
+            PluginInstance::load_with(
+                &app,
+                &vault.plugin("e2e-globe"),
+                Mode::Load,
+                Capabilities::new(),
+                json!({}),
+                Some(shared_runtime.clone()),
+            )
+            .unwrap(),
+        );
+    }
+    let after_shared = working_set_kb();
+    if let (Some(a), Some(b), Some(c)) = (before, after_separate, after_shared) {
+        println!(
+            "S3|memoire|n={n}|vm_separees_ko_par_plugin={}|vm_partagee_ko_par_plugin={}",
+            b.saturating_sub(a) / n as u64,
+            c.saturating_sub(b) / n as u64
+        );
+    } else {
+        println!("S3|memoire|indisponible");
+    }
+    let load_ms: Vec<String> = separate
+        .iter()
+        .take(3)
+        .chain(shared.iter().take(3))
+        .map(|p| format!("rt={} load={}", ms(p.timings.runtime), ms(p.timings.load)))
+        .collect();
+    println!("S3|chargement_vm_separee_puis_partagee|{load_ms:?}");
 }

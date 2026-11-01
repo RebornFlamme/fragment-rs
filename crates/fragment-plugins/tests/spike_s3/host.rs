@@ -24,9 +24,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use fragment_core::{
-    Command, CommandHost, CommandManager, Component, ComponentState, DocumentManager,
-    DocumentProvider, EditorContext, HotkeyManager, InputEvent, Plugin, PluginBase, PluginHost,
-    PluginManifest, Registry, RegistryHub, ViewState,
+    Command, CommandHost, CommandManager, CommunityLoader, Component, ComponentState,
+    DocumentManager, DocumentProvider, EditorContext, HotkeyManager, InputEvent, Listing, Plugin,
+    PluginBase, PluginError, PluginHost, PluginManifest, PluginStorage, Registry, RegistryHub,
+    ViewState,
 };
 use gpui_kit::{
     App, Context, Entity, IntoElement, Modifiers, Render, TestAppContext, VisualTestContext,
@@ -426,6 +427,8 @@ impl Mode {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Timings {
     pub stage: Duration,
+    /// Création du `ShellRuntime` (VM QuickJS + stdlib + catalogue gpui-component), 0 si réutilisé.
+    pub runtime: Duration,
     pub load: Duration,
     pub mount: Duration,
     pub first_draw: Duration,
@@ -433,7 +436,7 @@ pub struct Timings {
 
 impl Timings {
     pub fn total(&self) -> Duration {
-        self.stage + self.load + self.mount + self.first_draw
+        self.stage + self.runtime + self.load + self.mount + self.first_draw
     }
 }
 
@@ -545,6 +548,18 @@ impl PluginInstance {
         capabilities: Capabilities,
         config: Value,
     ) -> Result<Self, String> {
+        Self::load_with(app, source_dir, mode, capabilities, config, None)
+    }
+
+    /// Comme `load`, dans un `ShellRuntime` donné (VM partagée) au lieu d'un runtime neuf.
+    pub fn load_with(
+        app: &Rc<AppHost>,
+        source_dir: &Path,
+        mode: Mode,
+        capabilities: Capabilities,
+        config: Value,
+        shared_runtime: Option<Rc<ShellRuntime>>,
+    ) -> Result<Self, String> {
         let manifest: PluginManifest = serde_json::from_str(
             &fs::read_to_string(source_dir.join("manifest.json"))
                 .map_err(|e| format!("manifest.json : {e}"))?,
@@ -558,8 +573,12 @@ impl PluginInstance {
 
         let t = Instant::now();
         policy::set_default(make_policy(&shared, &capabilities)?);
-        let runtime =
-            gpui_shell::components::new_isolated_runtime().map_err(|e| format!("{e:#}"))?;
+        let runtime = match shared_runtime {
+            Some(runtime) => runtime,
+            None => gpui_shell::components::new_isolated_runtime().map_err(|e| format!("{e:#}"))?,
+        };
+        let runtime_new = t.elapsed();
+        let t = Instant::now();
         let loaded = runtime
             .load_application(&stage_dir, "main.js")
             .map_err(|e| format!("{e:#}"))?;
@@ -594,6 +613,7 @@ impl PluginInstance {
             vcx: None,
             timings: Timings {
                 stage: staged,
+                runtime: runtime_new,
                 load,
                 ..Timings::default()
             },
@@ -800,16 +820,162 @@ impl PluginInstance {
 
     /// Rechargement à chaud : `unload` puis un chargement TOUT NEUF depuis le disque (nouvelle
     /// génération de modules), monté dans une nouvelle fenêtre. Rend le nouveau plugin.
-    pub fn reload(mut self, cx: &mut TestAppContext) -> Result<Self, String> {
+    pub fn reload(self, cx: &mut TestAppContext) -> Result<Self, String> {
+        self.reload_in(cx, false)
+    }
+
+    /// Comme `reload`, mais dans la VM déjà là (`ShellRuntime` conservé) : seul le module est
+    /// réévalué (nouvelle génération), la VM n'est pas recréée.
+    pub fn reload_shared(self, cx: &mut TestAppContext) -> Result<Self, String> {
+        self.reload_in(cx, true)
+    }
+
+    fn reload_in(mut self, cx: &mut TestAppContext, keep_runtime: bool) -> Result<Self, String> {
         self.unload();
-        let mut fresh = Self::load(
+        let mut fresh = Self::load_with(
             &self.app,
             &self.source_dir,
             self.mode,
             self.capabilities.clone(),
             self.config.clone(),
+            keep_runtime.then(|| self.runtime.clone()),
         )?;
         fresh.open(cx)?;
         Ok(fresh)
     }
+}
+
+// ─── Le vrai cycle de vie : fragment_core::Plugins + CommunityLoader ────────────────────────────
+
+/// Le `PluginStorage` sur un dossier réel (le coffre) ; chemins relatifs à sa racine, séparés par `/`.
+pub struct FsStorage(pub PathBuf);
+
+impl FsStorage {
+    fn abs(&self, path: &str) -> PathBuf {
+        self.0.join(path)
+    }
+}
+
+impl PluginStorage for FsStorage {
+    fn exists(&self, path: &str) -> std::io::Result<bool> {
+        Ok(self.abs(path).exists())
+    }
+    fn list(&self, path: &str) -> std::io::Result<Listing> {
+        let mut listing = Listing::default();
+        for entry in fs::read_dir(self.abs(path))? {
+            let entry = entry?;
+            let relative = format!("{path}/{}", entry.file_name().to_string_lossy());
+            if entry.path().is_dir() {
+                listing.folders.push(relative);
+            } else {
+                listing.files.push(relative);
+            }
+        }
+        Ok(listing)
+    }
+    fn read(&self, path: &str) -> std::io::Result<String> {
+        fs::read_to_string(self.abs(path))
+    }
+    fn write(&self, path: &str, data: &str) -> std::io::Result<()> {
+        fs::write(self.abs(path), data)
+    }
+    fn mkdir(&self, path: &str) -> std::io::Result<()> {
+        fs::create_dir_all(self.abs(path))
+    }
+    fn remove(&self, path: &str) -> std::io::Result<()> {
+        fs::remove_file(self.abs(path))
+    }
+    fn rmdir(&self, path: &str, recursive: bool) -> std::io::Result<()> {
+        if recursive {
+            fs::remove_dir_all(self.abs(path))
+        } else {
+            fs::remove_dir(self.abs(path))
+        }
+    }
+}
+
+/// Le plugin que `Plugins` voit : INERTE jusqu'à `load()` (c'est `on_load` qui évalue le JS, sans
+/// fenêtre), et `unload()` rejoue la pile de nettoyages du plugin JS.
+pub struct LazyJsPlugin {
+    base: PluginBase,
+    app: Rc<AppHost>,
+    source_dir: PathBuf,
+    pub instance: RefCell<Option<PluginInstance>>,
+    pub error: RefCell<Option<String>>,
+}
+
+impl Component for LazyJsPlugin {
+    fn state(&self) -> &ComponentState {
+        &self.base.state
+    }
+    fn on_load(&self) {
+        match PluginInstance::load(
+            &self.app,
+            &self.source_dir,
+            Mode::Load,
+            Capabilities::new(),
+            json!({}),
+        ) {
+            Ok(instance) => *self.instance.borrow_mut() = Some(instance),
+            Err(error) => *self.error.borrow_mut() = Some(error),
+        }
+    }
+    fn on_unload(&self) {
+        if let Some(mut instance) = self.instance.borrow_mut().take() {
+            instance.unload();
+        }
+    }
+}
+
+impl Plugin for LazyJsPlugin {
+    fn plugin(&self) -> &PluginBase {
+        &self.base
+    }
+}
+
+/// Le `CommunityLoader` du spike : ne fait que ranger le plugin ; le JS tourne à `load()`.
+pub struct SpikeLoader {
+    pub app: Rc<AppHost>,
+    pub vault: PathBuf,
+    pub created: RefCell<Vec<Rc<LazyJsPlugin>>>,
+}
+
+impl CommunityLoader for SpikeLoader {
+    fn instantiate(
+        &self,
+        dir: &str,
+        manifest: &PluginManifest,
+    ) -> Result<Rc<dyn Plugin>, PluginError> {
+        let plugin = Rc::new(LazyJsPlugin {
+            base: PluginBase::new(self.app.clone(), manifest.clone()),
+            app: self.app.clone(),
+            source_dir: self.vault.join(dir),
+            instance: RefCell::new(None),
+            error: RefCell::new(None),
+        });
+        self.created.borrow_mut().push(plugin.clone());
+        Ok(plugin)
+    }
+}
+
+/// L'ensemble de travail du processus (Ko), lu par `tasklist` — pour la mémoire par VM.
+pub fn working_set_kb() -> Option<u64> {
+    let output = std::process::Command::new("tasklist")
+        .args([
+            "/FI",
+            &format!("PID eq {}", std::process::id()),
+            "/FO",
+            "CSV",
+            "/NH",
+        ])
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let field = text.trim().rsplit("\",\"").next()?;
+    field
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .ok()
 }
