@@ -1,3 +1,9 @@
 //! Agent (modèles) : événements, trace, politiques, permissions, actions, skills, harness claude stream-json.
 //!
-//! Crate VIDE en phase 0 : les modules arrivent avec les tâches de phase 1 (program.md §5).
+//! Modèles PURS (aucun processus `claude` ici). Chaque module porte un fichier de
+//! `app/src/ui/views/agent/…` de Fragment ; la table de parité est `parite.toml`.
+
+pub mod attachment_blocks;
+pub mod contrat;
+pub mod events;
+pub(crate) mod motif;

@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# ★ Expressions régulières : les modèles TS en utilisent partout (famille d'outil, skills, tar…).
+# Hors liste d'avance de program.md §4 : notée dans la PR.
+regex = "1"
+# ★ `Date.parse` des horodatages ISO du transcript (events.rs). Hors liste d'avance : notée dans la PR.
+time = { version = "0.3", default-features = false, features = ["parsing", "std"] }
 
 [lints]
 workspace = true
