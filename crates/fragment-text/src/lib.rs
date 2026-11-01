@@ -15,6 +15,7 @@ pub mod find_passage;
 pub mod html_text_model;
 pub mod map_anchor;
 pub mod range_highlights;
+pub mod reveal_passage;
 pub mod text_delta;
 pub mod viewport;
 pub mod visibility;
@@ -28,6 +29,9 @@ pub use find_passage::{PassageError, TextMatch, find_in_text, find_passage, pass
 pub use html_text_model::{PAGE_CORNER, PageText, PageTextDiff, diff_page_text};
 pub use map_anchor::{MappedAnchor, TextAnchored, map_anchor};
 pub use range_highlights::{HighlightBox, HighlightHandle, HighlightRange, RangeHighlights};
+pub use reveal_passage::{
+    PASSAGE_KEY, PassageRef, QuoteFinder, find_quote_exact, locate_passage, locate_passage_with,
+};
 pub use text_delta::{MappedChar, TextDelta, map_through_delta, text_delta};
 pub use viewport::{Bande, ViewportBand, Vp, bande, bande_appropriee, biais};
 pub use visibility::{PosVisibility, pos_visibility};
