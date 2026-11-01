@@ -1,6 +1,6 @@
 # ADR-003 — CI : GitHub Actions, Windows + Linux, preuve pixels sur runner hébergé
 
-- Statut : accepté (chef de projet, 01/11/2026) ; le volet « pixels » est confirmé ou révisé par le premier run (voir § Vérification).
+- Statut : accepté (chef de projet, 01/11/2026) ; volet « pixels » CONFIRMÉ par le run 41306245205.
 - Contexte : `program.md` §4 — pas de compilation lourde sur le portable (OneDrive, 10 agents). Dépôt public → minutes Actions gratuites.
 
 ## Décision
@@ -30,3 +30,6 @@
 ## Vérification
 
 Le premier run vert de `pixels` sur `main` vaut preuve ; il est cité dans `docs/journal.md`. Si WARP ne rend pas (image unie, erreur DirectX) : ADR-004 « runner auto-hébergé » (`scripts/pixels-runner.ps1` sur le portable) avant la phase 3, sans bloquer les phases 1-2.
+
+**Résultat (01/11, run 41306245205, commit 201fa0b).** Runner `windows-latest`, adaptateur « Microsoft Hyper-V Video » (pas de GPU : rendu logiciel). Écran passé en 1920×1080 par `Set-DisplayResolution` (sinon 1024×768 rognait la fenêtre en 1024×720 — constaté au run précédent). `fenetre-vide` : 1280×800, 1 couleur (dock vide, attendu) ; `mire` : 1280×800, 511 couleurs (aplat, rayon, trait de 1 px, glyphes anticrénelés) ; chacune comparée à sa seconde capture : **Strict, 0 pixel**. Pas besoin d'ADR « runner auto-hébergé ». ★ Piège corrigé : fermer la dernière fenêtre quitte l'application (code 0) — `fragment-pixels` garde ses fenêtres ouvertes, et la CI exige la présence de chaque capture.
+
