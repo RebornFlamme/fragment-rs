@@ -17,3 +17,22 @@ tests_ts = ""
 source = 0
 portes = 0
 non_portes = []
+
+# ★ Hors catalogue : rangé ici car un plugin cœur (« Espace de travail ») est un plugin.
+[workspace_commands]
+ts = "app/src/ui/coreCommands/WorkspaceCommandsPlugin.ts"
+tests_ts = "app/src/ui/coreCommands/WorkspaceCommandsPlugin.test.ts"
+source = 5
+portes = 5
+non_portes = [
+  { cas = "(aucun test TS) onLoad, commandeSurFeuille/commandeSurPile, diviser, ouvrirCli (attente de stabilité du défilement)", raison = "câblage Workspace / ItemView / DOM : fragment-ui. Le tableau des commandes, le cycle d'onglets et la validation des paramètres de `workspace:open` sont portés (cas ajoutés)." },
+]
+
+[margin_mode]
+ts = "app/src/ui/coreCommands/marginMode.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = [
+  { cas = "installerMargeDeLecture (classe CSS sur containerEl, iterateAllLeaves)", raison = "DOM / workspace : fragment-ui ; le modèle (3 commandes, état voulu, disponibilité) est porté avec des cas ajoutés." },
+]

@@ -13,5 +13,8 @@ thiserror.workspace = true
 # PluginManifest et compare_versions (semver) : par chemin, pas recopiés.
 fragment-core = { path = "../fragment-core" }
 
+# CliError (workspace:open valide ses paramètres comme le TS) : par chemin.
+fragment-cli = { path = "../fragment-cli" }
+
 [lints]
 workspace = true
