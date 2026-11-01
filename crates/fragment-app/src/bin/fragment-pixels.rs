@@ -145,7 +145,9 @@ async fn capturer(
                 image.height(),
                 compter_couleurs(&image)
             );
-            cx.update(|cx| fenetre.update(cx, |_, window, _| window.remove_window()))?;
+            // ★ On NE ferme PAS la fenêtre : fermer la dernière fenêtre fait quitter l'application
+            // (code 0) et les scènes suivantes n'étaient jamais capturées (constaté en CI, 01/11).
+            // `render_to_image` rend la scène de CETTE fenêtre : le recouvrement n'y change rien.
             // ★ Contrôles : une taille différente rend toute comparaison avec Fragment caduque
             // (écran du runner trop petit → fenêtre rognée) ; une mire unie = rendu absent.
             if image.dimensions() != scene.attendu {

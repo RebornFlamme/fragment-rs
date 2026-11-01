@@ -95,7 +95,13 @@ jobs:
       - name: Capture n°2
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-2
       - name: Preuve — fenêtre vide et mire comparées à elles-mêmes (strict, 0 pixel)
-        run: cargo xtask pixels --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
+        run: |
+          foreach ($f in 'fenetre-vide-dark.png', 'mire-dark.png') {
+            foreach ($d in 'pixels/candidate', 'pixels/candidate-2') {
+              if (-not (Test-Path "$d/$f")) { throw "capture absente : $d/$f" }
+            }
+          }
+          cargo xtask pixels --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
       - name: Parité avec Fragment (scènes ayant référence et candidat)
         shell: bash
         run: |
