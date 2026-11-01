@@ -1,0 +1,3 @@
+//! TextSurface/DocumentSurface/SurfaceText, positions et plages, mapRange/mapAnchor, rangeHighlights, viewport, findPassage, revealPassage, textDelta.
+//!
+//! Crate VIDE en phase 0 : les modules arrivent avec les tâches de phase 1 (program.md §5).

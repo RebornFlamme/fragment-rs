@@ -1,0 +1,30 @@
+[package]
+name = "fragment-app"
+description = "Fragment : fenêtres, boot, coffres (main.rs)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "fragment"
+path = "src/main.rs"
+
+# Rejoue les scènes de pixels/scenes/*.json et capture le framebuffer (CI : job `pixels`).
+[[bin]]
+name = "fragment-pixels"
+path = "src/bin/fragment-pixels.rs"
+required-features = ["pixels"]
+
+[features]
+# `Window::render_to_image` n'existe que sous la feature de test de GPUI.
+pixels = ["gpui-kit/test-support", "dep:image", "dep:serde_json"]
+
+[dependencies]
+gpui-kit.workspace = true
+anyhow.workspace = true
+image = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+[lints]
+workspace = true

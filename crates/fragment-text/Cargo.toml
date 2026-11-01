@@ -1,0 +1,12 @@
+[package]
+name = "fragment-text"
+description = "TextSurface/DocumentSurface/SurfaceText, positions et plages, mapRange/mapAnchor, rangeHighlights, viewport, findPassage, revealPassage, textDelta."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

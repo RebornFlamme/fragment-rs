@@ -1,0 +1,24 @@
+{
+  "scene": "reglages-hotkeys",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "settings_window": {"width":1000,"height":700,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"open","path":"note.md"},
+    {"type":"open","path":"doc.pdf","split":true},
+    {"type":"command","id":"chat:new"},
+    {"type":"type","text":"Bonjour"},
+    {"type":"key","keys":"Enter"},
+    {"type":"wait-stable"},
+    {"type":"command","id":"doc-widget:open-anchored","args":{"provider":"e2e","conversation":"ancree","file":"note.md","anchor":"dernier paragraphe","length":18,"open":true}},
+    {"type":"wait","ms":800},
+    {"type":"wait","ms":2500},
+    {"type":"click","x":332,"y":726},
+    {"type":"wait","ms":500},
+    {"type":"command","id":"settings:open-settings"},
+    {"type":"click","target":"settings","x":118,"y":264},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

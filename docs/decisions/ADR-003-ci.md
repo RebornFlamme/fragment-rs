@@ -1,0 +1,32 @@
+# ADR-003 — CI : GitHub Actions, Windows + Linux, preuve pixels sur runner hébergé
+
+- Statut : accepté (chef de projet, 01/11/2026) ; le volet « pixels » est confirmé ou révisé par le premier run (voir § Vérification).
+- Contexte : `program.md` §4 — pas de compilation lourde sur le portable (OneDrive, 10 agents). Dépôt public → minutes Actions gratuites.
+
+## Décision
+
+**`ci.yml`** (PR, push sur `main`, manuel ; `concurrency` par ref avec annulation) :
+
+| Job | Runner | Commande |
+|---|---|---|
+| `fmt` | ubuntu | `cargo fmt --all -- --check` |
+| `clippy` | ubuntu (+ paquets X11/Wayland/fontconfig/Vulkan de GPUI) | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
+| `test-linux` | ubuntu | `cargo test --workspace --exclude fragment-ui --exclude fragment-app` |
+| `test-windows` | windows | `cargo test --workspace` |
+| `check-app` | windows | `cargo check -p fragment-app` |
+| `pixels` | windows | `fragment-pixels` ×2 puis `cargo xtask pixels` (preuve 0 pixel) ; artifact `pixels` |
+
+- `Swatinem/rust-cache@v2` partout (clés séparées linux / windows / pixels / release). `sccache` seulement si le cache dépasse 10 Go.
+- `CARGO_TARGET_DIR` est ramené dans l'espace de travail du runner (le `.cargo/config.toml` vise `C:/dev/…`, propre au portable).
+- Toolchain lue dans `rust-toolchain.toml` (rustup est présent sur les runners). `--locked` partout.
+- Lints d'atelier : `clippy::unwrap_used` et `expect_used` en `deny` pour tout le workspace ; `clippy.toml` les autorise dans les tests (`allow-unwrap-in-tests`, `allow-expect-in-tests`).
+
+**`build.yml`** (push sur `main`) : `cargo build --release -p fragment-app --bin fragment` sous Windows, artifact `fragment-rs-win-x64` (zip : `fragment.exe` + LICENSE).
+
+**`port.yml`** (voie C, manuel, input `task`) : lit la tâche dans `.beads-export/issues.jsonl` (ADR-002), monte la référence Fragment dans `fragment-ref/` si le secret `FRAGMENT_READ_TOKEN` existe (★ Fragment est un dépôt PRIVÉ), lance `claude -p … --model claude-sonnet-5-5 --max-budget-usd <budget> --dangerously-skip-permissions` (le drapeau de budget existe dans Claude Code 2.1.316), pousse `task/<id>` et ouvre la PR. Secrets posés par l'utilisateur seul.
+
+**Pixels.** La capture passe par `Window::render_to_image` (feature `test-support` de GPUI) dans une vraie fenêtre : DirectX rend dans une texture hors écran puis la relit ; sur un runner sans GPU, l'adaptateur est WARP. Phase 0 : la scène `fenetre-vide` est capturée deux fois et les deux images sont comparées (attendu : 0 pixel), et le nombre de couleurs distinctes est journalisé (une image unie trahirait un rendu absent).
+
+## Vérification
+
+Le premier run vert de `pixels` sur `main` vaut preuve ; il est cité dans `docs/journal.md`. Si WARP ne rend pas (image unie, erreur DirectX) : ADR-004 « runner auto-hébergé » (`scripts/pixels-runner.ps1` sur le portable) avant la phase 3, sans bloquer les phases 1-2.

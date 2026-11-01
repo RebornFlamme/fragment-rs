@@ -1,0 +1,12 @@
+[package]
+name = "fragment-plugins"
+description = "Plugins : hôte gpui-shell + API JS fragment (S3), catalogue, activation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

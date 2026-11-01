@@ -1,0 +1,12 @@
+[package]
+name = "fragment-core"
+description = "Component/register*, registres, événements, portées clavier, commandes, plugins, Vault, documents, modèle du workspace, utilitaires purs."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

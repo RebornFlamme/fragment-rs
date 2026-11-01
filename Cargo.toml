@@ -1,0 +1,26 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/RebornFlamme/fragment-rs"
+
+[workspace.dependencies]
+# ★ gpui-kit et toute la famille gpui-pre-* sont ÉPINGLÉS à la version exacte (ADR-001).
+# gpui-kit 0.8.1 exige lui-même gpui-pre =0.3.10 : ne monter l'un qu'avec l'autre, par ADR.
+gpui-kit = "=0.8.1"
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[profile.release]
+debug = false

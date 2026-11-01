@@ -1,0 +1,5 @@
+# Stable épinglé au bootstrap (01/11/2026). Monter = une PR qui ne change que ce fichier.
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

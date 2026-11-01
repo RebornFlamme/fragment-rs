@@ -1,0 +1,12 @@
+[package]
+name = "fragment-cli"
+description = "CLI : protocole, index d'instances, shim, registre des coffres, client `fragment`."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,106 @@
+# CI de fragment-rs (program.md §4, ADR-003).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # ★ .cargo/config.toml pointe target/ hors OneDrive (C:/dev/…) pour le portable ;
+  # sur les runners on le ramène dans l'espace de travail (et sous Linux ce chemin n'a pas de sens).
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépendances système de GPUI (Linux)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libfreetype-dev libasound2-dev libvulkan-dev libssl-dev libzstd-dev pkg-config clang
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: clippy-linux
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  test-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test-linux
+      # Crates pures : les crates UI (fragment-ui, fragment-app) sont vérifiées sous Windows.
+      - run: cargo test --workspace --locked --exclude fragment-ui --exclude fragment-app
+
+  test-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows
+      - run: cargo test --workspace --locked
+
+  check-app:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: windows
+          save-if: false
+      - run: cargo check -p fragment-app --locked
+
+  # Parité au pixel. Phase 0 : PREUVE que la capture hors écran marche sur le runner
+  # (scène « fenetre-vide » capturée deux fois, comparée à elle-même : 0 pixel attendu).
+  # Dès qu'une scène a référence ET candidat, `cargo xtask pixels` les compare aussi.
+  pixels:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: pixels
+      - run: cargo build -p fragment-app --features pixels --bin fragment-pixels --locked
+      - name: Capture n°1
+        run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
+      - name: Capture n°2
+        run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-2
+      - name: Preuve — fenêtre vide comparée à elle-même (strict, 0 pixel)
+        run: cargo xtask pixels fenetre-vide --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
+      - name: Parité avec Fragment (scènes ayant référence et candidat)
+        shell: bash
+        run: |
+          shopt -s nullglob
+          paires=0
+          for c in pixels/candidate/*.png; do [ -f "pixels/reference/$(basename "$c")" ] && paires=$((paires+1)); done
+          if [ "$paires" -gt 0 ]; then cargo xtask pixels; else echo "Aucune scène n'a encore référence + candidat (phase 0)."; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pixels
+          path: |
+            pixels/candidate/
+            pixels/diff/
+            docs/parite-pixels.md
+          if-no-files-found: ignore

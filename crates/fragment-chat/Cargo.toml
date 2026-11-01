@@ -1,0 +1,12 @@
+[package]
+name = "fragment-chat"
+description = "Chat (modèles) : ChatSession, chatSurfaceModel, followModel, rail, recherche, historique, format."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

@@ -1,0 +1,38 @@
+# Binaire Windows à essayer (program.md §4) : sur main seulement.
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release-windows
+      - run: cargo build --release -p fragment-app --bin fragment --locked
+      - name: Paquet
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item target/release/fragment.exe dist/
+          Copy-Item LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath fragment-rs-win-x64.zip -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fragment-rs-win-x64
+          path: fragment-rs-win-x64.zip

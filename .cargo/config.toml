@@ -1,0 +1,7 @@
+# ★ target/ hors OneDrive : la synchronisation verrouille les fichiers (EPERM) et
+# gaspille la bande passante. En CI, CARGO_TARGET_DIR écrase ce réglage.
+[build]
+target-dir = "C:/dev/fragment-rs-target"
+
+[alias]
+xtask = "run --quiet --package xtask --"

@@ -1,0 +1,9 @@
+/target
+/pixels/candidate/
+/pixels/candidate-2/
+/pixels/diff/
+/pixels/.out/
+.beads/*.db*
+.beads/dolt/
+/fragment-ref/
+/.beads/redirect

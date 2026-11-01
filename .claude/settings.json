@@ -1,0 +1,32 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",
+    "CARGO_TARGET_DIR": "C:/dev/fragment-rs-target"
+  },
+  "teammateMode": "in-process",
+  "permissions": {
+    "allow": [
+      "Bash(cargo *)",
+      "Bash(gh *)",
+      "Bash(bd *)",
+      "Bash(git *)",
+      "Bash(rustup *)",
+      "Bash(pwsh scripts/*)",
+      "PowerShell(cargo *)",
+      "PowerShell(gh *)",
+      "PowerShell(bd *)",
+      "PowerShell(git *)",
+      "PowerShell(rustup *)",
+      "Read(C:/Users/julie/OneDrive/Documents/Projects/Fragment/**)"
+    ],
+    "deny": [
+      "Write(C:/Users/julie/OneDrive/Documents/Projects/Fragment/**)",
+      "Edit(C:/Users/julie/OneDrive/Documents/Projects/Fragment/**)",
+      "Bash(cargo build -p fragment-app*)",
+      "Bash(cargo build --release*)",
+      "PowerShell(cargo build -p fragment-app*)",
+      "PowerShell(cargo build --release*)"
+    ]
+  }
+}

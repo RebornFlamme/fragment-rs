@@ -1,0 +1,12 @@
+[package]
+name = "fragment-theme"
+description = "Thème : jetons (noms d'Obsidian, valeurs de Fragment), themeModel, cascade (S4)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true
