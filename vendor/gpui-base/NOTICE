@@ -1,0 +1,23 @@
+gpui-base (fork n°1 de fragment-rs, ADR-006)
+
+Origine   : https://crates.io/crates/gpui-base/0.8.1 (dépôt https://github.com/longbridge/gpui-kit)
+Version   : 0.8.1 (celle qu'épingle gpui-kit =0.8.1 / gpui-component 0.8.1 ; voir Cargo.lock)
+Archive   : https://static.crates.io/crates/gpui-base/gpui-base-0.8.1.crate
+            sha256 d862bc8f2e27710039013d075ac4995892e9687ff207fa530f880cbcd513936f
+Licence   : Apache-2.0 (LICENSE-APACHE, inchangée). Les en-têtes d'origine sont conservés.
+Modifié par fragment-rs : les fichiers ci-dessous, et eux seuls. Chaque ajout est marqué
+            `// ★ fragment-rs`. Tout autre fichier doit rester identique à l'archive : le job CI
+            `fork-patch` le vérifie.
+
+Fichiers modifiés (chemins relatifs à src/input/) :
+  editor/display_map/row_model.rs        NOUVEAU : modèle de rangées (hauteurs, blocs) + set_row_model
+  editor/display_map/mod.rs              déclaration du module row_model
+  editor/display_map/display_map.rs      champs row_model/row_metrics, API row_top/row_at_y/…
+  editor/display_map/text_wrapper.rs     LineLayout : hauteur de rangée dictée + bloc sous la ligne
+  base/element.rs                        mise en forme des plages masquées ; ordonnées par row_top
+  base/state.rs                          hit-test, défilement, bounds suivent les hauteurs
+  base/movement.rs                       ordonnée de la rangée cible d'un déplacement vertical
+
+Ce que le patch ajoute : hauteur de rangée dictée par ligne logique, plages de source masquées
+sans trou, blocs de hauteur libre atomiques au clavier. Grille uniforme (modèle vide) = comportement
+d'origine. Procédure de rebase : docs/decisions/ADR-006-fork-input.md.
