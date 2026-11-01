@@ -46,3 +46,12 @@ non_portes = [
   { cas = "la suppression distante et le déplacement de scope retirent la projection locale", raison = "dépend de `ArtefactManager.subscribe` et du filtrage de scope du manager (déjà testés dans fragment-artefacts)" },
 ]
 # Le cas « migre le format annotation:doc… » est porté sur sa partie pure (`lire_fichier`).
+
+# ★ Hors annotation à proprement parler, rangé ici car c'est la crate la plus proche
+#   (menu « Calques ») parmi les quatre de fr-p1-divers.
+[artefacts_menu]
+ts = "app/src/ui/views/artefacts/menuModel.ts"
+tests_ts = "app/src/ui/views/artefacts/menuModel.test.ts"
+source = 5
+portes = 5
+non_portes = []
