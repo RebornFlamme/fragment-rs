@@ -39,9 +39,13 @@ jobs:
           fetch-depth: 0
       # ★ Fragment (la spec) est un dépôt PRIVÉ : sa lecture exige un jeton à lecture seule
       # posé par l'utilisateur (`gh secret set FRAGMENT_READ_TOKEN`), monté dans `fragment-ref/`
-      # (jamais commité : voir .gitignore). Sans lui, l'agent n'a que la description de la tâche.
+      # (jamais commité : voir .gitignore). Sans lui, le job échoue d'emblée (« secret absent »).
+      - name: Référence Fragment disponible ?
+        if: env.HAS_FRAGMENT_TOKEN != 'true'
+        run: |
+          echo "::error::secret absent : FRAGMENT_READ_TOKEN (à poser par l'utilisateur). Pas de port à l'aveugle sans la référence TS."
+          exit 1
       - uses: actions/checkout@v4
-        if: env.HAS_FRAGMENT_TOKEN == 'true'
         with:
           repository: RebornFlamme/Fragment
           token: ${{ secrets.FRAGMENT_READ_TOKEN }}
@@ -80,7 +84,7 @@ jobs:
           BUDGET: ${{ inputs.budget }}
         run: |
           set -euo pipefail
-          brief="Tu es un équipier de fragment-rs (voie C). Lis CLAUDE.md puis program.md §3, §6, §9. Ta tâche Beads est ci-dessous ; tu ne possèdes QUE les fichiers qu'elle déclare. La référence Fragment est montée dans fragment-ref/ (un chemin C:\…\Fragment\app\x devient fragment-ref/app/x) ; ne commite jamais fragment-ref/. Si ce dossier manque, arrête-toi et écris-le dans un fichier BLOCAGE.md commité. Tests d'abord (un #[test] par cas TS, même nom en snake_case), puis l'implémentation. Vérifie avec la commande de la tâche (cargo test -p …), cargo fmt et cargo clippy -p <crate> -- -D warnings. Commite (message « port : <module> », en français) sur la branche courante ; ne pousse pas, n'ouvre pas de PR : le workflow le fait.
+          brief="Tu es un équipier de fragment-rs (voie C). Lis CLAUDE.md puis program.md §3, §6, §9. Ta tâche Beads est ci-dessous ; tu ne possèdes QUE les fichiers qu'elle déclare. La référence Fragment est montée dans fragment-ref/ (un chemin C:\…\Fragment\app\x devient fragment-ref/app/x) ; ne commite jamais fragment-ref/. Tests d'abord (un #[test] par cas TS, même nom en snake_case), puis l'implémentation. Vérifie avec la commande de la tâche (cargo test -p …), cargo fmt et cargo clippy -p <crate> -- -D warnings. Commite (message « port : <module> », en français) sur la branche courante ; ne pousse pas, n'ouvre pas de PR : le workflow le fait.
 
           $(cat "$RUNNER_TEMP/tache.md")"
           claude -p "$brief" --model claude-sonnet-5-5 --max-budget-usd "$BUDGET" --dangerously-skip-permissions --output-format text
