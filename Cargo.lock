@@ -1833,6 +1833,9 @@ version = "0.0.1"
 [[package]]
 name = "fragment-layers"
 version = "0.0.1"
+dependencies = [
+ "fragment-text",
+]
 
 [[package]]
 name = "fragment-markdown"
