@@ -1,10 +1,22 @@
 {
   "env": {
+    "CARGO_TARGET_DIR": "C:/dev/fragment-rs-target",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",
-    "CARGO_TARGET_DIR": "C:/dev/fragment-rs-target"
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5"
   },
-  "teammateMode": "in-process",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bd prime --hook-json",
+            "type": "command"
+          }
+        ],
+        "matcher": ""
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(cargo *)",
@@ -28,5 +40,6 @@
       "PowerShell(cargo build -p fragment-app*)",
       "PowerShell(cargo build --release*)"
     ]
-  }
+  },
+  "teammateMode": "in-process"
 }

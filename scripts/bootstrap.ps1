@@ -133,12 +133,13 @@ if (-not $SansBeads) {
     }
     New-Item -ItemType Directory -Force '.beads' | Out-Null
     [System.IO.File]::WriteAllText((Join-Path $Racine '.beads\redirect'), $BeadsReel, $Utf8)
+    Natif @('git', 'config', 'beads.role', 'maintainer')
     Natif @('bd', 'setup', 'claude')
 
     $seed = Get-Content 'scripts/beads-seed.json' -Raw -Encoding UTF8 | ConvertFrom-Json
     $existants = @{}
     $liste = bd list --all --json 2>$null
-    if ($LASTEXITCODE -eq 0 -and $liste) { foreach ($i in ($liste | ConvertFrom-Json)) { $existants[$i.id] = $true } }
+    if ($LASTEXITCODE -eq 0 -and $liste) { foreach ($i in @(($liste | Out-String) | ConvertFrom-Json)) { if ($i.id) { $existants[$i.id] = $true } } }
     $tmp = [System.IO.Path]::GetTempFileName()
     foreach ($e in $seed.epics) {
         if (-not $existants.ContainsKey($e.id)) {
@@ -151,7 +152,9 @@ if (-not $SansBeads) {
             $ref = $t.reference -replace '\bR\\', 'C:\Users\julie\OneDrive\Documents\Projects\Fragment\app\src\'
             $corps = "Référence : $ref`n`nFichiers possédés : $($t.owns)`n`nVérification : $($t.verify)`n`nFini quand : $($t.done)`n`nVoie : $($t.voie) (program.md §2)"
             [System.IO.File]::WriteAllText($tmp, $corps, $Utf8)
-            Natif @('bd', 'create', '--id', $t.id, '-t', 'task', '-p', '2', '--parent', $t.parent, '--title', $t.title, '--body-file', $tmp, '-l', "phase1,voie-$($t.voie)", '--silent')
+            Natif @('bd', 'create', '--id', $t.id, '-t', 'task', '-p', '2', '--title', $t.title, '--body-file', $tmp, '-l', "phase1,voie-$($t.voie)", '--silent')
+            # bd refuse --id avec --parent : le parent est posé ensuite.
+            Natif @('bd', 'update', $t.id, '--parent', $t.parent)
         }
     }
     Remove-Item $tmp
