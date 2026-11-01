@@ -25,3 +25,18 @@ pub use fuzzy_search::{
     FuzzyMatch, FuzzySearch, SearchMatches, SearchResult, prepare_fuzzy_search,
 };
 pub use resolve_link::{LinkFile, LinkVault, ParsedLink, parse_linktext, resolve_link};
+pub mod component;
+pub mod events;
+mod ordered_map;
+pub mod registry;
+pub mod registry_hub;
+pub use component::{BasicComponent, Cleanup, Component, ComponentState};
+pub use events::{EventRef, Events};
+pub use registry::{
+    Disposer, InspectableRegistry, OrderedRegistry, Registry, RegistryEntry, WeakOrderedRegistry,
+    WeakRegistry,
+};
+pub use registry_hub::{
+    Keyed, Kind, Ordered, RegistryDefinition, RegistryError, RegistryHub, RegistryKind,
+    define_ordered_registry, define_registry,
+};
