@@ -5,4 +5,5 @@
 //! Le rendu réel (pages, texte, outline) viendra avec `pdfium-render` ; ici, les
 //! calculs que Fragment avait isolés du DOM et de pdf.js.
 
+pub mod pdf_geometry;
 pub mod pdf_zoom;
