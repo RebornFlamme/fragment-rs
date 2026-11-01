@@ -12,7 +12,9 @@ param(
     [switch]$SansBeads
 )
 
-$ErrorActionPreference = 'Stop'
+# ★ 'Continue' et non 'Stop' : sous PowerShell 5.1, la moindre ligne sur stderr d'un exe natif
+# (cargo, gh, git) devient une erreur fatale avec 'Stop'. Les échecs sont détectés par $LASTEXITCODE (Natif).
+$ErrorActionPreference = 'Continue'
 $Racine = Split-Path -Parent $PSScriptRoot
 Set-Location $Racine
 $Depot = 'RebornFlamme/fragment-rs'
