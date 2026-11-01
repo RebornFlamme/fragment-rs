@@ -45,3 +45,19 @@ portes = 2
 non_portes = [
   { cas = "(aucun test TS) onload, CommandPaletteModal, ribbon, chargement async par loadData/loadLocalStorage", raison = "modale et ribbon : fragment-ui ; le chargement est la fonction pure `charger_preferences` (cas ajouté). L'ordre des commandes, les récents (MRU, 100) et les épinglés sont portés (cas ajoutés)." },
 ]
+
+[secret_storage]
+ts = "app/src/ui/core/settings/SecretStorage.ts"
+tests_ts = "app/src/ui/core/settings/SecretStorage.test.ts"
+source = 5
+portes = 5
+non_portes = []
+
+# ── Non portés (présentation : à fragment-ui) ──
+# Setting.ts (+ test, 6 cas) — le builder impératif `Setting` : 100 % DOM (settingEl, infoEl,
+#   controlEl, composants Toggle/Text/Dropdown/Slider…), les cas du test inspectent le DOM.
+# SettingPage.ts (+ test, 2 cas) — SettingGroup / SettingPage : conteneurs DOM autour de `Setting`.
+# definitionTree.test.ts (1 cas) — `renderDefinition` d'un arbre déclaratif (chargement
+#   paresseux des enfants au 1er dépli, un contrôle par ligne) : le rendu est DOM ; le MODÈLE
+#   (SettingDefinition*, SettingTreeNode) est dans fragment-core (tâche core-b), où il faut
+#   tester la paresse (« enfants chargés une fois »).
