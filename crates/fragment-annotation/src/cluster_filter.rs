@@ -148,7 +148,13 @@ pub fn filtre_actif(f: &ClusterFilter) -> bool {
 mod tests {
     use super::*;
 
-    fn e(order: usize, label: &str, text: &str, at: Option<f64>, replies: Option<u32>) -> ClusterEntry {
+    fn e(
+        order: usize,
+        label: &str,
+        text: &str,
+        at: Option<f64>,
+        replies: Option<u32>,
+    ) -> ClusterEntry {
         ClusterEntry {
             order,
             label: label.into(),
@@ -160,7 +166,13 @@ mod tests {
 
     fn liste() -> Vec<ClusterEntry> {
         vec![
-            e(0, "Ask « vitesse »", "Pourquoi la lumière ?", Some(100.0), Some(2)),
+            e(
+                0,
+                "Ask « vitesse »",
+                "Pourquoi la lumière ?",
+                Some(100.0),
+                Some(2),
+            ),
             e(1, "Ask « Éditeur »", "Les fragments", Some(300.0), Some(0)),
             e(2, "Une note", "", None, None),
         ]
@@ -204,11 +216,17 @@ mod tests {
     #[test]
     fn avec_sans_reponse_un_post_sans_donnee_passe() {
         assert_eq!(
-            ordres(filtrer(&liste(), &filtre(|f| f.show = ClusterShow::Replied))),
+            ordres(filtrer(
+                &liste(),
+                &filtre(|f| f.show = ClusterShow::Replied)
+            )),
             vec![0, 2]
         );
         assert_eq!(
-            ordres(filtrer(&liste(), &filtre(|f| f.show = ClusterShow::Unreplied))),
+            ordres(filtrer(
+                &liste(),
+                &filtre(|f| f.show = ClusterShow::Unreplied)
+            )),
             vec![1, 2]
         );
     }

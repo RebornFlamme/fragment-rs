@@ -119,7 +119,12 @@ mod tests {
     fn trois_morceaux_horizontal_suite_du_soulignement_oblique_horizontal_entree_dans_le_widget() {
         assert_eq!(
             trace(&ends(p(100.0, 50.0), p(300.0, 20.0), 260.0, 288.0)),
-            vec![p(100.0, 50.0), p(260.0, 50.0), p(288.0, 20.0), p(300.0, 20.0)]
+            vec![
+                p(100.0, 50.0),
+                p(260.0, 50.0),
+                p(288.0, 20.0),
+                p(300.0, 20.0)
+            ]
         );
     }
 
@@ -149,7 +154,12 @@ mod tests {
     fn widget_a_gauche_du_texte_le_meme_trace_en_miroir() {
         assert_eq!(
             trace(&ends(p(300.0, 50.0), p(100.0, 20.0), 140.0, 112.0)),
-            vec![p(300.0, 50.0), p(140.0, 50.0), p(112.0, 20.0), p(100.0, 20.0)]
+            vec![
+                p(300.0, 50.0),
+                p(140.0, 50.0),
+                p(112.0, 20.0),
+                p(100.0, 20.0)
+            ]
         );
     }
 

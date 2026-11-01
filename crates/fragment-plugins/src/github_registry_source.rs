@@ -111,15 +111,14 @@ impl<R: Reseau> PluginRegistrySource for GithubRegistrySource<R> {
             &self.registry_branch,
             "community-plugin-stats.json",
         ));
-        if let Ok(stats) = stats {
-            if stats.status == 200 {
-                if let Ok(table) = serde_json::from_str::<HashMap<String, Stats>>(&stats.text) {
-                    for e in &mut entries {
-                        if let Some(s) = table.get(&e.id) {
-                            e.downloads = s.downloads;
-                            e.updated = s.updated;
-                        }
-                    }
+        if let Ok(stats) = stats
+            && stats.status == 200
+            && let Ok(table) = serde_json::from_str::<HashMap<String, Stats>>(&stats.text)
+        {
+            for e in &mut entries {
+                if let Some(s) = table.get(&e.id) {
+                    e.downloads = s.downloads;
+                    e.updated = s.updated;
                 }
             }
         }
@@ -166,23 +165,22 @@ impl<R: Reseau> PluginRegistrySource for GithubRegistrySource<R> {
 
         // Pas de versions.json (statut ≠ 200, transport ou JSON en échec) : on retombe
         // sur la version du manifest.
-        if let Ok(res) = self.get(&Self::raw_de(entry, "versions.json")) {
-            if res.status == 200 {
-                if let Ok(table) = serde_json::from_str::<HashMap<String, String>>(&res.text) {
-                    // version → minAppVersion
-                    let mut best: Option<&String> = None;
-                    for (version, min_app) in &table {
-                        if compare_versions(min_app, app_version) == Ordering::Greater {
-                            continue; // exige un client plus récent
-                        }
-                        if best.is_none_or(|b| compare_versions(version, b) == Ordering::Greater) {
-                            best = Some(version);
-                        }
-                    }
-                    if let Some(b) = best {
-                        return Ok(Some(b.clone()));
-                    }
+        if let Ok(res) = self.get(&Self::raw_de(entry, "versions.json"))
+            && res.status == 200
+            && let Ok(table) = serde_json::from_str::<HashMap<String, String>>(&res.text)
+        {
+            // version → minAppVersion
+            let mut best: Option<&String> = None;
+            for (version, min_app) in &table {
+                if compare_versions(min_app, app_version) == Ordering::Greater {
+                    continue; // exige un client plus récent
                 }
+                if best.is_none_or(|b| compare_versions(version, b) == Ordering::Greater) {
+                    best = Some(version);
+                }
+            }
+            if let Some(b) = best {
+                return Ok(Some(b.clone()));
             }
         }
         // Le manifest seul : compatible s'il n'exige rien de plus récent que nous.
@@ -253,25 +251,26 @@ mod tests {
     impl Reseau for FauxDepot {
         fn requete(&self, url: &str) -> Result<Reponse, String> {
             self.calls.borrow_mut().push(url.to_string());
-            let corps =
-                if url.ends_with("/community-plugins.json") && url.contains("/registry-repo/") {
-                    serde_json::to_string(&catalogue()).unwrap_or_default()
-                } else if url.ends_with("/manifest.json") {
-                    format!(
-                        r#"{{"id":"demo","name":"Demo","version":"1.2.3","minAppVersion":"{}","description":"Un plugin.","author":"Alice"}}"#,
-                        self.min_app.borrow()
-                    )
-                } else if url.ends_with("/versions.json") {
-                    self.versions.borrow().clone()
-                } else if url.ends_with("/README.md") {
-                    "# Demo".into()
-                } else if url.ends_with("/main.js") {
-                    "module.exports = {};".into()
-                } else if url.ends_with("/styles.css") {
-                    ".demo {}".into()
-                } else {
-                    String::new()
-                };
+            let corps = if url.ends_with("/community-plugins.json")
+                && url.contains("/registry-repo/")
+            {
+                serde_json::to_string(&catalogue()).unwrap_or_default()
+            } else if url.ends_with("/manifest.json") {
+                format!(
+                    r#"{{"id":"demo","name":"Demo","version":"1.2.3","minAppVersion":"{}","description":"Un plugin.","author":"Alice"}}"#,
+                    self.min_app.borrow()
+                )
+            } else if url.ends_with("/versions.json") {
+                self.versions.borrow().clone()
+            } else if url.ends_with("/README.md") {
+                "# Demo".into()
+            } else if url.ends_with("/main.js") {
+                "module.exports = {};".into()
+            } else if url.ends_with("/styles.css") {
+                ".demo {}".into()
+            } else {
+                String::new()
+            };
             Ok(Reponse {
                 status: 200,
                 text: corps,
@@ -458,7 +457,9 @@ mod tests {
             e.to_string(),
             "[registry:obsidian] manifest introuvable pour demo"
         );
-        let e = s.download_assets(&catalogue()[0], "1.0.0").expect_err("404");
+        let e = s
+            .download_assets(&catalogue()[0], "1.0.0")
+            .expect_err("404");
         assert!(e.to_string().contains("assets manquants pour demo@1.0.0"));
         assert_eq!(s.fetch_readme(&catalogue()[0]).expect("readme"), "");
     }

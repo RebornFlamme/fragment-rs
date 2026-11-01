@@ -72,3 +72,19 @@ tests_ts = "app/src/ui/views/doc-widget/clusterFilter.test.ts"
 source = 5
 portes = 5
 non_portes = []
+
+# api.ts n'a pas de test : définitions des canaux annotation:*@1 (cas ajoutés : ids du contrat).
+[api]
+ts = "app/src/ui/views/annotation/api.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = [
+  { cas = "annotation:extensions@1 et annotation:markers@1 typés ; Gesture, GestureContext, AnnotationTool.begin, StrokeKind.hitTest, AnnotationSessionAPI.geometry", raison = "dépendent de la surface, du pointeur et de `Component` (présentation) : avec le plugin d'annotation de fragment-ui. Les ids sont gardés." },
+]
+
+# Non portés dans cette crate (présentation ou câblage, fragment-ui), sans test unitaire TS :
+#   views/annotation/{DrawSurface,AnnotationToolbar,AnnotationPlugin,annotationLayer,placement,
+#   strokeMarkers,toolbarItems,tools,order,annotationCli,contributions}.ts — DOM / surface /
+#   CLI du plugin ; `contributions.ts` (resolve : dernier inscrit gagne) est reproduit par
+#   `AnnotationRegistries`.

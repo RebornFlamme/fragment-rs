@@ -120,10 +120,10 @@ pub fn short_quote(text: Option<&str>, max: usize) -> Option<String> {
         return Some(replie);
     }
     let mut cut = unites[..max].to_vec();
-    if let Some(espace) = cut.iter().rposition(|u| *u == u16::from(b' ')) {
-        if espace > max / 2 {
-            cut.truncate(espace);
-        }
+    if let Some(espace) = cut.iter().rposition(|u| *u == u16::from(b' '))
+        && espace > max / 2
+    {
+        cut.truncate(espace);
     }
     let cut = String::from_utf16_lossy(&cut);
     // « garder.… » → « garder… »
@@ -259,7 +259,11 @@ mod tests {
             .collect();
         assert_eq!(
             vue,
-            vec![("a", "A", false), ("b", "B", true), ("v", "Sans nom", false)]
+            vec![
+                ("a", "A", false),
+                ("b", "B", true),
+                ("v", "Sans nom", false)
+            ]
         );
         assert_eq!(rows[0].icon, "message-square");
         assert_eq!(rows[0].passage.as_deref(), Some("passage a"));
@@ -324,7 +328,10 @@ mod tests {
         let avec_desc = kind(|k| {
             k.description = Some("Un objet HTML jetable (HTML + CSS). Suite.".into());
         });
-        assert_eq!(label_of(&a, Some(&avec_desc)).label, "Un objet HTML jetable");
+        assert_eq!(
+            label_of(&a, Some(&avec_desc)).label,
+            "Un objet HTML jetable"
+        );
         assert_eq!(label_of(&a, Some(&kind(|_| {}))).label, "p:k");
         let leve = kind(|k| k.describe = Some(Box::new(|_| panic!("x"))));
         assert_eq!(label_of(&a, Some(&leve)).label, "p:k");

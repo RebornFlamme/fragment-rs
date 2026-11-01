@@ -79,7 +79,11 @@ impl CommandPalette {
     pub fn charger_preferences(&self, data: Option<&Value>, recents: Option<&Value>) {
         let chaines = |v: &Value| -> Vec<String> {
             v.as_array()
-                .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default()
         };
         if let Some(pinned) = data.and_then(|d| d.get("pinned")).filter(|p| p.is_array()) {
@@ -118,12 +122,12 @@ impl CommandPalette {
     ///   place alphabétique relative — les récentes remontent, le reste ne bouge pas.
     pub fn get_commands(&self, liste: Vec<CommandInfo>) -> Vec<CommandInfo> {
         let pinned = self.options.borrow().pinned.clone();
-        let (mut epinglees, mut reste): (Vec<CommandInfo>, Vec<CommandInfo>) =
-            if pinned.is_empty() {
-                (Vec::new(), liste)
-            } else {
-                liste.into_iter().partition(|c| pinned.contains(&c.id))
-            };
+        let (mut epinglees, mut reste): (Vec<CommandInfo>, Vec<CommandInfo>) = if pinned.is_empty()
+        {
+            (Vec::new(), liste)
+        } else {
+            liste.into_iter().partition(|c| pinned.contains(&c.id))
+        };
         trier_selon(&mut epinglees, &pinned);
         reste.sort_by(|a, b| locale_compare(&a.name, &b.name));
         trier_selon(&mut reste, &self.recents.borrow());
@@ -223,7 +227,9 @@ mod tests {
     fn executer_une_commande_n_ecrit_que_les_recents_local_storage_pas_data_json() {
         let (palette, store) = setup();
         let appels = RefCell::new(0);
-        palette.executer(&CommandInfo::new("z:go", "Go"), &|_| *appels.borrow_mut() += 1);
+        palette.executer(&CommandInfo::new("z:go", "Go"), &|_| {
+            *appels.borrow_mut() += 1
+        });
 
         assert_eq!(*appels.borrow(), 1);
         assert_eq!(
@@ -305,7 +311,10 @@ mod tests {
         assert!(palette.est_epinglee("a") && palette.est_epinglee("b"));
         assert_eq!(palette.recents(), vec!["x".to_string()]);
         palette.charger_preferences(Some(&serde_json::json!({"pinned": "oops"})), None);
-        assert!(palette.est_epinglee("a"), "une valeur invalide ne vide rien");
+        assert!(
+            palette.est_epinglee("a"),
+            "une valeur invalide ne vide rien"
+        );
     }
 
     #[test]

@@ -56,7 +56,10 @@ pub struct ToolbarItem {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Enfant {
     /// Une `.toolbar-section` : son `data-section` ('' par défaut) et ses items (index).
-    Section { data_section: String, items: Vec<usize> },
+    Section {
+        data_section: String,
+        items: Vec<usize>,
+    },
     /// Un `.toolbar-separator`.
     Separateur,
     /// La poignée : toujours le DERNIER enfant.
@@ -341,15 +344,16 @@ impl Toolbar {
             .iter()
             .filter_map(|c| match c {
                 Enfant::Separateur => Some(Forme::Sep),
-                Enfant::Section { data_section, items } if !items.is_empty() => {
-                    Some(Forme::Section(
-                        data_section.clone(),
-                        items
-                            .iter()
-                            .map(|i| self.items[*i].tooltip.clone())
-                            .collect(),
-                    ))
-                }
+                Enfant::Section {
+                    data_section,
+                    items,
+                } if !items.is_empty() => Some(Forme::Section(
+                    data_section.clone(),
+                    items
+                        .iter()
+                        .map(|i| self.items[*i].tooltip.clone())
+                        .collect(),
+                )),
                 _ => None,
             })
             .collect()
@@ -601,7 +605,11 @@ mod tests {
         });
         assert_eq!(
             bar.forme(),
-            vec![sec("tool", &["Crayon"]), Forme::Sep, sec("style", &["Rouge"])]
+            vec![
+                sec("tool", &["Crayon"]),
+                Forme::Sep,
+                sec("style", &["Rouge"])
+            ]
         );
         assert_eq!(bar.enfants().last(), Some(&Enfant::Poignee));
         bar.hide();
@@ -697,7 +705,10 @@ mod tests {
         // Trop à gauche / en haut : retenue de 8px.
         assert_eq!(pos(0.0, 0.0, 40.0, 30.0), (8.0, 8.0));
         // Trop à droite / en bas.
-        assert_eq!(pos(999.0, 999.0, 40.0, 30.0), (400.0 - 40.0 - 8.0 - 100.0, 250.0 - 30.0 - 8.0 - 50.0));
+        assert_eq!(
+            pos(999.0, 999.0, 40.0, 30.0),
+            (400.0 - 40.0 - 8.0 - 100.0, 250.0 - 30.0 - 8.0 - 50.0)
+        );
         // Un parent plus petit que la barre : coin haut-gauche.
         assert_eq!(pos(150.0, 100.0, 900.0, 900.0), (8.0, 8.0));
         // Le scroll du parent s'ajoute.

@@ -87,6 +87,9 @@ impl Default for StrokeKind {
 /// `annotation:filters@1` : `(trait, session) -> garder ?`.
 pub type AnnotationFilter = Rc<dyn Fn(&Stroke, &AnnotationSession) -> bool>;
 
+/// Un écouteur de l'événement `change` de la session.
+type Ecouteur = Rc<dyn Fn()>;
+
 /// `annotation:presets@1` : une instance préconfigurée (outils permis, filtre).
 #[derive(Clone)]
 pub struct AnnotationPreset {
@@ -200,7 +203,7 @@ pub struct AnnotationSession {
     source: Rc<AnnotationSource>,
     registres: Rc<AnnotationRegistries>,
     state: RefCell<State>,
-    listeners: RefCell<Vec<(u64, Rc<dyn Fn()>)>>,
+    listeners: RefCell<Vec<(u64, Ecouteur)>>,
     prochain: Cell<u64>,
     source_sub: Cell<Option<u64>>,
     new_id: Box<dyn Fn() -> String>,
@@ -370,7 +373,11 @@ impl AnnotationSession {
 
     pub fn set_active_calque(&self, id: &str) {
         let existe = id == DEFAULT_CALQUE || self.calques().iter().any(|c| c.id == id);
-        self.state.borrow_mut().calque = if existe { id.into() } else { DEFAULT_CALQUE.into() };
+        self.state.borrow_mut().calque = if existe {
+            id.into()
+        } else {
+            DEFAULT_CALQUE.into()
+        };
         self.changed();
     }
 
@@ -382,10 +389,10 @@ impl AnnotationSession {
     }
 
     pub fn set_style(&self, style: StyleChange) {
-        if let Some(w) = style.width {
-            if !w.is_finite() || w <= 0.0 {
-                return;
-            }
+        if let Some(w) = style.width
+            && (!w.is_finite() || w <= 0.0)
+        {
+            return;
         }
         {
             let mut st = self.state.borrow_mut();
@@ -472,9 +479,7 @@ impl AnnotationSession {
                 expected
                     .iter()
                     .find(|p| p.key() == e.key())
-                    .is_some_and(|previous| {
-                        valeur(&self.source.value(&doc, e)) == valeur(previous)
-                    })
+                    .is_some_and(|previous| valeur(&self.source.value(&doc, e)) == valeur(previous))
             })
             .cloned()
             .collect();
@@ -523,7 +528,12 @@ impl AnnotationSession {
         if calque != DEFAULT_CALQUE && !self.calques().iter().any(|c| c.id == calque) {
             self.state.borrow_mut().calque = DEFAULT_CALQUE.to_string();
         }
-        let copie: Vec<Rc<dyn Fn()>> = self.listeners.borrow().iter().map(|(_, l)| l.clone()).collect();
+        let copie: Vec<Rc<dyn Fn()>> = self
+            .listeners
+            .borrow()
+            .iter()
+            .map(|(_, l)| l.clone())
+            .collect();
         for l in copie {
             l();
         }
@@ -537,10 +547,10 @@ impl AnnotationSession {
     /// Un registre `annotation:*` a changé : désarme un outil retiré, relit tout à chaud.
     pub fn registres_changed(&self) {
         let tool = self.active_tool();
-        if let Some(t) = tool {
-            if !self.tools().iter().any(|x| x.id == t) {
-                self.state.borrow_mut().tool = None;
-            }
+        if let Some(t) = tool
+            && !self.tools().iter().any(|x| x.id == t)
+        {
+            self.state.borrow_mut().tool = None;
         }
         self.changed();
     }
@@ -554,12 +564,16 @@ impl AnnotationSession {
         self.surface_liee.set(true);
         let faible: Weak<Self> = Rc::downgrade(self);
         let id = self.source.on(move |event| {
-            let Some(session) = faible.upgrade() else { return };
+            let Some(session) = faible.upgrade() else {
+                return;
+            };
             match event {
                 SourceEvent::Change { file } if session.doc().as_deref() == Some(*file) => {
                     session.changed();
                 }
-                SourceEvent::Mapped { file, map_pos } if session.doc().as_deref() == Some(*file) => {
+                SourceEvent::Mapped { file, map_pos }
+                    if session.doc().as_deref() == Some(*file) =>
+                {
                     let mut st = session.state.borrow_mut();
                     st.past = st.past.iter().map(|e| map_history(e, *map_pos)).collect();
                     st.future = st.future.iter().map(|e| map_history(e, *map_pos)).collect();

@@ -9,6 +9,8 @@ repository.workspace = true
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
+# Les définitions de registres annotation:*@1 (RegistryDefinition).
+fragment-core = { path = "../fragment-core" }
 # Rect, EditorChange, Assoc, map_anchor (ancre d'un trait, ADR-004 : positions UTF-16).
 fragment-text = { path = "../fragment-text" }
 # Op / DurableAnchor / resolve_anchor : la persistance parle le langage du journal.

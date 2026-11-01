@@ -78,7 +78,8 @@ impl Revisions {
 }
 
 fn est_fini_positif(v: Option<&Value>) -> Option<f64> {
-    v.and_then(Value::as_f64).filter(|w| w.is_finite() && *w > 0.0)
+    v.and_then(Value::as_f64)
+        .filter(|w| w.is_finite() && *w > 0.0)
 }
 
 /// Décode un record `annotation:stroke` (ou un trait de l'ancien format).
@@ -151,10 +152,7 @@ pub fn operation(file: &str, edit: &AnnotationEdit, ancre: FabriqueAncre<'_>) ->
         AnnotationEdit::Stroke { id, value: None } | AnnotationEdit::Calque { id, value: None } => {
             Op::del(id)
         }
-        AnnotationEdit::Calque {
-            id,
-            value: Some(c),
-        } => {
+        AnnotationEdit::Calque { id, value: Some(c) } => {
             let mut state = json!({ "id": c.id, "name": c.name, "order": c.order });
             if let (Some(color), Some(o)) = (&c.color, state.as_object_mut()) {
                 o.insert("color".into(), json!(color));
@@ -164,10 +162,7 @@ pub fn operation(file: &str, edit: &AnnotationEdit, ancre: FabriqueAncre<'_>) ->
                 .scope(scope)
                 .into()
         }
-        AnnotationEdit::Stroke {
-            id,
-            value: Some(s),
-        } => {
+        AnnotationEdit::Stroke { id, value: Some(s) } => {
             let state = json!({
                 "points": s.points,
                 "color": s.color,
@@ -197,10 +192,9 @@ pub fn ops_d_ecriture(
     edits
         .iter()
         .map(|e| match e {
-            AnnotationEdit::Stroke {
-                id,
-                value: Some(s),
-            } if origin == Origin::Follow => SetOp::new(id).anchor(ancre(s.pos)).into(),
+            AnnotationEdit::Stroke { id, value: Some(s) } if origin == Origin::Follow => {
+                SetOp::new(id).anchor(ancre(s.pos)).into()
+            }
             _ => operation(file, e, ancre),
         })
         .collect()
@@ -275,7 +269,10 @@ pub fn lire_fichier(
                         None => "undefined".to_string(),
                     };
                     let id = format!("{}:{}", r.rec.id, ancien_id);
-                    let pos = o.get("pos").and_then(Value::as_f64).filter(|p| p.is_finite())?;
+                    let pos = o
+                        .get("pos")
+                        .and_then(Value::as_f64)
+                        .filter(|p| p.is_finite())?;
                     let vivante = WidgetAnchor::document(pos as i64);
                     let stroke = decode_stroke(&id, Some(&vivante.into()), old, None)?;
                     convertis.push(stroke);
@@ -402,7 +399,10 @@ mod tests {
         assert!(state.get("id").is_none() && state.get("pos").is_none());
         assert_eq!(state["calque"], json!("c"));
         assert_eq!(
-            set.anchor.as_ref().and_then(|a| a.as_ref()).and_then(|a| a.anchor.pos()),
+            set.anchor
+                .as_ref()
+                .and_then(|a| a.as_ref())
+                .and_then(|a| a.anchor.pos()),
             Some(10)
         );
     }
@@ -471,8 +471,8 @@ mod tests {
         assert_eq!(l.migration[0].id(), "legacy:s1");
         assert_eq!(l.migration[1], Op::del("legacy"));
         // Relancée après migration : le trait existe déjà, pas de doublon, tombe seule.
-        let l = lire_fichier(&recs, None, &|id| id == "legacy:s1", "a.md", &ancre)
-            .expect("relecture");
+        let l =
+            lire_fichier(&recs, None, &|id| id == "legacy:s1", "a.md", &ancre).expect("relecture");
         assert!(l.strokes.is_empty());
         assert_eq!(l.migration, vec![Op::del("legacy")]);
     }
@@ -492,7 +492,13 @@ mod tests {
         let recs = vec![
             rec("s", STROKE_TYPE, 1, 10, etat()),
             rec("mauvais", STROKE_TYPE, 1, 10, json!({"points": []})),
-            rec("c", CALQUE_TYPE, 1, 0, json!({"name": "Cours", "order": "i"})),
+            rec(
+                "c",
+                CALQUE_TYPE,
+                1,
+                0,
+                json!({"name": "Cours", "order": "i"}),
+            ),
         ];
         let l = lire_fichier(&recs, None, &|_| false, "a.md", &ancre).expect("lecture");
         assert_eq!(l.strokes.len(), 1);

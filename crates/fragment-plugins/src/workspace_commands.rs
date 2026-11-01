@@ -48,11 +48,7 @@ pub fn commandes_workspace() -> Vec<CommandeSpec> {
             "Onglet précédent",
             vec![Hotkey::new(&[Ctrl, Shift], "Tab")],
         ),
-        cmd(
-            "close",
-            "Fermer l’onglet",
-            vec![Hotkey::new(&[Mod], "w")],
-        ),
+        cmd("close", "Fermer l’onglet", vec![Hotkey::new(&[Mod], "w")]),
         cmd("close-others", "Fermer les autres onglets", vec![]),
         cmd("toggle-pin", "Épingler / désépingler", vec![]),
     ]
@@ -327,7 +323,10 @@ mod tests {
                 "toggle-pin"
             ]
         );
-        let prev = c.iter().find(|x| x.id == "previous-tab").expect("previous-tab");
+        let prev = c
+            .iter()
+            .find(|x| x.id == "previous-tab")
+            .expect("previous-tab");
         assert_eq!(
             prev.hotkeys,
             vec![Hotkey::new(&[Modifier::Ctrl, Modifier::Shift], "Tab")]
@@ -350,7 +349,10 @@ mod tests {
                 .message
         };
         assert_eq!(e(&[]), "il manque doc=<chemin ou clé du document>");
-        assert_eq!(e(&[("doc", "  ")]), "il manque doc=<chemin ou clé du document>");
+        assert_eq!(
+            e(&[("doc", "  ")]),
+            "il manque doc=<chemin ou clé du document>"
+        );
         assert_eq!(e(&[("doc", "b.md")]), "document introuvable : b.md");
         assert_eq!(
             e(&[("doc", "a.md"), ("where", "ailleurs")]),

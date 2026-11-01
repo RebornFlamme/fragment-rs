@@ -1803,6 +1803,7 @@ name = "fragment-annotation"
 version = "0.0.1"
 dependencies = [
  "fragment-artefacts",
+ "fragment-core",
  "fragment-text",
  "serde",
  "serde_json",

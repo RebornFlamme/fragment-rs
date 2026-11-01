@@ -299,14 +299,8 @@ impl AnnotationSource {
         let before: Vec<AnnotationEdit> = after.iter().map(|e| self.value(file, e)).collect();
         for e in &after {
             let incoherent = match e {
-                AnnotationEdit::Stroke {
-                    id,
-                    value: Some(v),
-                } => &v.id != id,
-                AnnotationEdit::Calque {
-                    id,
-                    value: Some(v),
-                } => &v.id != id,
+                AnnotationEdit::Stroke { id, value: Some(v) } => &v.id != id,
+                AnnotationEdit::Calque { id, value: Some(v) } => &v.id != id,
                 _ => false,
             };
             if incoherent {
@@ -345,7 +339,12 @@ impl AnnotationSource {
     }
 
     /// Ajoute un trait et le range dans l'historique de la SOURCE.
-    pub fn add(&self, file: &str, input: StrokeInput, nouvel_id: impl FnOnce() -> String) -> Stroke {
+    pub fn add(
+        &self,
+        file: &str,
+        input: StrokeInput,
+        nouvel_id: impl FnOnce() -> String,
+    ) -> Stroke {
         let stroke = Stroke {
             id: input.id.unwrap_or_else(nouvel_id),
             pos: input.pos,
@@ -453,7 +452,10 @@ impl AnnotationSource {
             let mut docs = self.documents.borrow_mut();
             let calques = match calques {
                 Some(c) => c.to_vec(),
-                None => docs.get(file).map(|d| d.calques.clone()).unwrap_or_default(),
+                None => docs
+                    .get(file)
+                    .map(|d| d.calques.clone())
+                    .unwrap_or_default(),
             };
             docs.insert(
                 file.to_string(),
@@ -550,10 +552,10 @@ impl AnnotationSource {
         fn deplacer<T>(map: &mut HashMap<String, T>, old_base: &str, new_base: &str) {
             let cles: Vec<String> = map.keys().cloned().collect();
             for key in cles {
-                if let Some(moved) = move_key(&key, old_base, new_base) {
-                    if let Some(v) = map.remove(&key) {
-                        map.insert(moved, v);
-                    }
+                if let Some(moved) = move_key(&key, old_base, new_base)
+                    && let Some(v) = map.remove(&key)
+                {
+                    map.insert(moved, v);
                 }
             }
         }

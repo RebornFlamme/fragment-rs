@@ -109,9 +109,6 @@ pub trait PluginRegistrySource {
         app_version: Option<&str>,
     ) -> Result<Option<String>, RegistryError>;
     /// Télécharge les assets de la release `version`. `styles` toléré absent.
-    fn download_assets(
-        &self,
-        entry: &CatalogEntry,
-        version: &str,
-    ) -> Result<Assets, RegistryError>;
+    fn download_assets(&self, entry: &CatalogEntry, version: &str)
+    -> Result<Assets, RegistryError>;
 }

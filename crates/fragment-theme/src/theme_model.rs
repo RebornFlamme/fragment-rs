@@ -29,7 +29,10 @@ pub fn dossier_des_themes(config_dir: &str) -> String {
 
 /// Le `theme.css` d'un thème.
 pub fn chemin_du_theme(config_dir: &str, nom: &str) -> String {
-    format!("{}/{nom}/{FICHIER_DU_THEME}", dossier_des_themes(config_dir))
+    format!(
+        "{}/{nom}/{FICHIER_DU_THEME}",
+        dossier_des_themes(config_dir)
+    )
 }
 
 /// Le `theme.json` d'un thème (ADR-005 §4).

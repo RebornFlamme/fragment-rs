@@ -4,6 +4,7 @@
 //! registres `annotation:*@1` branchés sur l'app viendront avec `fragment-ui`.
 
 pub mod anchor_link;
+pub mod api;
 pub mod artefacts_menu;
 pub mod cluster_filter;
 pub mod geometry;

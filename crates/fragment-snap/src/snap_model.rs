@@ -109,6 +109,7 @@ pub fn feuilles<N: Copy + PartialEq>(t: &dyn Arbre<N>, n: N) -> Vec<N> {
 ///   - des frères de ce côté → ils se replient, la branche s'étend ([1 | 2], 1 → : 2) ;
 ///   - sinon c'est la branche qui est de ce côté → ELLE se replie, son voisin direct
 ///     de l'autre côté s'étend ([1 | 2], 2 → : 2 en tranche à droite, 1 prend tout).
+///
 /// `None` : la vue n'a de frère dans aucun split de l'axe.
 pub fn trouver_snap<N: Copy + PartialEq>(
     t: &dyn Arbre<N>,
@@ -137,7 +138,11 @@ pub fn trouver_snap<N: Copy + PartialEq>(
                     .collect();
                 // Pas de groupe à ce niveau.
                 if !(avant.is_empty() && apres.is_empty()) {
-                    let cote = if side == SnapSide::After { &apres } else { &avant };
+                    let cote = if side == SnapSide::After {
+                        &apres
+                    } else {
+                        &avant
+                    };
                     if !cote.is_empty() {
                         return Some(Snap {
                             split: p,
@@ -252,7 +257,11 @@ pub fn grow_apres_snap(p: &PartsDuSplit) -> GrowApresSnap {
     };
     GrowApresSnap {
         grow,
-        tau: if sr > 0.0 { (grow - p.etendu) / sr } else { 0.0 },
+        tau: if sr > 0.0 {
+            (grow - p.etendu) / sr
+        } else {
+            0.0
+        },
     }
 }
 
@@ -397,7 +406,12 @@ mod tests {
     }
 
     impl Arene {
-        fn ajouter(&mut self, id: &str, axis: Option<SnapAxis>, children: Option<&[usize]>) -> usize {
+        fn ajouter(
+            &mut self,
+            id: &str,
+            axis: Option<SnapAxis>,
+            children: Option<&[usize]>,
+        ) -> usize {
             let i = self.noeuds.len();
             self.noeuds.push(Noeud {
                 id: id.into(),
@@ -717,7 +731,12 @@ mod tests {
         assert_eq!(ancetre_commun(&t, &[b]), Some(b));
     }
 
-    fn rec(axis: SnapAxis, side: SnapSide, expanded: &[&str], snapped: &[&[&str]]) -> SnapEnregistre {
+    fn rec(
+        axis: SnapAxis,
+        side: SnapSide,
+        expanded: &[&str],
+        snapped: &[&[&str]],
+    ) -> SnapEnregistre {
         SnapEnregistre {
             axis,
             side,
@@ -748,8 +767,18 @@ mod tests {
         assert_eq!(t.ids(&[s.expanded]), v(&["1", "x"]));
         // Mauvais côté, mauvais axe, feuilles disparues : abandonné.
         let abandonne = |r: SnapEnregistre| reidentifier(&t, &r, &par_id).is_none();
-        assert!(abandonne(rec(Row, SnapSide::Before, &["1"], &[&["2", "3"]])));
-        assert!(abandonne(rec(Column, SnapSide::After, &["1"], &[&["2", "3"]])));
+        assert!(abandonne(rec(
+            Row,
+            SnapSide::Before,
+            &["1"],
+            &[&["2", "3"]]
+        )));
+        assert!(abandonne(rec(
+            Column,
+            SnapSide::After,
+            &["1"],
+            &[&["2", "3"]]
+        )));
         assert!(abandonne(rec(Row, SnapSide::After, &["1"], &[&["nope"]])));
         assert!(abandonne(rec(Row, SnapSide::After, &["nope"], &[&["2"]])));
     }
@@ -762,12 +791,8 @@ mod tests {
         let pb = t.pile(&[b]);
         let root = t.split(Row, &[pa, pb]);
         let par_id = |id: &str| t.par_id(id);
-        let s = reidentifier(
-            &t,
-            &rec(Row, SnapSide::After, &["1"], &[&["2"]]),
-            &par_id,
-        )
-        .expect("snap");
+        let s =
+            reidentifier(&t, &rec(Row, SnapSide::After, &["1"], &[&["2"]]), &par_id).expect("snap");
         assert_eq!(s.split, root);
         assert_eq!(s.snapped, vec![pb]);
     }
