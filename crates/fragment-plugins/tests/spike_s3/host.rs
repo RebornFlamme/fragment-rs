@@ -532,6 +532,12 @@ pub struct PluginInstance {
 
 impl Drop for PluginInstance {
     fn drop(&mut self) {
+        // ★ Les poignées JS (classe de la vue chargée mais non montée, vue montée) DOIVENT être
+        //   relâchées AVANT la VM : QuickJS refuse de libérer un runtime qui a encore des objets
+        //   (`Assertion failed: list_empty(&rt->gc_obj_list)`, abandon du processus).
+        self.loaded = None;
+        self.view = None;
+        self.vcx = None;
         if let Some(parent) = self.stage_dir.parent() {
             let _ = fs::remove_dir_all(parent);
         }

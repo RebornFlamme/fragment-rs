@@ -755,6 +755,67 @@ fn isolation_du_tas_entre_plugins(cx: &mut TestAppContext) {
     println!("S3|tas|B_vm_partagee|{:?}", c.shared.log_lines());
 }
 
+// ── 13. Un plugin qui monopolise le fil ─────────────────────────────────────────────────────────
+
+#[gpui_kit::test]
+fn plugin_qui_boucle_est_coupe_par_le_chien_de_garde(cx: &mut TestAppContext) {
+    init_app(cx);
+    let vault = Vault::new(&["spin"]);
+    let app = AppHost::new();
+    let mut spin = PluginInstance::load(
+        &app,
+        &vault.plugin("spin"),
+        Mode::Init,
+        Capabilities::new(),
+        json!({}),
+    )
+    .unwrap();
+    spin.open(cx).unwrap();
+
+    // Récursion sans fond : une RangeError rattrapable, pas un abandon du processus.
+    app.commands.execute_command_by_id("spin:recurse", None);
+    let t = Instant::now();
+    spin.pump();
+    println!(
+        "S3|chien_de_garde|recursion_ms={}|journal={:?}",
+        ms(t.elapsed()),
+        spin.shared.log_lines()
+    );
+    assert!(
+        spin.shared
+            .log_lines()
+            .iter()
+            .any(|l| l.starts_with("erreur-plugin|command:recurse|")),
+        "{:?}",
+        spin.shared.log_lines()
+    );
+
+    // Boucle infinie : le budget de rendu (2 s) coupe l'exécution ; la fenêtre était gelée d'autant.
+    app.commands.execute_command_by_id("spin:loop", None);
+    let t = Instant::now();
+    spin.pump();
+    let frozen = t.elapsed();
+    println!(
+        "S3|chien_de_garde|boucle_infinie_gel_ms={}|erreur_de_vue={:?}",
+        ms(frozen),
+        spin.build_error()
+    );
+    assert!(
+        frozen < Duration::from_secs(30),
+        "la boucle n'a pas été coupée"
+    );
+
+    // L'hôte et le plugin survivent : la commande suivante s'exécute.
+    app.commands.execute_command_by_id("spin:ok", None);
+    spin.pump();
+    spin.pump();
+    assert!(
+        spin.shared.log_lines().iter().any(|l| l == "ok"),
+        "{:?}",
+        spin.shared.log_lines()
+    );
+}
+
 // ── 12. Mémoire par VM ──────────────────────────────────────────────────────────────────────────
 
 #[gpui_kit::test]
