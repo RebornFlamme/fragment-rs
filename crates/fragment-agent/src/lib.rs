@@ -7,3 +7,5 @@ pub mod attachment_blocks;
 pub mod contrat;
 pub mod events;
 pub(crate) mod motif;
+pub mod trace_model;
+pub mod utf16;
