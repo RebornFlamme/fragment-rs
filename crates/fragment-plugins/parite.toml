@@ -1,0 +1,19 @@
+# Parité des tests de fragment-plugins : un tableau par module Rust.
+# `source` = cas de test (it/test) dans le .test.ts d'origine ;
+# `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
+# Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+
+[github_registry_source]
+ts = "app/src/ui/core/plugins/registry/GithubRegistrySource.ts"
+tests_ts = "app/src/ui/core/plugins/registry/GithubRegistrySource.test.ts"
+source = 8
+portes = 8
+non_portes = []
+
+# types.ts n'a pas de test (CatalogEntry, PluginRegistrySource, erreurs).
+[registry_types]
+ts = "app/src/ui/core/plugins/registry/types.ts"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []

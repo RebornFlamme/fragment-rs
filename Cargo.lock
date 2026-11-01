@@ -1896,6 +1896,12 @@ version = "0.0.1"
 [[package]]
 name = "fragment-plugins"
 version = "0.0.1"
+dependencies = [
+ "fragment-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
 
 [[package]]
 name = "fragment-snap"
