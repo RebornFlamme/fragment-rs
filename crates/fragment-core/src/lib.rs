@@ -1,3 +1,21 @@
 //! Component/register*, registres, événements, portées clavier, commandes, plugins, Vault, documents, modèle du workspace, utilitaires purs.
 //!
-//! Crate VIDE en phase 0 : les modules arrivent avec les tâches de phase 1 (program.md §5).
+//! Phase 1, première moitié (`fr-p1-core-a`) : commandes, registres, clavier,
+//! utilitaires purs. La seconde moitié (`fr-p1-core-b`) apporte le workspace, le
+//! Vault, les documents.
+//!
+//! ★ Cette crate ne dépend JAMAIS de `gpui-kit` et ne connaît aucune vue par son
+//!   nom (program.md §9) : ce qui touche au DOM dans Fragment est soit abstrait
+//!   derrière un trait (stockage, chargeur), soit laissé à `fragment-ui`.
+
+pub mod diff_minimal;
+pub mod frontmatter;
+pub mod lru;
+pub mod semver;
+pub mod swipe;
+
+pub use diff_minimal::{Replacement, diff_minimal};
+pub use frontmatter::parse_front_matter_string_array;
+pub use lru::Lru;
+pub use semver::{compare_versions, is_newer_version};
+pub use swipe::{SWIPE_LEFT, SWIPE_RIGHT, SWIPE_SEUIL, SwipeDetector, SwipeDirection};
