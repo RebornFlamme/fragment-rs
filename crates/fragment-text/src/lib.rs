@@ -13,6 +13,7 @@
 pub mod editor;
 pub mod find_passage;
 pub mod html_text_model;
+pub mod map_anchor;
 pub mod range_highlights;
 pub mod text_delta;
 pub mod viewport;
@@ -25,6 +26,7 @@ pub use editor::{
 };
 pub use find_passage::{PassageError, TextMatch, find_in_text, find_passage, passage_error, pick};
 pub use html_text_model::{PAGE_CORNER, PageText, PageTextDiff, diff_page_text};
+pub use map_anchor::{MappedAnchor, TextAnchored, map_anchor};
 pub use range_highlights::{HighlightBox, HighlightHandle, HighlightRange, RangeHighlights};
 pub use text_delta::{MappedChar, TextDelta, map_through_delta, text_delta};
 pub use viewport::{Bande, ViewportBand, Vp, bande, bande_appropriee, biais};
