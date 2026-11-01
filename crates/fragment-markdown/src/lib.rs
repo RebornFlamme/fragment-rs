@@ -4,4 +4,5 @@
 
 pub mod editor_transforms;
 pub mod frontmatter_model;
+pub mod sanitize_html;
 pub mod table_model;
