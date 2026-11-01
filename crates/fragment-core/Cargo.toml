@@ -13,6 +13,8 @@ serde_json.workspace = true
 thiserror.workspace = true
 # Journal des avertissements (les `console.warn/error` de Fragment) : façade, sans sortie imposée.
 log = "0.4"
+# Positions UTF-16 (ADR-004) : conversion octets <-> unités de code.
+fragment-text = { path = "../fragment-text" }
 # Pliage des accents de la recherche floue (`normalize('NFD')` de fuzzySearch.ts).
 unicode-normalization = "0.1"
 

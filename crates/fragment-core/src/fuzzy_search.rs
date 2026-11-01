@@ -16,10 +16,10 @@
 //! début vaut moins. Plus le score est ÉLEVÉ, meilleur est le match — 0 n'est
 //! pas une borne.
 //!
-//! ★ Unité des plages : des index de CARACTÈRES (scalaires Unicode) dans le texte
-//!   d'origine, là où le TS comptait des unités UTF-16. Identiques sur le plan
-//!   multilingue de base (toute la palette) ; ils divergent seulement après un
-//!   caractère hors BMP (emoji), que le TS comptait double. `render_matches`
+//! ★ Unité des plages : des unités de code UTF-16 du texte d'origine, comme le
+//!   TS (ADR-004). Un caractère hors BMP (emoji) compte 2 ; une plage ne coupe
+//!   jamais une paire de substitution. Les calculs internes restent par
+//!   caractère, convertis par une table de positions UTF-16. `render_matches`
 //!   (présentation DOM) n'est pas porté : le surlignage est l'affaire de l'UI.
 
 use unicode_normalization::UnicodeNormalization;
@@ -99,6 +99,15 @@ impl FuzzySearch {
             });
         }
         let t = plier(text);
+        // Position et largeur UTF-16 de chaque caractère du texte d'origine (le
+        // pliage conserve le nombre de caractères).
+        let longueurs: Vec<usize> = text.chars().map(char::len_utf16).collect();
+        let mut pos = Vec::with_capacity(longueurs.len());
+        let mut u = 0;
+        for l in &longueurs {
+            pos.push(u);
+            u += l;
+        }
 
         // ★ On essaie CHAQUE point de départ possible et on garde le meilleur.
         //   Une seule passe gloutonne prendrait le premier « e » venu — celui
@@ -114,7 +123,7 @@ impl FuzzySearch {
         {
             // Si l'alignement échoue d'ici, il échouera de tout point plus
             // loin : il reste strictement moins de texte pour le même reste.
-            let Some(r) = aligner_depuis(&t, q, depart) else {
+            let Some(r) = aligner_depuis(&t, &pos, &longueurs, q, depart) else {
                 break;
             };
             if meilleur.as_ref().is_none_or(|m| r.score > m.score) {
@@ -133,7 +142,13 @@ pub fn prepare_fuzzy_search(query: &str) -> FuzzySearch {
 }
 
 /// L'alignement glouton de `q` dans `t`, le premier caractère fixé à `depart`.
-fn aligner_depuis(t: &[char], q: &[char], depart: usize) -> Option<SearchResult> {
+fn aligner_depuis(
+    t: &[char],
+    pos: &[usize],
+    longueurs: &[usize],
+    q: &[char],
+    depart: usize,
+) -> Option<SearchResult> {
     let mut matches: SearchMatches = Vec::new();
     let mut score = 0.0;
     let mut qi = 0;
@@ -152,16 +167,17 @@ fn aligner_depuis(t: &[char], q: &[char], depart: usize) -> Option<SearchResult>
             if i == d + 1 {
                 score += 1.0;
             } else {
-                score -= (i - d - 1) as f64 * 0.1;
+                score -= (pos[i] - pos[d] - longueurs[d]) as f64 * 0.1;
             }
         }
         if debut_de_mot(t, i) {
             score += 2.0;
         }
 
+        let (de, a) = (pos[i], pos[i] + longueurs[i]);
         match matches.last_mut() {
-            Some(last) if last.1 == i => last.1 = i + 1,
-            _ => matches.push((i, i + 1)),
+            Some(last) if last.1 == de => last.1 = a,
+            _ => matches.push((de, a)),
         }
 
         dernier = Some(i);
@@ -212,6 +228,16 @@ mod tests {
             .unwrap();
         // « Écr » commence à l'index 10 dans le texte d'ORIGINE.
         assert_eq!(r.matches[0], (10, 13));
+    }
+
+    #[test]
+    fn plages_en_unites_utf16_apres_un_emoji() {
+        // 😀 vaut 2 unités UTF-16 en TS : « 😀x » = 3, espace = 4, « bold » = [4, 8).
+        let r = prepare_fuzzy_search("bold").search("😀x bold").unwrap();
+        assert_eq!(r.matches, vec![(4, 8)]);
+        // Une plage qui englobe l'emoji lui-même couvre ses deux unités.
+        let r = prepare_fuzzy_search("a😀").search("a😀b").unwrap();
+        assert_eq!(r.matches, vec![(0, 3)]);
     }
 
     #[test]
