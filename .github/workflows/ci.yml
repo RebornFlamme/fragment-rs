@@ -71,7 +71,8 @@ jobs:
       - run: cargo check -p fragment-app --locked
 
   # Parité au pixel. Phase 0 : PREUVE que la capture hors écran marche sur le runner
-  # (scène « fenetre-vide » capturée deux fois, comparée à elle-même : 0 pixel attendu).
+  # (scènes « fenetre-vide » et « mire » capturées deux fois, comparées à elles-mêmes : 0 pixel attendu ;
+  # la mire prouve que le rasterizeur dessine quads, traits et glyphes).
   # Dès qu'une scène a référence ET candidat, `cargo xtask pixels` les compare aussi.
   pixels:
     runs-on: windows-latest
@@ -81,13 +82,20 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: pixels
+      # ★ L'écran du runner est en 1024×768 : Windows rogne une fenêtre 1280×800 (constaté au 1er run,
+      # capture 1024×720). On agrandit l'écran AVANT d'ouvrir la fenêtre ; fragment-pixels vérifie la taille.
+      - name: Écran 1920×1080 et adaptateur graphique
+        shell: pwsh
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Get-CimInstance Win32_VideoController | Format-List Name, CurrentHorizontalResolution, CurrentVerticalResolution
       - run: cargo build -p fragment-app --features pixels --bin fragment-pixels --locked
       - name: Capture n°1
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
       - name: Capture n°2
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-2
-      - name: Preuve — fenêtre vide comparée à elle-même (strict, 0 pixel)
-        run: cargo xtask pixels fenetre-vide --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
+      - name: Preuve — fenêtre vide et mire comparées à elles-mêmes (strict, 0 pixel)
+        run: cargo xtask pixels --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
       - name: Parité avec Fragment (scènes ayant référence et candidat)
         shell: bash
         run: |
