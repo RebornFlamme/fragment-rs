@@ -19,5 +19,13 @@ fragment-cli = { path = "../fragment-cli" }
 # Tri sans accents de la palette (locale_compare) ; déjà dans Cargo.lock (fragment-core).
 unicode-normalization = "0.1"
 
+# Spike S3 (tests/spike_s3.rs, examples/spike_s3.rs) : GPUI n'est tirée que sous Windows, comme
+# `fragment-markdown` (S1) — le job `test-linux` n'installe pas les bibliothèques système de GPUI.
+# ★ gpui-shell SANS ses features par défaut : `webview` tire `gpui-fast`, un AUTRE GPUI que celui de
+#   gpui-kit (types incompatibles). `quickjs` (le moteur) + `components` (le catalogue gpui-component).
+[target.'cfg(windows)'.dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support"] }
+gpui-shell = { version = "=0.8.1", default-features = false, features = ["quickjs", "components"] }
+
 [lints]
 workspace = true
