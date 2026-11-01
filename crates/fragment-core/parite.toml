@@ -23,7 +23,7 @@ rs = "crates/fragment-core/src/diff_minimal.rs"
 cas_source = 8
 cas_portes = 8
 cas_ajoutes = 0
-notes = "Positions en OCTETS UTF-8 (offsets natifs de String), là où le TS comptait des unités UTF-16 ; le recul hors d'une paire de surrogates devient un recul vers une frontière de caractère (is_char_boundary). Le cas aléatoire tire avec un xorshift (pas de dépendance)."
+notes = "Positions en unités UTF-16 (ADR-004) comme le TS ; calcul en octets reculés vers une frontière de caractère puis convertis par fragment_text::utf16. Le cas aléatoire tire avec un xorshift (pas de dépendance)."
 
 [[module]]
 ts = "app/src/ui/core/frontmatter.ts"
@@ -53,8 +53,8 @@ ts = "app/src/ui/core/fuzzySearch.ts"
 rs = "crates/fragment-core/src/fuzzy_search.rs"
 cas_source = 6
 cas_portes = 6
-cas_ajoutes = 0
-notes = "Plages en index de CARACTÈRES (scalaires Unicode) du texte d'origine, et non d'unités UTF-16 ; identiques hors caractères astraux. prepare_fuzzy_search rend une struct FuzzySearch (méthode search) plutôt qu'une fermeture. Pliage NFD par unicode-normalization."
+cas_ajoutes = 1
+notes = "Plages en unités UTF-16 du texte d'origine (ADR-004), comme le TS. prepare_fuzzy_search rend une struct FuzzySearch (méthode search) plutôt qu'une fermeture. Pliage NFD par unicode-normalization."
 
 [[module.non_portes]]
 quoi = "renderMatches(el, text, matches, offset)"

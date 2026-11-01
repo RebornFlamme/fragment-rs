@@ -18,5 +18,10 @@ unicode-normalization = "0.1"
 #   utilisée par fragment-chat, notée dans la PR.
 regex = "1"
 
+# Spike S1 (tests/spike_s1.rs, examples/spike_s1.rs) : GPUI n'est tirée que sous Windows, comme
+# `fragment-ui` — le job `test-linux` n'installe pas les bibliothèques système de GPUI.
+[target.'cfg(windows)'.dev-dependencies]
+gpui-kit = { workspace = true, features = ["test-support", "tree-sitter-markdown"] }
+
 [lints]
 workspace = true
