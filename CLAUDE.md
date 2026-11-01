@@ -24,6 +24,7 @@ Réécriture de Fragment (clone d'Obsidian pour humains et agents) en Rust sur G
 - Scripts : Windows PowerShell 5.1 (pas de `pwsh` sur le portable) ; fichiers `.ps1` en UTF-8 AVEC BOM, sinon 5.1 lit les accents en ANSI.
 - Pixels : `pixels/reference/` = Fragment (régénéré par `scripts/pixels-reference.ps1`, Vite de Fragment déjà lancé de préférence) ; `fragment-pixels` (feature `pixels` de fragment-app) produit `pixels/candidate/` ; `cargo xtask pixels` compare. Les « 22 scènes » de visual-diff = 11 scènes × 2 thèmes.
 - Beads : la base vit dans `C:/dev/fragment-rs-beads/.beads` (fichier local `.beads/redirect`) ; `.beads-export/issues.jsonl` est l'image commitée que lisent les sessions cloud (ADR-002). Chaque tâche remplit le `parite.toml` de sa crate.
+- ★ Équipiers en worktrees parallèles : chacun exporte son propre `CARGO_TARGET_DIR` (`C:/dev/fragment-rs-target-<tâche>`) — un dossier cible partagé casse la résolution des dépendances par chemin.
 - ★ Fragment est un dépôt GitHub PRIVÉ : une session cloud le clone en lecture dans `/tmp/Fragment` si l'app GitHub de Claude y a accès (program.md §2, « La référence TS depuis le cloud ») ; jamais de copie de ses sources dans ce dépôt public.
 
 ## Budget (résumé, détail §2 de program.md)
