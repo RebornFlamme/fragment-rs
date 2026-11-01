@@ -22,14 +22,16 @@
 //! changés par un `git pull` ou une synchro — la transaction est minuscule au
 //! lieu d'être de la taille du fichier.
 //!
-//! ★ Unité des positions : des OCTETS UTF-8 (les offsets natifs d'une `String`
-//!   Rust), là où le TS comptait des unités UTF-16. Le piège change de forme
-//!   mais pas de nature : au lieu d'une paire de surrogates, c'est une séquence
-//!   UTF-8 multi-octets qu'il ne faut pas couper. Un emoji partageant ses trois
-//!   premiers octets avec un autre (😀 / 😁) arrête le préfixe commun EN PLEIN
-//!   caractère ; on recule jusqu'à une frontière de caractère.
+//! ★ Unité des positions : des unités de code UTF-16, comme le TS (ADR-004).
+//!   Le calcul se fait en octets UTF-8 (reculés jusqu'à une frontière de
+//!   caractère : un emoji partageant ses trois premiers octets avec un autre,
+//!   😀 / 😁, arrête le préfixe EN PLEIN caractère), puis les bornes sont
+//!   converties via `fragment_text::utf16`. Une paire de substitution n'est
+//!   donc jamais coupée.
 
-/// Le remplacement à appliquer : `avant[from..to]` devient `insert`.
+use fragment_text::utf16::byte_to_utf16;
+
+/// Le remplacement à appliquer : `avant[from..to]` (unités UTF-16) devient `insert`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Replacement {
     pub from: usize,
@@ -40,6 +42,16 @@ pub struct Replacement {
 /// Le plus petit remplacement de `avant` vers `apres`, ou `None` si les deux
 /// contenus sont identiques (aucune transaction à émettre).
 pub fn diff_minimal(avant: &str, apres: &str) -> Option<Replacement> {
+    let (debut, fin, insert) = diff_octets(avant, apres)?;
+    Some(Replacement {
+        from: byte_to_utf16(avant, debut),
+        to: byte_to_utf16(avant, fin),
+        insert,
+    })
+}
+
+/// Le calcul en octets : `(début, fin, insertion)`, bornes en octets de `avant`.
+fn diff_octets(avant: &str, apres: &str) -> Option<(usize, usize, String)> {
     if avant == apres {
         return None;
     }
@@ -74,29 +86,31 @@ pub fn diff_minimal(avant: &str, apres: &str) -> Option<Replacement> {
     // Après ces reculs, les bornes peuvent se croiser sur des contenus très
     // courts : on les reclampe plutôt que d'émettre une plage inversée.
     if debut > avant.len() - fin || debut > apres.len() - fin {
-        return Some(Replacement {
-            from: 0,
-            to: avant.len(),
-            insert: apres.to_owned(),
-        });
+        return Some((0, avant.len(), apres.to_owned()));
     }
 
-    Some(Replacement {
-        from: debut,
-        to: avant.len() - fin,
-        insert: apres[debut..apres.len() - fin].to_owned(),
-    })
+    Some((
+        debut,
+        avant.len() - fin,
+        apres[debut..apres.len() - fin].to_owned(),
+    ))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use fragment_text::utf16::{slice_utf16, utf16_len};
 
     /// Applique le remplacement rendu par diff_minimal — le contrat, en une ligne.
     fn appliquer(avant: &str, d: Option<&Replacement>) -> String {
         match d {
             None => avant.to_owned(),
-            Some(d) => format!("{}{}{}", &avant[..d.from], d.insert, &avant[d.to..]),
+            Some(d) => format!(
+                "{}{}{}",
+                slice_utf16(avant, 0, d.from).unwrap(),
+                d.insert,
+                slice_utf16(avant, d.to, utf16_len(avant)).unwrap()
+            ),
         }
     }
 
@@ -124,8 +138,8 @@ mod tests {
         let apres = format!("{avant}\nUne ligne de plus.");
         let d = diff_minimal(avant, &apres).unwrap();
         // Le préfixe commun couvre tout l'ancien contenu : rien n'est réécrit.
-        assert_eq!(d.from, avant.len());
-        assert_eq!(d.to, avant.len());
+        assert_eq!(d.from, utf16_len(avant));
+        assert_eq!(d.to, utf16_len(avant));
         assert_eq!(appliquer(avant, Some(&d)), apres);
     }
 
@@ -165,8 +179,9 @@ mod tests {
         let apres = "salut 😁 fin";
 
         let d = diff_minimal(avant, apres).unwrap();
-        assert!(avant.is_char_boundary(d.from));
-        assert!(avant.is_char_boundary(d.to));
+        // « salut » + espace = 6 unités ; l'emoji en occupe 2 : [6, 8).
+        assert_eq!((d.from, d.to), (6, 8));
+        assert_eq!(d.insert, "😁");
         let resultat = appliquer(avant, Some(&d));
 
         assert_eq!(resultat, apres);
@@ -207,9 +222,8 @@ mod tests {
             assert_eq!(appliquer(&avant, d.as_ref()), apres);
             if let Some(d) = d {
                 assert!(d.to >= d.from);
-                assert!(d.to <= avant.len());
-                assert!(avant.is_char_boundary(d.from));
-                assert!(avant.is_char_boundary(d.to));
+                assert!(d.to <= utf16_len(&avant));
+                assert!(slice_utf16(&avant, d.from, d.to).is_some());
             }
         }
     }

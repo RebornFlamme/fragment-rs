@@ -1835,6 +1835,7 @@ dependencies = [
 name = "fragment-core"
 version = "0.0.1"
 dependencies = [
+ "fragment-text",
  "log",
  "serde",
  "serde_json",
