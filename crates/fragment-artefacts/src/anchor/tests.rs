@@ -35,11 +35,11 @@ fn texte() -> String {
     .join("\n")
 }
 
-fn chars(s: &str) -> Vec<char> {
-    s.chars().collect()
+fn chars(s: &str) -> Vec<u16> {
+    s.encode_utf16().collect()
 }
 
-/// `String.prototype.indexOf`, en caractères.
+/// `String.prototype.indexOf`, en unités UTF-16.
 fn index_of(text: &str, needle: &str) -> i64 {
     let (t, n) = (chars(text), chars(needle));
     (0..=t.len() - n.len())
@@ -57,16 +57,16 @@ fn last_index_of(text: &str, needle: &str) -> i64 {
         .unwrap()
 }
 
-/// `text.slice(a, b)`, en caractères.
+/// `text.slice(a, b)`, en unités UTF-16.
 fn sl(text: &str, a: i64, b: i64) -> String {
     let t = chars(text);
     let a = a.clamp(0, t.len() as i64) as usize;
     let b = b.clamp(a as i64, t.len() as i64) as usize;
-    t[a..b].iter().collect()
+    String::from_utf16_lossy(&t[a..b])
 }
 
 fn len(text: &str) -> i64 {
-    text.chars().count() as i64
+    fragment_text::utf16::utf16_len(text) as i64
 }
 
 fn pos() -> i64 {
@@ -281,7 +281,7 @@ mod resolveanchor_la_cascade_figure_35 {
 const STRIDE: i64 = 1_000;
 
 struct Strided {
-    text: Vec<char>,
+    text: Vec<u16>,
     starts: Vec<i64>,
     lens: Vec<i64>,
 }
@@ -307,7 +307,7 @@ fn strided(units: &[&str]) -> Strided {
 }
 
 impl SurfaceText for Strided {
-    fn chars(&self) -> &[char] {
+    fn units(&self) -> &[u16] {
         &self.text
     }
     fn to_index(&self, pos: i64) -> i64 {
@@ -523,6 +523,55 @@ mod ancre_plage_pos_to_la_plage_tenue_par_le_c_ur {
         };
         let r = clamp_to_doc(&a.into(), Some(&editable("abcdef")));
         assert_eq!((r.pos(), r.to()), (Some(2), Some(6)));
+    }
+}
+
+// ADR-004 : un émoji (hors plan multilingue de base) vaut 2 unités, comme
+// `String.length` côté TS. Nombres donnés par le TS : "😀".length === 2.
+mod emoji_avant_l_ancre_unites_utf16 {
+    use super::*;
+
+    #[test]
+    fn la_citation_se_decoupe_en_unites_utf16() {
+        // "😀😀ab" : 6 unités ; pos 4 = juste avant "ab".
+        let q = quote_at(&chars("😀😀ab"), 4);
+        assert_eq!(
+            q,
+            AnchorQuote {
+                prefix: "😀😀".into(),
+                exact: "ab".into(),
+                suffix: String::new()
+            }
+        );
+        // La plage [4, 5) de "😀😀ab" est "a".
+        assert_eq!(quote_of(&chars("😀😀ab"), 4, 5).exact, "a");
+    }
+
+    #[test]
+    fn une_ancre_derriere_un_emoji_est_relocalisee_puis_gardee_avec_les_nombres_du_ts() {
+        let ancre = DurableAnchor {
+            anchor: doc(pos(), 3.0, 4.0),
+            quote: Some(quote_at(&chars(&texte()), pos())),
+        };
+        // « 😀 » + espace = 3 unités UTF-16 ("😀 ".length === 3).
+        let avant = "😀 ";
+        assert_eq!(len(avant), 3);
+        let texte_emoji = format!("{avant}{}", texte());
+        let r = resolve_anchor_in(&ancre, &texte_emoji);
+        assert_eq!(r.status, ResolutionStatus::Relocated);
+        assert_eq!(r.anchor, doc(pos() + 3, 3.0, 4.0));
+        // Et l'ancre posée APRÈS l'émoji est vérifiée à sa position UTF-16.
+        let p = index_of(&texte_emoji, "ancrage");
+        assert_eq!(p, pos() + 3);
+        let a = DurableAnchor {
+            anchor: doc(p, 0.0, 0.0),
+            quote: Some(quote_at(&chars(&texte_emoji), p)),
+        };
+        let r = resolve_anchor_in(&a, &texte_emoji);
+        assert_eq!(
+            (r.anchor.pos(), r.status),
+            (Some(p), ResolutionStatus::Kept)
+        );
     }
 }
 

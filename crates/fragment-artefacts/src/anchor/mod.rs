@@ -25,10 +25,11 @@
 //    mémoire seulement) : le texte et le journal peuvent arriver dans n'importe
 //    quel ordre.
 //
-//  ★ UNITÉ : les index dans le texte comptent des CARACTÈRES (valeurs scalaires
-//    Unicode), pas des unités UTF-16 comme `String.prototype.slice` côté TS ni des
-//    octets. Même compte pour tout ce qui n'est pas hors du plan multilingue de
-//    base (émojis) ; l'unité de `pos` dans fragment-text est à trancher (voir la PR).
+//  ★ UNITÉ (ADR-004) : tous les index dans le texte (`pos`, `to`, découpes de la
+//    citation, recherche approchée) sont en unités de code UTF-16, comme
+//    `String.prototype.slice` côté TS : le texte est un `&[u16]`. Une découpe qui
+//    tombe au milieu d'une paire de substitution donne U+FFFD (le TS garderait la
+//    moitié orpheline) : cas marginal, la cascade de citation rattrape.
 // ═══════════════════════════════════════════════════════════════════════════
 
 pub mod approx;
@@ -52,8 +53,8 @@ const POS_WEIGHT: f64 = 2.0;
 /// surface à PAS FIXE (une conversation : une plage de positions par unité),
 /// l'index dans le texte joint n'est pas la position.
 pub trait SurfaceText {
-    /// Le texte, en caractères.
-    fn chars(&self) -> &[char];
+    /// Le texte, en unités de code UTF-16.
+    fn units(&self) -> &[u16];
     /// index dans le texte → position (un index entre deux unités : fin de la précédente).
     fn to_pos(&self, index: i64) -> i64;
     /// position → index dans le texte (bornée à son unité ; hors unité : l'unité suivante).
@@ -62,20 +63,20 @@ pub trait SurfaceText {
 
 /// Une chaîne = un éditeur : la carte identité.
 pub struct PlainText {
-    chars: Vec<char>,
+    units: Vec<u16>,
 }
 
 impl PlainText {
     pub fn new(text: &str) -> Self {
         PlainText {
-            chars: text.chars().collect(),
+            units: text.encode_utf16().collect(),
         }
     }
 }
 
 impl SurfaceText for PlainText {
-    fn chars(&self) -> &[char] {
-        &self.chars
+    fn units(&self) -> &[u16] {
+        &self.units
     }
     fn to_pos(&self, index: i64) -> i64 {
         index
@@ -110,14 +111,14 @@ fn clamp(i: i64, len: usize) -> usize {
     i.clamp(0, len as i64) as usize
 }
 
-fn slice(text: &[char], a: usize, b: usize) -> String {
+fn slice(text: &[u16], a: usize, b: usize) -> String {
     let b = b.min(text.len());
     let a = a.min(b);
-    text[a..b].iter().collect()
+    String::from_utf16_lossy(&text[a..b])
 }
 
 /// La citation relevée autour de `pos` dans `text`.
-pub fn quote_at(text: &[char], pos: i64) -> AnchorQuote {
+pub fn quote_at(text: &[u16], pos: i64) -> AnchorQuote {
     let p = clamp(pos, text.len());
     AnchorQuote {
         prefix: slice(text, p.saturating_sub(QUOTE_LEN), p),
@@ -128,7 +129,7 @@ pub fn quote_at(text: &[char], pos: i64) -> AnchorQuote {
 
 /// La citation d'une PLAGE `[from, to)` : son texte même (W3C TextQuoteSelector),
 /// entre les 32 caractères qui la précèdent et les 32 qui la suivent.
-pub fn quote_of(text: &[char], from: i64, to: i64) -> AnchorQuote {
+pub fn quote_of(text: &[u16], from: i64, to: i64) -> AnchorQuote {
     let a = clamp(from, text.len());
     let b = clamp(to, text.len()).max(a);
     AnchorQuote {
@@ -151,8 +152,8 @@ pub fn to_durable(anchor: &WidgetAnchor, editor: Option<&dyn TextSource>) -> Dur
     };
     let i = t.to_index(pos);
     let quote = match live.to() {
-        Some(to) if to > pos => quote_of(t.chars(), i, t.to_index(to)),
-        _ => quote_at(t.chars(), i),
+        Some(to) if to > pos => quote_of(t.units(), i, t.to_index(to)),
+        _ => quote_at(t.units(), i),
     };
     DurableAnchor {
         anchor: live,
@@ -183,7 +184,7 @@ pub fn clamp_to_doc(anchor: &DurableAnchor, editor: Option<&dyn TextSource>) -> 
     let (Some(pos), Some(t)) = (live.pos(), surface_text(editor)) else {
         return live;
     };
-    let borne = |p: i64| t.to_pos(clamp(t.to_index(p), t.chars().len()) as i64);
+    let borne = |p: i64| t.to_pos(clamp(t.to_index(p), t.units().len()) as i64);
     live.with_range(borne(pos), live.to().map(borne))
 }
 
@@ -211,7 +212,7 @@ struct Candidate {
     errors: usize,
 }
 
-fn find_chars(text: &[char], needle: &[char], from: usize) -> Option<usize> {
+fn find_units(text: &[u16], needle: &[u16], from: usize) -> Option<usize> {
     if needle.is_empty() || needle.len() > text.len() {
         return None;
     }
@@ -219,10 +220,10 @@ fn find_chars(text: &[char], needle: &[char], from: usize) -> Option<usize> {
 }
 
 /// Les occurrences exactes de `needle` dans `text`.
-fn exact_matches(text: &[char], needle: &[char]) -> Vec<Candidate> {
+fn exact_matches(text: &[u16], needle: &[u16]) -> Vec<Candidate> {
     let mut out = Vec::new();
     let mut from = 0;
-    while let Some(i) = find_chars(text, needle, from) {
+    while let Some(i) = find_units(text, needle, from) {
         out.push(Candidate {
             start: i,
             end: i + needle.len(),
@@ -234,7 +235,7 @@ fn exact_matches(text: &[char], needle: &[char]) -> Vec<Candidate> {
 }
 
 /// La ressemblance de `needle` à `text`, entre 0 et 1 (Hypothesis : textMatchScore).
-fn text_match_score(text: &[char], needle: &[char]) -> f64 {
+fn text_match_score(text: &[u16], needle: &[u16]) -> f64 {
     if needle.is_empty() || text.is_empty() {
         return 0.0;
     }
@@ -248,11 +249,11 @@ fn text_match_score(text: &[char], needle: &[char]) -> f64 {
 }
 
 /// La note d'un candidat : citation 50, préfixe 20, suffixe 20, proximité 2 — normalisée.
-fn score(text: &[char], quote: &AnchorQuote, c: Candidate, hint: usize) -> f64 {
-    let exact_len = quote.exact.chars().count().max(1);
+fn score(text: &[u16], quote: &AnchorQuote, c: Candidate, hint: usize) -> f64 {
+    let exact_len = quote.exact.encode_utf16().count().max(1);
     let quote_score = 1.0 - c.errors as f64 / exact_len as f64;
-    let prefix: Vec<char> = quote.prefix.chars().collect();
-    let suffix: Vec<char> = quote.suffix.chars().collect();
+    let prefix: Vec<u16> = quote.prefix.encode_utf16().collect();
+    let suffix: Vec<u16> = quote.suffix.encode_utf16().collect();
     let prefix_score = if prefix.is_empty() {
         1.0
     } else {
@@ -282,8 +283,8 @@ fn score(text: &[char], quote: &AnchorQuote, c: Candidate, hint: usize) -> f64 {
 /// Cherche la citation dans `text` : à l'identique d'abord, puis à un quart
 /// d'erreurs près. Plusieurs candidats : le mieux noté l'emporte. Rend l'offset
 /// du début du texte exact, ou `None`.
-pub fn find_quote(text: &[char], quote: &AnchorQuote, hint: usize) -> Option<usize> {
-    let exact: Vec<char> = quote.exact.chars().collect();
+pub fn find_quote(text: &[u16], quote: &AnchorQuote, hint: usize) -> Option<usize> {
+    let exact: Vec<u16> = quote.exact.encode_utf16().collect();
     if exact.is_empty() {
         return None;
     }
@@ -333,8 +334,8 @@ pub fn resolve_anchor(anchor: &DurableAnchor, text: Option<&dyn SurfaceText>) ->
 
     // La citation se cherche dans le TEXTE ; le résultat se rend en POSITION
     // (identité sur un éditeur, carte d'une surface à pas fixe).
-    let chars = t.chars();
-    let i = clamp(t.to_index(pos), chars.len());
+    let units = t.units();
+    let i = clamp(t.to_index(pos), units.len());
     let quote = anchor.quote.as_ref();
     // Une PLAGE garde sa longueur (dans le texte) quand elle est relocalisée. ★ Celle
     // de SA CITATION (son texte, cf. `to_durable`) : l'écart des anciennes positions
@@ -346,7 +347,7 @@ pub fn resolve_anchor(anchor: &DurableAnchor, text: Option<&dyn SurfaceText>) ->
         None => None,
         Some(to) if to <= pos => Some(0),
         Some(to) => match quote {
-            Some(q) if !q.exact.is_empty() => Some(q.exact.chars().count()),
+            Some(q) if !q.exact.is_empty() => Some(q.exact.encode_utf16().count()),
             _ => Some((t.to_index(to) - t.to_index(pos)).max(0) as usize),
         },
     };
@@ -354,7 +355,7 @@ pub fn resolve_anchor(anchor: &DurableAnchor, text: Option<&dyn SurfaceText>) ->
         let p = t.to_pos(debut as i64);
         match longueur {
             None => live.with_range(p, None),
-            Some(l) => live.with_range(p, Some(t.to_pos((debut + l).min(chars.len()) as i64))),
+            Some(l) => live.with_range(p, Some(t.to_pos((debut + l).min(units.len()) as i64))),
         }
     };
     let clamped = placer(i);
@@ -367,8 +368,8 @@ pub fn resolve_anchor(anchor: &DurableAnchor, text: Option<&dyn SurfaceText>) ->
     };
 
     // 1. Le texte à pos est-il celui de la citation ?
-    let exact: Vec<char> = q.exact.chars().collect();
-    if chars.len() >= i + exact.len() && chars[i..i + exact.len()] == exact[..] {
+    let exact: Vec<u16> = q.exact.encode_utf16().collect();
+    if units.len() >= i + exact.len() && units[i..i + exact.len()] == exact[..] {
         return Resolution {
             anchor: clamped,
             status: ResolutionStatus::Kept,
@@ -376,7 +377,7 @@ pub fn resolve_anchor(anchor: &DurableAnchor, text: Option<&dyn SurfaceText>) ->
     }
 
     // 2-3. Retrouvée à l'identique, ou à un quart d'erreurs près.
-    if let Some(found) = find_quote(chars, q, i) {
+    if let Some(found) = find_quote(units, q, i) {
         return Resolution {
             anchor: placer(found),
             status: ResolutionStatus::Relocated,
