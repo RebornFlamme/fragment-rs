@@ -7,6 +7,14 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# ★ Jamais gpui-kit ici : le cœur ne connaît aucune vue (program.md §9).
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+# Journal des avertissements (les `console.warn/error` de Fragment) : façade, sans sortie imposée.
+log = "0.4"
+# Pliage des accents de la recherche floue (`normalize('NFD')` de fuzzySearch.ts).
+unicode-normalization = "0.1"
 
 [lints]
 workspace = true
