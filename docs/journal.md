@@ -73,3 +73,11 @@ Prochaine vague : S2 (pages HTML vivantes, WebView2) au retour sous le prorata ;
 Le réveil programmé pour 22:25 UTC le 01/11 a ÉCHOUÉ : c'était une commande de fond qui dormait plusieurs heures, or une commande de fond est plafonnée à 10 minutes (code 4). Le chef est resté inactif ~11 h ; relancé par l'orchestrateur. Aucune perte : rien n'était en cours, rien n'était ouvert (`gh pr list` vide).
 Décision du chef : tous les réveils passent désormais par l'outil de planification de l'app (`CronCreate` : un réveil ponctuel pour chaque échéance connue + un battement horaire de sécurité), jamais par une commande qui dort ; chaque fin de tour vérifie qu'un réveil est posé (`CronList`).
 Prochaine vague : S2 dès que la semaine repasse sous le prorata (~11:20 UTC), puis fr-p3-fork-input et le découpage de T1.
+
+## Décision budget — 02/11/2026 15:15 UTC — usage 5h 16 % / semaine 51 % (autorisé 47 %)
+Remonté (§8) : l'hebdo monte d'≈ 1 point/h sans aucun équipier fragment-rs (travail de l'utilisateur sur Fragment, prioritaire). Tranché par l'orchestrateur : **(a) pause stricte sur l'abonnement** ; aucun lancement local au-dessus du prorata, et jamais au-dessus de **85 % hebdo** quel que soit le prorata.
+Décisions du chef en conséquence :
+- Tout ce qui tourne sous Linux part en CARTES CLOUD (crédits cloud, zéro abonnement), sans les attendre : `fr-p3-fork-input` (dettes du fork : police par rangée, gouttière/IME, atomicité ←/→, PR amont) et le découpage de T1 (plan `docs/tranches/T1.md` + `T1-seed.json` que le chef importe dans Beads).
+- S2 (WebView2, Windows) reste local et attend le prorata.
+- Battement du chef espacé à 2 h (CronCreate), réveil ponctuel à 23:37 heure de Paris.
+À trancher par l'orchestrateur : rien.
