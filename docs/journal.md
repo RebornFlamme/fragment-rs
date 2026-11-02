@@ -68,3 +68,8 @@ Décisions prises par le chef :
 - Cadence imposée par le plafond hebdomadaire : un spike ou une tranche lourde coûte 3 à 4 % de la semaine, le prorata en rend ≈ 0,54 %/h → au plus une grosse tâche locale toutes les 6-7 h. Pause jusqu'à ~22:20 UTC (prorata ≥ 38 %).
 À trancher par l'orchestrateur : rien (le plafond n'est pas atteint ; c'est le prorata qui cadence).
 Prochaine vague : S2 (pages HTML vivantes, WebView2) au retour sous le prorata ; puis fr-p3-fork-input et le découpage de T1.
+
+## Incident — 02/11/2026 09:30 UTC — usage 5h 17 % / semaine 45 % (autorisé 44 %)
+Le réveil programmé pour 22:25 UTC le 01/11 a ÉCHOUÉ : c'était une commande de fond qui dormait plusieurs heures, or une commande de fond est plafonnée à 10 minutes (code 4). Le chef est resté inactif ~11 h ; relancé par l'orchestrateur. Aucune perte : rien n'était en cours, rien n'était ouvert (`gh pr list` vide).
+Décision du chef : tous les réveils passent désormais par l'outil de planification de l'app (`CronCreate` : un réveil ponctuel pour chaque échéance connue + un battement horaire de sécurité), jamais par une commande qui dort ; chaque fin de tour vérifie qu'un réveil est posé (`CronList`).
+Prochaine vague : S2 dès que la semaine repasse sous le prorata (~11:20 UTC), puis fr-p3-fork-input et le découpage de T1.
