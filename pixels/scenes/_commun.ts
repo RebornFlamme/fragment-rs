@@ -61,6 +61,43 @@ export async function schema(page: Page, s: Theme): Promise<void> {
     await page.waitForFunction((v) => document.documentElement.dataset.theme === v, s);
 }
 
+/** Le chat de test actif, puis le PDF en split et une conversation neuve. */
+async function ouvrirPdfEtChat(h: Harnais): Promise<void> {
+    await h.page.evaluate(async () => {
+        const { plugins, workspace, vault, commands } = (window as any).app;
+        const idChat = 'e2e-chat';
+        if (!plugins.plugins.has(idChat)) await plugins.enablePlugin(idChat);
+        await workspace.getLeaf('split').openFile(vault.getFileByPath('doc.pdf'));
+        await commands.executeCommandById('chat:new');
+    });
+    const premierePage = h.page.locator('.pdf-page canvas').first();
+    await expect(premierePage).toBeVisible({ timeout: 15_000 });
+}
+
+/** Envoie « Bonjour » et attend la fin de la réponse. */
+async function echangerBonjour(h: Harnais): Promise<void> {
+    const saisie = h.page.locator('.chat-composer-input:visible');
+    await saisie.fill('Bonjour');
+    await saisie.press('Enter');
+    const reponse = h.page.locator('.chat-message[data-role="assistant"]').last();
+    await expect(reponse).toHaveAttribute('data-state', 'idle', { timeout: 10_000 });
+}
+
+/** Une conversation ANCRÉE dans la note (doc-widget, ouverte), sur « dernier paragraphe ». */
+async function ancrerConversation(h: Harnais): Promise<void> {
+    await h.page.evaluate(() => {
+        const { workspace, registry } = (window as any).app;
+        const estCentrale = (feuille: any) => feuille.getRoot() === workspace.rootSplit;
+        const note = workspace.getLeavesOfType('markdown').find(estCentrale);
+        workspace.setActiveLeaf(note, { focus: true });
+        const cible = 'dernier paragraphe';
+        const from = note.view.getEditor().getValue().indexOf(cible);
+        const hotes = registry.get({ id: 'doc-widget:host@1', kind: 'keyed' }).entries();
+        const viewState = { type: 'chat', state: { provider: 'e2e', conversation: 'ancree' } };
+        return hotes.at(-1).value.open({ viewState, file: 'note.md', from, to: from + cible.length, open: true });
+    });
+}
+
 /** Le décor de visual-diff.spec.ts (beforeAll), sur le coffre pixels/vault/. */
 async function monter(): Promise<Harnais> {
     const h = await lancerLecteur(lireCoffre(), 'note.md', { args: ['--force-device-scale-factor=1', '--high-dpi-support=1'] });
@@ -68,26 +105,9 @@ async function monter(): Promise<Harnais> {
         for (const w of BrowserWindow.getAllWindows()) w.setContentSize(1280, 800);
     });
     await figer(h.page);
-    await h.page.evaluate(async () => {
-        const app = (window as any).app;
-        if (!app.plugins.plugins.has('e2e-chat')) await app.plugins.enablePlugin('e2e-chat');
-        const pdf = app.workspace.getLeaf('split');
-        await pdf.openFile(app.vault.getFileByPath('doc.pdf'));
-        await app.commands.executeCommandById('chat:new');
-    });
-    await expect(h.page.locator('.pdf-page canvas').first()).toBeVisible({ timeout: 15_000 });
-    await h.page.locator('.chat-composer-input:visible').fill('Bonjour');
-    await h.page.locator('.chat-composer-input:visible').press('Enter');
-    await expect(h.page.locator('.chat-message[data-role="assistant"]').last()).toHaveAttribute('data-state', 'idle', { timeout: 10_000 });
-    // Une conversation ANCRÉE dans la note (doc-widget, ouverte).
-    await h.page.evaluate(() => {
-        const app = (window as any).app;
-        const note = app.workspace.getLeavesOfType('markdown').find((l: any) => l.getRoot() === app.workspace.rootSplit);
-        app.workspace.setActiveLeaf(note, { focus: true });
-        const from = note.view.getEditor().getValue().indexOf('dernier paragraphe');
-        const host = app.registry.get({ id: 'doc-widget:host@1', kind: 'keyed' }).entries().at(-1).value;
-        return host.open({ viewState: { type: 'chat', state: { provider: 'e2e', conversation: 'ancree' } }, file: 'note.md', from, to: from + 18, open: true });
-    });
+    await ouvrirPdfEtChat(h);
+    await echangerBonjour(h);
+    await ancrerConversation(h);
     await h.page.waitForTimeout(800);
     // Une conversation créée demande le focus pendant 2 s : attendre, puis le poser dans la note.
     await h.page.waitForTimeout(2500);

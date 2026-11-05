@@ -189,20 +189,20 @@ pub fn arrange_gutter(items: &[GutterItem], opts: ArrangeOptions) -> Vec<f64> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  LA PLACE DISPONIBLE — ce que le cœur OFFRE à chaque widget de marge.
+//  HAUTEUR OFFERTE à chaque widget de marge par le cœur.
 //
-//  ★ Une information, pas une consigne : le cœur ne connaît aucune « densité »
-//    (compacte, pastille…) — ce sont les seuils des plugins. Il dit seulement à
-//    chaque widget combien de hauteur il a avant de gêner le suivant ; le widget
-//    s'y conforme (il se condense, à SES seuils) ou l'ignore (il sera décalé).
+//  ★ C'est une donnée, pas un ordre. Les densités (compacte, pastille…) sont des
+//    seuils de plugin, inconnus du cœur. Chaque widget apprend la hauteur dont il
+//    dispose avant le suivant, puis se condense selon ses seuils ou l'ignore et
+//    accepte d'être décalé.
 //
-//  Dans l'ordre du texte, chacun ne dépendant que des PRÉCÉDENTS (aucun cycle,
-//  déterministe, pas d'oscillation) :
-//      haut(i)  = max(ancre(i), bas(i-1) + gap)      (l'épinglé : son ancre)
+//  Calcul dans l'ordre du texte ; chaque valeur ne dépend que des widgets d'avant, donc
+//  ni cycle ni oscillation :
+//      haut(i)  = max(ancre(i), bas(i-1) + gap)      (widget épinglé : son ancre)
 //      place(i) = max(0, ancre(i+1) − haut(i) − gap)
-//      bas(i)   = haut(i) + measure(i, place(i))     (le widget réagit, on mesure)
-//  Le dernier : place illimitée (le défilement gère). L'épinglé (l'actif) : `cap`
-//  (la hauteur visible) — un long fil ne pousse pas tout hors de l'écran.
+//      bas(i)   = haut(i) + measure(i, place(i))     (mesure après réaction du widget)
+//  Le dernier widget a une place illimitée, laissée au défilement. L'épinglé (actif) est
+//  limité à `cap`, la hauteur visible, pour qu'un long fil ne chasse pas les autres.
 //  Le placement final reste `arrange_gutter`, avec les hauteurs mesurées.
 // ═══════════════════════════════════════════════════════════════════════════
 

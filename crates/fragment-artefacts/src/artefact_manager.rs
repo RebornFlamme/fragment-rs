@@ -1,26 +1,23 @@
 // Port de app/src/ui/core/artefacts/ArtefactManager.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Le manager des artefacts — le JOURNAL (journal-artefacts.pdf, partie III).
+//  Gestionnaire des artefacts, côté journal (journal-artefacts.pdf, partie III).
 //
-//      Plugins ──set/del──▶ dispatch ─▶ Horloge ─▶ Pli ─▶ Index ─▶ Abonnements
-//                               │                    ▲
-//                               ▼                    │ origine disk
-//                       Tampon d'écriture      Lecteur de queue ◀─ raw (watcher)
-//                               │
-//                    append ────▼──── journal/<appareil>/<segment>.ndjson
+//  Chemin local : set/del des plugins → dispatch → horloge → pli → index → abonnés ;
+//  dispatch alimente aussi le tampon d'écriture, qui ajoute au segment
+//  journal/<appareil>/<segment>.ndjson.
+//  Chemin distant : watcher (raw) → lecteur de queue → pli, avec l'origine disk.
 //
-//  Deux entrées, un seul pli (figure 23) : une transaction locale et une
-//  transaction lue dans le fichier d'un autre écrivain passent par la même
-//  fonction. L'index et les vues ne font pas la différence.
+//  Figure 23 : qu'une transaction vienne d'ici ou du fichier d'un autre écrivain,
+//  elle traverse le même pli ; ni l'index ni les vues ne peuvent les distinguer.
 //
-//  Les invariants (§19.1) :
-//    1. Seul dispatch change l'index.
-//    2. Un segment n'a qu'un écrivain, et ne reçoit que des ajouts.
-//    3. Le pli est pur, commutatif, associatif et idempotent.
-//    4. Un objet est écrit avant la ligne qui le cite.
-//    5. Rien n'est détruit sans intention écrite, ni avant la fin de la
-//       rétention. Une tombe ne part jamais.
+//  Invariants (§19.1) :
+//    1. L'index ne change que par dispatch.
+//    2. Par segment, un écrivain unique et de l'ajout seulement.
+//    3. Pli pur, commutatif, associatif, idempotent.
+//    4. L'objet existe sur disque avant la ligne qui le référence.
+//    5. Aucune destruction sans intention écrite ni avant la fin de la rétention ;
+//       les tombes restent pour toujours.
 //    6. Le cache se jette sans perte : tout se reconstruit du journal.
 //    7. Le cœur ne lit jamais `state`.
 //    8. Un kind absent, ou trop ancien, laisse ses records inertes.

@@ -4,17 +4,15 @@
 //
 // ── L'espace de positions ────────────────────────────────────────────────
 //
-//  Une « position » sur un PDF est une PAGE, plus un index de caractère dans son
-//  texte. On réserve un bloc d'offsets FIXE par page :
+//  Sur un PDF, une position désigne une page et un caractère de son texte, grâce à
+//  un bloc d'offsets de taille constante par page :
 //
-//      pos = (page - 1) * PAGE_STRIDE + 1 + indexDuCaractere
 //      pos = (page - 1) * PAGE_STRIDE                        ← la page elle-même
+//      pos = (page - 1) * PAGE_STRIDE + 1 + indexDuCaractere
 //
-//  ★ POURQUOI un pas fixe plutôt qu'un cumul des longueurs de texte : un cumul
-//    exigerait d'extraire le texte de TOUTES les pages avant de pouvoir nommer
-//    la moindre position — donc de parser un document de 800 pages à l'ouverture,
-//    pour un lecteur qui n'en verra que trois. Avec un pas fixe, l'offset d'une
-//    page se calcule sans rien connaître de son contenu, et le texte peut être
+//  ★ Additionner les longueurs de texte obligerait à extraire toutes les pages dès
+//    qu'il faut nommer une position, soit 800 pages analysées à l'ouverture pour trois
+//    pages lues. Ici, le calcul d'un offset n'a besoin de rien lire, et le texte peut être
 //    extrait paresseusement, page par page. L'espace est creux : seules les
 //    comparaisons comptent.
 //

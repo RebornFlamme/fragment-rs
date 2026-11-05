@@ -6,17 +6,14 @@
 //  `<userData>/cli-instances/<id>.json`, un fichier par instance. Écrit quand
 //  le serveur écoute, retiré à la sortie. Le client froid liste ce dossier.
 //
-//  ★ POURQUOI ici, et pas dans le nom du tuyau : le fichier porte le JETON. Le
-//    dossier userData est ACLé au profil de l'utilisateur ; un tuyau nommé,
-//    lui, est ouvert à tout processus de la session. Le secret est donc là où
-//    l'OS le protège, et le tuyau ne contient qu'une empreinte publique.
+//  ★ Le jeton impose un fichier plutôt que le nom du tuyau : tout processus de la
+//    session peut ouvrir un tuyau nommé, tandis que les ACL de userData limitent le
+//    dossier au profil. Le tuyau n'expose donc qu'une empreinte publique.
 //
-//  ★ POURQUOI un fichier PAR instance : deux coffres ouverts dans deux
-//    fenêtres écrivent au même moment. Un fichier unique en lecture-
-//    modification-écriture perdrait l'un des deux ; deux fichiers ne se voient
-//    jamais.
+//  ★ Un fichier par instance, car deux coffres ouverts peuvent écrire en même temps :
+//    un fichier commun relu puis réécrit perdrait l'une des deux écritures.
 //
-//  Un fichier ORPHELIN (crash, app tuée par un e2e) est possible :
+//  Il peut rester des fichiers orphelins (crash, app tuée par un e2e) :
 //  `instances_vivantes` SONDE le tuyau de chacun et purge ceux où personne
 //  n'écoute — appelée par le client à chaque commande ET par le serveur à son
 //  démarrage.

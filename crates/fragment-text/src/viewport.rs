@@ -8,13 +8,13 @@
 //  est virtualisé ICI, de la même façon pour toute vue : n'existe à l'écran que
 //  ce qui est dans le viewport.
 //
-//  Transcription de `@codemirror/view` 6.43.13 (dist/index.js) :
-//    - constantes `VP` (Margin, MinCoverMargin, MaxCoverMargin)
-//    - le biais de `ViewState.measure` (l. ~6432)
-//    - `ViewState.getViewport` (l. 6470), sans `scrollTarget`
-//    - `ViewState.viewportIsAppropriate` (l. 6501)
-//    - la boucle de `EditorView.measure` (l. 8171) : on remesure tant que ça bouge
-//  ★ Un seul écart, voulu : CM traduit sa bande de pixels en LIGNES (sa height
+//  Repris de `@codemirror/view` 6.43.13 (dist/index.js) :
+//    - les constantes de `VP` : Margin, MinCoverMargin, MaxCoverMargin ;
+//    - le décalage calculé dans `ViewState.measure` (autour de la l. 6432) ;
+//    - `ViewState.getViewport` (l. 6470), moins `scrollTarget` ;
+//    - `ViewState.viewportIsAppropriate` (l. 6501) ;
+//    - la remesure en boucle jusqu'à stabilité de `EditorView.measure` (l. 8171).
+//  ★ Seule divergence, volontaire : CM convertit sa bande de pixels en LIGNES (sa height
 //    map) ; nos objets ont déjà une position en pixels (`coords_at_pos`), donc on
 //    garde la BANDE telle quelle — même formule, sans l'arrondi aux lignes (et
 //    sans les cas `from == 0` / `to == doc.length`, qui n'existent que parce que

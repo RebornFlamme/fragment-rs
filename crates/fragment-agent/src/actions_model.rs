@@ -3,14 +3,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  LES ACTIONS PERSO de la barre de l'agent — la logique PURE.
 //
-//  L'utilisateur (ou l'agent, par la CLI `agent:action-add`) enregistre des
-//  actions : un libellé, une icône, et SOIT une consigne (`prompt` → un Side Chat
-//  sur la sélection / la zone, comme une action rapide), SOIT une commande de l'app
-//  (`command`, ex. `editor:toggle-highlight`). `on` restreint aux déclencheurs
-//  (texte sélectionné, zone entourée, zone encadrée), `only` aux extensions de
-//  document (`md`, `pdf`… ; une conversation : `chat`). Elles vivent dans le
-//  data.json de l'agent (réglage `customActions`) et s'ouvrent dans un menu ✨ de
-//  la barre, section `actions` — avant les suggestions de l'IA.
+//  Une action enregistrée (à la main, ou par `agent:action-add` depuis la CLI)
+//  associe un libellé et une icône à l'un de ces deux effets : ouvrir un Side Chat
+//  avec une consigne (`prompt`) ou lancer une commande de l'app (`command`).
+//  Deux filtres facultatifs : `on` limite aux déclencheurs (sélection, zone
+//  entourée ou encadrée), `only` aux extensions de fichier, `chat` valant pour les
+//  conversations. Stockage : réglage `customActions` du data.json de l'agent.
+//  Affichage : menu ✨ de la barre, section `actions`, au-dessus des suggestions.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use std::sync::LazyLock;

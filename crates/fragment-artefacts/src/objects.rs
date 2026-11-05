@@ -1,16 +1,14 @@
 // Port de app/src/ui/core/artefacts/objects.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Les objets adressés par contenu (§14.5) — repris de l'ancien FsArtefactStore,
-//  réservés désormais aux GROS states (> 2 Kio de JSON canonique) et aux blobs.
-//  Les petits voyagent dans la ligne du journal.
+//  Stockage par contenu (§14.5), hérité de FsArtefactStore et limité aux blobs et aux
+//  states de plus de 2 Kio en JSON canonique ; les autres restent dans la ligne du
+//  journal. Chemin : objects/<sha>.json, immuable et commun à tous les écrivains.
 //
-//    objects/<sha>.json   ← immuable, partagé entre tous les écrivains
-//
-//  ★ Un objet est écrit AVANT la ligne qui le cite (invariant §19.1-4).
-//  ★ Il ne part qu'au balayage (§15.10) : plus aucune ligne présente sur le
-//    disque ne le cite, ET son fichier a plus de quatorze jours (gc.pruneExpire
-//    de git). Citer de nouveau un objet présent rafraîchit son mtime.
+//  ★ Ordre d'écriture : l'objet, puis la ligne qui le référence (invariant §19.1-4).
+//  ★ Suppression au seul balayage (§15.10), s'il n'est plus cité par aucune ligne sur
+//    le disque et a plus de 14 jours, à la manière de gc.pruneExpire de git. Une
+//    nouvelle citation d'un objet existant met à jour son mtime.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::fs::SharedFs;

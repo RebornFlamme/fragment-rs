@@ -9,12 +9,12 @@
 //  pour les GARDES — dossiers masqués, lecture seule, chemins protégés — et
 //  `canUseTool` pour la carte).
 //
-//  ★ Les chemins sont CANONISÉS (`..`, `.`, `\`) avant toute règle : `notes/../
-//    .fragment/plugins/agent/data.json` est un chemin protégé.
-//  ★ Les chemins PROTÉGÉS ne s'écrivent jamais (réglages de l'agent — sinon il
-//    s'accorderait des droits —, secrets, liste des plugins, journal).
-//  ★ Honnêteté : un shell autorisé contourne toute règle de dossier (il peut
-//    `cat` un fichier masqué). `incoherences` le dit dans les réglages.
+//  ★ Toute règle s'évalue sur le chemin canonique (`..`, `.` et `\` résolus) :
+//    sans cela, un détour par `notes/../` atteindrait un fichier protégé.
+//  ★ Écriture toujours refusée sur les chemins protégés : réglages de l'agent (il
+//    pourrait s'y donner des droits), secrets, liste des plugins, journal.
+//  ★ Limite assumée : un shell autorisé échappe aux règles de dossier, il peut lire
+//    un fichier masqué. `incoherences` le signale dans les réglages.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use std::collections::{BTreeMap, HashSet};

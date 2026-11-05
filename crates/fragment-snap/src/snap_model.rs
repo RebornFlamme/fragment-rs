@@ -1,19 +1,19 @@
 // Port de app/src/ui/snap/snapModel.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  LE SNAP DES VUES — la logique PURE (testée), sur un arbre abstrait.
+//  SNAP DES VUES : logique pure et testée, sur un arbre abstrait.
 //
-//  Ctrl+Alt+flèche sur la vue active : elle S'ÉTEND dans la direction de la
-//  flèche, et tout ce qui est de ce côté dans son GROUPE se replie en tranches.
-//  Le groupe = le premier split, en remontant depuis la vue, dans l'AXE de la
-//  flèche (← → : un split « vertical », enfants côte à côte ; ↑ ↓ : un split
-//  « horizontal », enfants empilés) qui a encore des frères non repliés de ce
-//  côté. [1 | (2 / 3)] : 2 actif ↓ → 3 se replie ; 1 actif → → le groupe (2 / 3)
-//  entier. [1 | 2 | 3] (un split à 3 enfants) : 2 actif → → seul 3.
+//  Ctrl+Alt+flèche agrandit la vue active vers la flèche et replie en tranches ce qui
+//  se trouve de ce côté dans son groupe. Pour trouver le groupe, on remonte depuis la
+//  vue jusqu'au premier split de même axe que la flèche ayant encore, de ce côté, un
+//  frère non replié. Axe : split « vertical » (enfants côte à côte) pour ← →, split
+//  « horizontal » (enfants empilés) pour ↑ ↓.
+//  Exemples : [1 | (2 / 3)], 2 actif et ↓ : 3 se replie ; 1 actif et → : (2 / 3) se
+//  replie entier. [1 | 2 | 3], 2 actif et → : seul 3 se replie.
 //
-//  La FLÈCHE OPPOSÉE défait (comme Win+→ puis Win+←) : si la vue active (ou un
-//  de ses groupes) a replié l'autre côté, elle le rouvre — le plus intérieur
-//  d'abord ; sinon elle snappe.
+//  La flèche inverse annule, à la façon de Win+→ puis Win+← : si l'autre côté a été
+//  replié par la vue active ou l'un de ses groupes, il est rouvert en commençant par
+//  le niveau le plus intérieur ; à défaut, la vue snappe.
 //
 //  ★ Transposition : l'arbre est donné par le trait [`Arbre`] (accesseurs) ; le
 //    modèle ne connaît pas les classes du workspace. Un nœud `N` est une POIGNÉE
@@ -199,14 +199,14 @@ pub fn trouver_restauration<'a, N: Copy + PartialEq>(
     None
 }
 
-// ── Les proportions (flex-grow) ──────────────────────────────────────────────
-//  Les repliés GARDENT leur part (leur taille d'avant) : seule leur PRÉSENTATION
-//  change (CSS, une tranche de taille fixe). La branche étendue reçoit une part
-//  de plus, CHOISIE pour que les AUTRES frères ne bougent pas d'un pixel ([1 | 2 |
-//  3], 2 → : 1 garde sa largeur, comme dans [1 | (2 | 3)]) — sans elle, la place
-//  des tranches serait prise à tous. Avant : la place `avant` (px) est partagée
-//  par Σ toutes les parts ; après : `apres` (= avant − tranches) par les autres +
-//  l'étendu. Un autre garde `g·avant/G` ⇔ autres + étendu' = G·apres/avant.
+// ── Répartition de la place (flex-grow) ──────────────────────────────────────
+//  Un replié conserve sa part d'avant ; seul son rendu passe à une tranche de taille
+//  fixe (CSS). La branche étendue reçoit une part supplémentaire calculée pour ne pas
+//  déplacer les autres frères : sur [1 | 2 | 3], avec 2 →, 1 garde sa largeur comme sur
+//  [1 | (2 | 3)]. Sans ce calcul, tous paieraient la place des tranches.
+//  Formule : `avant` px sont partagés entre G = Σ des parts, puis `apres` = avant −
+//  tranches entre les autres et l'étendu. Un autre frère reste à `g·avant/G` si et
+//  seulement si autres + étendu' = G·apres/avant.
 //
 //  ★ Le surplus est retenu RELATIVEMENT aux parts repliées (`tau` = surplus ÷ Σ
 //    repliées) : la renormalisation du cœur multiplie toutes les parts d'un split

@@ -3,19 +3,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  Le DÉFILEMENT du chat — le modèle PUR.
 //
-//  Principe (« What Makes a Great Streaming Chat Experience ») : ne JAMAIS
-//  déplacer le lecteur contre son intention. Un état unique, `FollowMode` :
+//  Règle (d'après « What Makes a Great Streaming Chat Experience ») : le lecteur n'est
+//  jamais déplacé contre sa volonté. `FollowMode` résume l'état :
 //
-//    free  (défaut)  on lit librement : rien ne bouge, jamais ;
-//    turn            on vient d'ENVOYER : la question est placée près du HAUT,
-//                    la réponse grandit dans l'espace libre (la réserve), sans
-//                    défiler ;
-//    live            on est au bord vivant et on l'a CHOISI (« Aller au plus
-//                    récent », Fin, ou on y est descendu soi-même pendant un
-//                    flux) : on suit le bas.
+//    free  : mode par défaut, aucun mouvement automatique ;
+//    turn  : juste après un envoi, la question est calée vers le haut et la réponse
+//            remplit la réserve en dessous, sans défilement ;
+//    live  : l'utilisateur a choisi le bord vivant (« Aller au plus récent », Fin, ou
+//            descente manuelle pendant un flux) et le bas est suivi.
 //
-//  TOUTE intention de l'utilisateur (molette, toucher, touches de défilement,
-//  barre de défilement, sélection, lien, recherche, focus dans un message) rend
+//  Un geste de l'utilisateur, quel qu'il soit (molette, toucher, clavier, barre de
+//  défilement, sélection, lien, recherche, focus dans un message), rend
 //  `free`. Le modèle dit QUOI faire ; le contrôleur (fragment-ui) le fait.
 //
 //  Les longueurs sont des pixels logiques (`f64`) ; `Math.round` du TS = [`arrondi`]
