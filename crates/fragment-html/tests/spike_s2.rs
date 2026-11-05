@@ -8,19 +8,16 @@ mod scenario;
 
 use std::path::{Path, PathBuf};
 
-use scenario::{BRIDGE_VERBATIM, adapt_bridge, resolve_in_vault};
+use scenario::{PONT_MINIMAL, resolve_in_vault};
 
 fn vault() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vault")
 }
 
 #[test]
-fn le_pont_de_fragment_est_recopie_et_adaptable() {
-    assert!(BRIDGE_VERBATIM.contains("window.parent === window"));
-    assert!(BRIDGE_VERBATIM.contains("type: 'hello'"));
-    let a = adapt_bridge(BRIDGE_VERBATIM);
-    assert!(!a.contains("window.parent === window"));
-    assert!(a.contains("window.ipc.postMessage"));
+fn le_pont_de_test_parle_a_l_hote_par_ipc() {
+    assert!(PONT_MINIMAL.contains("window.ipc.postMessage"));
+    assert!(PONT_MINIMAL.contains("fragmentHtml: 1"));
 }
 
 #[test]
@@ -70,7 +67,7 @@ fn page_vivante_pont_theme_sandbox_et_calque() {
     let key = r.key.expect("message key");
     assert_eq!(key["key"], "k");
     assert_eq!(key["ctrlKey"], true);
-    for t in ["hello", "height", "text", "layout"] {
+    for t in ["hello", "height", "link", "key"] {
         assert!(
             r.message_types.iter().any(|x| x == t),
             "message {t} absent : {:?}",

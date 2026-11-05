@@ -6,7 +6,7 @@ invisible sous le rendu GPUI) et le « calque GPUI par-dessus » n'existe pas. I
 **popup possédé** et dessiner les menus/calques comme **fenêtres GPUI distinctes** (prouvé au pixel, voir §6).
 
 Code : `crates/fragment-html/tests/spike_s2.rs`, `tests/spike_s2/scenario.rs` (scénario partagé), `examples/spike_s2.rs`,
-fixtures `tests/fixtures/` (dont `htmlBridge.js`, `HTML_BRIDGE_SCRIPT` recopié tel quel de `app/src/shared/htmlBridge.ts`).
+fixtures `tests/fixtures/` (dont `pont-minimal.js`, écrit pour ce dépôt, ADR-007 ; les mesures ci-dessous ont d'abord été prises avec le script d'origine de Fragment, puis le scénario a été rejoué en CI avec cette fixture).
 Captures RÉELLES du bureau du runner (CopyFromScreen) : artifact `spike-s2-captures` du workflow `spike-s2`
 (run 42038930016) — `1/2` calque GPUI et popup layered, `3` fenêtre nue, `4` popup possédé, `5` menu GPUI au-dessus.
 `unsafe` : FFI Win32 minimale (user32/gdi32/kernel32) dans `scenario.rs::win` + un `HasWindowHandle` nu ; spike seulement.
@@ -38,8 +38,8 @@ Captures RÉELLES du bureau du runner (CopyFromScreen) : artifact `spike-s2-capt
 
 - **Hypothèse** : le script de Fragment marche tel quel. **Faux, en une adaptation de deux lignes** : le pont est écrit
   pour une IFRAME (`if (window.parent === window) return;` puis `window.parent.postMessage`). Une webview de premier
-  niveau (wry) est son propre parent : le script s'arrêterait à la 1re ligne. `adapt_bridge` retire la garde et remplace
-  `envoyer` par `window.ipc.postMessage(JSON.stringify(m))` (test `le_pont_de_fragment_est_recopie_et_adaptable`).
+  niveau (wry) est son propre parent : le script s'arrêterait à la 1re ligne. Il suffit de retirer la garde et de remplacer
+  l'envoi par `window.ipc.postMessage(JSON.stringify(m))` (la fixture `pont-minimal.js` envoie directement ainsi).
 - **Mesure** : reçus côté Rust, JSON `{"fragmentHtml":1,…}` : `hello`, `height` (300), `text`, `layout`, `link`
   (`href = http://fragment-local.localhost/note.md`, clic JS sur `<a>`), `key` (`Ctrl+K` rejoué dans la page).
   Non vus : `selection`, `rects`, `anchor`, `wheel` (même mécanique, non exercés) et le sens app → page (`theme`,
@@ -138,7 +138,7 @@ HWND enfant (confirmé par construction : tout ce qui suit est mesuré sur l'éc
 
 1. `gpui-webview = "=0.8.1"` NE sert PAS tel quel sous Windows (page invisible) : ne l'utiliser que pour ses accesseurs ;
    héberger `lb-wry` (`wry = "=0.53.3"`, paquet `lb-wry`) dans un popup possédé, `build_as_child` sur ce HWND.
-2. Pont : `HTML_BRIDGE_SCRIPT` + adaptation `window.ipc` (ou iframe hôte), l'hôte n'accepte que `fragmentHtml`.
+2. Pont : un script écrit pour fragment-rs, envoi par `window.ipc` (ou iframe hôte), l'hôte n'accepte que `fragmentHtml`.
 3. Thème par `?fragment-theme=` + `inject_html_bridge` dans le protocole ; sandbox = `resolve_in_vault` + `page_servable`,
    et une politique pour le réseau sortant (à écrire).
 4. Pile : le scénario tourne sur un fil à 16 Mo (comme S3).

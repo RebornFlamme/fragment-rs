@@ -26,6 +26,9 @@ use serde_json::{Value, json};
 use wry::WebViewBuilder;
 use wry::http::{Request, Response};
 
+/// Un pont de test écrit pour ce dépôt : thème, hauteur, lien, touche (`window.ipc`). Le vrai pont de la
+/// vue HTML sera écrit par T9 ; il ne se copie pas de Fragment (ADR-007).
+pub const PONT_MINIMAL: &str = include_str!("../fixtures/pont-minimal.js");
 /// Le script du pont de Fragment, recopié tel quel (`app/src/shared/htmlBridge.ts`, `HTML_BRIDGE_SCRIPT`).
 pub const BRIDGE_VERBATIM: &str = include_str!("../fixtures/htmlBridge.js");
 
@@ -941,7 +944,7 @@ pub fn run(out_dir: PathBuf) -> Report {
     let report = Arc::new(Mutex::new(Report::default()));
     let report_out = report.clone();
     let vault = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/vault");
-    let bridge = adapt_bridge(BRIDGE_VERBATIM);
+    let bridge = PONT_MINIMAL.to_string();
 
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
