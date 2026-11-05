@@ -1933,8 +1933,6 @@ impl<M: InputModeKind> TextElement<M> {
             .visible_buffer_lines
             .iter()
             .map(|&row| {
-                // ★ fragment-rs : taille de police dictée pour cette ligne.
-                let font_size = state.display_map.line_font_size(row).unwrap_or(font_size);
                 let line_start = state.text.line_start_offset(row);
                 let text: String = state.text.slice_line(row).into();
                 let ranges = if state.is_single_line() {
@@ -2177,6 +2175,8 @@ impl<M: InputModeKind> TextElement<M> {
             .visible_buffer_lines
             .iter()
             .map(|&row| {
+                // ★ fragment-rs : taille de police dictée pour cette ligne.
+                let font_size = state.display_map.line_font_size(row).unwrap_or(font_size);
                 let line_start = state.text.line_start_offset(row);
                 let text: String = state.text.slice_line(row).into();
                 let ranges = state
