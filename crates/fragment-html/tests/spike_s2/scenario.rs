@@ -650,7 +650,7 @@ pub fn run(out_dir: PathBuf) -> Report {
 
     let mut out = report_out
         .lock()
-        .map(|g| std::mem::take(&mut *g))
+        .map(|mut g| std::mem::take(&mut *g))
         .unwrap_or_default();
     out.scale = out.scale.max(0.0);
     out
