@@ -289,10 +289,123 @@ pub mod win {
         }
     }
 
+    /// Une fenêtre HÔTE verte pour une webview : `popup` = POPUP possédé par `owner` (jamais activé),
+    /// sinon fenêtre de premier niveau ordinaire. Pixels écran.
+    pub fn create_host(popup: bool, owner: isize, r: (i32, i32, i32, i32), title: &str) -> isize {
+        const WS_POPUP: u32 = 0x8000_0000;
+        const WS_OVERLAPPEDWINDOW: u32 = 0x00CF_0000;
+        const WS_VISIBLE: u32 = 0x1000_0000;
+        const WS_CLIPCHILDREN: u32 = 0x0200_0000;
+        const WS_EX_TOOLWINDOW: u32 = 0x80;
+        const WS_EX_NOACTIVATE: u32 = 0x0800_0000;
+        unsafe {
+            let instance = GetModuleHandleW(std::ptr::null());
+            let class = wide("FragmentSpikeS2Host");
+            let wc = WndClassW {
+                style: 0,
+                wnd_proc: DefWindowProcW,
+                cls_extra: 0,
+                wnd_extra: 0,
+                instance,
+                icon: 0,
+                cursor: 0,
+                background: CreateSolidBrush(0x0000_FF00), // vert
+                menu: std::ptr::null(),
+                class_name: class.as_ptr(),
+            };
+            RegisterClassW(&wc);
+            let t = wide(title);
+            let (style, ex, parent) = if popup {
+                (
+                    WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN,
+                    WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
+                    owner,
+                )
+            } else {
+                (WS_OVERLAPPEDWINDOW | WS_VISIBLE | WS_CLIPCHILDREN, 0, 0)
+            };
+            CreateWindowExW(
+                ex,
+                class.as_ptr(),
+                t.as_ptr(),
+                style,
+                r.0,
+                r.1,
+                r.2,
+                r.3,
+                parent,
+                0,
+                instance,
+                std::ptr::null(),
+            )
+        }
+    }
+
     pub fn destroy(hwnd: isize) {
         unsafe {
             DestroyWindow(hwnd);
         }
+    }
+}
+
+/// Un HWND nu, présenté à wry comme parent (`build_as_child`), hors de GPUI.
+struct HostHwnd(isize);
+
+impl raw_window_handle::HasWindowHandle for HostHwnd {
+    fn window_handle(
+        &self,
+    ) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        let nz = std::num::NonZeroIsize::new(self.0)
+            .ok_or(raw_window_handle::HandleError::Unavailable)?;
+        let raw = raw_window_handle::RawWindowHandle::Win32(
+            raw_window_handle::Win32WindowHandle::new(nz),
+        );
+        // SAFETY : le HWND vit tant que l'hôte n'est pas détruit (voir `host_experiments`).
+        Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw) })
+    }
+}
+
+fn page_url() -> String {
+    format!(
+        "http://fragment-local.localhost/page.html?fragment-theme={}",
+        percent_encode(&theme_json())
+    )
+}
+
+/// Une webview wry dans une fenêtre Win32 NUE (hôte vert), sans GPUI : `(hwnd, webview)`.
+fn open_host(
+    popup: bool,
+    owner: isize,
+    r: (i32, i32, i32, i32),
+    title: &str,
+    vault: &Path,
+    bridge: &str,
+) -> Result<(isize, wry::WebView), String> {
+    let hwnd = win::create_host(popup, owner, r, title);
+    if hwnd == 0 {
+        return Err("create_host a échoué".into());
+    }
+    let (vault, bridge) = (vault.to_path_buf(), bridge.to_string());
+    let wv = WebViewBuilder::new()
+        .with_bounds(wry::Rect {
+            position: wry::dpi::LogicalPosition::new(0.0, 0.0).into(),
+            size: wry::dpi::PhysicalSize::new(r.2 as u32, r.3 as u32).into(),
+        })
+        .with_custom_protocol("fragment-local".into(), move |_id, req| {
+            servir(&vault, &bridge, &req)
+        })
+        .with_url(page_url())
+        .build_as_child(&HostHwnd(hwnd))
+        .map_err(|e| format!("build_as_child : {e}"))?;
+    Ok((hwnd, wv))
+}
+
+/// Une fenêtre GPUI jaune, sans barre de titre : un « menu » dessiné par GPUI.
+struct Menu;
+
+impl Render for Menu {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div().size_full().bg(rgb(0xffff00))
     }
 }
 
@@ -329,6 +442,9 @@ pub struct Report {
     pub key: Option<Value>,
     pub message_types: Vec<String>,
     pub variants: Vec<Variant>,
+    /// Expériences d'hébergement : (libellé, pixel écran relevé).
+    pub hosts: Vec<(String, Option<(u8, u8, u8)>)>,
+    pub host_screenshots: Vec<PathBuf>,
 }
 
 #[derive(Default)]
@@ -701,8 +817,107 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
         None => {}
     }
 
+    host_experiments(cx, &c, &mut r).await;
+
     if let Ok(mut g) = c.report.lock() {
         *g = r;
+    }
+}
+
+/// E1 : la webview dans une fenêtre Win32 NUE de premier niveau (témoin : WebView2 s'affiche-t-il sur
+/// ce runner ?). E2 : la webview dans un POPUP possédé par la fenêtre GPUI, posé sur la feuille ; puis
+/// une 2e fenêtre GPUI (« menu » jaune) au-dessus de ce popup.
+async fn host_experiments(cx: &mut AsyncApp, c: &Ctx, r: &mut Report) {
+    let hwnd = win::find_window("spike-s2");
+    let Some((ox, oy)) = (hwnd != 0).then(|| win::client_origin(hwnd)).flatten() else {
+        return;
+    };
+    let s = c.scene.scale;
+    let (wx, wy) = (
+        ox + (WEB.0 * s).round() as i32,
+        oy + (WEB.1 * s).round() as i32,
+    );
+    let (ww, wh) = ((WEB.2 * s).round() as i32, (WEB.3 * s).round() as i32);
+    let pause = |ms: u64| Duration::from_millis(ms);
+
+    // E1 : fenêtre de premier niveau ordinaire, en haut à gauche de l'écran.
+    match open_host(
+        false,
+        0,
+        (20, 20, 420, 330),
+        "spike-s2-plain",
+        &c.vault,
+        &c.bridge,
+    ) {
+        Ok((h1, wv)) => {
+            cx.background_executor().timer(pause(3500)).await;
+            let px = win::screen_pixel(20 + 380, 20 + 290);
+            r.hosts.push((
+                "E1 fenêtre Win32 nue (bleu attendu si WebView2 se peint)".into(),
+                px,
+            ));
+            if let Some(p) = screenshot(cx, &c.out, "3-E1-fenetre-nue").await {
+                r.host_screenshots.push(p);
+            }
+            drop(wv);
+            win::destroy(h1);
+        }
+        Err(e) => r.hosts.push((format!("E1 échec : {e}"), None)),
+    }
+
+    // E2 : popup possédé par la fenêtre GPUI, sur le rectangle de la webview.
+    match open_host(
+        true,
+        hwnd,
+        (wx, wy, ww, wh),
+        "spike-s2-popup",
+        &c.vault,
+        &c.bridge,
+    ) {
+        Ok((h2, wv)) => {
+            cx.background_executor().timer(pause(3500)).await;
+            let coin = win::screen_pixel(wx + ww - 30, wy + wh - 30);
+            r.hosts.push((
+                "E2 webview dans un popup possédé (bleu attendu)".into(),
+                coin,
+            ));
+            if let Some(p) = screenshot(cx, &c.out, "4-E2-popup-possede").await {
+                r.host_screenshots.push(p);
+            }
+
+            // E2b : une 2e fenêtre GPUI (jaune, sans titre) au milieu du popup.
+            let (mw, mh) = (120.0_f32, 80.0_f32);
+            let (mx, my) = (
+                (wx as f32 + ww as f32 / 2.0) / s - mw / 2.0,
+                (wy as f32 + wh as f32 / 2.0) / s - mh / 2.0,
+            );
+            let _ = cx.update(move |cx| {
+                let options = WindowOptions {
+                    titlebar: None,
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::new(
+                        point(px(mx), px(my)),
+                        size(px(mw), px(mh)),
+                    ))),
+                    ..Default::default()
+                };
+                let _ = gpui_kit::open_window(options, cx, |_, cx| cx.new(|_| Menu));
+            });
+            cx.background_executor().timer(pause(2000)).await;
+            let milieu = win::screen_pixel(wx + ww / 2, wy + wh / 2);
+            r.hosts.push((
+                "E2b fenêtre GPUI jaune au-dessus du popup-webview (jaune attendu)".into(),
+                milieu,
+            ));
+            let web = win::screen_pixel(wx + ww - 30, wy + wh - 30);
+            r.hosts
+                .push(("E2b même popup, hors du menu (bleu attendu)".into(), web));
+            if let Some(p) = screenshot(cx, &c.out, "5-E2b-menu-gpui-au-dessus").await {
+                r.host_screenshots.push(p);
+            }
+            drop(wv);
+            win::destroy(h2);
+        }
+        Err(e) => r.hosts.push((format!("E2 échec : {e}"), None)),
     }
 }
 

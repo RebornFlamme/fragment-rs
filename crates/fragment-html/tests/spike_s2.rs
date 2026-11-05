@@ -87,6 +87,9 @@ fn page_vivante_pont_theme_sandbox_et_calque() {
 
     // Calque : MESURES seulement (le verdict est dans docs/spikes/S2-webview.md, avec les captures).
     assert_eq!(r.variants.len(), 2, "deux variantes attendues");
+    for (k, px) in &r.hosts {
+        println!("hôte : {k} -> {px:?}");
+    }
     for v in &r.variants {
         println!("variante {} : {v:?}", v.name);
         let rouge = v

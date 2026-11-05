@@ -2684,6 +2684,7 @@ dependencies = [
  "gpui-kit",
  "gpui-webview",
  "lb-wry",
+ "raw-window-handle",
  "serde_json",
 ]
 
