@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Page du coffre</title></head>
+<body>
+<h1>Une page vivante</h1>
+<p>Un paragraphe de la page du coffre.</p>
+<p><a id="lien" href="note.md">une note</a></p>
+<p>Résultat du script : <span id="out"></span></p>
+<script>
+  // Premier script de la page : le thème (injecté par le pont, en tête de <head>) est-il déjà là ?
+  window.__first = getComputedStyle(document.documentElement).getPropertyValue('--background-primary').trim();
+  document.getElementById('out').textContent = String(6 * 7);
+  (async () => {
+    const r = {};
+    const essai = async (nom, url) => {
+      try { const x = await fetch(url); r[nom] = x.status; } catch (e) { r[nom] = 'bloque'; }
+    };
+    await essai('file', 'file:///C:/Windows/win.ini');
+    await essai('note', '/note.md');
+    await essai('traversee', '/..%2f..%2fCargo.toml');
+    await essai('absent', '/secret-hors-coffre.txt');
+    await essai('present', '/ok.txt');
+    window.__sandbox = r;
+  })();
+</script>
+</body>
+</html>
