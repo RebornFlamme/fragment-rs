@@ -29,20 +29,6 @@ use wry::http::{Request, Response};
 /// Un pont de test écrit pour ce dépôt : thème, hauteur, lien, touche (`window.ipc`). Le vrai pont de la
 /// vue HTML sera écrit par T9 ; il ne se copie pas de Fragment (ADR-007).
 pub const PONT_MINIMAL: &str = include_str!("../fixtures/pont-minimal.js");
-/// Le script du pont de Fragment, recopié tel quel (`app/src/shared/htmlBridge.ts`, `HTML_BRIDGE_SCRIPT`).
-pub const BRIDGE_VERBATIM: &str = include_str!("../fixtures/htmlBridge.js");
-
-/// Le pont n'est écrit que pour une IFRAME (`window.parent.postMessage`). Dans une webview de premier
-/// niveau (wry), `window.parent === window` : le script s'arrêterait dès sa 1re ligne. Adaptation
-/// minimale, deux lignes : on retire la garde et on envoie vers l'hôte par `window.ipc.postMessage`.
-pub fn adapt_bridge(script: &str) -> String {
-    script
-        .replace("if (window.parent === window) return;", "")
-        .replace(
-            "const envoyer = parent.postMessage.bind(parent);",
-            "const envoyer = (m) => window.ipc.postMessage(JSON.stringify(m));",
-        )
-}
 
 // ───────────────────────────── sandbox : la racine `page` ─────────────────────────────
 
