@@ -1675,11 +1675,11 @@ impl<M: InputModeKind> InputBaseState<M> {
 
     pub(super) fn select_left(&mut self, _: &SelectLeft, _: &mut Window, cx: &mut Context<Self>) {
         self.undo_manager.break_transaction_coalescing();
-        self.select_all_cursors_to(|s, sel| s.previous_boundary(sel.cursor_offset()), cx);
+        self.select_all_cursors_to(|s, sel| s.previous_boundary_over_hidden(sel.cursor_offset()), cx); // ★ fragment-rs
     }
 
     pub(super) fn select_right(&mut self, _: &SelectRight, _: &mut Window, cx: &mut Context<Self>) {
-        self.select_all_cursors_to(|s, sel| s.next_boundary(sel.cursor_offset()), cx);
+        self.select_all_cursors_to(|s, sel| s.next_boundary_over_hidden(sel.cursor_offset()), cx); // ★ fragment-rs
     }
 
     pub(super) fn select_up(&mut self, _: &SelectUp, _: &mut Window, cx: &mut Context<Self>) {
@@ -4876,6 +4876,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
 
         let mut start_origin = None;
         let mut end_origin = None;
+        let mut start_row_height: Option<Pixels> = None; // ★ fragment-rs
         let line_number_origin = point(line_number_width, px(0.));
         let mut y_offset = last_layout.visible_top;
 
@@ -4893,6 +4894,7 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
                     false,
                 ) {
                     start_origin = Some(p + point(px(0.), y_offset));
+                    start_row_height = Some(line.row_height(line_height)); // ★ fragment-rs
                 }
             }
 
@@ -4917,11 +4919,13 @@ impl<M: InputModeKind> EntityInputHandler for InputBaseState<M> {
         let mut end_origin = end_origin.unwrap_or(start_origin);
         // Ensure at same line.
         end_origin.y = start_origin.y;
+        // ★ fragment-rs : la hauteur du panneau IME est celle de la rangée dictée du début de plage.
+        let panel_height = start_row_height.unwrap_or(line_height);
 
         Some(Bounds::from_corners(
             bounds.origin + line_number_origin + start_origin,
             // + line_height for show IME panel under the cursor line.
-            bounds.origin + line_number_origin + point(end_origin.x, end_origin.y + line_height),
+            bounds.origin + line_number_origin + point(end_origin.x, end_origin.y + panel_height),
         ))
     }
 

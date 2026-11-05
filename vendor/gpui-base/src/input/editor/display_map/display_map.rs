@@ -436,6 +436,7 @@ impl DisplayMap {
         self.row_model = RowModel {
             line_heights: line_heights.into(),
             blocks: blocks.into(),
+            font_sizes: self.row_model.font_sizes.clone(),
         };
         let metrics: std::rc::Rc<[(Range<usize>, Pixels)]> = hidden
             .into_iter()
@@ -444,6 +445,25 @@ impl DisplayMap {
             .into();
         // Le wrapper traite une plage masquée comme un élément de largeur 0 (comme un jeton).
         self.set_inline_metrics(metrics, cx);
+    }
+
+    /// Taille de police dictée par ligne logique (voir `InputBaseState::set_line_font_sizes`).
+    pub fn set_line_font_sizes(&mut self, mut font_sizes: Vec<(usize, Pixels)>) {
+        font_sizes.sort_by_key(|(line, _)| *line);
+        self.row_model.font_sizes = font_sizes.into();
+    }
+
+    #[inline]
+    pub(crate) fn has_line_font_sizes(&self) -> bool {
+        !self.row_model.font_sizes.is_empty()
+    }
+
+    /// Taille de police dictée pour la ligne logique `line` (None = taille de base).
+    pub(crate) fn line_font_size(&self, line: usize) -> Option<Pixels> {
+        let list = &self.row_model.font_sizes;
+        list.binary_search_by_key(&line, |(l, _)| *l)
+            .ok()
+            .map(|ix| list[ix].1)
     }
 
     /// Vrai s'il existe des plages masquées (largeur 0) à honorer à la mise en forme.

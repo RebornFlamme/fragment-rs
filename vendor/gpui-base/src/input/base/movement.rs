@@ -290,6 +290,26 @@ impl<M: InputModeKind> InputBaseState<M> {
         );
     }
 
+    // ★ fragment-rs : une plage masquée (largeur 0) se franchit d'un pas, comme un atome.
+    pub(super) fn previous_boundary_over_hidden(&self, offset: usize) -> usize {
+        let prev = self.previous_boundary(offset);
+        let hidden = self.display_map.hidden_ranges();
+        hidden
+            .iter()
+            .find(|(r, _)| r.start < prev && prev < r.end)
+            .map_or(prev, |(r, _)| r.start)
+    }
+
+    // ★ fragment-rs : voir `previous_boundary_over_hidden`.
+    pub(super) fn next_boundary_over_hidden(&self, offset: usize) -> usize {
+        let next = self.next_boundary(offset);
+        let hidden = self.display_map.hidden_ranges();
+        hidden
+            .iter()
+            .find(|(r, _)| r.start < next && next < r.end)
+            .map_or(next, |(r, _)| r.end)
+    }
+
     pub(super) fn left(&mut self, _: &MoveLeft, window: &mut Window, cx: &mut Context<Self>) {
         // With a lone cursor at the very start there is nowhere to move.
         // Propagate the keystroke so an ancestor (e.g. a navigable command
@@ -304,7 +324,7 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.move_all_cursors(
             |s, sel| {
                 let offset = if sel.is_empty() {
-                    s.previous_boundary(sel.cursor_offset())
+                    s.previous_boundary_over_hidden(sel.cursor_offset()) // ★ fragment-rs
                 } else {
                     sel.start
                 };
@@ -330,7 +350,7 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.move_all_cursors(
             |s, sel| {
                 let offset = if sel.is_empty() {
-                    s.next_boundary(sel.cursor_offset())
+                    s.next_boundary_over_hidden(sel.cursor_offset()) // ★ fragment-rs
                 } else {
                     sel.end
                 };
