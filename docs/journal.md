@@ -86,3 +86,7 @@ Décisions du chef en conséquence :
 Trois jours de pause : semaine repassée sous le prorata ; l'app a redémarré, réveils perdus (reposés). Aucune PR arrivée, les 2 cartes cloud n'ont pas été cliquées (conservées, travail fait en local).
 Décisions de l'orchestrateur : jusqu'au reset du 06/11 18:00 UTC, plafond 77 % d'hebdo pour fragment-rs ; ordre S2, fr-p3-fork-input, découpage de T1 et sa 1re tâche. À partir du reset : PART FIXE de 30 points par semaine, 8 par jour au plus, fenêtre 5 h ≤ 80 % pour lancer, pause à 90 %, arrêt global à 85 % (program.md §2 mis à jour). Objectif : binaire de T1 + scènes pixels vertes.
 Part : relevé de départ 67 %.
+
+## Vague 4 — 05/11/2026 13:45 UTC — usage 5h 67 % / semaine 72 % (plafond 77 %)
+Tâches fermées : fr-p3-fork-input (PR #19, CI verte dont fork-patch). En cours : fr-p2-s2 (PR #20 ouverte). Part consommée depuis 67 % : +5 points (dont travail hors fragment-rs possible).
+Décisions du chef : PR amont du fork REPORTÉE à la montée vers gpui-kit 0.9 (amont en v0.9.0, arborescence changée, « une PR, une chose », patch pas encore éprouvé sur DirectWrite) ; texte prêt dans ADR-006. Dette pour T3 : le soft wrap mesure au corps de base (une ligne H1 peut déborder).
