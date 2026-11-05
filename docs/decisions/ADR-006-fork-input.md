@@ -20,7 +20,9 @@ Une seule API publique ajoutée : `InputBaseState::set_row_model(hidden, line_he
 | **Bloc** de hauteur libre, atomique au clavier | idem | Le bloc est de la HAUTEUR AJOUTÉE sous la dernière rangée d'une ligne, pas une rangée : le curseur ne peut ni y entrer ni s'y arrêter, Haut/Bas le traversent d'un coup. « À la place de » une ligne = ligne masquée + hauteur dictée (une rangée, un arrêt). |
 | Points d'accroche | `element.rs` (défilement, fenêtre visible, curseur, sélection, icônes de pli), `state.rs` (hit-test, `scroll_to`, `range_to_bounds`), `movement.rs` | Remplacent `line_height × rang` par `row_top(rang)` et `line_height` par la hauteur de la rangée. Chaque ajout est marqué `// ★ fragment-rs`. |
 
-Hors périmètre, **dette connue** : numéros de ligne (hauteur uniforme supposée), IME `bounds_for_range` (hauteur de base), fond de ligne active ; une plage masquée n'est pas atomique à Gauche/Droite (le curseur fait un pas invisible) ; la taille de police n'est pas dictée (un H1 est plus haut, pas plus gros : il faudra un `font_size` par plage, extension suivante du même module) ; les plages masquées ne se mettent pas en forme avec `expand_tabs` ni les repères d'espaces.
+**Dettes soldées** (tâche `fr-p3-fork-input`, +API `InputBaseState::set_line_font_sizes`) : (1) taille de police dictée par ligne logique (un H1 est plus GROS : `layout_hidden_lines` mis en forme au corps dicté, même chemin que les plages masquées) ; (2) gouttière (numéros, fond de ligne active) et panneau IME (`bounds_for_range`) suivent les hauteurs de rangée et les blocs ; (3) Gauche/Droite (et Maj+Gauche/Droite) franchissent une plage masquée d'un pas (`previous_boundary_over_hidden`/`next_boundary_over_hidden`). Un test headless chacun (`police_dictee_par_rangee`, `gouttiere_et_ime_suivent_les_hauteurs`, `gauche_droite_franchissent_la_plage_masquee`). Le dessin des numéros n'est pas observable en headless : il est couvert par construction (même arithmétique que le texte) et sera vu au premier scénario pixels du live preview.
+
+**Dette restante** : le retour à la ligne (soft wrap) mesure encore au corps de base (un titre en gros caractères plus long qu'une rangée peut déborder avant de passer à la ligne) ; Retour arrière/Suppr ne sont pas atomiques sur une plage masquée ; les plages masquées et les lignes à police dictée ne se mettent pas en forme avec `expand_tabs`, les repères d'espaces ni les fonds de couleur de document ; le numéro de ligne garde le corps de base.
 
 ## Procédure de rebase (montée de gpui-kit)
 
@@ -32,7 +34,15 @@ La montée de gpui-kit est déjà une PR dédiée (ADR-001). Le fork en fait une
 
 ## PR amont
 
-**À ouvrir quand stable** (lien à ajouter ici). Le patch est écrit pour être proposable tel quel : une seule API publique, comportement inchangé à modèle vide, aucune dépendance. `program.md` §10 exige une PR amont ouverte pour tenir un fork : elle sera ouverte à `longbridge/gpui-kit` dès que le live preview T3 aura éprouvé le patch sur de vrais textes (DirectWrite), pas seulement sur la plateforme de test.
+**Non ouverte (hors de portée), 05/11/2026.** Raisons constatées : (1) `longbridge/gpui-kit` est en v0.9.0 alors que le fork est en 0.8.1, et la mise en page du dépôt a changé (`crates/gpui-base/src/input/…` n'existe plus à ce chemin) : le patch devrait être réécrit contre une base que nous ne pouvons pas compiler ici (CI seulement) ; (2) `CONTRIBUTING.md` exige « une PR, une chose » alors que le patch porte quatre mécanismes liés (masquage sans trou, hauteurs et blocs, police par ligne, atomes au clavier) ; (3) le patch n'a pas encore été éprouvé sur DirectWrite (T3). À rouvrir à la montée vers 0.9.x (PR de montée de gpui-kit, ADR-001), en une série de PR courtes. Texte prêt à l'emploi :
+
+> **input: let the host dictate per-line row heights, hidden source ranges and per-line font sizes**
+>
+> Editors that render rich text over a plain buffer (live-preview Markdown, for instance) need three things the input does not offer today: a source range drawn with zero width instead of a gap, rows whose height (and font size) varies per logical line, and a way to step over a hidden range with the arrow keys.
+>
+> This adds `InputBaseState::set_row_model(hidden, line_heights, blocks, cx)` and `set_line_font_sizes(sizes, cx)`. Hidden ranges reuse the inline-token width mechanism with width 0; row heights are projected to y offsets with prefix sums (`row_top` / `row_at_y`, O(log n)); blocks are extra height below a line, not rows (the caret cannot enter them). Line numbers, the active-line background and `bounds_for_range` use the same per-row heights. Left/Right (and their selection variants) cross a hidden range in one step.
+>
+> With no model set the behavior is unchanged: every method falls back to `line_height * row`. Offsets stay UTF-8 byte offsets of the unmodified source. Tests: headless tests for each behavior (hidden range without gap, H1 height and font size, atomic block, IME bounds, undo/redo, 10,000 lines).
 
 ## Conséquences
 
