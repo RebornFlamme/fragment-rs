@@ -62,7 +62,8 @@ Orchestrateur (Fable 5.1, session « Fragment »)
 
 **Seuils (pause stricte).**
 - Fenêtre 5 h : aucune vague ne DÉMARRE au-dessus de **80 %** (décision utilisateur du 01/11, relevé de 60 %) ; au-dessus de **90 %**, le chef demande à tous les équipiers de terminer leur étape en cours et de se mettre en pause ; reprise au reset.
-- Semaine : autorisé(t) = **10 + 90 × (temps écoulé depuis le dernier reset ÷ 7 j)** en %. Si `percentUsed` dépasse autorisé(t), pause jusqu'à repasser dessous. (Exemple : à mi-semaine, 55 % max.)
+- Semaine, à partir du reset du 06/11 18:00 UTC (décision de l'orchestrateur du 05/11, remplace le prorata qui affamait le programme dès que l'utilisateur travaille) : fragment-rs dispose d'une **PART FIXE de 30 points d'hebdo par semaine**, comptée par le chef (relevé `get_usage` avant et après chaque tâche lancée, cumul dans `docs/journal.md`) et étalée à **8 points par jour au plus**. Conditions : fenêtre 5 h ≤ 80 % pour lancer, pause à 90 %, **arrêt global à 85 % d'hebdo**.
+- Jusqu'à ce reset : plafond de 77 % d'hebdo pour fragment-rs (10 points à partir de 67 %).
 - Le chef note l'usage dans chaque entrée de `docs/journal.md`.
 
 **Modèles.** Chef : Opus 5.5 `medium`. Équipiers : **Sonnet 5.5** toujours (nommé dans le prompt de spawn). Sous-agents : Haiku 5.5 pour le mécanique, Sonnet pour le reste. Jamais Opus pour un équipier, jamais Fable.

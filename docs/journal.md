@@ -81,3 +81,8 @@ Décisions du chef en conséquence :
 - S2 (WebView2, Windows) reste local et attend le prorata.
 - Battement du chef espacé à 2 h (CronCreate), réveil ponctuel à 23:37 heure de Paris.
 À trancher par l'orchestrateur : rien.
+
+## Reprise — 05/11/2026 13:25 UTC — usage 5h 34 % / semaine 67 %
+Trois jours de pause : semaine repassée sous le prorata ; l'app a redémarré, réveils perdus (reposés). Aucune PR arrivée, les 2 cartes cloud n'ont pas été cliquées (conservées, travail fait en local).
+Décisions de l'orchestrateur : jusqu'au reset du 06/11 18:00 UTC, plafond 77 % d'hebdo pour fragment-rs ; ordre S2, fr-p3-fork-input, découpage de T1 et sa 1re tâche. À partir du reset : PART FIXE de 30 points par semaine, 8 par jour au plus, fenêtre 5 h ≤ 80 % pour lancer, pause à 90 %, arrêt global à 85 % (program.md §2 mis à jour). Objectif : binaire de T1 + scènes pixels vertes.
+Part : relevé de départ 67 %.
