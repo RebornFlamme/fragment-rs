@@ -88,8 +88,9 @@ Installation (phase 0) : `npm install -g @beads/bd` puis `bd init` dans `fragmen
 2. `Fichiers possédés :` la liste des fichiers Rust que la tâche crée ou modifie (exclusifs tant qu'elle est ouverte).
 3. `Vérification :` la commande (ex. `cargo test -p fragment-artefacts`) et/ou le workflow CI attendu vert.
 4. `Fini quand :` critères observables (nombre de cas de test portés, PR fusionnée, mesure).
+5. La règle, dans le brief aussi : **aucune copie de source de Fragment ; une fixture se réécrit**, un commentaire aussi : les ports reformulent, ils ne reprennent pas le texte TS (ADR-007).
 
-**Cycle d'un équipier.** `bd ready` → `bd update <id> --claim` → branche `task/<id>` → travail → `gh pr create` → CI → `bd update <id> --notes "PR #n"` → le chef fusionne → `bd close <id>`. Une tâche fermée sans PR fusionnée est une erreur.
+**Cycle d'un équipier.** `bd ready` → `bd update <id> --claim` → branche `task/<id>` → travail → `gh pr create` → CI → `bd update <id> --notes "PR #n"` → le chef lance l'audit des sources (code 0 obligatoire, §7) puis fusionne → `bd close <id>`. Une tâche fermée sans PR fusionnée est une erreur.
 
 **Bugs.** Un échec CI répété deux fois sur une tâche → la tâche est mise en pause et un bead `bug` est créé avec le log des échecs. Un bug ne se corrige pas dans la tâche qui l'a trouvé si ses fichiers sont ailleurs.
 
@@ -256,7 +257,8 @@ Une TRANCHE est finie quand toutes ses scènes passent. Pas de « on verra le pi
 | Lancer un équipier en voie B | chef | `start_session` (`target: "cloud"`, `model: claude-sonnet-5-5`, brief ≤ 400 mots, `bd update <id> --claim` fait par le chef AVANT ; un groupe entier du §5.1 par session en phase 1). |
 | Vérifier une crate pure | équipier | `cargo test -p <crate>` (local ou cloud, rapide). |
 | Vérifier le reste | équipier | `git push` → CI. Jamais `cargo build -p fragment-app` en local. |
-| Fusionner | chef | `gh pr merge <n> --squash --delete-branch` après lecture du diff (`gh pr diff <n>`). |
+| Audit des sources | chef | `cargo xtask audit-sources --rev origin/task/<id>` AVANT chaque fusion : code ≠ 0 = pas de fusion, on réécrit (ADR-007). Local : Fragment n'est pas sur les runners. `--historique` pour tout l'historique. |
+| Fusionner | chef | `gh pr merge <n> --squash --delete-branch` après lecture du diff (`gh pr diff <n>`) et audit des sources vert. |
 | Table de parité | équipier | `cargo xtask parite` (régénère les tables depuis les attributs `#[test]` et un fichier `parite.toml` par crate). |
 | Référence pixels | utilisateur ou chef (portable) | `pwsh scripts/pixels-reference.ps1 [scene]` → capture Fragment, écrit `pixels/reference/`, commit. |
 | Diff pixels | tous | `cargo xtask pixels [scene]` → `pixels/diff/`, `docs/parite-pixels.md`, code de sortie ≠ 0 hors tolérance. |

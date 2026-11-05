@@ -55,7 +55,7 @@ Nature des copies :
 - `pixels/scenes/_commun.ts` : code de pilotage repris de `visual-diff.spec.ts`. Sur `main` depuis le 01/11.
 - Les 22 autres : blocs de commentaires, aucune ligne de code. Sur `main` depuis le 01/11.
 
-**Exposition** (API GitHub, 05/11) : 0 fork, 0 étoile, 2 vues sur 14 jours, 999 clones dont 191 uniques. Les clones comptent les runners de CI et les sessions de ce programme, sans qu'on puisse les séparer d'un tiers : on ne peut pas affirmer que personne d'autre n'a téléchargé ces fichiers.
+**Exposition** (API GitHub, 05/11) : 0 fork, 0 étoile, 2 vues sur 14 jours, 999 clones dont 191 uniques. Les clones comptent les runners (160 exécutions de CI) et les sessions de ce programme, sans qu'on puisse les séparer d'un tiers : on ne peut pas affirmer que personne d'autre n'a téléchargé ces fichiers.
 
 ## Corrections
 
