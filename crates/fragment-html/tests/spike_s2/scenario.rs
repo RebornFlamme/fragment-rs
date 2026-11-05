@@ -18,8 +18,8 @@ use std::time::{Duration, Instant};
 use fragment_text::html_bridge::{inject_html_bridge, page_servable};
 use gpui_kit::{
     App, AppContext as _, AsyncApp, Bounds, Context, Entity, IntoElement, ParentElement as _,
-    Render, Styled as _, TitlebarOptions, Window, WindowBounds, WindowOptions, div, point, px, rgb,
-    size,
+    Render, Styled as _, TitlebarOptions, Window, WindowBackgroundAppearance, WindowBounds,
+    WindowOptions, div, point, px, rgb, size,
 };
 use gpui_webview::{WebView, WebViewHandle};
 use serde_json::{Value, json};
@@ -298,6 +298,23 @@ pub mod win {
 
 // ───────────────────────────── le rapport ─────────────────────────────
 
+/// Les mesures d'UNE fenêtre (variante) : pixels ÉCRAN lus sur le bureau composé.
+#[derive(Default, Debug, Clone)]
+pub struct Variant {
+    pub name: String,
+    /// Carré GPUI hors webview : doit être rouge (prouve que le bureau est lisible).
+    pub px_control: Option<(u8, u8, u8)>,
+    /// Point de la webview SANS rien de GPUI dessus : bleu de la page si elle est visible.
+    pub px_web_only: Option<(u8, u8, u8)>,
+    /// Point où un carré GPUI rouge chevauche la webview : rouge = GPUI dessus, bleu = webview dessus.
+    pub px_gpui_over_webview: Option<(u8, u8, u8)>,
+    /// Même point `web_only`, avec un popup layered rouge (alpha 160) par-dessus.
+    pub px_popup_over_webview: Option<(u8, u8, u8)>,
+    /// Taille de la fenêtre du document côté page (`innerWidth x innerHeight`) : la webview a-t-elle ses bornes ?
+    pub inner: Option<String>,
+    pub screenshots: Vec<PathBuf>,
+}
+
 #[derive(Default, Debug)]
 pub struct Report {
     pub error: Option<String>,
@@ -311,11 +328,7 @@ pub struct Report {
     pub link: Option<Value>,
     pub key: Option<Value>,
     pub message_types: Vec<String>,
-    /// Pixels ÉCRAN : témoin (carré GPUI hors webview), carré GPUI sous la webview, popup au-dessus.
-    pub px_control: Option<(u8, u8, u8)>,
-    pub px_gpui_under_webview: Option<(u8, u8, u8)>,
-    pub px_popup_over_webview: Option<(u8, u8, u8)>,
-    pub screenshots: Vec<PathBuf>,
+    pub variants: Vec<Variant>,
 }
 
 #[derive(Default)]
@@ -325,13 +338,15 @@ struct Shared {
 
 // ───────────────────────────── la vue GPUI ─────────────────────────────
 
-// Géométrie logique (px) de la scène.
-const WEB: (f32, f32, f32, f32) = (40., 60., 500., 300.); // x, y, w, h
+// Géométrie logique (px) de la scène : x, y, w, h.
+const WEB: (f32, f32, f32, f32) = (40., 60., 500., 300.);
 const CALQUE_GPUI: (f32, f32, f32, f32) = (420., 240., 100., 100.); // chevauche le bas-droite de la webview
 const TEMOIN_GPUI: (f32, f32, f32, f32) = (600., 60., 80., 80.); // hors webview
+const WEB_ONLY: (f32, f32, f32, f32) = (100., 100., 80., 80.); // dans la webview, rien de GPUI
 
 struct Page {
     webview: Option<Entity<WebView>>,
+    opaque: bool,
 }
 
 impl Render for Page {
@@ -345,7 +360,10 @@ impl Render for Page {
                 .h(px(h))
                 .bg(rgb(0xff0000))
         };
-        let mut root = div().relative().size_full().bg(rgb(0x202020));
+        let mut root = div().relative().size_full();
+        if self.opaque {
+            root = root.bg(rgb(0x202020));
+        }
         if let Some(wv) = &self.webview {
             root = root.child(
                 div()
@@ -357,7 +375,7 @@ impl Render for Page {
                     .child(wv.clone()),
             );
         }
-        // Le calque GPUI est déclaré APRÈS la webview : en GPUI il serait dessus. Le HWND enfant le recouvre.
+        // Le calque GPUI est déclaré APRÈS la webview : en GPUI il serait dessus.
         root.child(carre(CALQUE_GPUI)).child(carre(TEMOIN_GPUI))
     }
 }
@@ -429,18 +447,160 @@ async fn screenshot(cx: &mut AsyncApp, out: &Path, name: &str) -> Option<PathBuf
     (ok && fichier.exists()).then_some(fichier)
 }
 
-struct Ctx {
+/// Une fenêtre GPUI + sa webview ; `Err` = message d'erreur du scénario.
+struct Scene {
     handle: WebViewHandle,
+    scale: f32,
+}
+
+fn open_scene(
+    cx: &mut App,
+    title: &str,
+    transparent: bool,
+    vault: &Path,
+    bridge: &str,
+    shared: &Arc<Mutex<Shared>>,
+) -> Result<Scene, String> {
+    let sh = shared.clone();
+    let url = format!(
+        "http://fragment-local.localhost/page.html?fragment-theme={}",
+        percent_encode(&theme_json())
+    );
+    let mut handle = None;
+    let mut build_error = None;
+    let mut scale = 1.0_f32;
+    let options = WindowOptions {
+        titlebar: Some(TitlebarOptions {
+            title: Some(title.to_string().into()),
+            ..Default::default()
+        }),
+        window_bounds: Some(WindowBounds::Windowed(Bounds::new(
+            point(px(50.), px(50.)),
+            size(px(900.), px(600.)),
+        ))),
+        window_background: if transparent {
+            WindowBackgroundAppearance::Transparent
+        } else {
+            WindowBackgroundAppearance::Opaque
+        },
+        ..Default::default()
+    };
+    let opened = gpui_kit::open_window(options, cx, |window, cx| {
+        scale = window.scale_factor();
+        let builder = WebViewBuilder::new()
+            .with_custom_protocol("fragment-local".into(), {
+                let vault = vault.to_path_buf();
+                let bridge = bridge.to_string();
+                move |_id, req| servir(&vault, &bridge, &req)
+            })
+            .with_ipc_handler(move |req: Request<String>| {
+                if let Ok(v) = serde_json::from_str::<Value>(req.body()) {
+                    if let Ok(mut g) = sh.lock() {
+                        g.messages.push(v);
+                    }
+                }
+            })
+            .with_url(url);
+        let webview = match WebView::build(builder, window, cx) {
+            Ok(w) => {
+                handle = Some(w.handle());
+                Some(cx.new(|_| w))
+            }
+            Err(e) => {
+                build_error = Some(format!("WebView::build : {e}"));
+                None
+            }
+        };
+        cx.new(|_| Page {
+            webview,
+            opaque: !transparent,
+        })
+    });
+    if let Err(e) = opened {
+        return Err(format!("open_window : {e:#}"));
+    }
+    match handle {
+        Some(handle) => Ok(Scene { handle, scale }),
+        None => Err(build_error.unwrap_or_else(|| "pas de webview".into())),
+    }
+}
+
+/// Le point dur, pour la fenêtre `title` : lit les pixels ÉCRAN avec et sans popup layered.
+async fn measure_overlay(
+    cx: &mut AsyncApp,
+    title: &str,
+    scene: &Scene,
+    out: &Path,
+    dpi: &mut u32,
+) -> Variant {
+    let mut v = Variant {
+        name: title.to_string(),
+        ..Variant::default()
+    };
+    v.inner = eval(
+        cx,
+        &scene.handle,
+        "innerWidth + 'x' + innerHeight + ' dpr=' + devicePixelRatio",
+    )
+    .await;
+    cx.background_executor()
+        .timer(Duration::from_millis(2000))
+        .await;
+    let hwnd = win::find_window(title);
+    if hwnd == 0 {
+        return v;
+    }
+    *dpi = win::dpi(hwnd);
+    let Some((ox, oy)) = win::client_origin(hwnd) else {
+        return v;
+    };
+    let s = scene.scale;
+    let ecran = |lx: f32, ly: f32| (ox + (lx * s).round() as i32, oy + (ly * s).round() as i32);
+    let centre = |r: (f32, f32, f32, f32)| ecran(r.0 + r.2 / 2., r.1 + r.3 / 2.);
+    let (cx0, cy0) = centre(TEMOIN_GPUI);
+    let (wx, wy) = centre(WEB_ONLY);
+    let (ux, uy) = centre(CALQUE_GPUI);
+    v.px_control = win::screen_pixel(cx0, cy0);
+    v.px_web_only = win::screen_pixel(wx, wy);
+    v.px_gpui_over_webview = win::screen_pixel(ux, uy);
+    if let Some(p) = screenshot(cx, out, &format!("{title}-1-sans-popup")).await {
+        v.screenshots.push(p);
+    }
+
+    // (a) popup layered possédé, au-dessus de la webview, sur le rectangle `WEB_ONLY`.
+    let (x0, y0) = ecran(WEB_ONLY.0, WEB_ONLY.1);
+    let (w, h) = (
+        (WEB_ONLY.2 * s).round() as i32,
+        (WEB_ONLY.3 * s).round() as i32,
+    );
+    let popup = win::create_overlay(hwnd, x0, y0, w, h, 160);
+    cx.background_executor()
+        .timer(Duration::from_millis(800))
+        .await;
+    v.px_popup_over_webview = win::screen_pixel(wx, wy);
+    if let Some(p) = screenshot(cx, out, &format!("{title}-2-popup-layered")).await {
+        v.screenshots.push(p);
+    }
+    if popup != 0 {
+        win::destroy(popup);
+    }
+    v
+}
+
+struct Ctx {
+    scene: Scene,
     shared: Arc<Mutex<Shared>>,
     report: Arc<Mutex<Report>>,
     out: PathBuf,
-    scale: f32,
+    vault: PathBuf,
+    bridge: String,
 }
 
 async fn drive(cx: &mut AsyncApp, c: Ctx) {
     let t0 = Instant::now();
+    let h = c.scene.handle.clone();
     let mut r = Report {
-        scale: c.scale,
+        scale: c.scene.scale,
         ..Report::default()
     };
 
@@ -454,14 +614,14 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
     }
 
     // 2. JS vivant (valeur calculée PAR la page, relue par l'hôte) et thème présent au 1er script.
-    r.js_value = eval(cx, &c.handle, "document.getElementById('out').textContent").await;
-    r.theme_first = eval(cx, &c.handle, "window.__first").await;
+    r.js_value = eval(cx, &h, "document.getElementById('out').textContent").await;
+    r.theme_first = eval(cx, &h, "window.__first").await;
 
     // 3. Sandbox : sondes lancées par la page elle-même.
     for _ in 0..50 {
         if let Some(s) = eval(
             cx,
-            &c.handle,
+            &h,
             "window.__sandbox ? JSON.stringify(window.__sandbox) : ''",
         )
         .await
@@ -480,13 +640,13 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
     }
 
     // 4. Pont : lien et touche, déclenchés dans la page.
-    let _ = eval(cx, &c.handle, "document.getElementById('lien').click(); 1").await;
+    let _ = eval(cx, &h, "document.getElementById('lien').click(); 1").await;
     let shared = c.shared.clone();
     wait_for(cx, 5000, move || find_msg(&shared, "link").is_some()).await;
     r.link = find_msg(&c.shared, "link");
     let _ = eval(
         cx,
-        &c.handle,
+        &h,
         "window.dispatchEvent(new KeyboardEvent('keydown',{key:'k',ctrlKey:true,bubbles:true})); 1",
     )
     .await;
@@ -503,43 +663,42 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
         }
     }
 
-    // 5. LE POINT DUR. Laisser la fenêtre se peindre, retrouver ses coordonnées ÉCRAN.
-    cx.background_executor()
-        .timer(Duration::from_millis(2000))
-        .await;
-    let hwnd = win::find_window("spike-s2");
-    r.dpi = if hwnd != 0 { win::dpi(hwnd) } else { 0 };
-    if let Some((ox, oy)) = (hwnd != 0).then(|| win::client_origin(hwnd)).flatten() {
-        let s = c.scale;
-        let ecran = |lx: f32, ly: f32| (ox + (lx * s).round() as i32, oy + (ly * s).round() as i32);
-        let (cxp, cyp) = ecran(TEMOIN_GPUI.0 + 40., TEMOIN_GPUI.1 + 40.);
-        let (ux, uy) = ecran(CALQUE_GPUI.0 + 50., CALQUE_GPUI.1 + 50.);
-        r.px_control = win::screen_pixel(cxp, cyp);
-        r.px_gpui_under_webview = win::screen_pixel(ux, uy);
-        if let Some(p) = screenshot(cx, &c.out, "1-calque-gpui-sous-la-webview").await {
-            r.screenshots.push(p);
-        }
+    // 5. LE POINT DUR, variante A : fenêtre OPAQUE (la configuration naturelle de gpui-kit).
+    let mut dpi = 0;
+    let va = measure_overlay(cx, "spike-s2", &c.scene, &c.out, &mut dpi).await;
+    r.variants.push(va);
+    r.dpi = dpi;
 
-        // (a) popup layered possédé, au-dessus de la webview, sur le même rectangle que le calque GPUI.
-        let (x0, y0) = ecran(CALQUE_GPUI.0, CALQUE_GPUI.1);
-        let (w, h) = (
-            (CALQUE_GPUI.2 * s).round() as i32,
-            (CALQUE_GPUI.3 * s).round() as i32,
-        );
-        let popup = win::create_overlay(hwnd, x0, y0, w, h, 160);
-        cx.background_executor()
-            .timer(Duration::from_millis(800))
-            .await;
-        r.px_popup_over_webview = win::screen_pixel(ux, uy);
-        if let Some(p) = screenshot(cx, &c.out, "2-popup-layered-au-dessus").await {
-            r.screenshots.push(p);
+    // Variante B : fenêtre TRANSPARENTE (fond GPUI absent) — la webview est-elle visible dessous,
+    // et le calque GPUI passe-t-il alors AU-DESSUS d'elle ?
+    let slot: Arc<Mutex<Option<Result<Scene, String>>>> = Arc::new(Mutex::new(None));
+    let (s2, vault, bridge, shared) = (
+        slot.clone(),
+        c.vault.clone(),
+        c.bridge.clone(),
+        c.shared.clone(),
+    );
+    let _ = cx.update(move |cx| {
+        let res = open_scene(cx, "spike-s2-transparent", true, &vault, &bridge, &shared);
+        if let Ok(mut g) = s2.lock() {
+            *g = Some(res);
         }
-        if popup != 0 {
-            win::destroy(popup);
+    });
+    let scene_b = slot.lock().ok().and_then(|mut g| g.take());
+    match scene_b {
+        Some(Ok(sb)) => {
+            // Laisser la 2e page charger.
+            cx.background_executor()
+                .timer(Duration::from_millis(3000))
+                .await;
+            let vb = measure_overlay(cx, "spike-s2-transparent", &sb, &c.out, &mut dpi).await;
+            r.variants.push(vb);
         }
-    } else {
-        r.error
-            .get_or_insert_with(|| "fenêtre `spike-s2` introuvable (HWND)".into());
+        Some(Err(e)) => {
+            r.error
+                .get_or_insert(format!("variante transparente : {e}"));
+        }
+        None => {}
     }
 
     if let Ok(mut g) = c.report.lock() {
@@ -572,74 +731,23 @@ pub fn run(out_dir: PathBuf) -> Report {
     gpui_kit::application().run(move |cx: &mut App| {
         gpui_kit::init(cx);
         let shared = Arc::new(Mutex::new(Shared::default()));
-        let sh = shared.clone();
-        let url = format!(
-            "http://fragment-local.localhost/page.html?fragment-theme={}",
-            percent_encode(&theme_json())
-        );
-        let mut handle = None;
-        let mut build_error = None;
-        let mut scale = 1.0_f32;
-
-        let options = WindowOptions {
-            titlebar: Some(TitlebarOptions {
-                title: Some("spike-s2".into()),
-                ..Default::default()
-            }),
-            window_bounds: Some(WindowBounds::Windowed(Bounds::new(
-                point(px(50.), px(50.)),
-                size(px(900.), px(600.)),
-            ))),
-            ..Default::default()
-        };
-        let opened = gpui_kit::open_window(options, cx, |window, cx| {
-            scale = window.scale_factor();
-            let builder = WebViewBuilder::new()
-                .with_custom_protocol("fragment-local".into(), {
-                    let vault = vault.clone();
-                    let bridge = bridge.clone();
-                    move |_id, req| servir(&vault, &bridge, &req)
-                })
-                .with_ipc_handler(move |req: Request<String>| {
-                    if let Ok(v) = serde_json::from_str::<Value>(req.body()) {
-                        if let Ok(mut g) = sh.lock() {
-                            g.messages.push(v);
-                        }
-                    }
-                })
-                .with_url(url);
-            let webview = match WebView::build(builder, window, cx) {
-                Ok(w) => {
-                    handle = Some(w.handle());
-                    Some(cx.new(|_| w))
+        let scene = match open_scene(cx, "spike-s2", false, &vault, &bridge, &shared) {
+            Ok(s) => s,
+            Err(e) => {
+                if let Ok(mut g) = report.lock() {
+                    g.error = Some(e);
                 }
-                Err(e) => {
-                    build_error = Some(format!("WebView::build : {e}"));
-                    None
-                }
-            };
-            cx.new(|_| Page { webview })
-        });
-        if let Err(e) = opened {
-            if let Ok(mut g) = report.lock() {
-                g.error = Some(format!("open_window : {e:#}"));
+                cx.quit();
+                return;
             }
-            cx.quit();
-            return;
-        }
-        let Some(handle) = handle else {
-            if let Ok(mut g) = report.lock() {
-                g.error = build_error;
-            }
-            cx.quit();
-            return;
         };
         let ctx = Ctx {
-            handle,
+            scene,
             shared,
             report: report.clone(),
             out: out_dir,
-            scale,
+            vault,
+            bridge,
         };
         cx.spawn(async move |cx| {
             drive(cx, ctx).await;
@@ -648,10 +756,8 @@ pub fn run(out_dir: PathBuf) -> Report {
         .detach();
     });
 
-    let mut out = report_out
+    report_out
         .lock()
         .map(|mut g| std::mem::take(&mut *g))
-        .unwrap_or_default();
-    out.scale = out.scale.max(0.0);
-    out
+        .unwrap_or_default()
 }

@@ -85,27 +85,18 @@ fn page_vivante_pont_theme_sandbox_et_calque() {
     assert_eq!(sb["absent"], 404, "{sb}");
     assert_eq!(sb["present"], 200, "{sb}");
 
-    // Calque : seulement si le bureau est lisible (le témoin GPUI hors webview doit être rouge).
-    let rouge = |p: Option<(u8, u8, u8)>| p.is_some_and(|(r, g, b)| r > 200 && g < 60 && b < 60);
-    if rouge(r.px_control) {
-        let (r1, _, b1) = r.px_gpui_under_webview.expect("pixel");
-        // Le calque GPUI est CACHÉ par la webview (HWND enfant) : on voit le bleu de la page, pas le rouge.
-        assert!(
-            b1 > 200 && r1 < 80,
-            "calque GPUI sous la webview : {:?}",
-            r.px_gpui_under_webview
-        );
-        // Le popup layered, lui, passe PAR-DESSUS : rouge dominant.
-        let (r2, _, b2) = r.px_popup_over_webview.expect("pixel");
-        assert!(
-            r2 > 140 && b2 < 160,
-            "popup au-dessus : {:?}",
-            r.px_popup_over_webview
-        );
-    } else {
-        println!(
-            "BUREAU NON LISIBLE : témoin {:?} — mesures de superposition ignorées",
-            r.px_control
-        );
+    // Calque : MESURES seulement (le verdict est dans docs/spikes/S2-webview.md, avec les captures).
+    assert_eq!(r.variants.len(), 2, "deux variantes attendues");
+    for v in &r.variants {
+        println!("variante {} : {v:?}", v.name);
+        let rouge = v
+            .px_control
+            .is_some_and(|(r, g, b)| r > 200 && g < 60 && b < 60);
+        if !rouge {
+            println!(
+                "BUREAU NON LISIBLE pour {} : témoin {:?}",
+                v.name, v.px_control
+            );
+        }
     }
 }
