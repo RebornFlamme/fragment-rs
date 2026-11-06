@@ -2746,6 +2746,11 @@ dependencies = [
 [[package]]
 name = "fragment-ui"
 version = "0.0.1"
+dependencies = [
+ "fragment-core",
+ "fragment-theme",
+ "gpui-kit",
+]
 
 [[package]]
 name = "freetype-sys"

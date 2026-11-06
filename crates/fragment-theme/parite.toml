@@ -21,3 +21,28 @@ non_portes = []
 
 # Non porté ici : app/src/ui/theme/ThemePlugin.ts (lecture du disque, watcher, injection
 # de la feuille de style) — plugin d'intégration, relève de fragment-ui / T11 (ADR-005).
+
+# fr-t1-squelette : le garde-fou de Fragment scrute les CSS (couleurs et formes en dur), celui de
+# Rust scrute les sources Rust (`tests/pas_de_litteral.rs`, ADR-005 point 3). Les deux cas « couleur »
+# sont portés (même sens, autre langage) ; les deux cas « forme » et la coloration syntaxique
+# portent sur du CSS et du CodeMirror : sans objet ici.
+[pas_de_litteral]
+ts = "app/src/ui/theme-tokens.test.ts"
+tests_ts = "app/src/ui/theme-tokens.test.ts"
+source = 5
+portes = 2
+non_portes = [
+  "aucune forme de l'échelle en dur hors de index.css : scrute des CSS (côté Rust, `u()` d'echelle.rs, contrôle de revue)",
+  "le détecteur attrape ce qu'il doit (contre-épreuve) [forme] : même raison",
+  "la coloration syntaxique lit les jetons --code-* : CodeMirror, T3",
+]
+
+# `struct Theme` : valeurs de `app/src/ui/index.css` (jetons :root, body, .theme-dark, .theme-light).
+# Pas de test TS d'origine : les tests ajoutés comptent les jetons contre la table de
+# docs/constantes-rendu.md et vérifient des `color-mix` (dont 3 relus dans pixels/reference/*.png).
+[theme]
+ts = "app/src/ui/index.css"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []
