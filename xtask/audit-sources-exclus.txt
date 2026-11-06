@@ -1,2 +1,3 @@
 # Copies légitimes pour cargo xtask audit-sources : « chemin # raison ».
 LICENSE # texte standard de la licence MIT, aucune source de Fragment
+crates/fragment-ui/assets/icons/LICENSE-LUCIDE # licence ISC de Lucide et notice MIT de Feather : texte standard obligatoire, aucune source de Fragment
