@@ -1,0 +1,12 @@
+{
+  "scene": "jouet-glisser-relache",
+  "sans_reference": true,
+  "vue": "jouet",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark"],
+  "pixels_attendus": [{"x":700,"y":500,"rgb":[34,197,94]}],
+  "actions": [
+    {"type":"drag","from":{"x":200,"y":300},"to":{"x":700,"y":500},"release":true,"steps":8},
+    {"type":"wait-stable"}
+  ]
+}

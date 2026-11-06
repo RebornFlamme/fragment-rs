@@ -1,5 +1,6 @@
 {
   "scene": "menu",
+  "depuis": "T7",
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",

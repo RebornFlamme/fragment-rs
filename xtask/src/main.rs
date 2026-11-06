@@ -1,6 +1,6 @@
 //! `cargo xtask <commande>` — l'outillage du dépôt (program.md §7).
 //!
-//! - `pixels [scène] [--reference D] [--candidate D] [--diff D] [--report F] [--require-all]` :
+//! - `pixels [scène] [--reference D] [--candidate D] [--diff D] [--report F] [--scenes D] [--tranche Tn] [--exiger-references]` :
 //!   compare deux dossiers de PNG, écrit les images de diff et le rapport de parité.
 //! - `parite` : lit `crates/*/parite.toml`, écrit `docs/parite-tests.md`.
 //! - `audit-sources [--rev R] [--historique] [--fragment D]` : cherche les copies de sources de
@@ -25,7 +25,7 @@ fn main() -> ExitCode {
         }
         _ => {
             eprintln!(
-                "usage : cargo xtask pixels [scène] [--reference D] [--candidate D] [--diff D] [--report F] [--require-all]\n        cargo xtask parite\n        cargo xtask audit-sources [--rev R] [--historique] [--fragment D]"
+                "usage : cargo xtask pixels [scène] [--reference D] [--candidate D] [--diff D] [--report F] [--scenes D] [--tranche Tn] [--exiger-references]\n        cargo xtask parite\n        cargo xtask audit-sources [--rev R] [--historique] [--fragment D]"
             );
             Ok(false)
         }

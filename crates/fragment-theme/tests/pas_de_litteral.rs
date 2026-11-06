@@ -1,7 +1,7 @@
 //! Garde-fou du thème (ADR-005, point 3) : un composant lit un JETON, jamais un littéral de couleur.
 //!
 //! Le test parcourt `crates/*/src/**/*.rs` hors `fragment-theme` (seule source de valeurs) et
-//! échoue sur `rgb(0x`, `rgba(`, `hsla(` et `Rgba {`. Exception unique : la mire de contrôle du
+//! échoue sur `rgb(0x`, `rgba(`, `hsla(` et `Rgba {`. Exception unique : les vues de contrôle (mire, jouet) du
 //! rasterizeur de `fragment-pixels` (un test de rendu, hors thème par nature).
 //!
 //! Port adapté de `app/src/ui/theme-tokens.test.ts` : l'original scrute les CSS, celui-ci scrute
@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 /// Les motifs interdits (sous-chaînes).
 const MOTIFS: &[&str] = &["rgb(0x", "rgba(", "hsla(", "Rgba {"];
 
-/// La seule exception : la mire de `fragment-pixels` (chemin relatif à `crates/`, séparateur `/`).
-const EXCEPTIONS: &[&str] = &["fragment-app/src/bin/fragment-pixels.rs"];
+/// La seule exception : les vues de contrôle de `fragment-pixels` (mire, jouet), dans `pixels/fenetres.rs` (chemin relatif à `crates/`, séparateur `/`).
+const EXCEPTIONS: &[&str] = &["fragment-app/src/pixels/fenetres.rs"];
 
 /// La crate qui détient les valeurs : jamais scrutée.
 const CRATE_DU_THEME: &str = "fragment-theme";
