@@ -109,9 +109,14 @@ impl Render for Jouet {
             .text_size(px(20.0))
             .p(px(24.0))
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| {
-                match &ev.keystroke.key_char {
-                    Some(c) => this.touches.push_str(c),
-                    None => this.touches.push_str(&format!("<{}>", ev.keystroke.key)),
+                // ★ GPUI renseigne `key_char` même pour Entrée (« \n ») : on ne garde le texte que
+                // pour une vraie touche de caractère (ou espace), les autres s'écrivent <nom>.
+                let k = &ev.keystroke;
+                match &k.key_char {
+                    Some(c) if k.key.chars().count() == 1 || k.key == "space" => {
+                        this.touches.push_str(c)
+                    }
+                    _ => this.touches.push_str(&format!("<{}>", k.key)),
                 }
                 cx.notify();
             }))

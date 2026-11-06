@@ -236,8 +236,8 @@ mod tests {
     use gpui_kit::Entity;
 
     fn jouet(cx: &mut TestAppContext) -> (Entity<Jouet>, &mut VisualTestContext) {
-        let (vue, vcx) = cx.add_window_view(|window, cx| Jouet::new(window, cx));
-        vcx.update(|w, cx| entree::redessiner(w, cx));
+        let (vue, vcx) = cx.add_window_view(Jouet::new);
+        vcx.update(entree::redessiner);
         (vue, vcx)
     }
 
