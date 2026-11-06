@@ -200,7 +200,8 @@ impl CommandHost for HoteScene {
 /// Rend aussi l'hôte, que l'appelant doit garder vivant (le manager n'en tient qu'un lien faible).
 pub fn commandes_de_scene() -> (Rc<CommandManager>, Rc<HoteScene>) {
     let hote = Rc::new(HoteScene);
-    let faible: Weak<dyn CommandHost> = Rc::downgrade(&hote);
+    let hote_dyn: Rc<dyn CommandHost> = hote.clone();
+    let faible: Weak<dyn CommandHost> = Rc::downgrade(&hote_dyn);
     let commandes = CommandManager::new(faible);
     fragment_ui::scene::commandes_de_scene(&commandes);
     (commandes, hote)
@@ -229,13 +230,16 @@ pub fn ouvrir_principale(
     taille: Taille,
 ) -> anyhow::Result<AnyWindowHandle> {
     let opts = options(cx, taille);
-    let (fenetre, _) = match vue {
-        VueScene::App => gpui_kit::open_window(opts, cx, |window, cx| {
-            cx.new(|cx| fragment_app::Coquille::new(window, cx))
-        })?,
-        VueScene::Mire => gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| Mire))?,
+    let fenetre = match vue {
+        VueScene::App => {
+            gpui_kit::open_window(opts, cx, |window, cx| {
+                cx.new(|cx| fragment_app::Coquille::new(window, cx))
+            })?
+            .0
+        }
+        VueScene::Mire => gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| Mire))?.0,
         VueScene::Jouet => {
-            gpui_kit::open_window(opts, cx, |window, cx| cx.new(|cx| Jouet::new(window, cx)))?
+            gpui_kit::open_window(opts, cx, |window, cx| cx.new(|cx| Jouet::new(window, cx)))?.0
         }
     };
     Ok(fenetre)
