@@ -1,19 +1,18 @@
 // Port de app/src/ui/core/artefacts/fold.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Le pli (§14.4) — LA fonction pure qui applique une transaction à l'index.
-//  Plier tout le journal donne l'état courant.
+//  Le pli (§14.4) : fonction pure qui applique une transaction à l'index ; l'état
+//  courant est le pli de tout le journal.
 //
-//  Pour chaque groupe de champs (contenu, scope, ancre, tombe), la valeur qui
-//  porte la plus grande estampille l'emporte (LWW). Trois propriétés, trois
-//  conséquences (invariant §19.1-3) :
-//    - commutatif : les segments se lisent dans n'importe quel ordre ;
-//    - idempotent : relire une ligne déjà lue ne change rien ;
-//    - associatif : plier un segment compacté = plier les segments qu'il remplace.
+//  Arbitrage LWW par groupe de champs (contenu, scope, ancre, tombe) : la plus
+//  grande estampille gagne. D'où, selon l'invariant §19.1-3 :
+//    - l'ordre de lecture des segments est indifférent (commutativité) ;
+//    - relire une ligne est sans effet (idempotence) ;
+//    - un segment compacté équivaut à ses sources (associativité).
 //
-//  ★ Le code est celui du PDF, à la lettre. Seule addition : `local`, qui n'est
-//    pas un groupe arbitré mais l'appartenance du record au journal de l'appareil
-//    (posée à la création, jamais retirée).
+//  ★ Fidèle au PDF, à une addition près : `local`, fixé à la création et jamais
+//    retiré, dit que le record appartient au journal de l'appareil ; il n'est pas
+//    arbitré comme un groupe.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::types::{Index, Op, Rec, Tx};

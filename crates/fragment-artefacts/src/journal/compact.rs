@@ -1,22 +1,19 @@
 // Port de app/src/ui/core/artefacts/journal/compact.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  La compaction (§15.9) — le SEUL code qui supprime des lignes (§19.2).
+//  Compaction (§15.9) : aucun autre code ne retire de lignes (§19.2).
 //
-//      Qui      la fenêtre principale, et seulement le dossier de son appareil.
-//      Quoi     les segments scellés, et les abandonnés depuis plus de 24 h.
-//               Jamais un segment actif.
-//      Quand    au repos, après le démarrage, s'il y a plus de 8 segments ou
-//               plus de 1 Mio.
-//      Comment  écrire le segment compacté sous un nom temporaire, le renommer,
-//               puis supprimer les sources.
-//      Retiré   une ancre remplacée ; un contenu remplacé depuis plus de 90 jours
-//               (par un autre contenu, ou par une tombe : la purge, figure 36).
-//      Gardé    la valeur courante de chaque groupe, et toute tombe.
+//  - Exécutant : la fenêtre principale, sur le seul dossier de son appareil.
+//  - Cibles : segments scellés, ou abandonnés depuis plus de 24 h ; jamais l'actif.
+//  - Déclencheur : au repos après le démarrage, au-delà de 8 segments ou de 1 Mio.
+//  - Procédure : écrire sous un nom temporaire, renommer, puis effacer les sources.
+//  - Éliminé : ancre remplacée ; contenu remplacé il y a plus de 90 jours, par un
+//    autre contenu ou par une tombe (la purge, figure 36).
+//  - Conservé : valeur courante de chaque groupe et toutes les tombes.
 //
-//  ★ Une coupure entre l'écriture et la suppression laisse des lignes en double,
-//    que le pli absorbe (idempotent). Plier le compacté = plier les sources
-//    (associatif) : l'index ne change pas — c'est le test de propriété.
+//  ★ Si la coupure survient entre écriture et effacement, les doublons sont absorbés
+//    par l'idempotence du pli. L'associativité garantit un index identique avant et
+//    après compaction : le test de propriété le vérifie.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::clock::stamp_time;

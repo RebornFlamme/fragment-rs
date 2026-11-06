@@ -1,0 +1,2 @@
+# Copies légitimes pour cargo xtask audit-sources : « chemin # raison ».
+LICENSE # texte standard de la licence MIT, aucune source de Fragment

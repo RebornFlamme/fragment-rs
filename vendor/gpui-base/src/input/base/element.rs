@@ -2175,6 +2175,8 @@ impl<M: InputModeKind> TextElement<M> {
             .visible_buffer_lines
             .iter()
             .map(|&row| {
+                // ★ fragment-rs : taille de police dictée pour cette ligne.
+                let font_size = state.display_map.line_font_size(row).unwrap_or(font_size);
                 let line_start = state.text.line_start_offset(row);
                 let text: String = state.text.slice_line(row).into();
                 let ranges = state
@@ -2298,7 +2300,11 @@ impl<M: InputModeKind> TextElement<M> {
             return Self::layout_token_lines(state, last_layout, font_size, runs, window);
         }
         // ★ fragment-rs : plages masquées sans trou (ADR-006).
-        if !is_single_line && state.text.len() > 0 && state.display_map.has_hidden() {
+        // ★ fragment-rs : taille de police dictée par ligne, même chemin.
+        if !is_single_line
+            && state.text.len() > 0
+            && (state.display_map.has_hidden() || state.display_map.has_line_font_sizes())
+        {
             return Self::layout_hidden_lines(state, last_layout, font_size, runs, window);
         }
 
@@ -3423,13 +3429,15 @@ impl<M: InputModeKind> Element for TextElement<M> {
             offset_y += invisible_top_padding;
 
             // Each item is the normal lines.
-            for (lines, &buffer_line) in line_numbers
+            for ((lines, &buffer_line), layout) in line_numbers
                 .iter()
                 .zip(prepaint.last_layout.visible_buffer_lines.iter())
+                .zip(prepaint.last_layout.lines.iter())
             {
                 let is_active = prepaint.current_row == Some(buffer_line);
                 let p = point(input_bounds.origin.x, origin.y + offset_y);
-                let height = line_height * lines.len() as f32;
+                // ★ fragment-rs : hauteur de rangée dictée ; le bloc sous la ligne décale la suite.
+                let height = layout.row_height(line_height) * lines.len() as f32;
                 // Paint the current line background
                 if is_active {
                     if let Some(bg_color) = active_line_color {
@@ -3439,7 +3447,7 @@ impl<M: InputModeKind> Element for TextElement<M> {
                         ));
                     }
                 }
-                offset_y += height;
+                offset_y += height + layout.block_below(); // ★ fragment-rs
             }
         }
 
@@ -3633,14 +3641,17 @@ impl<M: InputModeKind> Element for TextElement<M> {
             window.paint_quad(fill(gutter_bounds, gutter_bg));
 
             // Each item is the normal lines.
-            for (lines, &buffer_line) in line_numbers
+            for ((lines, &buffer_line), layout) in line_numbers
                 .iter()
                 .zip(prepaint.last_layout.visible_buffer_lines.iter())
+                .zip(prepaint.last_layout.lines.iter())
             {
                 let p = point(input_bounds.origin.x, origin.y + offset_y);
                 let is_active = prepaint.current_row == Some(buffer_line);
 
-                let height = line_height * lines.len() as f32;
+                // ★ fragment-rs : le numéro suit la hauteur dictée de sa ligne.
+                let row_height = layout.row_height(line_height);
+                let height = row_height * lines.len() as f32;
                 // paint active line number background
                 if is_active {
                     if let Some(bg_color) = active_line_color {
@@ -3655,9 +3666,17 @@ impl<M: InputModeKind> Element for TextElement<M> {
                 }
 
                 for line in lines {
-                    _ = line.paint(p, line_height, TextAlign::Left, None, window, cx);
-                    offset_y += line_height;
+                    _ = line.paint(
+                        point(p.x, origin.y + offset_y),
+                        row_height,
+                        TextAlign::Left,
+                        None,
+                        window,
+                        cx,
+                    ); // ★ fragment-rs
+                    offset_y += row_height;
                 }
+                offset_y += layout.block_below(); // ★ fragment-rs
 
                 // Add ghost line height after cursor row for line numbers alignment
                 if !prepaint.ghost_lines.is_empty() && prepaint.current_row == Some(buffer_line) {

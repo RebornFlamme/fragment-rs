@@ -18,8 +18,8 @@ use std::ops::Range;
 use std::time::Instant;
 
 use gpui_kit::{
-    App, AppContext, Bounds, Context, ElementInputHandler, Entity, Pixels, Point, Render,
-    ScrollDelta, Size, TestAppContext, Window, WindowBounds, WindowHandle, WindowOptions,
+    App, AppContext, Bounds, Context, ElementInputHandler, Entity, InputHandler, Pixels, Point,
+    Render, ScrollDelta, Size, TestAppContext, Window, WindowBounds, WindowHandle, WindowOptions,
     base::Root,
     component::input::{Editor, EditorState},
     div, point,
@@ -73,13 +73,23 @@ fn open(
     width: f32,
     height: f32,
 ) -> (WindowHandle<Root>, Entity<EditorState>) {
+    open_with(cx, text, width, height, false)
+}
+
+fn open_with(
+    cx: &mut TestAppContext,
+    text: &str,
+    width: f32,
+    height: f32,
+    line_numbers: bool,
+) -> (WindowHandle<Root>, Entity<EditorState>) {
     cx.update(gpui_kit::init);
     let value = text.to_string();
     let (handle, host) = open_window(cx, size(px(width), px(height)), move |window, cx| {
         let state = cx.new(|cx| {
             EditorState::new(window, cx)
                 .language("markdown")
-                .line_number(false)
+                .line_number(line_numbers)
                 .auto_close(false)
                 .smart_indent(false)
                 .default_value(value)
@@ -503,6 +513,159 @@ fn dix_mille_lignes_avec_le_fork(cx: &mut TestAppContext) {
             hidden.len(),
         );
         assert!(scroll_mean < 2000., "défilement absurdement lent");
+    })
+    .unwrap();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dettes soldées (tâche fr-p3-fork-input, ADR-006) : police par rangée, gouttière et IME à hauteurs
+// variables, plage masquée atomique à Gauche/Droite.
+
+/// (g) La taille de police dictée change la LARGEUR des glyphes (un H1 plus GROS, pas seulement plus
+/// haut). La chasse du `NoopTextSystem` est proportionnelle au corps : largeur(40) = 2 × largeur(20).
+#[gpui_kit::test]
+fn police_dictee_par_rangee(cx: &mut TestAppContext) {
+    let text = "# Titre
+corps
+";
+    let (handle, state) = open(cx, text, 800., 480.);
+    cx.update_window(handle.into(), |_, window, cx| {
+        settle(window, cx);
+        let l1 = line_start(text, 1);
+        let largeur =
+            |cx: &App, r: Range<usize>| state.read(cx).range_to_bounds(&r).unwrap().size.width;
+        let base_titre = largeur(cx, 2..3);
+        let base_corps = largeur(cx, l1..l1 + 1);
+        assert!(
+            near(base_titre, f32::from(base_corps)),
+            "même corps au départ"
+        );
+
+        state.update(cx, |s, cx| s.set_line_font_sizes(vec![(0, px(40.))], cx));
+        settle(window, cx);
+        let w40 = largeur(cx, 2..3);
+        state.update(cx, |s, cx| s.set_line_font_sizes(vec![(0, px(20.))], cx));
+        settle(window, cx);
+        let w20 = largeur(cx, 2..3);
+        let corps = largeur(cx, l1..l1 + 1);
+        println!("S1b|police|base={base_titre:?} w20={w20:?} w40={w40:?} corps={corps:?}");
+        assert!(
+            near(w40, 2. * f32::from(w20)),
+            "la largeur suit la police dictée"
+        );
+        assert!(w40 > base_titre, "le titre est plus gros que le corps");
+        assert!(
+            near(corps, f32::from(base_corps)),
+            "les autres lignes gardent leur corps"
+        );
+
+        // Avec `# ` masqué et une hauteur dictée en plus : tout coexiste.
+        let (hidden, heights) = host_model(text, text.len(), 36.);
+        state.update(cx, |s, cx| {
+            s.set_row_model(hidden, heights, vec![], cx);
+            s.set_line_font_sizes(vec![(0, px(40.))], cx);
+        });
+        settle(window, cx);
+        assert!(near(largeur(cx, 2..3), f32::from(w40)));
+        // Vider le modèle de polices : retour au corps de base.
+        state.update(cx, |s, cx| s.set_line_font_sizes(vec![], cx));
+        settle(window, cx);
+        assert!(near(largeur(cx, 2..3), f32::from(base_titre)));
+    })
+    .unwrap();
+}
+
+/// (h) Gouttière allumée et IME : le panneau IME a la hauteur DICTÉE de la rangée de la plage, et
+/// la ligne suivante est décalée d'autant. (Le dessin des numéros n'est pas observable en headless :
+/// il emprunte la même arithmétique, `LineLayout::row_height` + `block_below`, que le texte.)
+#[gpui_kit::test]
+fn gouttiere_et_ime_suivent_les_hauteurs(cx: &mut TestAppContext) {
+    let text = "# Titre
+corps
+fin
+";
+    let (handle, state) = open_with(cx, text, 800., 480., true);
+    cx.update_window(handle.into(), |_, window, cx| {
+        settle(window, cx);
+        let lh = f32::from(state.read(cx).line_height().unwrap());
+        let (l1, l2) = (line_start(text, 1), line_start(text, 2));
+        let (hidden, heights) = host_model(text, text.len(), 36.);
+        state.update(cx, |s, cx| {
+            s.set_row_model(hidden, heights, vec![(1, px(50.))], cx)
+        });
+        settle(window, cx);
+        let bounds = window.find(("input", state.entity_id())).bounds();
+        let mut ime = ElementInputHandler::new(bounds, state.clone());
+        let titre = ime.bounds_for_range(2..3, window, cx).unwrap();
+        let corps = ime.bounds_for_range(l1..l1 + 1, window, cx).unwrap();
+        let fin = ime.bounds_for_range(l2..l2 + 1, window, cx).unwrap();
+        println!(
+            "S1b|ime_hauteurs|titre={:?} corps={:?} dy_corps={:?} dy_fin={:?}",
+            titre.size.height,
+            corps.size.height,
+            corps.origin.y - titre.origin.y,
+            fin.origin.y - corps.origin.y
+        );
+        assert!(
+            near(titre.size.height, 36.),
+            "panneau IME = rangée du titre"
+        );
+        assert!(
+            near(corps.size.height, lh),
+            "ligne normale : hauteur de base"
+        );
+        assert!(near(corps.origin.y - titre.origin.y, 36.));
+        assert!(
+            near(fin.origin.y - corps.origin.y, lh + 50.),
+            "le bloc décale la suite"
+        );
+    })
+    .unwrap();
+}
+
+/// (i) Gauche/Droite franchissent une plage masquée d'un seul pas (atome), dans les deux sens ;
+/// la sélection au clavier aussi. Sans plage masquée : un pas d'un caractère comme avant.
+#[gpui_kit::test]
+fn gauche_droite_franchissent_la_plage_masquee(cx: &mut TestAppContext) {
+    let text = "# Titre
+corps
+";
+    let (handle, state) = open(cx, text, 800., 480.);
+    cx.update_window(handle.into(), |_, window, cx| {
+        settle(window, cx);
+        state.update(cx, |s, cx| s.focus(window, cx));
+        // Curseur sur la ligne 1 : `# ` (0..2) est masqué.
+        let (hidden, heights) = host_model(text, text.len(), 36.);
+        assert_eq!(hidden, vec![0..2]);
+        state.update(cx, |s, cx| s.set_row_model(hidden, heights, vec![], cx));
+        settle(window, cx);
+
+        state.update(cx, |s, cx| s.set_selected_range(2..2, cx));
+        window.press("left", cx);
+        assert_eq!(state.read(cx).cursor(), 0, "Gauche : de 2 à 0 en un pas");
+        window.press("right", cx);
+        assert_eq!(state.read(cx).cursor(), 2, "Droite : de 0 à 2 en un pas");
+        window.press("right", cx);
+        assert_eq!(
+            state.read(cx).cursor(),
+            3,
+            "hors de la plage : un caractère"
+        );
+
+        state.update(cx, |s, cx| s.set_selected_range(2..2, cx));
+        window.press("shift-left", cx);
+        assert_eq!(
+            state.read(cx).selected_range(),
+            0..2,
+            "Maj+Gauche : la plage entière"
+        );
+
+        // Plus de plage masquée : retour au pas d'un caractère.
+        state.update(cx, |s, cx| s.set_row_model(vec![], vec![], vec![], cx));
+        settle(window, cx);
+        state.update(cx, |s, cx| s.set_selected_range(2..2, cx));
+        window.press("left", cx);
+        assert_eq!(state.read(cx).cursor(), 1);
     })
     .unwrap();
 }

@@ -1,14 +1,14 @@
 // Port de app/src/ui/views/agent/attachmentBlocks.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Les PIÈCES JOINTES d'un message ↔ les blocs de contenu du SDK. Pur (testé).
+//  Conversion pure, et testée, entre pièces jointes et blocs de contenu du SDK.
 //
-//    image png / jpeg / gif / webp → bloc `image` NATIF (le modèle la voit, sans Read) ;
-//    PDF                           → bloc `document` (base64) ;
-//    texte (text/*, json, code…)   → bloc `document` texte, titré par le nom ;
-//    tout le reste                 → copié sur le disque (dossier des pièces jointes
-//                                    de l'agent), un bloc texte `<attachment …/>` en
-//                                    donne le chemin : l'agent l'ouvre (Read, shell).
+//  Selon le type de la pièce :
+//    - png, jpeg, gif, webp : bloc `image` natif, lisible sans passer par Read ;
+//    - PDF : bloc `document` en base64 ;
+//    - texte (text/*, json, code…) : bloc `document` texte portant le nom du fichier ;
+//    - autre : copie dans le dossier des pièces jointes de l'agent, et bloc texte
+//      `<attachment …/>` indiquant le chemin à ouvrir avec Read ou le shell.
 //  Le transcript du SDK garde ces blocs : la relecture (`attachment_from_block`)
 //  rend les pièces jointes de chaque message.
 // ═══════════════════════════════════════════════════════════════════════════

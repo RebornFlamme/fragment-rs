@@ -1,19 +1,17 @@
 // Port de app/src/ui/core/artefacts/clock.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'horloge hybride (§14.3) — l'algorithme de Kulkarni et al. (2014), au format
-//  d'Actual Budget :
+//  Horloge hybride (§14.3) : Kulkarni et al. (2014), sérialisée comme dans Actual
+//  Budget, soit `<heure ISO à la ms>-<compteur sur 4 chiffres>-<écrivain>`, par
+//  exemple 2026-09-29T17:20:00.000Z-0003-k3f9-b71.
 //
-//      2026-09-29T17:20:00.000Z-0003-k3f9-b71
-//      └─ l'heure, à la ms ───┘ └cpt┘ └écrivain┘
+//  À l'émission, l'heure retenue est le maximum de l'horloge locale et de la plus
+//  grande heure connue ; le compteur repart de 0 si l'heure a avancé et monte de 1
+//  sinon. À la réception, on mémorise la plus grande estampille. L'ordre est celui
+//  des chaînes, et l'écrivain garantit qu'il n'y a jamais d'égalité.
 //
-//  Émettre : heure = max(horloge, plus grande heure déjà vue) ; même heure que la
-//  précédente → compteur + 1, sinon compteur = 0. Recevoir : on adopte la plus
-//  grande estampille vue. Comparer : comme deux chaînes. L'écrivain départage le
-//  reste — deux estampilles ne sont jamais égales.
-//
-//  ★ Ce qui suit une lecture reste après cette lecture, quelle que soit l'heure
-//    affichée par la machine (figure 26).
+//  ★ Figure 26 : une écriture postérieure à une lecture se classe après elle,
+//    même si la machine retarde.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::types::Stamp;

@@ -1,15 +1,14 @@
 // Port de app/src/ui/core/artefacts/device.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'APPAREIL (§13, §14.1) — ce qui ne voyage jamais.
+//  Identité locale (§13, §14.1), jamais synchronisée.
 //
-//  - `deviceId` : tiré au hasard une fois, rangé dans userData/device.json, HORS
-//    du coffre. La synchronisation ne le copie donc jamais : deux machines ont
-//    toujours deux dossiers de journal distincts.
-//  - la session : un numéro par processus écrivain (fenêtre principale, fenêtre
-//    de réglages…). `k3f9-b71` = appareil + session = l'écrivain.
-//  - le journal LOCAL : userData/artefacts/<coffre>/journal/, même format que
-//    celui du coffre, pour les records `local: true` (§14.1).
+//  - `deviceId` : valeur aléatoire créée une seule fois dans userData/device.json,
+//    en dehors du coffre ; chaque machine a donc son propre dossier de journal.
+//  - session : numéro propre à chaque processus qui écrit (fenêtre principale,
+//    réglages…). L'écrivain est le couple des deux, par exemple `k3f9-b71`.
+//  - journal local : userData/artefacts/<coffre>/journal/, au format du journal du
+//    coffre, réservé aux records `local: true` (§14.1).
 //
 //  ★ Sans userData (tests, headless), tout se replie en mémoire : un identifiant
 //    de processus, un journal local en mémoire (fs.rs). Rien ne casse.

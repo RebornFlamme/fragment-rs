@@ -14,6 +14,7 @@ Réécriture de Fragment (clone d'Obsidian pour humains et agents) en Rust sur G
 - Le cœur (`fragment-core`, `-text`, `-layers`, `-artefacts`) ne dépend pas de `gpui-kit` et ne connaît aucune vue par son nom.
 - Un jeton de thème, jamais un littéral de couleur hors `fragment-theme`.
 - **Pixel perfect** : toute tâche de rendu livre ses scènes (`pixels/scenes/`), la référence capturée sur Fragment et un job `pixels` vert. Constantes de mise en page lues dans les CSS de Fragment (`docs/constantes-rendu.md`), jamais réestimées. Géométrie et couleurs en strict (0 pixel) ; seul l'anticrénelage des glyphes a une tolérance, suivie comme une dette.
+- **Aucune copie de source de Fragment** (dépôt privé, celui-ci est public) : fixtures et commentaires se réécrivent. `cargo xtask audit-sources --rev origin/task/<id>` en code 0 avant toute fusion (ADR-007).
 - Commentaires en français, `★` pour ce qui a été appris chèrement. Commits `feat : …` / `fix : …` / `port : …` / `spike : …` / `docs : …`.
 - `target/` et la base Beads vivent HORS OneDrive (`.cargo/config.toml`, `C:\dev\…`).
 

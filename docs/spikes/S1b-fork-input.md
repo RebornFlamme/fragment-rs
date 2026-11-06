@@ -33,7 +33,7 @@ API ajoutée (une seule) : `EditorState::set_row_model(hidden: Vec<Range<usize>>
 ### (d) IME (protocole de composition) — GO
 - Essai : `ime_toujours_vert_avec_le_fork` : `# ` tapé, puis masqué ET ligne H1 36 px pendant la composition (`に` → `日本` → commit `日本語`).
 - Mesure : plage marquée `2..3` puis `2..4` (UTF-16), après commit sélection `5..5` côté système et `11..11` côté éditeur : **identique à S1**. La plage masquée `0..2` n'a pas bougé pendant la composition (« 日 » au x du début de ligne).
-- Verdict : GO. ★ Comme S1 : l'IME du système (fenêtre de candidats, TSF) n'est pas testable en headless ; à vérifier à la main avec le japonais dès que T3 a un exemple lançable. `bounds_for_range` (position de la fenêtre de candidats) garde la hauteur de base : dette notée (ADR-006).
+- Verdict : GO. ★ Comme S1 : l'IME du système (fenêtre de candidats, TSF) n'est pas testable en headless ; à vérifier à la main avec le japonais dès que T3 a un exemple lançable. `bounds_for_range` (position de la fenêtre de candidats) suit désormais les hauteurs dictées (dette soldée par `fr-p3-fork-input`, ADR-006).
 
 ### (e) Annuler / rétablir — GO
 - Essai : `annuler_et_retablir_avec_le_fork` : `# ab⏎cd`, modèle actif (`0..2` masqué, H1, bloc 40 px), Ctrl+Z, Ctrl+Y, puis frappe en tête de la ligne masquée.

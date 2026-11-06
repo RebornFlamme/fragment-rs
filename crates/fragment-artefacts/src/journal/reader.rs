@@ -1,15 +1,13 @@
 // Port de app/src/ui/core/artefacts/journal/reader.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Le lecteur du journal (§14.1-14.2, §15.3, §15.4).
+//  Lecture du journal (§14.1-14.2, §15.3, §15.4).
 //
-//      journal/<appareil>/<date>-<session>.ndjson
-//
-//  Un segment : une ligne d'en-tête, puis une transaction par ligne, puis — s'il
-//  a été fermé proprement — une ligne `{"seal":true}`. Le lecteur ne plie que les
-//  lignes NOUVELLES depuis son curseur. Une ligne incomplète en fin de fichier
-//  est ignorée (arrêt brutal, copie en cours) et n'est pas comptée : elle sera
-//  relue quand elle sera complète. Tout ce qui la précède reste valide.
+//  Chemin d'un segment : journal/<appareil>/<date>-<session>.ndjson. Contenu : un
+//  en-tête, une transaction par ligne et, après une fermeture propre, `{"seal":true}`.
+//  Seules les lignes situées après le curseur sont pliées. Une dernière ligne tronquée
+//  (crash, copie en cours) ne fait pas avancer le curseur : on la relira entière plus
+//  tard, et les lignes précédentes restent bonnes.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::cache::{JournalKind, SegmentCursor};

@@ -21,6 +21,8 @@ pub(super) struct RowModel {
     pub(super) line_heights: Rc<[(usize, Pixels)]>,
     /// (ligne, hauteur du bloc posé sous la dernière rangée de cette ligne), trié par ligne.
     pub(super) blocks: Rc<[(usize, Pixels)]>,
+    /// (ligne, taille de police du texte de cette ligne), trié par ligne.
+    pub(super) font_sizes: Rc<[(usize, Pixels)]>,
 }
 
 /// Un tronçon de rangées d'affichage consécutives qui partagent une hauteur dictée.
@@ -153,6 +155,14 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.display_map.ensure_text_prepared(&self.text, cx);
         self.display_map
             .set_row_model(hidden, line_heights, blocks, cx);
+        cx.notify();
+    }
+
+    /// Dicte la TAILLE DE POLICE de certaines lignes logiques (un H1 plus gros, pas seulement plus
+    /// haut). Complète `set_row_model` : la hauteur de rangée reste dictée à part. Le retour à la
+    /// ligne (soft wrap) mesure encore au corps de base : une rangée en gros caractères peut déborder.
+    pub fn set_line_font_sizes(&mut self, font_sizes: Vec<(usize, Pixels)>, cx: &mut Context<Self>) {
+        self.display_map.set_line_font_sizes(font_sizes);
         cx.notify();
     }
 }

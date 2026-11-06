@@ -1,23 +1,20 @@
 // Port de app/src/ui/core/artefacts/journal/import.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  La migration depuis l'existant (§18) — une seule fois, déterministe.
+//  Migration de l'ancien stockage (§18), unique et déterministe.
 //
-//      refs/<plugin>/<id>.json  ─lit─▶  journal/import/0-refs.ndjson
-//      objects/<sha>.json       ─────▶  inchangé
-//      refs/                    ─────▶  refs.migrated/  (gardé, plus jamais lu)
+//  `refs/<plugin>/<id>.json` devient `journal/import/0-refs.ndjson` ; `objects/` ne
+//  bouge pas ; `refs/` est renommé `refs.migrated/`, conservé mais plus jamais lu.
 //
-//  1. Lire chaque ref, et son objet quand le state tient sous le seuil.
-//  2. Une ligne par artefact ; estampille = updatedAt, compteur à zéro,
-//     écrivain `import` ; lignes triées par id.
-//  3. Renommer refs/ en refs.migrated/. Ne rien supprimer.
-//  4. Laisser objects/ : les objets devenus inutiles partiront au premier
-//     balayage, après le délai de grâce.
+//  Étapes : lire chaque ref et, sous le seuil de taille, son objet ; écrire une ligne
+//  par artefact, triée par id, avec updatedAt pour estampille, un compteur nul et
+//  l'écrivain `import` ; renommer `refs/` sans rien effacer. Les objets devenus
+//  inutiles disparaîtront au premier balayage, une fois le délai de grâce écoulé.
 //
-//  ★ Deux appareils qui lancent l'import chacun de leur côté produisent le même
-//    fichier, ligne pour ligne : l'outil de synchronisation n'a rien à arbitrer.
-//    Si un fichier d'import existe déjà (un ref en retard est arrivé par la
-//    synchro), on fusionne par id et on réécrit — toujours de façon déterministe.
+//  ★ Le fichier produit est le même, à la ligne près, sur deux appareils qui migrent
+//    séparément : la synchronisation n'a pas de conflit à résoudre. Quand un fichier
+//    d'import est déjà là (ref retardataire reçu par synchro), on fusionne par id
+//    puis on réécrit, là encore de façon déterministe.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::cache::JournalKind;

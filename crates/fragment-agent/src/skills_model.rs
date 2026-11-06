@@ -9,12 +9,12 @@
 //  `<userData>/agent/skills-plugin/` : le binaire natif de Claude Code ne lit
 //  pas dans l'archive de l'app.
 //
-//  ★ Le SDK les nomme `<plugin>:<skill>`. On passe la LISTE explicite des noms
-//    (`skills: [...]`), pas `'all'` : `'all'` exposerait aussi les skills
-//    intégrés de Claude Code (design, code-review…), constaté avec le vrai SDK.
-//  ★ Un profil SANS outils (`tools: []`, le « Ask » du lecteur) reste léger :
-//    ni plugin ni skills. Un profil à outils restreints doit nommer `Skill`,
-//    sinon l'outil n'existe pas dans la session (constaté).
+//  ★ Noms côté SDK : `<plugin>:<skill>`. La session reçoit une liste nominative
+//    (`skills: [...]`) ; la valeur `'all'` ferait entrer les skills fournis avec
+//    Claude Code (design, code-review…), vérifié sur le vrai SDK.
+//  ★ Sans outils (`tools: []`, cas du « Ask » du lecteur), on n'ajoute ni plugin ni
+//    skills. Avec une liste d'outils limitée, il faut y mettre `Skill` : sinon
+//    cet outil manque à la session (vérifié).
 // ═══════════════════════════════════════════════════════════════════════════
 
 use std::collections::BTreeMap;
