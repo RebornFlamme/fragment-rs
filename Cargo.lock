@@ -2624,9 +2624,14 @@ name = "fragment-app"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "fragment-core",
+ "fragment-theme",
+ "fragment-ui",
  "gpui-kit",
  "image",
+ "serde",
  "serde_json",
+ "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -11455,6 +11460,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "image",
+ "serde_json",
  "toml 0.8.23",
 ]
 
