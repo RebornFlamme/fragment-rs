@@ -1,4 +1,3 @@
-import path from 'path';
 // ★ Le Playwright de Fragment/app/node_modules (jamais un second exemplaire :
 //   le harnais e2e importé de Fragment résout le même paquet).
 import { defineConfig } from '../../Fragment/app/node_modules/@playwright/test';
@@ -24,13 +23,8 @@ export default defineConfig({
         reducedMotion: 'reduce',
         colorScheme: 'dark',
     },
-    // Le harnais charge la fenêtre depuis le serveur dev de Fragment (5123). Réutilisé
-    // s'il tourne déjà ; sinon lancé (Vite écrit alors son cache dans node_modules/.vite).
-    webServer: {
-        command: 'npm run dev:react',
-        cwd: path.resolve(__dirname, '../../Fragment/app'),
-        url: 'http://localhost:5123',
-        reuseExistingServer: true,
-        timeout: 120_000,
-    },
+    // ★ Pas de `webServer` : le harnais charge la fenêtre depuis le port 5123 (codé en dur dans
+    // Fragment). Ce serveur est la Vite enveloppe (pixels/vite.reference.config.ts), démarrée —
+    // ou reconnue si l'utilisateur en a déjà une — par scripts/pixels-reference.ps1. Une commande
+    // `npm run dev:react` lancée d'ici écrirait le cache Vite dans Fragment.
 });
