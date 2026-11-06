@@ -1,11 +1,19 @@
 //! Thème : jetons (noms d'Obsidian, valeurs de Fragment), themeModel, cascade (S4).
 //!
-//! Cette tâche (`fr-p1-divers`) porte le MODÈLE (`theme_model`) et le contrat
-//! `theme:manager@1` (`manager`). La `struct Theme`, `Theme::sombre()/clair()` et la
-//! cascade de `theme.json` (ADR-005) sont une tâche de T11.
+//! `fr-p1-divers` a porté le MODÈLE (`theme_model`) et le contrat `theme:manager@1`
+//! (`manager`). `fr-t1-squelette` y ajoute la `struct Theme` (un champ par jeton), ses deux
+//! constructeurs `Theme::sombre()/clair()` et la couleur 8 bits avec son `color-mix`
+//! (ADR-005). La cascade de `theme.json` d'un coffre reste une tâche de T11.
 
+pub mod clair;
+pub mod couleur;
 pub mod manager;
+pub mod sombre;
+pub mod theme;
 pub mod theme_model;
+
+pub use couleur::{Couleur, Ombre};
+pub use theme::{Forme, Mode, Palette, Pile, Theme, Typo};
 
 pub use manager::{THEME_MANAGER_ID, ThemeManager, theme_manager};
 pub use theme_model::{

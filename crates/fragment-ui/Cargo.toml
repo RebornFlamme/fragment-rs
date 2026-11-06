@@ -5,8 +5,18 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+# build.rs : liste les fichiers de assets/ pour les embarquer sans maintenir de table à la main.
+build = "build.rs"
 
 [dependencies]
+# Le cœur ne connaît pas gpui-kit ; c'est fragment-ui qui les rapproche.
+fragment-core = { path = "../fragment-core" }
+fragment-theme = { path = "../fragment-theme" }
+gpui-kit.workspace = true
+
+[dev-dependencies]
+# Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.
+gpui-kit = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

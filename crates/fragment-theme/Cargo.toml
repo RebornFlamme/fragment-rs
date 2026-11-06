@@ -12,5 +12,9 @@ fragment-core = { path = "../fragment-core" }
 # Tri « sensibilité base » de lister_themes (accents ignorés) ; déjà dans Cargo.lock (fragment-core).
 unicode-normalization = "0.1"
 
+[dev-dependencies]
+# Lecture des captures de référence (pixels/reference) par les tests de color-mix.
+image.workspace = true
+
 [lints]
 workspace = true
