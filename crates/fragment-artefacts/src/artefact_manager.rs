@@ -1662,11 +1662,11 @@ impl ArtefactManager {
             let c = SegmentCursor {
                 key: cursor_key(journal, &res.path),
                 journal,
-                path: res.path,
-                size: res.size,
-                lines: res.lines,
                 sealed: true,
+                lines: res.lines,
+                size: res.size,
                 objects: res.objects,
+                path: res.path,
             };
             self.cursors.insert(c.key.clone(), c.clone());
             batch.segments.push(c);

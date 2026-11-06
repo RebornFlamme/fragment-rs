@@ -3,12 +3,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  LES ACTIONS RAPIDES — le modèle PUR.
 //
-//  ★ DEUX AGENTS, DEUX RÔLES (décision utilisateur, 31/10) : le PETIT agent ne
-//    fait que deviner ce que l'utilisateur veut le plus probablement faire ensuite
-//    — 1 à 3 boutons, et sa sortie n'est QUE `{label, icon}` (3-4 mots qui disent
-//    l'action, une icône) : rien à penser des commandes, presque rien à écrire —
-//    plus rapide. Un clic démarre un SIDE CHAT ancré à la sélection / la zone, où
-//    l'agent NORMAL reçoit le libellé (après le document et le passage, ou la
+//  ★ Répartition en deux agents (décision utilisateur, 31/10). Le petit agent anticipe
+//    seulement la suite la plus probable : 1 à 3 boutons, réduits à `{label, icon}`,
+//    soit une icône et 3-4 mots décrivant l'action. N'ayant ni commande à concevoir
+//    ni presque rien à rédiger, il répond vite. Cliquer ouvre un SIDE CHAT ancré à la
+//    sélection ou à la zone, où l'agent normal reçoit le libellé, précédé du document
+//    et du passage (ou de la
 //    capture) et fait le travail, avec ses outils et la politique de permissions.
 //
 //  ★ Sécurité : le libellé est écrit par un modèle qui LIT le document (injection

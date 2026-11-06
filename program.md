@@ -88,7 +88,7 @@ Installation (phase 0) : `npm install -g @beads/bd` puis `bd init` dans `fragmen
 2. `Fichiers possédés :` la liste des fichiers Rust que la tâche crée ou modifie (exclusifs tant qu'elle est ouverte).
 3. `Vérification :` la commande (ex. `cargo test -p fragment-artefacts`) et/ou le workflow CI attendu vert.
 4. `Fini quand :` critères observables (nombre de cas de test portés, PR fusionnée, mesure).
-5. La règle, dans le brief aussi : **aucune copie de source de Fragment ; une fixture se réécrit**, un commentaire aussi : les ports reformulent, ils ne reprennent pas le texte TS (ADR-007).
+5. La règle, dans le brief aussi : **aucune copie de source de Fragment ; une fixture se réécrit. Un port TRADUIT le code et RÉÉCRIT les commentaires dans ses mots ; il ne recopie ni en-tête ni diagramme** (ADR-007).
 
 **Cycle d'un équipier.** `bd ready` → `bd update <id> --claim` → branche `task/<id>` → travail → `gh pr create` → CI → `bd update <id> --notes "PR #n"` → le chef lance l'audit des sources (code 0 obligatoire, §7) puis fusionne → `bd close <id>`. Une tâche fermée sans PR fusionnée est une erreur.
 

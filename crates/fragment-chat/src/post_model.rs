@@ -1,10 +1,10 @@
 // Port de app/src/ui/views/chat/components/postModel.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  La présentation `post` d'une conversation — un TWEET (demande utilisateur :
-//  « je veux être sur Twitter, littéralement »). Pur (testé) : ce qu'on montre
-//  d'un fil — sa question, sa première réponse, combien de réponses — et l'heure
-//  relative à la manière de X.
+//  Présentation `post` d'une conversation, conçue comme un TWEET (l'utilisateur a
+//  demandé de se croire « sur Twitter, littéralement »). Module pur et testé : il
+//  extrait d'un fil la question, la première réponse et le nombre de réponses, et
+//  formate l'heure relative comme sur X.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::api::{ChatMessage, Participant};

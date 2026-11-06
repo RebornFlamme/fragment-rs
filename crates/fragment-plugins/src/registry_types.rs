@@ -1,11 +1,10 @@
 // Port de app/src/ui/core/plugins/registry/types.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'ABSTRACTION À DEUX SOURCES (§C3) — le cœur de « proposer les deux mondes ».
-//
-//  Une source = un registre + les dépôts de ses auteurs. Deux implémentations
-//  miroir (même schéma, base d'URL différente) : le registre Obsidian et NOTRE
-//  canal GitHub `fragment-releases`. Le navigateur (Browse) propose les deux.
+//  Deux sources derrière une même abstraction (§C3) : c'est ce qui permet d'offrir les
+//  deux mondes. Une source réunit un registre et les dépôts de ses auteurs. Il en existe
+//  deux, de même schéma et d'URL de base différente : le registre Obsidian et notre
+//  canal GitHub `fragment-releases`, tous deux proposés par le navigateur (Browse).
 //
 //  ★ Transposition : les méthodes `async` du TS sont BLOQUANTES ici. Le transport
 //    ([`Reseau`]) est injecté ; l'hôte exécute l'appel hors du fil de l'interface

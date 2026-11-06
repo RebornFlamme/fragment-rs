@@ -1,11 +1,11 @@
 // Port de app/src/ui/core/layers/visibility.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  « Cette position est-elle dessinée ? » — la règle, en un seul exemplaire.
+//  Une seule règle pour répondre à « cette position est-elle dessinée ? ».
 //
-//  ★ POURQUOI ici et pas recopiée chez chaque consommateur : ils sont déjà trois
-//    (markers, widgets, surface de saisie) et ils doivent répondre PAREIL. Une
-//    règle dupliquée trois fois, c'est trois occasions de la corriger deux fois.
+//  ★ Elle vit ici car ses trois consommateurs (markers, widgets, surface de saisie)
+//    doivent donner la même réponse : avec trois copies, un correctif finirait tôt ou
+//    tard par en oublier une.
 //
 //  La subtilité tient en une phrase : « pas visible » a deux sens opposés.
 //  Hors écran, l'objet existe et il faut le laisser où il est ; masqué, il faut
