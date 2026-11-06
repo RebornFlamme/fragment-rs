@@ -3,10 +3,10 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  Le vocabulaire d'« Ask » — pur.
 //
-//  Une question sur un passage n'est pas un objet de ce plugin : c'est une
-//  CONVERSATION de l'agent ancrée au passage (la vue `chat` dans un widget de
-//  doc-widget). Il reste ici son titre et l'ancien état `reader:card` (pour la
-//  migration des cartes d'avant la vue chat).
+//  Poser une question sur un passage ne crée aucun objet propre à ce plugin : on
+//  ouvre une conversation de l'agent ancrée à ce passage (vue `chat` dans un widget
+//  de doc-widget). Ce module ne garde que le titre, et l'ancien état `reader:card`
+//  pour migrer les cartes antérieures à la vue chat.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use serde::{Deserialize, Serialize};

@@ -4,11 +4,11 @@
 //  SDK → contrat de Fragment. Fonctions PURES. Les messages du SDK (et les
 //  lignes `stream-json` du CLI `claude`, de même forme) sont des `serde_json::Value`.
 //
-//  ★ Le texte arrive par les `stream_event` (deltas) ; le message `assistant`
-//    complet qui suit le répète. On ne retient donc de lui que les appels
-//    d'outils — sinon chaque réponse s'afficherait deux fois.
-//  ★ Les messages d'un sous-agent (`parent_tool_use_id` posé) sont ignorés : le
-//    fil montre la conversation principale.
+//  ★ Les deltas `stream_event` portent déjà le texte, que répète ensuite le message
+//    `assistant` complet. Celui-ci ne sert donc que pour ses appels d'outils : garder
+//    aussi son texte doublerait chaque réponse à l'écran.
+//  ★ Tout message d'un sous-agent (`parent_tool_use_id` renseigné) est écarté, car
+//    seule la conversation principale apparaît dans le fil.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use std::collections::HashMap;

@@ -1,11 +1,11 @@
 // Port de app/src/ui/core/artefacts/types.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Le contrat du système d'artefacts — le JOURNAL (journal-artefacts.pdf, partie III).
+//  Contrat des artefacts, modèle du journal (journal-artefacts.pdf, partie III).
 //
-//  On n'enregistre plus l'état de chaque artefact : on enregistre ce qui lui
-//  ARRIVE. Chaque changement est une transaction (Tx), chaque transaction une
-//  ligne ajoutée à la fin du segment de SON écrivain. L'index est le PLI des
+//  L'état d'un artefact n'est plus stocké : seuls ses changements le sont. Chacun forme
+//  une transaction (Tx), écrite en une ligne à la fin du segment de son écrivain.
+//  L'index résulte du PLI de ces
 //  lignes (fold.rs) ; le cache n'en garde qu'une copie jetable (§12, R1-R6).
 //
 //  ★ LA RÈGLE (inchangée) : on stocke le NOM, on enregistre le VERBE. Le cœur ne
