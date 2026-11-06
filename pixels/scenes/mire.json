@@ -1,5 +1,6 @@
 {
   "scene": "mire",
+  "sans_reference": true,
   "vue": "mire",
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark"],

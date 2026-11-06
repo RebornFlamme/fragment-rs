@@ -16,15 +16,33 @@ name = "fragment-pixels"
 path = "src/bin/fragment-pixels.rs"
 required-features = ["pixels"]
 
+# ★ Le lecteur de scènes (src/pixels/) est AUSSI compilé comme cible de test : `cargo test
+# --workspace` exerce ainsi le schéma JSON, les entrées simulées et la vue jouet sans la feature
+# `pixels` (le job de tests Windows n'active aucune feature). Le fichier est la racine de la cible,
+# d'où les chemins `super::` seuls dans ses modules.
+[[test]]
+name = "pixels"
+path = "src/pixels/mod.rs"
+
 [features]
 # `Window::render_to_image` n'existe que sous la feature de test de GPUI.
-pixels = ["gpui-kit/test-support", "dep:image", "dep:serde_json"]
+pixels = ["gpui-kit/test-support"]
 
 [dependencies]
 gpui-kit.workspace = true
 anyhow.workspace = true
-image = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
+# Le lecteur de scènes : schéma JSON, erreurs typées, commandes `pixels:*`, thème, PNG.
+fragment-core = { path = "../fragment-core" }
+fragment-theme = { path = "../fragment-theme" }
+fragment-ui = { path = "../fragment-ui" }
+image.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+# Vue jouet : TestAppContext et render_to_image dans les tests du lecteur.
+gpui-kit = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true

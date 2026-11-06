@@ -1,5 +1,6 @@
 {
   "scene": "fenetre-vide",
+  "sans_reference": true,
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",

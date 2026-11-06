@@ -1,0 +1,15 @@
+{
+  "scene": "jouet-saisie",
+  "sans_reference": true,
+  "vue": "jouet",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark"],
+  "actions": [
+    {"type":"click","x":100,"y":300},
+    {"type":"click","button":"right","x":300,"y":300},
+    {"type":"type","text":"Ab c"},
+    {"type":"key","keys":"Enter"},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}

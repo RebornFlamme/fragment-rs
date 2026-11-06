@@ -1,0 +1,12 @@
+{
+  "scene": "jouet-glisser-maintenu",
+  "sans_reference": true,
+  "vue": "jouet",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark"],
+  "pixels_attendus": [{"x":700,"y":500,"rgb":[245,158,11]}],
+  "actions": [
+    {"type":"drag","from":{"x":200,"y":300},"to":{"x":700,"y":500},"release":false,"steps":8},
+    {"type":"wait-stable"}
+  ]
+}
