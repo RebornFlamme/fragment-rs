@@ -1,13 +1,13 @@
 // Port de app/src/ui/core/editor/findPassage.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  TROUVER UN PASSAGE dans un document — « à côté de cette phrase » → des
-//  positions. Sur toute surface de texte (note, page HTML, conversation : le
-//  texte entier ; PDF : page par page), sans nommer aucune vue.
+//  Du passage (« à côté de cette phrase ») aux positions. Fonctionne sur toute surface
+//  de texte, sans connaître les vues : texte complet d'une note, d'une page HTML ou
+//  d'une conversation ; page après page pour un PDF.
 //
-//  Les blancs sont repliés des deux côtés (un passage recopié d'un rendu n'a pas
-//  les retours ni les doubles espaces de la source). Plusieurs occurrences :
-//  `occurrence` (1 = la première) choisit, sinon c'est AMBIGU — on ne devine pas.
+//  La comparaison ignore les différences de blancs, un passage copié depuis un rendu
+//  ayant perdu les retours et les espaces multiples de la source. S'il y a plusieurs
+//  résultats, `occurrence` (à partir de 1) tranche ; sans lui, le résultat est AMBIGU.
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::editor::{EditorPosition, EditorRange, FullText, TextSurface, full_text};

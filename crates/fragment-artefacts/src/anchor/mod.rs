@@ -1,29 +1,27 @@
 // Port de app/src/ui/core/artefacts/anchor.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'ancre durable ↔ l'ancre vivante (§15.7).
+//  Passage de l'ancre durable à l'ancre vivante (§15.7).
 //
-//  Une ancre au texte est un offset. Un offset n'est juste que pour une version
-//  exacte du texte ; or le texte et le journal voyagent dans deux fichiers que
-//  la synchronisation livre dans un ordre quelconque. La CITATION rend l'ancre
-//  vérifiable, et la retrouve si le texte a changé hors de l'app.
+//  Un offset ne vaut que pour une version précise du texte. Comme le texte et le
+//  journal sont deux fichiers synchronisés sans ordre garanti, l'ancre emporte une
+//  citation : elle permet de vérifier l'offset, puis de le retrouver après une
+//  modification faite hors de l'app.
 //
-//  À chaque écriture d'une ancre au texte, le cœur relève 32 caractères avant
-//  l'offset, les 32 suivants, puis 32 encore : préfixe, texte exact, suffixe
-//  (TextQuoteSelector du W3C). Le PDF n'a pas de citation : ses offsets sont fixes.
+//  La citation (TextQuoteSelector du W3C) est relevée à chaque écriture d'une ancre
+//  au texte : 32 caractères de préfixe, 32 de texte exact, 32 de suffixe. Rien de tel
+//  pour le PDF, dont les offsets ne bougent pas.
 //
-//  La résolution est la cascade de Hypothesis, avec sa notation des candidats et
-//  une tolérance deux fois plus stricte (¼ d'erreurs au lieu de ½) :
+//  Résolution, d'après la cascade de Hypothesis (même notation des candidats, mais
+//  seuil d'erreurs à ¼ au lieu de ½), première issue qui s'applique :
+//    1. pas de surface textuelle : on garde l'ancre, position bornée ;
+//    2. le texte en place correspond à la citation : on garde l'ancre ;
+//    3. citation retrouvée exactement ailleurs : relocalisation ;
+//    4. citation retrouvée avec au plus ¼ d'erreurs : relocalisation ;
+//    5. sinon, orpheline : widget dans la marge, à ré-ancrer manuellement.
 //
-//      surface textuelle ? ─non─▶ ancre gardée, pos borné
-//      le texte à pos est celui de la citation ? ─oui─▶ ancre gardée
-//      la citation est retrouvée à l'identique ? ─oui─▶ relocalisée
-//      retrouvée à un quart d'erreurs près ? ─oui─▶ relocalisée
-//      sinon ─▶ orpheline : widget rangé dans la marge, à ré-ancrer à la main
-//
-//  ★ La relocalisation n'écrit RIEN tant que l'utilisateur n'a rien fait (en
-//    mémoire seulement) : le texte et le journal peuvent arriver dans n'importe
-//    quel ordre.
+//  ★ Une relocalisation reste en mémoire et n'écrit rien tant que l'utilisateur
+//    n'a pas agi, puisque texte et journal arrivent dans un ordre quelconque.
 //
 //  ★ UNITÉ (ADR-004) : tous les index dans le texte (`pos`, `to`, découpes de la
 //    citation, recherche approchée) sont en unités de code UTF-16, comme

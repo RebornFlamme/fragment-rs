@@ -4,16 +4,15 @@
 //  L'espace de positions d'une CONVERSATION vue comme un document
 //  (chat-comme-document.md) — pur, testé ; ChatSurface (fragment-ui) y branche la vue.
 //
-//  Une UNITÉ = une part de texte d'un message (un message peut en avoir
-//  plusieurs, séparées par des appels d'outils). Positions à PAS FIXE, comme
-//  les pages du PDF :
+//  Unité adressable : une part de texte d'un message, sachant que les appels d'outils
+//  peuvent découper un message en plusieurs parts. L'adressage par pas constants
+//  reprend l'idée des pages du PDF :
 //
 //      pos = message × MESSAGE_STRIDE + part × PART_STRIDE + caractère
 //
-//  ★ POURQUOI des pas fixes : un message qui s'écrit (flux) ne change que les
-//    positions DANS sa part — rien ne bouge ailleurs, aucune ancre à remapper
-//    dans les autres messages. Le pas ne survit pas à tout (un rechargement
-//    peut regrouper les parts, préfixer l'historique) : l'ancre porte aussi sa
+//  ★ Intérêt : pendant le flux, seules bougent les positions de la part en cours, et
+//    les ancres des autres messages restent valides. Mais un rechargement peut
+//    regrouper les parts ou préfixer l'historique ; c'est pourquoi l'ancre garde aussi sa
 //    CITATION, relocalisée dans le texte joint (`surface_text_of`).
 //
 //  ★ « caractère » = unité de code UTF-16 (ADR-004), comme `String.length` : les longueurs

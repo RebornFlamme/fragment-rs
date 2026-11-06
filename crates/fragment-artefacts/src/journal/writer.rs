@@ -1,18 +1,16 @@
 // Port de app/src/ui/core/artefacts/journal/writer.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'écriture (§15.1, §15.2) — le tampon et le segment actif.
+//  Écriture (§15.1, §15.2) : tampon et segment actif. Un fichier n'a qu'un écrivain
+//  (R2) et ne fait que grandir (R3).
 //
-//  R2 : un fichier, un écrivain. R3 : on ajoute, on ne réécrit pas.
+//  Vidage du tampon selon l'origine de la transaction :
+//    - `follow` : après 2 s de calme, 10 s maximum, en ne gardant qu'une opération
+//      d'ancre par record ;
+//    - toute autre origine : au tic suivant, sans fusion ;
+//    - fermeture ou perte du focus : tout de suite, suivi de la ligne de fermeture.
 //
-//  Le TAMPON regroupe les transactions et fusionne les ancres suivies :
-//
-//      origine          vidage                                fusion
-//      follow           après 2 s de calme, 10 s au plus      une seule op d'ancre par record
-//      toutes autres    au tic suivant                        aucune
-//      fermeture, perte du focus : immédiat, puis ligne de fermeture
-//
-//  Au vidage : les gros states partent d'abord en objets (invariant §19.1-4),
+//  Au moment du vidage : d'abord les gros states vers les objets (invariant §19.1-4),
 //  puis UN `append` des lignes au segment actif, puis le manager commit le
 //  cache (records + curseur, une transaction).
 //
