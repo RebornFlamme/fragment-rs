@@ -5,11 +5,10 @@
 //  (`GutterArbiter`), pour TOUS les widgets d'une marge, quel que soit le calque
 //  qui les a posés.
 //
-//  Chaque widget veut se placer au niveau de son texte (`top` voulu). Deux ancres
-//  proches se recouvriraient : on cherche les hauts qui
-//    1. ne se recouvrent jamais (écart minimal `gap`) ;
-//    2. gardent l'ORDRE du texte ;
-//    3. s'écartent le MOINS possible des ancres (somme des carrés des écarts).
+//  Un widget voudrait s'aligner sur son texte (`top` voulu), mais des ancres voisines
+//  feraient se chevaucher les widgets. Les hauts retenus doivent donc respecter un
+//  écart d'au moins `gap`, conserver l'ordre du texte et minimiser la somme des carrés
+//  des écarts aux ancres.
 //
 //  ★ C'est une régression isotone : l'algorithme PAV (pool adjacent violators) la
 //    résout exactement. Une GRAPPE (au sens PAV) = des widgets collés les uns aux

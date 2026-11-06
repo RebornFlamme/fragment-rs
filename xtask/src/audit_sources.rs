@@ -1,7 +1,7 @@
 //! `cargo xtask audit-sources` — signale toute copie de source du dépôt PRIVÉ Fragment dans ce
 //! dépôt PUBLIC (program.md §2 et §3, ADR-007).
 //!
-//! Critère : au moins 8 lignes consécutives identiques à un fichier de `Fragment/app/src`,
+//! Critère : au moins 6 lignes consécutives identiques à un fichier de `Fragment/app/src`,
 //! `Fragment/app/e2e` ou `Fragment/packages`, après retrait de l'indentation, sans compter les
 //! lignes vides ni celles qui ne portent que des accolades. Les fins de ligne ne comptent pas.
 //!
@@ -10,7 +10,7 @@
 //! - `--historique` : tous les fichiers de tous les commits de toutes les références, y compris les
 //!   têtes de PR (`refs/pull/*`, encore publiques après la suppression d'une branche) ;
 //! - `--fragment <dossier>` : l'emplacement de Fragment.
-//! - `--seuil <lignes>` : un autre seuil, pour mesurer ce qui reste sous les 8 lignes.
+//! - `--seuil <lignes>` : un autre seuil, pour mesurer ce qui reste sous les 6 lignes.
 //!
 //! ★ Le rapport ne donne que des chemins et des numéros de ligne, jamais le contenu : il finit dans
 //! un dépôt public.
@@ -25,7 +25,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 /// Le seuil de l'audit, en lignes significatives consécutives.
-const FENETRE: usize = 8;
+const FENETRE: usize = 6;
 const FRAGMENT_PAR_DEFAUT: &str = "C:/Users/julie/OneDrive/Documents/Projects/Fragment";
 const RACINES: [&str; 3] = ["app/src", "app/e2e", "packages"];
 const DOSSIERS_IGNORES: [&str; 7] = [
@@ -357,18 +357,18 @@ mod tests {
     }
 
     #[test]
-    fn sept_lignes_ne_suffisent_pas() {
+    fn cinq_lignes_ne_suffisent_pas() {
         let index = index_de(&texte(&SOURCE));
-        assert!(index.copies(&texte(&SOURCE[..7])).is_empty());
+        assert!(index.copies(&texte(&SOURCE[..5])).is_empty());
     }
 
     #[test]
-    fn huit_lignes_sont_une_copie() {
+    fn six_lignes_sont_une_copie() {
         let index = index_de(&texte(&SOURCE));
-        let copies = index.copies(&texte(&SOURCE[..8]));
+        let copies = index.copies(&texte(&SOURCE[..6]));
         assert_eq!(copies.len(), 1);
-        assert_eq!((copies[0].debut, copies[0].fin), (1, 8));
-        assert_eq!(copies[0].significatives, 8);
+        assert_eq!((copies[0].debut, copies[0].fin), (1, 6));
+        assert_eq!(copies[0].significatives, 6);
     }
 
     #[test]

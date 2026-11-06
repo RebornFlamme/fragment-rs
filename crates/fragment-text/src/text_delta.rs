@@ -1,10 +1,10 @@
 // Port de app/src/ui/core/editor/textDelta.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Le changement minimal entre deux versions d'un texte REÇU (pas édité ici) et
-//  le remappage d'un caractère à travers lui — pur. Partagé par les surfaces en
-//  lecture seule dont le texte change sous elles : une part de conversation en
-//  flux (chatSurfaceModel), une page HTML dont le JS réécrit le DOM (htmlTextModel).
+//  Pur : plus petit changement entre deux versions d'un texte reçu de l'extérieur (donc
+//  non édité ici), et remappage d'un caractère à travers ce changement. Sert aux surfaces
+//  en lecture seule dont le texte évolue seul : part de conversation en flux
+//  (chatSurfaceModel), page HTML dont le DOM est réécrit par JS (htmlTextModel).
 // ═══════════════════════════════════════════════════════════════════════════
 
 use crate::editor::Assoc;

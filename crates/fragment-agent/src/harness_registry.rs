@@ -1,12 +1,12 @@
 // Port de app/src/ui/views/agent/harness/registry.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Lire le registre `agent:harness@1` — À L'USAGE, jamais copié (un plugin de
-//  harness peut arriver, partir, être rechargé à tout moment).
+//  Accès au registre `agent:harness@1`, relu à chaque usage et jamais mis de côté :
+//  un plugin de harness peut apparaître, disparaître ou se recharger n'importe quand.
 //
-//  Politique de résolution (celle des registres de l'annotation) : pour un id,
-//  la PRIORITÉ la plus haute gagne, puis le dernier inscrit. Le harness Claude
-//  est inscrit à −100 : un tiers à 0 le remplace sous le même id.
+//  Résolution identique aux registres de l'annotation : pour un même id, on prend la
+//  priorité maximale, puis l'inscription la plus récente. Claude étant à −100, un
+//  harness tiers inscrit à 0 sous le même id prend sa place.
 //
 //  ★ Écart : le registre générique `RegistryHub` / `OrderedRegistry` vit dans
 //    fragment-core (pas encore porté). `HarnessRegistry` en est la version

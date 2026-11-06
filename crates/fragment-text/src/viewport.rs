@@ -16,9 +16,10 @@
 //    - la remesure en boucle jusqu'à stabilité de `EditorView.measure` (l. 8171).
 //  ★ Seule divergence, volontaire : CM convertit sa bande de pixels en LIGNES (sa height
 //    map) ; nos objets ont déjà une position en pixels (`coords_at_pos`), donc on
-//    garde la BANDE telle quelle — même formule, sans l'arrondi aux lignes (et
-//    sans les cas `from == 0` / `to == doc.length`, qui n'existent que parce que
-//    l'arrondi bute aux bords du document).
+//    map) ; les nôtres connaissent déjà leur position en pixels (`coords_at_pos`). La
+//    bande reste donc en pixels, avec la même formule, sans arrondi à la ligne ni les
+//    cas `from == 0` et `to == doc.length`, que seul cet arrondi rend nécessaires
+//    en butant aux bords du document.
 //
 //  @codemirror/view — MIT License, Copyright (C) 2018-2021 by Marijn Haverbeke
 //  <marijn@haverbeke.berlin> and others.

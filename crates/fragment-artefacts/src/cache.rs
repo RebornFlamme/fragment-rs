@@ -7,10 +7,11 @@
 //  du coffre ET de la version du format : changer de coffre ne vide rien, et un
 //  changement de format repart d'un cache vide, sans migration à écrire.
 //
-//      records    id        le record plié, ses estampilles, son state inline
-//      segments   clé       le curseur : taille, lignes, scellé, objets cités
-//      docs       chemin    taille et mtime des documents qui portent des artefacts
-//      meta       nom       version du format, dernière estampille, quarantaine
+//  Tables, avec leur clé :
+//    - `records` (id) : record plié, estampilles et state inline ;
+//    - `segments` (clé) : curseur, soit la taille, les lignes, le scellé, les objets cités ;
+//    - `docs` (chemin) : taille et mtime de chaque document portant des artefacts ;
+//    - `meta` (nom) : version du format, dernière estampille, quarantaine.
 //
 //  Tout se reconstruit du journal : sans cache, le démarrage plie tous les
 //  segments, et c'est tout. Ici : le TRAIT, le cache nul et le cache mémoire ;

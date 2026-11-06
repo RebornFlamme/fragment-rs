@@ -1,10 +1,10 @@
 // Port de app/src/ui/views/doc-widget/clusterFilter.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  Chercher et filtrer la timeline d'une grappe (pur, testé). Un post = ce que
-//  la grappe en SAIT : le titre du membre, le texte de son aperçu (le tweet
-//  rendu), et ce que l'aperçu déclare (`data-at`, `data-replies`) — la grappe ne
-//  connaît pas le chat. Un post sans ces données passe « Tous » et garde sa place.
+//  Recherche et filtre sur la timeline d'une grappe (pur, testé). La grappe ignore le
+//  chat et ne connaît d'un post que le titre du membre, le texte de l'aperçu (le tweet
+//  rendu) et les attributs qu'il expose (`data-at`, `data-replies`). À défaut de ces
+//  données, le post reste à sa place et passe le filtre « Tous ».
 // ═══════════════════════════════════════════════════════════════════════════
 
 use unicode_normalization::UnicodeNormalization;

@@ -4,10 +4,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  Les types du CLI vus du CŒUR — les noms publics gelés de docs/contrats.md.
 //
-//  L'API publique reste celle d'Obsidian 1.12 :
-//
-//      plugin.registerCliHandler(command, description, flags, handler)
-//      type CliHandler = (params: CliData) => string | Promise<string>
+//  Côté public, l'API reste celle d'Obsidian 1.12 : un plugin inscrit son handler par
+//  `plugin.registerCliHandler(command, description, flags, handler)`, et ce handler
+//  reçoit un `CliData` pour rendre une chaîne, directement ou par une promesse.
 //
 //  ★ `CliData` a LA MÊME FORME que les paramètres d'`obsidian://` — un dictionnaire
 //    de chaînes, où un drapeau vaut `"true"`. Ce n'est pas un raccourci : c'est ce qui

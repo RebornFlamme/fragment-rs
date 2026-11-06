@@ -1,10 +1,10 @@
 // Port de app/src/ui/views/chat/chatKey.ts
 //
 // ═══════════════════════════════════════════════════════════════════════════
-//  L'ADRESSE d'une conversation (documents-de-plugin.md) : `chat:<fournisseur>/<id>`.
-//  Un seul schéma pour tous les fournisseurs (l'agent, demain un autre) : c'est
-//  le plugin `chat` qui le fournit, et il délègue titres et listes aux
-//  fournisseurs. Pur, testé.
+//  Adressage d'une conversation (documents-de-plugin.md) : `chat:<fournisseur>/<id>`.
+//  Le schéma est unique quel que soit le fournisseur, présent (l'agent) ou à venir :
+//  le plugin `chat` le déclare, puis s'en remet aux fournisseurs pour les titres et
+//  les listes. Pur, testé.
 // ═══════════════════════════════════════════════════════════════════════════
 
 pub const CHAT_SCHEME: &str = "chat";
