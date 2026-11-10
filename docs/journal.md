@@ -148,3 +148,14 @@ Décisions du chef : les équipiers capturent eux-mêmes les références de leu
 
 ## Décision de l'utilisateur — 10/11/2026 17:10 UTC
 `fragment-rs` reste public, historique non purgé (ADR-007, section finale). Question close, plus de remontée. L'audit `audit-sources` au seuil de 6 avant chaque fusion reste obligatoire. La session cloud `fr-t1-arbre` → `fr-t1-workspace` a démarré (orchestrateur) ; surveiller ses PR.
+
+## Vague 6 (menus fusionné) — 10/11/2026 18:20 UTC — usage 5h 27 % / semaine 14 %
+Tâches fermées : fr-t1-menus (#26, CI verte, audit à 0), en deux équipiers : le premier s'est arrêté à 300k tokens, un neuf a repris. ★ Arrêter explicitement (`TaskStop`) l'équipier qui passe la main : le premier a continué en parallèle du second sur la même branche. En cours : fr-t1-palette ; fr-t1.1 (bug, parité des surfaces flottantes), équipier local, worktree `../fragment-rs-flottantes`. Cloud : arbre puis workspace, pas encore de branche.
+**Part fixe** : cumul environ 6 points (menus ≈ 2). Par jour : environ 3 sur 8 le 10/11.
+Décisions du chef :
+- Pour les surfaces flottantes, le décor `_t1-flottantes.ts` (racine de Fragment masquée par `#root *`) est accepté. Sinon, une scène T1 en fenêtre entière est rouge avant le binaire.
+- Palette garde la fenêtre entière, en `"depuis": "T2"`, avec sa zone mesurée au rognage.
+- Les 6 scènes de menus divergent sur de la géométrie (notice +2 px, lignes de menu de 29,5 px arrondies à 29 par GPUI), sur les ombres et sur les icônes. Elles sont fusionnées en T2, et la dette devient `fr-t1.1`, qui bloque `fr-t1-binaire` (program.md §6 : la tranche n'est pas finie sans elle).
+- Le 29,5 px est systémique (onglets, splits, réglages) : fr-t1.1 doit en tirer une règle réutilisable, notée dans `docs/constantes-rendu.md`.
+À trancher : rien encore. L'écart d'ombre (flou de GPUI contre Skia) remontera à l'orchestrateur s'il est irréductible.
+**Prochaine action exacte.** Aux comptes rendus de palette et de fr-t1.1 : revue habituelle, puis fusion. Ensuite fr-t1-onglets, dès que workspace (cloud) est fusionné, sous 8 points par jour.
