@@ -346,15 +346,21 @@ fn rendre(modele: &Toolbar, cx: &App) -> AnyElement {
                     .items_center()
                     .justify_center()
                     .self_stretch()
-                    .min_w(u(cx, 16.0))
-                    .px(u(cx, 1.0))
+                    // `min-width: 16px` + `padding: 0 1px` en boîte de CONTENU chez Fragment (mesuré : la
+                    // poignée y fait 18 px) ; taffy compte en boîte de bordure, d'où le « + 2 ».
                     .rounded(u(cx, f.radius_sm))
                     .text_color(couleur(c.text_muted))
                     .opacity(0.55);
                 let poignee = if vertical {
-                    poignee.mt(u(cx, f.size_2_1))
+                    poignee
+                        .min_h(u(cx, 16.0 + 2.0))
+                        .py(u(cx, 1.0))
+                        .mt(u(cx, f.size_2_1))
                 } else {
-                    poignee.ml(u(cx, f.size_2_1))
+                    poignee
+                        .min_w(u(cx, 16.0 + 2.0))
+                        .px(u(cx, 1.0))
+                        .ml(u(cx, f.size_2_1))
                 };
                 enfants.push(
                     poignee
