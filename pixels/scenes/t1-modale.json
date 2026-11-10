@@ -1,0 +1,13 @@
+{
+  "scene": "t1-modale",
+  "depuis": "T2",
+  "vue": "flottantes",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"command","id":"pixels:modal"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

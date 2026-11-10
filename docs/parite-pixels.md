@@ -47,3 +47,23 @@ ROUGE (écarts de 0,5 à 4,3 % des pixels), pour des causes identifiées :
   inner-close-button` force `visibility: visible` et survit à `#root{visibility:hidden}`. Le décor masque désormais
   `#root *`.
 - **Décision du chef (10/11)** : la PR est fusionnée avec ces 6 scènes en `"depuis": "T2"`, pour garder la CI verte. Les écarts ci-dessus forment le bead `fr-t1.1`, qui bloque `fr-t1-binaire` : la tranche T1 n'est pas finie sans eux (program.md §6). `fr-t1-binaire` repasse les scènes à T1.
+
+## Dettes de parité : modale et palette T1 (fr-t1-palette)
+Scènes `t1-{modale,palette,palette-aucun-resultat,palette-selection}` (décor `_t1-flottantes` : la boîte sur le fond
+du workspace). Requête de `t1-palette` : « panneau » (et non « sidebar », absent d'une interface en français) : sur
+Fragment elle ne trouve que `Application: Afficher / masquer le panneau de droite|gauche`, deux commandes du cœur
+(`app:toggle-left-sidebar`, `app:toggle-right-sidebar`), que la scène Rust déclare avec leurs noms et raccourcis.
+Mesure sur l'artefact CI (run 42873546813), boîte et ombre comprises :
+- **Géométrie** : bords de boîte, bordures, hauteurs de lignes, de champ et de légende identiques à Fragment au pixel
+  (largeur `content-box` de Chromium reproduite : 700 + 2 de bordure ; 560 + 48 + 2 pour la modale).
+- **Glyphes** : texte du champ, des lignes et de la légende à bords différents (zones de 40 à 90 px de large : hors du
+  sas de 20 × 20) ; la chasse de DirectWrite diffère d'environ 1 px sur une ligne de 340 px. Flèches « ↑↓ » et « ↵ » :
+  glyphes de repli, dessinés différemment.
+- **Ombre** `--shadow-l` : écart de 1 à 2 niveaux sur ~108 000 pixels hors de la boîte (flou de GPUI contre Chromium).
+- **Ligne sélectionnée** : le fond `background-modifier-active-hover` donne (41, 41, 43) côté candidat contre
+  (40, 41, 43) côté Fragment, sur 688 × 35 px : arrondi de composition, malgré la composition à l'octet (`Couleur::sur`).
+- **Icône de fermeture** de la modale : trait de 2 px dans notre jeu Lucide, plus fin (1,5 px) dans la référence.
+- Dettes de fonctionnement : champ de saisie minimal (pas de curseur déplaçable, sélection ni collage) ; `localeCompare`
+  approché (sans casse ni accents) pour l'ordre alphabétique à requête vide.
+- **Décision du chef (10/11)** : scènes en `"depuis": "T2"` (en attente du shell, à repasser à T1 par `fr-t1-binaire`) ;
+  les écarts de rendu relèvent de `fr-t1.1`.
