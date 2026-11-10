@@ -519,6 +519,15 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .whitespace_nowrap()
                 .text_ellipsis()
                 .child(StyledText::new(texte).with_highlights(plages));
+            // ★ Les fonds translucides sont composés à l'octet près (`Couleur::sur`) : GPUI les
+            // mélange en flottants et tombe un niveau à côté de Chromium sur les captures.
+            let fond_boite = t.palette.workspace_bg;
+            let fond_rangee = if selection == Some(i) {
+                t.palette.background_modifier_active_hover.sur(fond_boite)
+            } else {
+                fond_boite
+            };
+            let fond_puce = t.palette.background_modifier_hover.sur(fond_rangee);
             let mut aux = div()
                 .flex()
                 .flex_row()
@@ -532,7 +541,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                             .px(u(cx, t.forme.size_2_3))
                             .py(u(cx, 1.0))
                             .rounded(u(cx, t.forme.radius_s))
-                            .bg(couleur(t.palette.background_modifier_hover))
+                            .bg(couleur(fond_puce))
                             .border(bordure)
                             .border_color(contour)
                             .text_color(attenue)
@@ -562,7 +571,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .rounded(u(cx, t.forme.radius_sm))
                 .text_color(normal);
             if selection == Some(i) {
-                rangee = rangee.bg(couleur(t.palette.background_modifier_active_hover));
+                rangee = rangee.bg(couleur(fond_rangee));
             }
             // mousemove et non « entrée » : le survol ne vole pas la sélection quand la liste
             // défile sous une souris immobile.
