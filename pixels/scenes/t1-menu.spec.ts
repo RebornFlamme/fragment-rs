@@ -1,5 +1,6 @@
 // Scène T1 « t1-menu » : menu à sections (ordre déclaré, entrée ajoutée en retard), séparateurs,
-// entrée désactivée, entrée à sous-menu, entrée destructive ; la 2e entrée est survolée.
+// entrée désactivée, entrée à sous-menu, entrée destructive ; le survol de l'entrée 2 est posé mais Chromium ne le peint pas dans ce harnais (cause non élucidée) :
+// le JSON candidat garde donc le pointeur garé, pour que les deux côtés montrent la même chose.
 import { sceneFlottante } from './_t1-flottantes';
 
 sceneFlottante('t1-menu', async ({ p, act, capturer, sonde }) => {

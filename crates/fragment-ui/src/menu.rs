@@ -520,7 +520,9 @@ fn rendre_niveau(menu: &Menu, niveau: usize, chemin: &[usize], cx: &App) -> AnyE
                     .items_center()
                     .gap(u(cx, f.size_4_2))
                     .px(u(cx, f.size_4_2))
-                    .py(u(cx, 5.0))
+                    // Hauteur de ligne de Fragment (2 × 5 px + interligne 1,5 × police) : GPUI arrondit
+                    // l'interligne du texte, on fixe donc la hauteur de la ligne elle-même.
+                    .h(u(cx, 2.0 * 5.0 + 1.5 * t.typo.font_ui_medium))
                     .rounded(u(cx, f.radius_s))
                     .cursor_default()
                     .text_color(couleur(couleur_texte))
