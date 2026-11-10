@@ -246,6 +246,9 @@ pub fn ouvrir_principale(
         VueScene::Jouet => {
             gpui_kit::open_window(opts, cx, |window, cx| cx.new(|cx| Jouet::new(window, cx)))?.0
         }
+        VueScene::Flottantes => {
+            gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| fragment_ui::flottant::Decor))?.0
+        }
     };
     Ok(fenetre)
 }

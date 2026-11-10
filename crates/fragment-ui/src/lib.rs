@@ -10,6 +10,7 @@
 //! sans toucher à ce fichier.
 
 pub mod echelle;
+pub mod flottant;
 pub mod icones;
 pub mod polices;
 pub mod scene;

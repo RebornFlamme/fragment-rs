@@ -105,6 +105,8 @@ pub enum VueScene {
     Mire,
     /// La vue jouet qui réagit au clic, à la touche et au glisser (preuve du lecteur).
     Jouet,
+    /// Un fond de thème et les surfaces flottantes (notice, menu, infobulle, barre d'outils).
+    Flottantes,
 }
 
 /// Où un geste est envoyé.

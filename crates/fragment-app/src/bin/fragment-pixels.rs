@@ -48,30 +48,33 @@ fn main() {
             std::process::exit(2);
         }
     };
-    gpui_kit::application().run(move |cx| {
-        gpui_kit::init(cx);
-        if let Err(erreur) = fragment_ui::polices::enregistrer(&cx.text_system()) {
-            eprintln!("fragment-pixels : polices : {erreur:#}");
-            std::process::exit(1);
-        }
-        cx.spawn(async move |cx| {
-            // ★ On sort par `process::exit` depuis la tâche : selon la plateforme,
-            // `run` ne rend pas toujours la main après `quit`.
-            match capturer(scenes, sortie, cx).await {
-                Ok(n) if n > 0 => {
-                    println!("fragment-pixels : {n} capture(s)");
-                    std::process::exit(0);
-                }
-                Ok(_) => {
-                    eprintln!("fragment-pixels : aucune capture");
-                    std::process::exit(1);
-                }
-                Err(erreur) => {
-                    eprintln!("fragment-pixels : {erreur:#}");
-                    std::process::exit(1);
-                }
+    // Les icônes (SVG de Lucide) sont des ressources embarquées de fragment-ui.
+    gpui_kit::application()
+        .with_assets(fragment_ui::icones::Ressources)
+        .run(move |cx| {
+            gpui_kit::init(cx);
+            if let Err(erreur) = fragment_ui::polices::enregistrer(&cx.text_system()) {
+                eprintln!("fragment-pixels : polices : {erreur:#}");
+                std::process::exit(1);
             }
-        })
-        .detach();
-    });
+            cx.spawn(async move |cx| {
+                // ★ On sort par `process::exit` depuis la tâche : selon la plateforme,
+                // `run` ne rend pas toujours la main après `quit`.
+                match capturer(scenes, sortie, cx).await {
+                    Ok(n) if n > 0 => {
+                        println!("fragment-pixels : {n} capture(s)");
+                        std::process::exit(0);
+                    }
+                    Ok(_) => {
+                        eprintln!("fragment-pixels : aucune capture");
+                        std::process::exit(1);
+                    }
+                    Err(erreur) => {
+                        eprintln!("fragment-pixels : {erreur:#}");
+                        std::process::exit(1);
+                    }
+                }
+            })
+            .detach();
+        });
 }
