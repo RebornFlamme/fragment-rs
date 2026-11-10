@@ -149,11 +149,8 @@ pub fn position(
 /// La largeur maximale à droite d'une cible collée au bord : la bulle RACCOURCIT (points de
 /// suspension) plutôt que de revenir sur sa cible. `None` hors du placement à droite.
 pub fn largeur_max(cible: Rect, placement: Placement, largeur_fenetre: f32) -> Option<f32> {
-    (placement == Placement::Right).then(|| {
-        (largeur_fenetre - cible.right() - ECART - MARGE)
-            .min(LARGEUR_MAX)
-            .max(40.0)
-    })
+    (placement == Placement::Right)
+        .then(|| (largeur_fenetre - cible.right() - ECART - MARGE).clamp(40.0, LARGEUR_MAX))
 }
 
 /// Le contenu d'une bulle pour sa cible (par défaut : le texte de la cible).

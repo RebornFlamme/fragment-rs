@@ -4,6 +4,8 @@
 //  Ces surfaces ne dépendent pas de la fenêtre qui les porte : on cache donc l'interface de
 //  Fragment (la racine React) et on peint le fond de scène en `--workspace-bg`. Le candidat Rust
 //  fait pareil (un fond de thème, rien d'autre) : la comparaison ne mesure que la surface flottante.
+//  ★ `#root *` et pas seulement `#root` : la croix de l'onglet actif force `visibility: visible`
+//  et survit à un parent masqué (elle apparaissait en (437, 19) sur les 12 références).
 //  Les onglets viennent avec `fr-t1-onglets`, qui a ses propres scènes.
 // ═══════════════════════════════════════════════════════════════════════════
 import { sceneT1, type ContexteT1 } from './_t1';
@@ -17,7 +19,7 @@ async function viderLeDecor(c: ContexteT1): Promise<void> {
             s.id = 'pixels-decor-vide';
             document.head.appendChild(s);
         }
-        s.textContent = '#root{visibility:hidden!important}body{background:var(--workspace-bg)!important}';
+        s.textContent = '#root,#root *{visibility:hidden!important}body{background:var(--workspace-bg)!important}';
     });
 }
 
