@@ -25,8 +25,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
+use crate::flottant::ombres;
 use crate::icones;
-use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ombres, ouvrir};
+use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::FAMILLE_INTERFACE;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -637,7 +638,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             .border(bordure)
             .border_color(contour)
             .rounded(u(cx, t.forme.radius_l))
-            .shadow(ombres(&t.palette.shadow_l))
+            .shadow(ombres(cx, &t.palette.shadow_l))
             .font_family(FAMILLE_INTERFACE)
             .text_size(u(cx, t.typo.font_ui_normal))
             .line_height(relative(t.typo.line_height_normal))
@@ -659,40 +660,42 @@ pub fn commandes_de_scene(_commandes: &CommandManager) {}
 mod tests {
     use super::*;
 
-    fn nus(v: Vec<(String, bool)>) -> Vec<(&'static str, bool)> {
-        v.into_iter()
-            .map(|(t, s)| (Box::leak(t.into_boxed_str()) as &'static str, s))
-            .collect()
+    fn nus(v: Vec<(String, bool)>) -> Vec<(String, bool)> {
+        v
+    }
+
+    fn att(l: &[(&str, bool)]) -> Vec<(String, bool)> {
+        l.iter().map(|(t, s)| ((*t).to_owned(), *s)).collect()
     }
 
     #[test]
     fn surligner_decoupe_selon_les_plages() {
         let r = surligner("Afficher le panneau", &[(12, 19)], 0);
-        assert_eq!(nus(r), vec![("Afficher le ", false), ("panneau", true)]);
+        assert_eq!(nus(r), att(&[("Afficher le ", false), ("panneau", true)]));
     }
 
     #[test]
     fn surligner_sans_plage_rend_le_texte_entier() {
-        assert_eq!(nus(surligner("abc", &[], 0)), vec![("abc", false)]);
+        assert_eq!(nus(surligner("abc", &[], 0)), att(&[("abc", false)]));
     }
 
     #[test]
     fn surligner_decale_les_plages_d_une_sous_chaine() {
         // « Plugin: Commande » cherché en entier, le nom (offset 8) rendu seul.
         let r = surligner("Commande", &[(8, 11)], 8);
-        assert_eq!(nus(r), vec![("Com", true), ("mande", false)]);
+        assert_eq!(nus(r), att(&[("Com", true), ("mande", false)]));
     }
 
     #[test]
     fn surligner_ignore_une_plage_hors_de_la_sous_chaine() {
-        assert_eq!(nus(surligner("nom", &[(0, 3)], 8)), vec![("nom", false)]);
+        assert_eq!(nus(surligner("nom", &[(0, 3)], 8)), att(&[("nom", false)]));
     }
 
     #[test]
     fn surligner_compte_en_utf16() {
         // « 😀 » vaut 2 unités : la plage (2,3) tombe sur « a ».
         let r = surligner("😀ab", &[(2, 3)], 0);
-        assert_eq!(nus(r), vec![("😀", false), ("a", true), ("b", false)]);
+        assert_eq!(nus(r), att(&[("😀", false), ("a", true), ("b", false)]));
     }
 
     #[test]

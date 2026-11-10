@@ -14,16 +14,18 @@
 //! de scènes après une commande).
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use fragment_core::{CommandManager, Keymap, Scope};
 use gpui_kit::{
-    AnyView, App, AppContext as _, Context, FocusHandle, Global, InteractiveElement as _,
+    AnyView, App, AppContext as _, Context, Entity, FocusHandle, Global, InteractiveElement as _,
     IntoElement, KeyDownEvent, MouseButton, ParentElement as _, Pixels, Render, SharedString,
-    Styled as _, Window, div, relative, svg,
+    Styled as _, Window, WindowId, div, relative, svg,
 };
 
 use crate::echelle::u;
+use crate::flottant::ombres;
 use crate::icones;
 use crate::polices::FAMILLE_INTERFACE;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -252,6 +254,24 @@ impl Render for CoucheModale {
     }
 }
 
+/// Les couches des fenêtres : une par fenêtre, créée à la demande.
+#[derive(Default)]
+struct Couches(HashMap<WindowId, Entity<CoucheModale>>);
+
+impl Global for Couches {}
+
+/// La couche modale de `window`, à poser en DERNIER enfant de la vue racine
+/// (`.child(modal::couche(window, cx))`). La même entité revient à chaque image.
+pub fn couche(window: &Window, cx: &mut App) -> Entity<CoucheModale> {
+    let id = window.window_handle().window_id();
+    if let Some(existante) = cx.try_global::<Couches>().and_then(|c| c.0.get(&id)) {
+        return existante.clone();
+    }
+    let neuve = cx.new(|_| CoucheModale::new());
+    cx.default_global::<Couches>().0.insert(id, neuve.clone());
+    neuve
+}
+
 // ── Mesures communes aux boîtes ───────────────────────────────────────────────
 
 /// `min(max_css, 100vw - 32px)`, en pixels de l'écran (le zoom multiplie les longueurs CSS).
@@ -318,7 +338,7 @@ impl Render for Modale {
             .border(u(cx, t.forme.border_width))
             .border_color(couleur(t.palette.tab_outline_color))
             .rounded(u(cx, t.forme.radius_l))
-            .shadow(crate::modal::ombres(&t.palette.shadow_l))
+            .shadow(ombres(cx, &t.palette.shadow_l))
             .font_family(FAMILLE_INTERFACE)
             .text_size(u(cx, t.typo.font_ui_normal))
             .line_height(relative(t.typo.line_height_normal))
@@ -366,20 +386,6 @@ impl Render for Modale {
         }
         boite.child(div().child(self.contenu.clone()))
     }
-}
-
-/// Les ombres d'un jeton, en ombres GPUI.
-pub(crate) fn ombres(jeton: &[fragment_theme::Ombre]) -> Vec<gpui_kit::BoxShadow> {
-    jeton
-        .iter()
-        .map(|o| gpui_kit::BoxShadow {
-            color: gpui_kit::Hsla::from(couleur(o.couleur)),
-            offset: gpui_kit::point(gpui_kit::px(o.decalage_x), gpui_kit::px(o.decalage_y)),
-            blur_radius: gpui_kit::px(o.flou),
-            spread_radius: gpui_kit::px(o.etendue),
-            inset: false,
-        })
-        .collect()
 }
 
 // ── Les scènes ────────────────────────────────────────────────────────────────

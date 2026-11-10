@@ -1,9 +1,10 @@
-// Scène T1 « t1-palette-selection » : la palette de commandes, requête « panneau », puis ↓, décor vide.
+// Scène T1 « t1-palette-selection » : la palette de commandes, requête « panneau », puis ↓, sur le décor des surfaces flottantes (fond de scène, rien d'autre).
 import { writeFileSync, mkdirSync } from 'fs';
 import path from 'path';
-import { sceneT1, expect } from './_t1';
+import { sceneFlottante } from './_t1-flottantes';
+import { expect } from './_t1';
 
-sceneT1('t1-palette-selection', async ({ p, act, capturer }) => {
+sceneFlottante('t1-palette-selection', async ({ p, act, capturer }) => {
     await act.command('command-palette:open');
     await expect(p.locator('.prompt').first()).toBeVisible();
     await act.type('panneau');

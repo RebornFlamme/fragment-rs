@@ -87,7 +87,7 @@ pub fn chaine<'a>(args: &'a Value, cle: &str) -> Option<&'a str> {
 pub struct Decor;
 
 impl Render for Decor {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let fond = couleur(theme_ou_defaut(cx).palette.workspace_bg);
         // Ordre de peinture = ordre des z-index de Fragment : barre (900), notices et menu (1000),
         // infobulle (1100).
@@ -99,5 +99,7 @@ impl Render for Decor {
             .child(notice::couche(cx))
             .child(menu::couche(cx))
             .child(tooltip::couche(cx))
+            // Les modales passent devant tout (z-index 1100, au-dessus du menu).
+            .child(crate::modal::couche(window, cx))
     }
 }
