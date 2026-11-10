@@ -145,3 +145,6 @@ Références : le jeu du 01/11 est remplacé par celui de Fragment 89c7a80 (16 P
 ★ Une passe de `pixels-reference.ps1` coûte ~7 min de garde (`git status --ignored` de Fragment sous OneDrive) ; la commande de fond, plafonnée à 10 min, a échoué (code 4). Désormais : premier plan avec un délai de 600 s, par lots, et verrou `C:/dev/fragment-rs-pixels-verrou` entre équipiers (port 5123 unique). ★ Un push sur une PR peut ne pas déclencher la CI (8f8c38a) : `gh workflow run ci --ref <branche>`.
 Décisions du chef : les équipiers capturent eux-mêmes les références de leurs scènes (le bead disait « fournies par l'utilisateur ») ; `fr-t1-menus` est seul autorisé à corriger `_t1.ts`, jamais exécuté avant lui.
 **Prochaine action exacte.** Aux comptes rendus de menus et palette : usage, diff, audit, CI, fusion, `bd close`, export, retrait des worktrees. Aux PR cloud d'arbre et de workspace, même revue. Puis fr-t1-onglets (dépend de workspace et menus), puis reglages, splits et binaire (T1.md §4).
+
+## Décision de l'utilisateur — 10/11/2026 17:10 UTC
+`fragment-rs` reste public, historique non purgé (ADR-007, section finale). Question close, plus de remontée. L'audit `audit-sources` au seuil de 6 avant chaque fusion reste obligatoire. La session cloud `fr-t1-arbre` → `fr-t1-workspace` a démarré (orchestrateur) ; surveiller ses PR.

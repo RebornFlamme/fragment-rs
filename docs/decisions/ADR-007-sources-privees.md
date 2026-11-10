@@ -1,6 +1,6 @@
 # ADR-007 — Aucune source du dépôt privé Fragment dans ce dépôt public
 
-Statut : accepté (décision de l'orchestrateur, 05/11/2026). La purge de l'historique reste une décision de l'utilisateur.
+Statut : accepté (décision de l'orchestrateur, 05/11/2026). Visibilité et historique tranchés par l'utilisateur le 10/11/2026 : voir « Décision de l'utilisateur » en fin de document.
 
 ## Contexte
 
@@ -72,3 +72,7 @@ L'orchestrateur a demandé le seuil de 6 lignes et la correction des 5 plages de
 - **Dans l'historique git** : toutes les versions d'origine de ces fichiers restent lisibles dans les commits ci-dessus et les têtes de PR (`refs/pull/*`, que seul le support GitHub peut supprimer). Rien n'a été réécrit ni poussé de force.
 - **Sous le seuil** : sur `main`, après le passage à 6 lignes et la réécriture de 16 plages supplémentaires, `--seuil` trouve encore 12 plages à 5 lignes et 40 à 4 (chaque seuil incluant le précédent). Non corrigées.
 - **Hors de portée de l'audit** : un port Rust est une traduction fidèle du TS par construction (structure, noms, données de test, chemins en tête de fichier), et les constantes de `docs/constantes-rendu.md` et les noms de `docs/contrats.md` viennent de Fragment. L'audit compare des lignes identiques et ne mesure pas cette dérivation, qui découle de la décision de rendre ce dépôt public.
+
+## Décision de l'utilisateur (10/11/2026)
+
+Le dépôt `fragment-rs` **reste public** et son historique **n'est pas purgé** : les versions d'origine listées ci-dessus restent lisibles dans les commits et les têtes de PR, en connaissance de cause. La question est close ; elle ne se remonte plus. Ce qui reste obligatoire : `cargo xtask audit-sources --rev origin/task/<id>` (seuil de 6 lignes, binaire de la branche à jour de `main`) en code 0 avant chaque fusion.
