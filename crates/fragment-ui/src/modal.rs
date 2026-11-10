@@ -280,11 +280,14 @@ pub fn couche(window: &Window, cx: &mut App) -> Entity<CoucheModale> {
 
 // ── Mesures communes aux boîtes ───────────────────────────────────────────────
 
-/// `min(max_css, 100vw - 32px)`, en pixels de l'écran (le zoom multiplie les longueurs CSS).
-pub(crate) fn largeur_boite(window: &Window, cx: &App, max_css: f32) -> Pixels {
+/// La largeur de boîte de Fragment : `width: min(max_css, 100vw - 32px)` est celle du CONTENU
+/// (`box-sizing: content-box`), la boîte y ajoute `extra_css` (paddings et bordures des deux côtés).
+/// En pixels de l'écran : le zoom multiplie les longueurs CSS, pas la fenêtre.
+pub(crate) fn largeur_boite(window: &Window, cx: &App, max_css: f32, extra_css: f32) -> Pixels {
     let plafond = window.viewport_size().width - u(cx, 32.0);
     let voulue = u(cx, max_css);
-    if voulue < plafond { voulue } else { plafond }
+    let contenu = if voulue < plafond { voulue } else { plafond };
+    contenu + u(cx, extra_css)
 }
 
 // ── La modale générique ───────────────────────────────────────────────────────
@@ -335,8 +338,16 @@ impl Render for Modale {
             .relative()
             .flex()
             .flex_col()
-            .w(largeur_boite(window, cx, 560.0))
-            .max_h(window.viewport_size().height * 0.70)
+            .w(largeur_boite(
+                window,
+                cx,
+                560.0,
+                2.0 * (t.forme.size_4_6 + t.forme.border_width),
+            ))
+            .max_h(
+                window.viewport_size().height * 0.70
+                    + u(cx, 2.0 * (t.forme.size_4_5 + t.forme.border_width)),
+            )
             .py(u(cx, t.forme.size_4_5))
             .px(u(cx, t.forme.size_4_6))
             .bg(couleur(t.palette.workspace_bg))
