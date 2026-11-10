@@ -370,3 +370,57 @@ cas_source = 0
 cas_portes = 0
 cas_ajoutes = 2
 notes = "Parité des noms fragment-core : 48 portés (compilés), 20 attendus non portés (Vault, vues, objets du workspace, App)."
+
+# ─── fr-t1-arbre : l'arbre du workspace (référence RebornFlamme/Fragment @ 9305417) ───
+
+[[module]]
+ts = "app/e2e/workspace-structure.spec.ts"
+rs = "crates/fragment-core/tests/workspace_arbre.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 0
+notes = "Au niveau du modèle : la « présentation autrement en CSS » devient un rectangle donné par le test, que le modèle ignore ; la pile sous les boutons est calculée sur des rectangles fournis (Arbre::espace_des_boutons). L'émission unique de layout-change = un drapeau vidé par le Workspace après l'opération (pas de microtâche). Le brief annonçait 4 cas : la spec en compte 3 à ce commit."
+
+[[module]]
+ts = "app/e2e/resize-gesture.spec.ts"
+rs = "crates/fragment-core/tests/workspace_arbre.rs"
+cas_source = 6
+cas_portes = 5
+cas_ajoutes = 0
+notes = "La scène (note | PDF, chat au dock droit) est simulée : boîtes calculées depuis le modèle (flex-grow, largeur du dock), horloge d'images injectée, le chat « cher » allonge de 40 ms l'image qui suit son reflux. Le « zoom » du PDF = ses reflux rendus par l'automate."
+
+[[module.non_portes]]
+quoi = "contre-épreuve : sans le CSS du gel, le côté qui rétrécit reflue aussi"
+raison = "Teste la feuille de style qui applique la boîte figée (workspace.css) ; le cœur ne fait que calculer les boîtes. À porter avec le rendu (fragment-ui, fr-t1-splits)."
+
+[[module]]
+ts = "app/src/ui/core/workspace/WorkspaceItem.ts + WorkspaceSplit.ts"
+rs = "crates/fragment-core/src/workspace/arbre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 13
+notes = "Arène d'ItemId (jamais recyclés) au lieu d'objets liés ; la proportion est un champ du nœud (grow), plus le flex-grow inline. Écarts voulus : réordonner dans le même parent se fait en place (Fragment renormalisait les survivants au passage) ; le parent visé est protégé de la cascade des splits vidés ; une pile vidée est traitée APRÈS l'opération et revérifiée ; insertions incohérentes refusées (ErreurArbre). Le geste de poignée, les poignées et l'animation de dépli sont du rendu ; l'espace des boutons (Workspace.updateFrameSpacing/getTabsAtPoint) est porté ici, sur rectangles donnés."
+
+[[module.non_portes]]
+quoi = "rebuildResizeHandles / attachResize (écouteurs de pointeur), classes CSS, is-expanding"
+raison = "rendu et DOM : fragment-ui (fr-t1-splits) ; le calcul de la poignée est dans redimension.rs"
+
+[[module]]
+ts = "app/src/ui/core/workspace/WorkspaceTabs.ts"
+rs = "crates/fragment-core/src/workspace/pile.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 11
+notes = "La part modèle : enfants, onglet visible, retrait qui garde l'onglet VISIBLE, splitLeaf, reorderLeaf, dropLeaf, zoneAt et dropIndexAt sur rectangles donnés ; Workspace.createLeafBySplit délègue à split_leaf. Les effets de selectTab hors arbre (matérialiser une feuille différée, « la feuille active est l'onglet visible ») reviennent au Workspace (fr-t1-workspace)."
+
+[[module.non_portes]]
+quoi = "rebuildTabHeaders, updateTabOutline, showTabListMenu, showDropIndicator, closeAll, bouton « + » et bouton du panneau droit"
+raison = "barre d'onglets et menus : rendu (fragment-ui, fr-t1-onglets / fr-t1-splits)"
+
+[[module]]
+ts = "app/src/ui/core/workspace/resizeGesture.ts"
+rs = "crates/fragment-core/src/workspace/redimension.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "GelDesFeuilles devient un automate pur (boîtes mesurées et instants d'images injectés, boîtes à imposer rendues) ; les deux images du garde-fou et la pause comptée en images sont tenues. Ajoute les calculs purs des poignées de split (GesteSplit, min 100 px) et de dock (150–500 px). Ses cas e2e sont dans workspace_arbre.rs (module resize-gesture ci-dessus)."

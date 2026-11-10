@@ -77,8 +77,18 @@ pub use documents::{
     EventOrigin, OWNER_CORE,
 };
 pub use leaf_history::{HISTORY_MAX, HistoryEntry, LeafHistory};
+pub use workspace::arbre::{
+    Arbre, Cadre, Cote, ErreurArbre, EspaceBoutons, Forme, GenreSplit, ItemId, MiseEnPage, Noeud,
+    WorkspaceItem, WorkspaceParent, WorkspaceRoot, WorkspaceSidedock, WorkspaceSplit,
+    WorkspaceTabs, normalize_grows,
+};
 pub use workspace::layout::{
     LayoutNode, LeafLayout, SplitLayout, TabsLayout, WorkspaceLayout, is_workspace_layout,
+};
+pub use workspace::pile::{DropZone, drop_index_at, zone_at};
+pub use workspace::redimension::{
+    BUDGET_MS, Boite, GelDesFeuilles, GesteSplit, LARGEUR_DOCK_MAX, LARGEUR_DOCK_MIN, Mesure,
+    PAUSE_GESTE_MS, TAILLE_MIN_PANE, largeur_dock,
 };
 pub use workspace::{OpenViewState, SplitDirection, ViewState, ViewStateResult};
 pub mod attachments;

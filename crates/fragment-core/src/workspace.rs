@@ -3,6 +3,9 @@
 // Les types du modèle du workspace qui ne sont que des DONNÉES : l'état sérialisable
 // d'une feuille, les options d'ouverture, la direction d'un split. Les classes
 // (Workspace, WorkspaceLeaf, View…) viennent avec la tâche qui porte le Vault.
+//
+// Sous-modules : `layout` (la forme sérialisée), `arbre` (l'arène des nœuds), `pile` (les
+// onglets et la découpe), `redimension` (les calculs purs du geste de redimensionnement).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -10,7 +13,10 @@ use serde_json::{Map, Value};
 /// ★ `PaneType` est défini dans `keymap::types` (le Keymap le rend) : on le réexporte.
 pub use crate::keymap::PaneType;
 
+pub mod arbre;
 pub mod layout;
+pub mod pile;
+pub mod redimension;
 
 /// L'état SÉRIALISABLE d'une feuille (§8.2). Ce qui finit dans workspace.json.
 ///
