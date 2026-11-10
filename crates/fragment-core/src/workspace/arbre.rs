@@ -36,17 +36,21 @@ impl ItemId {
     }
 }
 
-/// Un rectangle à l'écran, en px (coordonnées de la fenêtre). Fourni par la couche de rendu :
-/// le cœur ne mesure rien, il raisonne sur ce qu'on lui donne.
+/// Un rectangle à l'écran, en px, en coordonnées de la FENÊTRE (le `getBoundingClientRect`
+/// de Fragment). Fourni par la couche de rendu : le cœur ne mesure rien, il raisonne sur ce
+/// qu'on lui donne.
+///
+/// ★ Pas le `Rect` de `fragment-text` : celui-là est le rectangle de CM6, relatif au
+///   DOCUMENT (il suit le défilement). Le même nom pour deux repères aurait été un piège.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct Rect {
+pub struct Cadre {
     pub x: f64,
     pub y: f64,
     pub largeur: f64,
     pub hauteur: f64,
 }
 
-impl Rect {
+impl Cadre {
     pub fn new(x: f64, y: f64, largeur: f64, hauteur: f64) -> Self {
         Self {
             x,
@@ -227,8 +231,8 @@ pub struct EspaceBoutons {
 /// La mise en page connue de la couche de rendu : le rectangle du workspace et celui de
 /// chaque nœud (`None` = pas à l'écran).
 pub struct MiseEnPage<'a> {
-    pub workspace: Rect,
-    pub rect: &'a dyn Fn(ItemId) -> Option<Rect>,
+    pub workspace: Cadre,
+    pub rect: &'a dyn Fn(ItemId) -> Option<Cadre>,
 }
 
 /// L'arbre du workspace : l'arène, les trois racines permanentes, et ce que les mutations
@@ -947,7 +951,7 @@ impl<F> Arbre<F> {
     /// glisser ou une surcouche n'existent pas pour lui).
     pub fn get_tabs_at_point(
         &self,
-        rect: &dyn Fn(ItemId) -> Option<Rect>,
+        rect: &dyn Fn(ItemId) -> Option<Cadre>,
         x: f64,
         y: f64,
     ) -> Option<ItemId> {
@@ -959,7 +963,7 @@ impl<F> Arbre<F> {
     fn pile_touchee(
         &self,
         id: ItemId,
-        rect: &dyn Fn(ItemId) -> Option<Rect>,
+        rect: &dyn Fn(ItemId) -> Option<Cadre>,
         x: f64,
         y: f64,
     ) -> Option<ItemId> {
@@ -1059,7 +1063,7 @@ mod tests {
 
     #[test]
     fn rect_bords_inclus() {
-        let r = Rect::new(10.0, 10.0, 5.0, 5.0);
+        let r = Cadre::new(10.0, 10.0, 5.0, 5.0);
         assert!(r.contient(10.0, 15.0));
         assert!(!r.contient(15.1, 12.0));
     }

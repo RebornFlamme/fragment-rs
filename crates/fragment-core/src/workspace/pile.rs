@@ -11,7 +11,7 @@
 // rétablit après chaque opération sur l'arbre.
 
 use super::SplitDirection;
-use super::arbre::{Arbre, ErreurArbre, ItemId, Rect};
+use super::arbre::{Arbre, Cadre, ErreurArbre, ItemId};
 
 /// Ce qu'un dépôt fait selon l'endroit du point dans la pile visée.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -41,7 +41,7 @@ pub const QUART_DU_BORD: f64 = 0.25;
 /// Sur la barre : la part haute découpe vers le haut, le reste réordonne. Dans le corps : le
 /// bord le plus proche parmi gauche, droite et bas, s'il est à moins d'un quart ; sinon le
 /// centre. Pas de « haut » dans le corps : le haut, c'est la barre.
-pub fn zone_at(barre: Rect, corps: Rect, x: f64, y: f64) -> DropZone {
+pub fn zone_at(barre: Cadre, corps: Cadre, x: f64, y: f64) -> DropZone {
     if y <= barre.bas() {
         let py = (y - barre.y) / barre.hauteur;
         return if py < PART_HAUTE_DE_LA_BARRE {
@@ -67,7 +67,7 @@ pub fn zone_at(barre: Rect, corps: Rect, x: f64, y: f64) -> DropZone {
 
 /// L'interstice (0…N) sous l'abscisse `x`, d'après les rectangles des onglets dans l'ordre :
 /// avant le premier onglet dont le milieu est à droite de `x`, sinon après le dernier.
-pub fn drop_index_at(onglets: &[Rect], x: f64) -> usize {
+pub fn drop_index_at(onglets: &[Cadre], x: f64) -> usize {
     onglets
         .iter()
         .position(|r| x < r.x + r.largeur / 2.0)
@@ -252,12 +252,12 @@ impl<F> Arbre<F> {
 mod tests {
     use super::*;
 
-    fn barre() -> Rect {
-        Rect::new(0.0, 0.0, 400.0, 40.0)
+    fn barre() -> Cadre {
+        Cadre::new(0.0, 0.0, 400.0, 40.0)
     }
 
-    fn corps() -> Rect {
-        Rect::new(0.0, 40.0, 400.0, 400.0)
+    fn corps() -> Cadre {
+        Cadre::new(0.0, 40.0, 400.0, 400.0)
     }
 
     // ─── Ajoutés : zoneAt / dropIndexAt n'ont pas de test TS (géométrie DOM) ───
@@ -286,8 +286,8 @@ mod tests {
     #[test]
     fn interstice_au_milieu_des_onglets() {
         let onglets = [
-            Rect::new(0.0, 0.0, 100.0, 30.0),
-            Rect::new(100.0, 0.0, 100.0, 30.0),
+            Cadre::new(0.0, 0.0, 100.0, 30.0),
+            Cadre::new(100.0, 0.0, 100.0, 30.0),
         ];
         assert_eq!(drop_index_at(&onglets, 10.0), 0);
         assert_eq!(drop_index_at(&onglets, 60.0), 1);

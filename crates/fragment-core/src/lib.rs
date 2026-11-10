@@ -78,7 +78,7 @@ pub use documents::{
 };
 pub use leaf_history::{HISTORY_MAX, HistoryEntry, LeafHistory};
 pub use workspace::arbre::{
-    Arbre, Cote, ErreurArbre, EspaceBoutons, Forme, GenreSplit, ItemId, MiseEnPage, Noeud, Rect,
+    Arbre, Cadre, Cote, ErreurArbre, EspaceBoutons, Forme, GenreSplit, ItemId, MiseEnPage, Noeud,
     WorkspaceItem, WorkspaceParent, WorkspaceRoot, WorkspaceSidedock, WorkspaceSplit,
     WorkspaceTabs, normalize_grows,
 };

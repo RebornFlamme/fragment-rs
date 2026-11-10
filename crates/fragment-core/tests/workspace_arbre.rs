@@ -15,8 +15,8 @@ use std::rc::Rc;
 
 use fragment_core::workspace::layout::{LayoutNode, LeafLayout};
 use fragment_core::{
-    Arbre, Boite, Cote, DropZone, ErreurArbre, Events, GelDesFeuilles, GesteSplit, ItemId, Mesure,
-    MiseEnPage, Rect, SplitDirection, ViewState, largeur_dock,
+    Arbre, Boite, Cadre, Cote, DropZone, ErreurArbre, Events, GelDesFeuilles, GesteSplit, ItemId,
+    Mesure, MiseEnPage, SplitDirection, ViewState, largeur_dock,
 };
 
 type A = Arbre<&'static str>;
@@ -131,7 +131,7 @@ fn la_sauvegarde_garde_la_proportion_dun_pane_presente_autrement_en_css_le_model
     a.poser_grow(pile_b, 1.4);
     // Un plugin présente b en tranche de 36 px : c'est un rectangle à l'écran, que le
     // modèle ignore. La sauvegarde ne lit QUE le modèle.
-    let tranche = |id: ItemId| (id == pile_b).then(|| Rect::new(964.0, 0.0, 36.0, 800.0));
+    let tranche = |id: ItemId| (id == pile_b).then(|| Cadre::new(964.0, 0.0, 36.0, 800.0));
     assert!(tranche(pile_b).is_some());
     let d = dimensions(&a);
     assert!((d[0] - 0.6).abs() < 1e-5);
@@ -144,16 +144,16 @@ fn lespace_des_boutons_de_fenetre_va_a_la_pile_qui_est_dessous_un_pane_etroit_au
         a, pile_a, pile_b, ..
     } = deux_panes();
     const BOUTONS: f64 = 138.0; // 3 × 46 px
-    let workspace = Rect::new(0.0, 0.0, 1000.0, 800.0);
+    let workspace = Cadre::new(0.0, 0.0, 1000.0, 800.0);
     let root = a.root();
     let porteur = |largeur_b: f64| {
         let rect = move |id: ItemId| {
             if id == root {
                 Some(workspace)
             } else if id == pile_a {
-                Some(Rect::new(0.0, 0.0, 1000.0 - largeur_b, 800.0))
+                Some(Cadre::new(0.0, 0.0, 1000.0 - largeur_b, 800.0))
             } else if id == pile_b {
-                Some(Rect::new(1000.0 - largeur_b, 0.0, largeur_b, 800.0))
+                Some(Cadre::new(1000.0 - largeur_b, 0.0, largeur_b, 800.0))
             } else {
                 None
             }
