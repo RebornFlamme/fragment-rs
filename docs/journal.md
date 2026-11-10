@@ -159,3 +159,12 @@ Décisions du chef :
 - Le 29,5 px est systémique (onglets, splits, réglages) : fr-t1.1 doit en tirer une règle réutilisable, notée dans `docs/constantes-rendu.md`.
 À trancher : rien encore. L'écart d'ombre (flou de GPUI contre Skia) remontera à l'orchestrateur s'il est irréductible.
 **Prochaine action exacte.** Aux comptes rendus de palette et de fr-t1.1 : revue habituelle, puis fusion. Ensuite fr-t1-onglets, dès que workspace (cloud) est fusionné, sous 8 points par jour.
+
+## Vague 6 (palette, arbre, workspace fusionnés) — 10/11/2026 18:50 UTC — usage 5h 32 % / semaine 15 %
+Tâches fermées : fr-t1-palette (#29), fr-t1-arbre (#27, cloud), fr-t1-workspace (#28, cloud). Toutes ont la CI verte et un audit à 0 ; `cargo test -p fragment-core` passe (276 + 49).
+- #28 était empilée sur #27. Après la fusion de #27, je l'ai rebasée par `git rebase --onto origin/main <tête de #27>`, puis poussée en `--force-with-lease`, CI verte. ★ Cloud : demander une PR par tâche, partie de `main` après la fusion de la précédente, ou accepter ce rebase.
+- Palette : boîte, bordures et hauteurs sont exactes. Les glyphes (40 à 90 px de large), l'ombre (environ 108k px), le fond de la ligne sélectionnée (41,41,43 contre 40,41,43, couleur stricte) et l'icône × sont ajoutés au bead fr-t1.1. Requête de `t1-palette` : « panneau » (« sidebar » ne trouvait pas que des commandes du cœur).
+En cours : fr-t1.1, élargi aux 4 scènes de palette.
+**Part fixe** : cumul environ 7 points ; 10/11 : environ 4 sur 8.
+Décisions du chef : fr-t1-onglets et fr-t1-reglages dépendent maintenant de fr-t1.1. La règle des positions fractionnaires (29,5 px) doit exister avant qu'on dessine onglets et réglages, sinon chaque tâche réinvente l'arrondi.
+**Prochaine action exacte.** Au compte rendu de fr-t1.1 : revue habituelle ; l'écart d'ombre, s'il est irréductible, va à l'orchestrateur (divergence, §8). Puis fr-t1-onglets, et fr-t1-reglages si le budget du jour le permet (lourds, environ 3,5 points chacun), en équipiers locaux Sonnet. Le contexte du chef approche les 300k : faire le clear (§10) dès que fr-t1.1 est fusionnée, avant de lancer onglets.
