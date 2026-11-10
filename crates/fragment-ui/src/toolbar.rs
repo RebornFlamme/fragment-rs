@@ -140,6 +140,8 @@ pub fn cliquer(index: usize) -> bool {
 /// Enregistre la commande de scène `pixels:toolbar`
 /// (`{ "x", "y", "variante": "horizontale" | "sections" }`).
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    // Chaque scène (et chaque thème) repart d'un magasin vide : le processus rejoue toutes les scènes.
+    fermer_barre();
     let args = ecouter_args(commandes);
     let commande = Command::new("pixels:toolbar", "Pixels : ouvrir la barre d'outils")
         .with_callback(move || {

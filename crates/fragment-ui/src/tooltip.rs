@@ -342,6 +342,8 @@ pub fn avec_survol<R>(f: impl FnOnce(&mut Survol) -> R) -> R {
 /// Enregistre la commande de scène `pixels:tooltip`
 /// (`{ "x", "y", "w", "h", "text", "placement" }`) : l'infobulle d'une cible invisible.
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    // Chaque scène (et chaque thème) repart d'un magasin vide : le processus rejoue toutes les scènes.
+    avec_survol(|s| *s = Survol::new());
     let args = ecouter_args(commandes);
     let commande =
         Command::new("pixels:tooltip", "Pixels : montrer l'infobulle").with_callback(move || {

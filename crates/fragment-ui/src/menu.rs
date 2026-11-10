@@ -415,6 +415,8 @@ fn appui_exterieur(evt: &MouseDownEvent, _fenetre: &mut Window, app: &mut App) {
 /// Enregistre la commande de scène `pixels:menu` (`{ "x": …, "y": … }`) : le menu de la scène
 /// `t1-menu` (sections, entrée désactivée, sous-menu, entrée destructive).
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    // Chaque scène (et chaque thème) repart d'un magasin vide : le processus rejoue toutes les scènes.
+    fermer_menu();
     let args = ecouter_args(commandes);
     let commande =
         Command::new("pixels:menu", "Pixels : ouvrir le menu").with_callback(move || {

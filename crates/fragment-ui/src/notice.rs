@@ -127,6 +127,8 @@ impl Notice {
 
 /// Enregistre la commande de scène `pixels:notice` (`{ "text": …, "duration": ms }`).
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    // Chaque scène (et chaque thème) repart d'un magasin vide : le processus rejoue toutes les scènes.
+    Notice::tout_fermer();
     let args = ecouter_args(commandes);
     let commande =
         Command::new("pixels:notice", "Pixels : poser une notice").with_callback(move || {
