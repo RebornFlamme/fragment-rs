@@ -164,7 +164,11 @@ pub fn couche(cx: &App) -> AnyElement {
                 .id(("notice", id))
                 .max_w(u(cx, largeur_max))
                 .px(u(cx, f.size_2_7))
-                .py(u(cx, f.size_2_5))
+                // ★ Chromium cale la ligne de 16,8 px (12 × 1,4) vers le haut ; GPUI l'arrondit à 17 et la
+                // pose un pixel plus bas. Un pixel de rembourrage passe donc du haut vers le bas : la
+                // carte garde sa hauteur, le texte remonte.
+                .pt(u(cx, f.size_2_5 - 1.0))
+                .pb(u(cx, f.size_2_5 + 1.0))
                 .rounded(u(cx, f.radius_m))
                 .bg(couleur(c.background_secondary_alt))
                 .text_color(couleur(c.text_normal))

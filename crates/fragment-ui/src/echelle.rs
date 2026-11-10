@@ -98,6 +98,14 @@ fn calees_pures(zoom: f32, origine: f32, hauteurs: &[f32]) -> Vec<f32> {
         .collect()
 }
 
+/// ★ La moitié d'un reste à répartir (centrage), l'égalité vers le HAUT comme Chromium : un contenu de
+/// 15 px centré dans 18 px se pose à 2 px du bord (1,5 arrondi à 2). GPUI arrondit 1,5 à 1 (moitié
+/// vers zéro) : on pose donc le décalage soi-même (`.pl(moitie(cx, reste))`) au lieu de `justify_center`.
+/// Un reste entier se centre pareil des deux côtés, GPUI suffit alors.
+pub fn moitie(cx: &App, reste: f32) -> Pixels {
+    px((reste * Echelle::courante(cx).zoom() / 2.0 + 0.5 + 1e-3).floor())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

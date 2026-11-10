@@ -22,7 +22,7 @@ use gpui_kit::{
 };
 use serde_json::Value;
 
-use crate::echelle::{calees, u};
+use crate::echelle::{calees, moitie, u};
 use crate::flottant::{bordure, ecouter_args, nombre, ombres, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -535,7 +535,7 @@ fn rendre_niveau(
                     let icone = div()
                         .w(u(cx, f.icon_m))
                         .flex()
-                        .justify_center()
+                        .pl(moitie(cx, f.icon_m - ICONE))
                         .opacity(if it.warning { 1.0 } else { 0.7 })
                         .children(it.icon.as_ref().map(|nom| {
                             svg()
