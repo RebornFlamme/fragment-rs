@@ -1,18 +1,17 @@
 Références pixels de fragment-rs, capturées sur Fragment (lecture seule).
 
-Jeu commité : capturé le 01/11/2026 (commit fragment-rs 199cb51), avant le commit 4f16922 de Fragment
-(PDF net, 01/11 20:15). Le commit exact de Fragment alors utilisé n'a pas été consigné.
-
-Régénération du 06/11/2026 (scripts/pixels-reference.ps1, Vite enveloppe, aucune écriture dans Fragment) :
+Jeu commité : régénéré le 10/11/2026 par scripts/pixels-reference.ps1 (Vite enveloppe, aucune écriture dans Fragment),
+en trois lots de scènes (la garde git status --ignored de Fragment sur OneDrive prend environ 7 min par passe).
   Commit de Fragment : 89c7a809475974b6bfc67e38ac44c0720968c0c4
   Branche de Fragment : main
-  Arbre de travail de Fragment : 6 chemins modifiés ou non suivis au lancement (hors ignorés).
-  Serveur Vite (port 5123) : lancé par le script (Vite enveloppe, cache C:/dev/fragment-rs-vite-cache), puis arrêté.
+  Arbre de travail de Fragment : 7 chemins modifiés ou non suivis (CLAUDE.md, app/documentation/, deux specs e2e) ;
+    aucun ne touche au rendu (app/src inchangé).
+  Serveur Vite (port 5123) : lancé par le script à chaque lot (cache C:/dev/fragment-rs-vite-cache), puis arrêté.
   Environnement : FRAGMENT_NO_ONBOARDING=1, 1280 x 800 (réglages : 1000 x 700), DPR 1.
-  Garde : git status --porcelain --ignored et empreinte des fichiers de Fragment/app identiques avant et après.
-  Résultat : 6 PNG identiques (reglages-appearance, reglages-community-plugins,
-  reglages-editor ; 2 thèmes) ; 16 PNG divergent et n'ont PAS été commités (voir la PR) :
-  - 12 PNG (annotation, base, menu, notice, survol-explorateur ; palette sur une sous-zone) : seule la zone
-    du texte du PDF change (x 712-879, y 158-656 ; 1886 pixels) : rendu des canvas PDF après 4f16922.
-  - reglages-hotkeys : une commande de plus dans la liste (« Agent: Préparer l'agent »), Fragment a évolué.
-  - selection : même zone PDF que ci-dessus.
+  Garde : git status --porcelain --ignored et empreinte des fichiers de Fragment/app identiques avant et après chaque lot.
+
+Écarts avec le jeu du 01/11 (fragment-rs 199cb51, commit de Fragment non consigné), adoptés par le chef :
+  - 14 PNG (annotation, base, menu, notice, palette, selection, survol-explorateur ; 2 thèmes) : seule la zone du
+    texte du PDF change (x 712-879, y 158-656). Cause : commit 4f16922 de Fragment (canvas PDF aux pixels physiques).
+  - reglages-hotkeys (2 thèmes) : une commande de plus (« Agent: Préparer l'agent »), présente dans app/src à ce commit.
+  - Inchangés : reglages-appearance, reglages-community-plugins, reglages-editor (2 thèmes).
