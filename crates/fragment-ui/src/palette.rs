@@ -54,15 +54,22 @@ impl StockagePalette for StockageMemoire {
     fn sauver_options(&self, _options: &OptionsPalette) {}
 }
 
+/// Les commandes disponibles maintenant.
+pub type ListeCommandes = Rc<dyn Fn() -> Vec<Rc<Command>>>;
+/// Les raccourcis à afficher pour un id de commande.
+pub type Raccourcis = Rc<dyn Fn(&str) -> Vec<Hotkey>>;
+/// L'exécution d'une commande (rend « a-t-elle tourné ? »).
+pub type Executeur = Rc<dyn Fn(&Command, Option<InputEvent>) -> bool>;
+
 /// D'où la palette tire ses commandes, leurs raccourcis, et comment elle en exécute une.
 #[derive(Clone)]
 pub struct SourcePalette {
     /// Les commandes DISPONIBLES maintenant (`list_commands`).
-    pub commandes: Rc<dyn Fn() -> Vec<Rc<Command>>>,
+    pub commandes: ListeCommandes,
     /// Les raccourcis à AFFICHER pour un id (personnalisation, sinon défaut).
-    pub raccourcis: Rc<dyn Fn(&str) -> Vec<Hotkey>>,
+    pub raccourcis: Raccourcis,
     /// L'exécution (`execute_command` : pose `last_event`, absorbe les paniques).
-    pub executer: Rc<dyn Fn(&Command, Option<InputEvent>) -> bool>,
+    pub executer: Executeur,
 }
 
 impl SourcePalette {
@@ -409,7 +416,7 @@ mod tests {
     fn le_prefixe_se_coupe_sur_le_premier_deux_points() {
         assert_eq!(fin_du_prefixe("Plugin: Faire"), Some((8, 8)));
         assert_eq!(fin_du_prefixe("Sans préfixe"), None);
-        // « é » vaut 2 octets mais 1 unité UTF-16.
-        assert_eq!(fin_du_prefixe("Édit: x"), Some((6, 5)));
+        // « É » vaut 2 octets mais 1 unité UTF-16 : 7 octets, 6 unités.
+        assert_eq!(fin_du_prefixe("Édit: x"), Some((7, 6)));
     }
 }
