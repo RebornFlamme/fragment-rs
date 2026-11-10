@@ -1,0 +1,15 @@
+{
+  "scene": "t1-menu",
+  "vue": "flottantes",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"hover","x":2,"y":2},
+    {"type":"command","id":"pixels:menu","args":{"x":420,"y":260}},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

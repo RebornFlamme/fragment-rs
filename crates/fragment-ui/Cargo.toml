@@ -12,6 +12,10 @@ build = "build.rs"
 # Le cœur ne connaît pas gpui-kit ; c'est fragment-ui qui les rapproche.
 fragment-core = { path = "../fragment-core" }
 fragment-theme = { path = "../fragment-theme" }
+# Le modèle de la barre d'outils (sections, groupes, orientation) est déjà porté là (fr-t1-menus).
+fragment-annotation = { path = "../fragment-annotation" }
+# Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
+serde_json.workspace = true
 gpui-kit.workspace = true
 
 [dev-dependencies]

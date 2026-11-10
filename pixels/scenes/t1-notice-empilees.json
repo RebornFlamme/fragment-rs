@@ -1,0 +1,15 @@
+{
+  "scene": "t1-notice-empilees",
+  "vue": "flottantes",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"hover","x":2,"y":2},
+    {"type":"command","id":"pixels:notice","args":{"text":"Première notice","duration":0,"reset":true}},
+    {"type":"command","id":"pixels:notice","args":{"text":"Deuxième notice\nsur deux lignes","duration":0}},
+    {"type":"command","id":"pixels:notice","args":{"text":"Troisième","duration":0}},
+    {"type":"wait-stable"}
+  ]
+}
