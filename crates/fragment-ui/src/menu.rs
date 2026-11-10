@@ -592,5 +592,5 @@ fn rendre_niveau(menu: &Menu, niveau: usize, chemin: &[usize], cx: &App) -> AnyE
         .children(lignes);
     let boite =
         bordure(boite, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
-    texte(boite, cx, f.font_ui_medium, 1.5).into_any_element()
+    texte(boite, cx, t.typo.font_ui_medium, 1.5).into_any_element()
 }

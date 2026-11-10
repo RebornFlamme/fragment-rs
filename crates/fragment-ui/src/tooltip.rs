@@ -427,7 +427,7 @@ pub fn couche(cx: &App) -> AnyElement {
             .anchor(ancre)
             .position(point(u(cx, x), u(cx, y)))
             .snap_to_window_with_margin(u(cx, MARGE))
-            .child(texte(bulle, cx, f.font_ui_small, 1.35)),
+            .child(texte(bulle, cx, t.typo.font_ui_small, 1.35)),
     )
     .into_any_element()
 }

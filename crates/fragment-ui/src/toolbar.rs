@@ -381,5 +381,5 @@ fn rendre(modele: &Toolbar, cx: &App) -> AnyElement {
     let racine = bordure(racine, u(cx, f.border_width))
         .border_color(couleur(c.tab_outline_color))
         .children(enfants);
-    texte(racine, cx, f.font_ui_small, 1.5).into_any_element()
+    texte(racine, cx, t.typo.font_ui_small, 1.5).into_any_element()
 }

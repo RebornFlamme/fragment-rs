@@ -175,7 +175,7 @@ pub fn couche(cx: &App) -> AnyElement {
                 .child(e.message);
             let carte = bordure(carte, u(cx, f.border_width))
                 .border_color(couleur(c.background_modifier_border));
-            texte(carte, cx, f.font_ui_small, 1.4).into_any_element()
+            texte(carte, cx, t.typo.font_ui_small, 1.4).into_any_element()
         })
         .collect();
     // Le conteneur laisse passer les clics : il n'a ni fond ni gestionnaire.
