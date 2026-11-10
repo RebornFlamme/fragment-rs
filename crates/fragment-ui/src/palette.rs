@@ -345,6 +345,7 @@ impl ElementsFlous for AdaptateurPalette {
 /// référence) : elle liste ces commandes elle-même, et le curseur du champ est masqué comme dans les
 /// captures de Fragment.
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    crate::modal::vider_demandes();
     let fixtures = [
         (
             "app:toggle-left-sidebar",

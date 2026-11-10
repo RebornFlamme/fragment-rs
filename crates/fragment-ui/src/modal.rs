@@ -139,6 +139,12 @@ pub fn ouvrir(demande: Demande) {
     EN_ATTENTE.with(|f| f.borrow_mut().push(demande));
 }
 
+/// Vide la file : chaque scène de pixels repart d'un état propre (le lecteur rejoue toutes les scènes
+/// dans un seul processus).
+pub(crate) fn vider_demandes() {
+    EN_ATTENTE.with(|f| f.borrow_mut().clear());
+}
+
 fn prendre_demandes() -> Vec<Demande> {
     EN_ATTENTE.with(|f| std::mem::take(&mut *f.borrow_mut()))
 }
@@ -397,6 +403,7 @@ pub const SCENE_CONTENU: &str = "Un paragraphe de contenu, pour mesurer le cadre
 
 /// Enregistre la commande de scène `pixels:modal` : ouvre la modale générique de `t1-modale`.
 pub fn commandes_de_scene(commandes: &CommandManager) {
+    vider_demandes();
     let commande = fragment_core::Command::new("pixels:modal", "Pixels: modale")
         .with_callback(|| Modale::ouvrir(SCENE_TITRE, SCENE_CONTENU));
     // Le retrait n'est jamais appelé : la commande vit autant que le gestionnaire de la scène.
