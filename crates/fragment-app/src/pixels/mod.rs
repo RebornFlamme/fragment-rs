@@ -80,6 +80,9 @@ pub async fn jouer(
     cx: &mut AsyncApp,
 ) -> anyhow::Result<RgbaImage> {
     let session = cx.update(|cx| -> anyhow::Result<Session> {
+        // ★ Chromium (le harnais de référence) peint le texte en niveaux de gris ; GPUI choisit le sous-pixel
+        // (franges colorées) sur le moteur wgpu. Sans ce réglage, chaque bord de glyphe diffère de 100+.
+        cx.set_text_rendering_mode(gpui_kit::TextRenderingMode::Grayscale);
         theme_global::installer(cx, mode(theme));
         let (commandes, hote) = fenetres::commandes_de_scene();
         let principale = fenetres::ouvrir_principale(cx, scene.vue, scene.fenetre)?;
