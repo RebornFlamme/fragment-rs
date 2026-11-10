@@ -5,7 +5,9 @@
 // (Workspace, WorkspaceLeaf, View…) viennent avec la tâche qui porte le Vault.
 //
 // Sous-modules : `layout` (la forme sérialisée), `arbre` (l'arène des nœuds), `pile` (les
-// onglets et la découpe), `redimension` (les calculs purs du geste de redimensionnement).
+// onglets et la découpe), `redimension` (les calculs purs du geste de redimensionnement),
+// `vue` (View, ItemView, vue vide, coquille différée), `feuille` (WorkspaceLeaf), `espace` (le
+// Workspace vivant), `restauration` (la persistance du layout), `commandes` (workspace:*).
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -14,9 +16,14 @@ use serde_json::{Map, Value};
 pub use crate::keymap::PaneType;
 
 pub mod arbre;
+pub mod commandes;
+pub mod espace;
+pub mod feuille;
 pub mod layout;
 pub mod pile;
 pub mod redimension;
+pub mod restauration;
+pub mod vue;
 
 /// L'état SÉRIALISABLE d'une feuille (§8.2). Ce qui finit dans workspace.json.
 ///

@@ -424,3 +424,112 @@ cas_source = 0
 cas_portes = 0
 cas_ajoutes = 4
 notes = "GelDesFeuilles devient un automate pur (boîtes mesurées et instants d'images injectés, boîtes à imposer rendues) ; les deux images du garde-fou et la pause comptée en images sont tenues. Ajoute les calculs purs des poignées de split (GesteSplit, min 100 px) et de dock (150–500 px). Ses cas e2e sont dans workspace_arbre.rs (module resize-gesture ci-dessus)."
+
+# ─── fr-t1-workspace : le workspace vivant (référence RebornFlamme/Fragment @ 9305417) ───
+# Les specs e2e sont portées au niveau du MODÈLE : un banc assemble AppCoeur, un fournisseur de
+# documents en mémoire (le coffre) et LayoutMemoire (le redémarrage), avec des vues factices
+# (markdown, pdf, chat, explorateur) qui posent Mod+F dans leur portée.
+
+[[module]]
+ts = "app/e2e/activeleaf-tracking.spec.ts"
+rs = "crates/fragment-core/tests/workspace_espace.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+notes = "L'appui sur l'en-tête = Workspace::activer_onglet ; le clic ou le focus dans une feuille = activer_par_contact ; le bouton « Agent » du ruban = une vue chat montée active au dock droit ; annotation:toggle = une commande de test qui bascule un calque dans la lecture de la vue active."
+
+[[module.non_portes]]
+quoi = "parties DOM et calques : visibilité de .annotation-toolbar (Ctrl+Maj+A), calque agent (Ctrl+Maj+L), clic droit dans l'explorateur, rechargement du renderer"
+raison = "Les calques sont dans fragment-annotation / fragment-agent et le rendu dans fragment-ui : le cœur prouve le ROUTAGE (la frappe va à la portée de la vue active, Mod+F compté par vue). Le rechargement = un second banc sur le même LayoutMemoire."
+
+[[module]]
+ts = "app/e2e/boot-scope.spec.ts"
+rs = "crates/fragment-core/tests/workspace_espace.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 0
+notes = "Le layout réel de la régression est réécrit (même structure : active sur un onglet caché derrière le PDF, « leaf-7 » ×3, vue inconnue dans un dock replié). « sommet » = Keymap::scope() égale la portée de la vue active."
+
+[[module.non_portes]]
+quoi = "barre de recherche du PDF visible et focalisée après Ctrl+F (.pdf-find-bar, .pdf-find-input)"
+raison = "rendu de la vue PDF (fragment-pdf / fragment-ui) ; ici Ctrl+F est compté par la portée de la vue PDF factice"
+
+[[module]]
+ts = "app/e2e/workspace-layout.spec.ts"
+rs = "crates/fragment-core/tests/workspace_espace.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 0
+notes = "Le disque = LayoutMemoire partagé entre deux bancs ; le coffre = un fournisseur de documents du schéma vide ; « le premier markdown du coffre » = Workspace::document_initial. Le texte du panneau vide = EmptyView::message (vide tant que la vue n'est pas montée, comme le DOM de Fragment). Le cas « §8.4 — … » s'appelle seules_les_feuilles_visibles_… (un nom Rust ne commence pas par un chiffre)."
+
+[[module.non_portes]]
+quoi = "capture d'écran test-results/workspace-restaure.png"
+raison = "artefact de rendu, sans assertion ; la parité au pixel est la tâche des scènes (fr-t1-onglets)"
+
+[[module]]
+ts = "app/src/ui/coreCommands/WorkspaceCommandsPlugin.ts (+ .test.ts)"
+rs = "crates/fragment-core/src/workspace/commandes.rs + tests/workspace_espace.rs"
+cas_source = 5
+cas_portes = 3
+cas_ajoutes = 1
+notes = "Les 3 cas « APRÈS FIX » tournent sur le VRAI Workspace par execute_command_by_id. split-vertical/horizontal, new-tab, next/previous-tab, close, close-others, toggle-pin branchés sur le Workspace. Le tableau de ces commandes existe aussi dans fragment-plugins (workspace_commands.rs, qui porte déjà les 5 cas sur une pile factice) : compter ces cas une seule fois."
+
+[[module.non_portes]]
+quoi = "2 cas « next-tab — LE BUG (logique expédiée) »"
+raison = "ils reproduisent l'ANCIENNE logique, pas le code : portés dans fragment-plugins ; dans le cœur, la dérive est impossible (montrer un onglet de la pile de l'active l'active)"
+
+[[module.non_portes]]
+quoi = "workspace:open (CLI), marge de lecture (marginMode.ts)"
+raison = "validation de workspace:open dans fragment-plugins, attente du défilement = rendu ; la marge est un autre module"
+
+[[module]]
+ts = "app/src/ui/coreCommands/AppCommandsPlugin.ts (hors zoom)"
+rs = "crates/fragment-core/src/workspace/commandes.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "app:toggle-left-sidebar (Ctrl+&), app:toggle-right-sidebar (Ctrl+Maj+%), app:go-back, app:go-forward."
+
+[[module.non_portes]]
+quoi = "app:zoom-in / zoom-out / reset-zoom, app:reload, app:delete-file, élément de version de la barre d'état"
+raison = "zoom : fr-t1-reglages ; reload : l'hôte (fr-t1-binaire) ; delete-file : le Vault (T2) ; barre d'état : rendu"
+
+[[module]]
+ts = "app/src/ui/core/workspace/Workspace.ts + WorkspaceLeaf.ts"
+rs = "crates/fragment-core/src/workspace/espace.rs + feuille.rs + restauration.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 5
+notes = "Les promesses tenues après CHAQUE opération (apres_operation) : piles vidées, active = onglet visible, matérialisation de ce qui devient visible, une émission de layout-change par opération (drapeau de l'arbre). Écarts voulus : activer une feuille cachée la MONTRE ; fermer le dernier onglet d'une pile du centre passe l'actif à la première feuille visible du centre (Fragment rendait null) ; change_layout retire la portée de l'ancienne active et restore_into ferme les vues libérées (Fragment les laissait) ; l'active restaurée qui n'était pas différée reçoit sa portée ; générateur d'ids propre au Workspace (Fragment : statique) ; la sauvegarde débouncée est laissée à l'hôte (prendre_sauvegarde_due). file-open porte une DocumentKey (le Vault vient en T2)."
+
+[[module.non_portes]]
+quoi = "openFile / requestedFile / getLeavesOfFile / openLinkText / leaf.file (TFile)"
+raison = "le Vault et le registre des extensions branchés sur des fichiers : T2 (open_document par clé couvre la navigation de T1)"
+
+[[module.non_portes]]
+quoi = "attachSidebarResize, indicateurs de dépôt, ruban, écouteurs pointerdown/focusin, activeEditor / getActiveViewOfType"
+raison = "rendu (fragment-ui ; le calcul de la poignée est dans redimension.rs, l'activation au contact dans activer_par_contact) ; l'éditeur actif vient avec les vues textuelles (T3)"
+
+[[module]]
+ts = "app/src/ui/core/workspace/View.ts + ItemView.ts (modèle) + EmptyView.ts + DeferredView.ts"
+rs = "crates/fragment-core/src/workspace/vue.rs + feuille.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 6
+notes = "trait View (type, titre, icônes, document, navigation, portée, état, état éphémère), trait ItemView (portée toujours chaînée à la racine), ViewCreator = Rc<dyn Fn(&ContexteVue) -> Box<dyn View>> (la feuille ne peut pas être cédée à la fabrique, contrat : Box<dyn Fn(WorkspaceLeaf)>). La vue vide distingue montée / jamais montée (le message du panneau). Les 6 = 4 de vue.rs + 2 du générateur d'ids (reserverId)."
+
+[[module.non_portes]]
+quoi = "en-tête de vue (← →, titre, actions, ⋯), hébergement des calques, retenue de la position de lecture au défilement, onPaneMenu"
+raison = "rendu et calques : fragment-ui / fragment-layers ; l'état éphémère reste opaque au cœur"
+
+[[module]]
+ts = "app/src/ui/core/app.ts"
+rs = "crates/fragment-core/src/app.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "trait App (accesseurs) + AppCoeur : Keymap, CommandManager (CommandHost), HotkeyManager (installer_raccourcis), registres des vues et des extensions, DocumentManager, Workspace, RegistryHub (PluginHost). Câblages : registre des vues changé → rebuild_placeholders ; document renommé → historiques recalés. Testé par tout workspace_espace.rs."
+
+[[module.non_portes]]
+quoi = "vault, plugins, dragManager, cliHost, windowHost, appearance / appSettings, icons, embeds, codeBlockProcessors, layers, ribbon, statusBar, settingTabs, metadataTypeManager, secrets, artefacts, handleProtocol, localStorage"
+raison = "hors de ce bead : Vault T2, apparence fr-t1-reglages, hôtes fenêtre / CLI dans fragment-app / fragment-cli, registres de rendu dans fragment-ui ; chacun s'ajoute à AppCoeur avec sa tâche"
