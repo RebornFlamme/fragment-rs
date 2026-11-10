@@ -28,26 +28,36 @@ Fragment est en lecture seule : on exécute ses outils, on n'y écrit rien (déc
 Comparer avec `git status` / `git diff --stat pixels/reference`. Un écart est à expliquer avant de commiter
 (fixture ou décor réécrits, mise à jour de Fragment : le commit de PROVENANCE.txt le montre).
 
-## Dettes de parité : surfaces flottantes T1 (fr-t1-menus)
-Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-horizontale,toolbar-sections}` (T1, décor
-`_t1-flottantes` : seule la surface flottante sur le fond du workspace ; les scènes en fenêtre entière viendront
-avec `fr-t1-binaire`). Les 12 captures du candidat existent et la mise en page est la bonne ; le job `pixels` reste
-ROUGE (écarts de 0,5 à 4,3 % des pixels), pour des causes identifiées :
-- **Largeur de texte / rembourrage (notice)** : la carte candidate fait 2 px de plus que celle de Fragment, le texte
-  démarre 1 px plus à gauche et 1 px plus bas (interligne et approche des glyphes de GPUI contre Chromium).
-- **Hauteur des lignes du menu** : Fragment compte 29,5 px par ligne (5 + 19,5 + 5), le candidat 29 ; GPUI arrondit
-  les boîtes à l'entier malgré `h(29.5)`. Le menu candidat est 3 à 4 px plus court. Piste : positionner les lignes
-  en absolu sur une grille fractionnaire, ou accepter l'arrondi par un ADR.
-- **Ombres** : `--menu-shadow` / `--shadow-s` se rendent un cran plus claires côté GPUI (écart de 2 niveaux, zones
-  de plus de 100 px : hors du sas des glyphes).
-- **Icônes** (traits Lucide de 1,5 px) : anticrénelage différent, zones de 16 × 16 px.
-- **Survol du menu** : Chromium ne peint pas `:hover` sur l'entrée dans le harnais de référence (cause non
-  élucidée) ; le JSON candidat garde donc le pointeur garé.
-- ★ La croix de l'onglet actif (437, 19) apparaissait sur les 12 premières références : `.workspace-tab-header-
-  inner-close-button` force `visibility: visible` et survit à `#root{visibility:hidden}`. Le décor masque désormais
-  `#root *`.
-- **Décision du chef (10/11)** : la PR est fusionnée avec ces 6 scènes en `"depuis": "T2"`, pour garder la CI verte. Les écarts ci-dessus forment le bead `fr-t1.1`, qui bloque `fr-t1-binaire` : la tranche T1 n'est pas finie sans eux (program.md §6). `fr-t1-binaire` repasse les scènes à T1.
+## Dettes de parité : surfaces flottantes T1 (fr-t1.1)
+Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-horizontale,toolbar-sections}`, toujours en `"depuis": "T2"`.
+Mesures CI du 10/11, de 0,12 % à 1,07 % de pixels différents (contre 0,5 à 4,3 % avant) ; la mise en page est
+désormais au pixel (arêtes du menu, séparateurs, bordures, hauteur de carte identiques).
 
+**Corrigé (fr-t1.1)**
+- Lignes de menu de 29,5 px : GPUI arrondit les longueurs écrites AVANT la mise en page ; `echelle::calees` leur
+  donne les hauteurs entières (30, 29, 30…) qui reproduisent l'arrondi arête par arête de Chromium (voir
+  `constantes-rendu.md`, « Positions fractionnaires »). Icône de menu centrée à l'égalité haute (`echelle::moitie`).
+- Ombres : le shader de GPUI prend `blur_radius` pour l'écart-type, Skia prend `flou / 2` ; `ombres()` divise par 2.
+  L'ombre est passée de « un cran trop pâle sur plus de 100 px » à ≤ 2 niveaux d'écart (voir plus bas).
+- Texte : le harnais force `TextRenderingMode::Grayscale` (Chromium n'a pas de franges colorées).
+- Poignée de la barre d'outils : `min-width: 16px` + `padding: 0 1px` en boîte de contenu = 18 px (2 px de moins).
+- Texte de la notice remonté d'un pixel (ligne de 16,8 px arrondie à 17 par GPUI).
+
+**Reste, irréductible sans toucher GPUI**
+- **Règle du sas** (`xtask/src/pixels.rs`) : le masque contient TOUT pixel de delta > 0, les zones sont ses composantes
+  8-connexes (une par passage de texte, pas par glyphe), le pire delta se prend sur toute l'image. Un passage de texte
+  (40 à 90 px de large) ou une ligne de bordure à 1 niveau d'écart fait donc échouer la scène, même si chaque pixel
+  est ≤ 16.
+- **Glyphes** : le candidat tourne sur Linux (cosmic-text, paramètres de contraste du renderer wgpu inaccessibles à
+  l'application), la référence sur Chromium/DirectWrite : traits plus fins, delta jusqu'à 190 sur les arêtes. Largeur
+  du texte : environ 1 % de plus côté GPUI, plus l'arrondi vers le haut des feuilles mesurées (+1 px sur
+  l'infobulle, +2 px sur la carte de notice).
+- **Ombres** : après correction, écart ≤ 2 niveaux, sauf quelques pixels isolés (formule d'erf approchée et 4
+  échantillons du shader contre le flou de Skia). Bordures et séparateurs : 1 niveau de plus ou de moins (mélange
+  alpha).
+- **Icônes Lucide de 1,5 px** : géométrie identique, anticrénelage différent, delta max 54 à 94 selon la scène, zones
+  d'environ 16 × 16 px (> 16 de delta : ce n'est pas un écart « de glyphe » toléré par la règle actuelle).
+- **Survol du menu** : non traité (cause côté Chromium non élucidée) ; pointeur toujours garé.
 ## Dettes de parité : modale et palette T1 (fr-t1-palette)
 Scènes `t1-{modale,palette,palette-aucun-resultat,palette-selection}` (décor `_t1-flottantes` : la boîte sur le fond
 du workspace). Requête de `t1-palette` : « panneau » (et non « sidebar », absent d'une interface en français) : sur
