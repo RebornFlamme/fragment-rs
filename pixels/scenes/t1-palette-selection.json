@@ -1,0 +1,14 @@
+{
+  "scene": "t1-palette-selection",
+  "depuis": "T1",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"command","id":"command-palette:open"},
+    {"type":"type","text":"panneau"},
+    {"type":"key","keys":"ArrowDown"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
