@@ -82,6 +82,11 @@ pub use workspace::arbre::{
     WorkspaceItem, WorkspaceParent, WorkspaceRoot, WorkspaceSidedock, WorkspaceSplit,
     WorkspaceTabs, normalize_grows,
 };
+pub use workspace::commandes::{enregistrer_commandes_app, enregistrer_commandes_workspace};
+pub use workspace::espace::{
+    ACTIVE_LEAF_CHANGE, ContexteApp, FILE_OPEN, LAYOUT_CHANGE, NouvelleFeuille, RESIZE, Workspace,
+};
+pub use workspace::feuille::{GenerateurIds, WorkspaceLeaf};
 pub use workspace::layout::{
     LayoutNode, LeafLayout, SplitLayout, TabsLayout, WorkspaceLayout, is_workspace_layout,
 };
@@ -90,7 +95,14 @@ pub use workspace::redimension::{
     BUDGET_MS, Boite, GelDesFeuilles, GesteSplit, LARGEUR_DOCK_MAX, LARGEUR_DOCK_MIN, Mesure,
     PAUSE_GESTE_MS, TAILLE_MIN_PANE, largeur_dock,
 };
+pub use workspace::restauration::{ErreurLayout, LayoutMemoire, LayoutStore};
+pub use workspace::vue::{
+    ContexteVue, DEFERRED_VIEW_TYPE, DeferredView, EmptyView, ItemView, ItemViewBase, View,
+    ViewCreator,
+};
 pub use workspace::{OpenViewState, SplitDirection, ViewState, ViewStateResult};
+pub mod app;
+pub use app::{App, AppCoeur};
 pub mod attachments;
 pub mod debounce;
 pub mod dispatch;
