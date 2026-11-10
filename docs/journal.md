@@ -168,3 +168,21 @@ En cours : fr-t1.1, élargi aux 4 scènes de palette.
 **Part fixe** : cumul environ 7 points ; 10/11 : environ 4 sur 8.
 Décisions du chef : fr-t1-onglets et fr-t1-reglages dépendent maintenant de fr-t1.1. La règle des positions fractionnaires (29,5 px) doit exister avant qu'on dessine onglets et réglages, sinon chaque tâche réinvente l'arrondi.
 **Prochaine action exacte.** Au compte rendu de fr-t1.1 : revue habituelle ; l'écart d'ombre, s'il est irréductible, va à l'orchestrateur (divergence, §8). Puis fr-t1-onglets, et fr-t1-reglages si le budget du jour le permet (lourds, environ 3,5 points chacun), en équipiers locaux Sonnet. Le contexte du chef approche les 300k : faire le clear (§10) dès que fr-t1.1 est fusionnée, avant de lancer onglets.
+
+## Vague 6 (fin, avant clear du chef) — 10/11/2026 19:15 UTC — usage 5h ≈ 33 % / semaine 15 %
+Tâches : fr-t1.1, PR #30 fusionnée (CI verte, audit à 0), bead rouvert et EN ATTENTE de la décision de l'orchestrateur. Détail dans les notes du bead et dans `docs/parite-pixels.md`.
+- **Réglé :** le 29,5 px. GPUI arrondit chaque longueur avant la mise en page ; la règle est dans `echelle::calees`/`moitie` (`docs/constantes-rendu.md`, « Positions fractionnaires »). Aussi l'ombre (le flou de GPUI est un écart-type, celui de Skia vaut flou/2) et la poignée de 18 px.
+- **Restant :** 0,1 à 1 % de pixels. Glyphes (traits plus fins, delta jusqu'à 190), texte environ 1 % plus large (+1 à 2 px), icônes (delta 54 à 94), bordures (1 niveau, alpha). Les 4 scènes de palette ne sont pas traitées.
+Remontée à l'orchestrateur (§8, divergence) : ADR « sas par catégorie » proposé. Strict hors des boîtes de texte et d'icônes, tolérance dedans, largeur du texte à ±1 px, tâche de rasterizeur en phase 4.
+Décision du chef : fr-t1-onglets et fr-t1-reglages ne dépendent plus de fr-t1.1, puisque la règle du fractionnaire existe. fr-t1-binaire reste bloquée par fr-t1.1.
+Équipiers : aucun actif. Worktrees : aucun hors `main`. Battement annulé, réveil d'après-clear posé (§10). **Part fixe** : cumul environ 8 points ; 10/11 : environ 5 sur 8.
+**Prochaine action exacte.**
+1. Lancer fr-t1-onglets en équipier local Sonnet, dans un worktree frère `../fragment-rs-onglets` avec son propre `CARGO_TARGET_DIR`. Brief sur le modèle des précédents :
+   - règle `echelle::calees` pour toute hauteur fractionnaire ;
+   - scènes en fenêtre entière en `"depuis": "T2"`, zone mesurée au rognage sur un premier commit à T1 ;
+   - captures au premier plan avec le verrou `C:/dev/fragment-rs-pixels-verrou` ;
+   - pas de build local de l'app ;
+   - arrêt et notes au bead au-delà de 250k tokens.
+2. fr-t1-reglages en parallèle si le budget du jour le permet (8 par jour, lourds).
+3. À la réponse de l'orchestrateur sur le sas : ADR, puis tâche xtask (masque de catégories exporté par le candidat), puis reprise de fr-t1.1.
+4. ★ Arrêter (`TaskStop`) tout équipier qui a rendu son compte rendu, sinon il continue en tâche de fond.
