@@ -186,3 +186,19 @@ Décision du chef : fr-t1-onglets et fr-t1-reglages ne dépendent plus de fr-t1.
 2. fr-t1-reglages en parallèle si le budget du jour le permet (8 par jour, lourds).
 3. À la réponse de l'orchestrateur sur le sas : ADR, puis tâche xtask (masque de catégories exporté par le candidat), puis reprise de fr-t1.1.
 4. ★ Arrêter (`TaskStop`) tout équipier qui a rendu son compte rendu, sinon il continue en tâche de fond.
+
+## Décision de l'orchestrateur, sas — 10/11/2026 18:55 UTC
+Le « sas par catégorie » est ACCORDÉ AVEC CONDITIONS, consignées dans ADR-009 :
+- strict hors des boîtes de texte et d'icônes, avec l'origine de chaque boîte vérifiée strictement ;
+- tolérance d'anticrénelage dans une boîte, sous garde-fous (encre totale bornée, boîte d'encre à ±1 px), avec contre-épreuve rouge obligatoire ;
+- icônes traitées comme les glyphes ;
+- largeur du texte à ±1 px pour T1 SEULEMENT ;
+- rasterizeur en phase 4, avec un cliquet sur le delta max et le pourcentage dans les boîtes.
+Beads créés : `fr-t1.2` (outillage du sas, dont dépend désormais fr-t1.1) et `fr-t1.3` (largeur du texte, environ 1 %). ★ fr-t1.3 doit être fermé AVANT T2 : à la création de l'épic fr-t2, faire `bd dep add fr-t2 fr-t1.3`. Le binaire de T1 peut être livré avec cette dette déclarée, à mentionner dans le compte rendu de livraison.
+Le clear demandé à 18:49 n'a pas eu lieu : l'arrivée de ce message l'a annulé. Je le refais en fin de ce tour, et le réveil de 19:55 (heure locale) tient toujours.
+**Prochaine action exacte** (remplace celle de l'entrée précédente) :
+1. fr-t1-onglets en équipier local (voir l'entrée précédente pour le brief).
+2. fr-t1.2 en parallèle : xtask et `fragment-app/src/pixels/{capture,mod}.rs`, fichiers disjoints d'onglets.
+3. fr-t1-reglages si le budget du jour le permet.
+4. fr-t1.3 après fr-t1.2, puis fr-t1.1.
+Au plus 3 équipiers.
