@@ -1998,3 +1998,17 @@ Aucune.
 - Lignes de la table des constantes de mise en page : **1561**.
 - Lignes de la table des jetons : **143**.
 - Le fichier de jetons est `ui\index.css` (et non `app\src\index.css`, qui n'existe pas).
+
+## ★ Positions fractionnaires
+
+**Question** : Fragment a des boîtes de 29,5 px (lignes de menu : 5 + 19,5 + 5). GPUI ou taffy arrondit-il à l'entier, et où ?
+
+**Réponse** (sources de `gpui-pre 0.3.10`, `src/taffy.rs` et `src/util.rs`) : taffy lui-même N'ARRONDIT PAS (`disable_rounding()`). C'est GPUI qui arrondit, en deux temps :
+1. **Avant la mise en page**, chaque longueur ABSOLUE écrite (`h`, `w`, `p`, `gap`, `top`, bordures…) passe par `round_to_device_pixel` : `round(longueur × dpr)`, la moitié vers zéro (29,5 devient 29, 19,5 devient 19). Les feuilles mesurées (texte) sont arrondies vers le HAUT. Les fractions (`relative(f)`) et les parts de flex ne sont PAS arrondies à cet étage.
+2. **Après la mise en page**, chaque boîte est calée par ses arêtes ABSOLUES (`round_half_toward_zero(origine)` et de la même façon pour l'arête lointaine) : une seule réponse par coordonnée de fenêtre, sans dérive.
+
+Chromium fait l'inverse du premier temps : il cumule en fractions exactes (1/64 px) et n'arrondit qu'à la peinture, arête par arête, à l'entier le plus proche, l'égalité VERS LE HAUT. Écrire `h(29.5)` donne donc 29 sur toute la pile là où Chromium alterne 30, 29, 30, 29… (arêtes 34,5 → 35, 64, 93,5 → 94…).
+
+**Règle** : ne jamais écrire une longueur fractionnaire en comptant sur GPUI. Pour une pile de boîtes de hauteur fractionnaire, calculer les arêtes EXACTES (cumul en `f32` depuis l'origine exacte de la pile), les arrondir comme Chromium, et donner à GPUI les hauteurs ENTIÈRES qui en résultent : `echelle::calees(cx, origine, &hauteurs)`. Le cumul reste exact, seul l'affichage est arrondi. Exemple : le menu (`menu.rs`). Pour une pile dont l'origine est elle-même fractionnaire (sous-menu), transmettre l'origine exacte du parent.
+- Limites : un pixel logique = un pixel écran (dpr 1, celui des scènes) ; le texte reste centré dans la boîte entière, alors que Chromium le pose à l'arête exacte puis arrondit la ligne de base : un décalage d'un pixel du texte est possible une ligne sur deux (à vérifier dans les scènes).
+- Les largeurs fractionnaires (rare) se traitent de même, par le cumul horizontal.

@@ -27,13 +27,18 @@ use crate::theme_global::{couleur, theme_ou_defaut};
 use crate::{menu, notice, toolbar, tooltip};
 
 /// Les ombres portées d'un jeton (`--menu-shadow`, `--shadow-s`…) en ombres GPUI, mises à l'échelle.
+///
+/// ★ Le « flou » CSS est le DIAMÈTRE de l'étalement : Skia en tire un écart-type de `flou / 2`. Le shader
+/// d'ombre de GPUI (`gaussian(y, blur_radius)`) prend `blur_radius` tel quel comme écart-type : sans la
+/// division, toute ombre est deux fois trop étalée, donc trop pâle. Décalage et étendue ont le même sens
+/// des deux côtés.
 pub fn ombres(cx: &App, liste: &[Ombre]) -> Vec<BoxShadow> {
     liste
         .iter()
         .map(|o| BoxShadow {
             color: couleur(o.couleur).into(),
             offset: point(u(cx, o.decalage_x), u(cx, o.decalage_y)),
-            blur_radius: u(cx, o.flou),
+            blur_radius: u(cx, o.flou / 2.0),
             spread_radius: u(cx, o.etendue),
             inset: false,
         })

@@ -22,7 +22,7 @@ use gpui_kit::{
 };
 use serde_json::Value;
 
-use crate::echelle::u;
+use crate::echelle::{calees, u};
 use crate::flottant::{bordure, ecouter_args, nombre, ombres, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -464,7 +464,7 @@ pub fn couche(cx: &App) -> AnyElement {
     let rendu = COURANT.with(|c| {
         let garde = c.borrow();
         let o = garde.as_ref()?;
-        Some((rendre_niveau(&o.menu, 0, &o.chemin, cx), o.x, o.y))
+        Some((rendre_niveau(&o.menu, 0, &o.chemin, o.y, cx), o.x, o.y))
     });
     let Some((menu, x, y)) = rendu else {
         return div().into_any_element();
@@ -478,97 +478,139 @@ pub fn couche(cx: &App) -> AnyElement {
     .into_any_element()
 }
 
-fn rendre_niveau(menu: &Menu, niveau: usize, chemin: &[usize], cx: &App) -> AnyElement {
+/// `origine_y` : position exacte (logique) du bord haut de la boîte du niveau, pour caler les lignes.
+fn rendre_niveau(
+    menu: &Menu,
+    niveau: usize,
+    chemin: &[usize],
+    origine_y: f32,
+    cx: &App,
+) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
-    let lignes: Vec<AnyElement> = menu
-        .ordre()
-        .into_iter()
-        .map(|o| match o.and_then(|i| menu.item_a(i).map(|it| (i, it))) {
-            None => div()
-                .h(u(cx, 1.0))
-                .mx(u(cx, f.size_2_3))
-                .my(u(cx, f.size_4_1))
-                .bg(couleur(c.background_modifier_active_hover))
-                .into_any_element(),
-            Some((idx, it)) => {
-                let couleur_texte = if it.warning {
-                    c.text_error
-                } else {
-                    c.text_normal
-                };
-                let icone = div()
-                    .w(u(cx, f.icon_m))
-                    .flex()
-                    .justify_center()
-                    .opacity(if it.warning { 1.0 } else { 0.7 })
-                    .children(it.icon.as_ref().map(|nom| {
-                        svg()
-                            .path(icones::chemin(nom))
-                            .size(u(cx, ICONE))
-                            .flex_none()
-                            .text_color(couleur(couleur_texte))
-                    }));
-                let mut titre = div().flex_1().child(it.title.clone());
-                if it.checked {
-                    titre = titre.child(div().opacity(0.7).child(" \u{2713}"));
-                }
-                let mut ligne = div()
-                    .id(("menu-entree", niveau * 1000 + idx))
-                    .relative()
-                    .flex()
-                    .items_center()
-                    .gap(u(cx, f.size_4_2))
-                    .px(u(cx, f.size_4_2))
-                    // Hauteur de ligne de Fragment (2 × 5 px + interligne 1,5 × police) : GPUI arrondit
-                    // l'interligne du texte, on fixe donc la hauteur de la ligne elle-même.
-                    .h(u(cx, 2.0 * 5.0 + 1.5 * t.typo.font_ui_medium))
-                    .rounded(u(cx, f.radius_s))
-                    .cursor_default()
-                    .text_color(couleur(couleur_texte))
-                    .child(icone)
-                    .child(titre);
-                if it.disabled {
-                    ligne = ligne.opacity(0.4);
-                } else {
-                    let survol = couleur(c.background_modifier_active_hover);
-                    ligne = ligne.hover(move |s| s.bg(survol));
-                }
-                if it.submenu.is_some() {
-                    ligne = ligne.child(
-                        div().flex().opacity(0.5).child(
-                            svg()
-                                .path(icones::chemin("chevron-right"))
-                                .size(u(cx, f.icon_xs))
-                                .flex_none()
-                                .text_color(couleur(couleur_texte)),
-                        ),
-                    );
-                    if let (Some(sous), true) = (&it.submenu, chemin.get(niveau) == Some(&idx)) {
-                        ligne = ligne.child(deferred(
-                            div()
-                                .absolute()
-                                .left(relative(1.0))
-                                .ml(u(cx, 2.0))
-                                .top(u(cx, -5.0))
-                                .child(rendre_niveau(sous, niveau + 1, chemin, cx)),
-                        ));
-                    }
-                }
-                ligne
-                    .on_hover(move |survole: &bool, _: &mut Window, app: &mut App| {
-                        if *survole && survoler(niveau, idx) {
-                            app.refresh_windows();
-                        }
-                    })
-                    .on_click(move |_, _: &mut Window, app: &mut App| {
-                        if cliquer(niveau, idx) {
-                            app.refresh_windows();
-                        }
-                    })
-                    .into_any_element()
+    // ★ Fragment compte 29,5 px par ligne (2 × 5 px + interligne 1,5 × 13 px) : on cale les arêtes
+    // comme Chromium (voir `echelle::calees`) au lieu d'écrire 29,5, que GPUI arrondirait à 29.
+    let ordre = menu.ordre();
+    let ligne_exacte = 2.0 * 5.0 + 1.5 * t.typo.font_ui_medium;
+    let separateur_exact = 1.0 + 2.0 * f.size_4_1;
+    let hauteurs_exactes: Vec<f32> = ordre
+        .iter()
+        .map(|o| {
+            if o.is_some() {
+                ligne_exacte
+            } else {
+                separateur_exact
             }
         })
+        .collect();
+    // Le contenu commence après la bordure et le rembourrage de la boîte.
+    let debut = origine_y + f.border_width + f.size_4_1;
+    let hauteurs = calees(cx, debut, &hauteurs_exactes);
+    let mut haut_exact = debut;
+    let lignes: Vec<AnyElement> = ordre
+        .into_iter()
+        .enumerate()
+        .map(|(k, o)| {
+            let haut_ligne = haut_exact;
+            haut_exact += hauteurs_exactes[k];
+            let hauteur = hauteurs[k];
+            (haut_ligne, hauteur, o)
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .map(
+            |(haut_ligne, hauteur, o)| match o.and_then(|i| menu.item_a(i).map(|it| (i, it))) {
+                None => div()
+                    .h(u(cx, 1.0))
+                    .mx(u(cx, f.size_2_3))
+                    .my(u(cx, f.size_4_1))
+                    .bg(couleur(c.background_modifier_active_hover))
+                    .into_any_element(),
+                Some((idx, it)) => {
+                    let couleur_texte = if it.warning {
+                        c.text_error
+                    } else {
+                        c.text_normal
+                    };
+                    let icone = div()
+                        .w(u(cx, f.icon_m))
+                        .flex()
+                        .justify_center()
+                        .opacity(if it.warning { 1.0 } else { 0.7 })
+                        .children(it.icon.as_ref().map(|nom| {
+                            svg()
+                                .path(icones::chemin(nom))
+                                .size(u(cx, ICONE))
+                                .flex_none()
+                                .text_color(couleur(couleur_texte))
+                        }));
+                    let mut titre = div().flex_1().child(it.title.clone());
+                    if it.checked {
+                        titre = titre.child(div().opacity(0.7).child(" \u{2713}"));
+                    }
+                    let mut ligne = div()
+                        .id(("menu-entree", niveau * 1000 + idx))
+                        .relative()
+                        .flex()
+                        .items_center()
+                        .gap(u(cx, f.size_4_2))
+                        .px(u(cx, f.size_4_2))
+                        // Hauteur calée (voir plus haut) : 30 et 29 px en alternance pour 29,5 exact.
+                        .h(hauteur)
+                        .rounded(u(cx, f.radius_s))
+                        .cursor_default()
+                        .text_color(couleur(couleur_texte))
+                        .child(icone)
+                        .child(titre);
+                    if it.disabled {
+                        ligne = ligne.opacity(0.4);
+                    } else {
+                        let survol = couleur(c.background_modifier_active_hover);
+                        ligne = ligne.hover(move |s| s.bg(survol));
+                    }
+                    if it.submenu.is_some() {
+                        ligne = ligne.child(
+                            div().flex().opacity(0.5).child(
+                                svg()
+                                    .path(icones::chemin("chevron-right"))
+                                    .size(u(cx, f.icon_xs))
+                                    .flex_none()
+                                    .text_color(couleur(couleur_texte)),
+                            ),
+                        );
+                        if let (Some(sous), true) = (&it.submenu, chemin.get(niveau) == Some(&idx))
+                        {
+                            ligne = ligne.child(deferred(
+                                div()
+                                    .absolute()
+                                    .left(relative(1.0))
+                                    .ml(u(cx, 2.0))
+                                    .top(u(cx, -5.0))
+                                    .child(rendre_niveau(
+                                        sous,
+                                        niveau + 1,
+                                        chemin,
+                                        haut_ligne - 5.0,
+                                        cx,
+                                    )),
+                            ));
+                        }
+                    }
+                    ligne
+                        .on_hover(move |survole: &bool, _: &mut Window, app: &mut App| {
+                            if *survole && survoler(niveau, idx) {
+                                app.refresh_windows();
+                            }
+                        })
+                        .on_click(move |_, _: &mut Window, app: &mut App| {
+                            if cliquer(niveau, idx) {
+                                app.refresh_windows();
+                            }
+                        })
+                        .into_any_element()
+                }
+            },
+        )
         .collect();
 
     // `min-width` et le rembourrage de `.menu` : boîte de contenu en CSS, boîte de bordure ici.
