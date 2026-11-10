@@ -46,3 +46,4 @@ ROUGE (écarts de 0,5 à 4,3 % des pixels), pour des causes identifiées :
 - ★ La croix de l'onglet actif (437, 19) apparaissait sur les 12 premières références : `.workspace-tab-header-
   inner-close-button` force `visibility: visible` et survit à `#root{visibility:hidden}`. Le décor masque désormais
   `#root *`.
+- **Décision du chef (10/11)** : la PR est fusionnée avec ces 6 scènes en `"depuis": "T2"`, pour garder la CI verte. Les écarts ci-dessus forment le bead `fr-t1-parite-flottantes`, qui bloque `fr-t1-binaire` : la tranche T1 n'est pas finie sans eux (program.md §6). `fr-t1-binaire` repasse les scènes à T1.
