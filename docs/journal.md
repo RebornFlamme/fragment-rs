@@ -427,3 +427,14 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - À remonter avec T1.
 - Un `arbre.rs` non suivi traîne à la racine du dépôt principal, d'origine inconnue. Je n'y touche pas.
 - Battement 11/11 15:34 UTC : fenêtre 5 h à 68 % (reset 17:30), semaine à 35 %. Rythme cible (97 − 35) ÷ 50,4 h ≈ 1,2 point par heure ; réel depuis 12:40 ≈ 3,1, en avance. Fusionnée #61 (clippy sous Windows). #54, #57, #58, #59, #60 et #62 mises à jour depuis main, en CI. Actifs : shell3 (fr-t1.5), alpha2 (fr-p4.1). Pas de lancement avant le reset : la fenêtre est trop près de 80 %. Contexte du chef : 282k, clear prévu après les fusions.
+- 11/11 15:55 UTC : fusionnées, CI verte avec clippy sous Windows, audits à 0 :
+  - #54 (fr-t2-fs) ;
+  - #57 (fr-t2-fileview, 46 tests) ;
+  - #58 (fr-t3.1 : 0,69 ms par frappe) ;
+  - #59 (fr-t3-metadata) ;
+  - #60 (fr-t3-listes : 10/11 cas) ;
+  - #62 (fr-t3-decorations : 8 ms pour le document entier, 0,95 ms pour un viewport de 60 lignes, sur 10 000 lignes ; fragment-markdown dépend désormais de fragment-theme).
+  - Beads fermés, worktrees et dossiers cible retirés.
+- #56 (fr-p4.1, alpha2 terminé, 333k tokens) : pixels vert pour la première fois, prête, CI relancée depuis main.
+  - Bordures à anticrénelage unique ; ombre `--shadow-l` calculée sur le CPU dans le calque émulé (0,33 s par géométrie en debug, puis cache ; release à mesurer) ; 5 exceptions d'arcs retirées ; `image` devient dépendance de fragment-ui.
+  - Dettes (b) dans ADR-013. À fusionner AVANT #49.
