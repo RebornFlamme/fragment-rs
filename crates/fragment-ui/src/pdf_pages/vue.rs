@@ -21,7 +21,6 @@ use fragment_pdf::document::TaillePage;
 use fragment_pdf::pdf_zoom::Taille;
 use fragment_pdf::vue_modele::{PlanRendu, Point, SENSIBILITE_MOLETTE, VueModele};
 use fragment_text::EditorRange;
-use fragment_theme::Couleur;
 use gpui_kit::{
     App, Bounds, Context, Corners, InteractiveElement as _, IntoElement, ParentElement as _,
     PinchEvent, Pixels as PixelsGpui, Render, RenderImage, ScrollEvent, Styled as _, Task, Window,
@@ -36,10 +35,6 @@ use crate::flottant::ombrer;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 pub use fragment_pdf::vue_modele::Pixels;
-
-/// `--pdf-page-bg` : le papier est blanc dans les deux thèmes (jeton propre au PDF dans
-/// Fragment, pas encore dans fragment-theme).
-const FOND_PAGE: Couleur = Couleur::BLANC;
 
 /// Délai entre deux récoltes des rendus du fil (ms) : le fil ne peut pas réveiller l'interface.
 const RECOLTE_MS: u64 = 4;
@@ -512,7 +507,7 @@ impl Render for PagesPdf {
                 .top(u(cx, y as f32))
                 .w(u(cx, g.largeur_px(i) as f32))
                 .h(u(cx, g.hauteur_px(i) as f32))
-                .bg(couleur(FOND_PAGE))
+                .bg(couleur(theme.palette.pdf_page_bg))
                 .child(images);
             pages.push(ombrer(
                 boite,

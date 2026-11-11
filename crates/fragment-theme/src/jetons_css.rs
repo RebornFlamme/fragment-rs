@@ -195,4 +195,7 @@ pub const BODY: &[Declaration] = &[
         244,
     ),
     ("--workspace-bg", "var(--background-primary)", 249),
+    // Déclaré dans `pdf-view.css` (`.pdf-container`, ligne 114), pas dans `index.css` : le papier
+    // reste blanc dans les deux thèmes, la valeur est donc commune.
+    ("--pdf-page-bg", "#ffffff", 114),
 ];

@@ -434,3 +434,14 @@ fn les_piles_de_polices_avertissent() {
     assert_eq!(theme, Theme::sombre());
     assert_eq!(avertissements.len(), 1);
 }
+
+#[test]
+fn fond_de_page_pdf_blanc_dans_les_deux_themes() {
+    // `--pdf-page-bg: #ffffff` (pdf-view.css) : le papier ne suit pas le thème.
+    for mode in [Mode::Sombre, Mode::Clair] {
+        assert_eq!(
+            Theme::pour(mode).palette.pdf_page_bg,
+            Couleur::hex(0xffffff)
+        );
+    }
+}
