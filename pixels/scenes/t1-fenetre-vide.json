@@ -1,0 +1,12 @@
+{
+  "scene": "t1-fenetre-vide",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}
