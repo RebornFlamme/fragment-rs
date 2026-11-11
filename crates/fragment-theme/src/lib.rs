@@ -14,11 +14,14 @@ pub mod manager;
 pub mod sombre;
 pub mod theme;
 pub mod theme_model;
+pub mod themes_coffre;
 pub mod valeurs_css;
 
 pub use cascade::{ErreurCascade, Expr, Graphe, Valeur, surcharges_depuis_json};
 pub use couleur::{Couleur, Ombre};
 pub use theme::{Aplat, Forme, Mode, Opacites, Palette, Pile, Theme, Typo};
+
+pub use themes_coffre::{ErreurTheme, ThemesCoffre};
 
 pub use manager::{THEME_MANAGER_ID, ThemeManager, theme_manager};
 pub use theme_model::{
