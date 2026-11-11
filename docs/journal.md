@@ -298,3 +298,8 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
 **Prochaine action exacte.** Places libres, dans l'ordre :
 1. fr-t1.4 (chemin critique du binaire), puis fr-t1.1 (Sonnet suffit, consignes au bead) ;
 2. puis la liste du planificateur : fr-t3-html, `fr-t3-syntaxe` (Opus, après socle), `fr-t4-pdfium`, etc.
+- 11/11 11:40 UTC : fusionnées #38 (fr-p3-socle : modules vides, `parite.d`) et #39 (fr-t2-coffres : 7 tests sur 7 de vaults.spec). Les deux beads sont fermés.
+  - Lancées : fr-t1.4 (aplats, Sonnet, `../fragment-rs-aplats`) et fr-t3-syntaxe (Opus, `../fragment-rs-syntaxe`).
+  - Actifs : splits, vault, maths, aplats, syntaxe.
+  - `cargo xtask parite` échoue sur main pour fragment-theme : la correction est confiée à fr-t1.4.
+  - **Prochaine action exacte** : aux places libres, dans l'ordre, fr-t1.1 (après fr-t1.4), `fr-t4-pdfium`, `fr-t3-html`, `fr-t3-commandes`, puis les modèles de T4. Les scènes une à une (verrou de capture).
