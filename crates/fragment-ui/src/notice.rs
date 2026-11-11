@@ -13,12 +13,13 @@ use std::time::{Duration, Instant};
 
 use fragment_core::{Command, CommandManager};
 use gpui_kit::{
-    AnyElement, App, ClickEvent, InteractiveElement as _, IntoElement, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, Window, div,
+    AnyElement, App, ClickEvent, FontWeight, InteractiveElement as _, IntoElement,
+    ParentElement as _, StatefulInteractiveElement as _, Styled as _, Window, div,
 };
 
 use crate::echelle::u;
 use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombres, texte};
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La durée par défaut d'une notice (millisecondes), comme Obsidian.
@@ -160,6 +161,16 @@ pub fn couche(cx: &App) -> AnyElement {
         .into_iter()
         .map(|e| {
             let id = e.id;
+            // ★ `fr-t1.3` : une notice d'une ligne qui tient se peint à la largeur ENTIÈRE de Chromium (texte
+            // exact + rembourrage + bordures, arrondi) ; GPUI arrondirait la feuille au pixel supérieur.
+            // Sans retour à la ligne, la boîte est posée en `nowrap` (le texte dépasse de 0,3 px au plus).
+            // Plusieurs lignes (`\n`, `white-space: pre-wrap`) : la boîte suit la plus large.
+            let texte_exact = e
+                .message
+                .split('\n')
+                .map(|l| largeur_texte(cx, l, FontWeight::NORMAL, t.typo.font_ui_small))
+                .fold(0.0_f32, f32::max);
+            let tient = texte_exact <= LARGEUR_MAX;
             let carte = div()
                 .id(("notice", id))
                 .max_w(u(cx, largeur_max))
@@ -179,6 +190,15 @@ pub fn couche(cx: &App) -> AnyElement {
                     app.refresh_windows();
                 })
                 .child(e.message);
+            let carte = if tient {
+                carte.whitespace_nowrap().w(largeur_ajustee(
+                    cx,
+                    texte_exact,
+                    2.0 * f.size_2_7 + 2.0 * f.border_width,
+                ))
+            } else {
+                carte
+            };
             let carte = bordure(carte, u(cx, f.border_width))
                 .border_color(couleur(c.background_modifier_border));
             texte(carte, cx, t.typo.font_ui_small, 1.4).into_any_element()

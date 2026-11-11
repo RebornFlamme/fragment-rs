@@ -50,8 +50,11 @@ désormais au pixel (arêtes du menu, séparateurs, bordures, hauteur de carte i
   est ≤ 16.
 - **Glyphes** : le candidat tourne sur Linux (cosmic-text, paramètres de contraste du renderer wgpu inaccessibles à
   l'application), la référence sur Chromium/DirectWrite : traits plus fins, delta jusqu'à 190 sur les arêtes. Largeur
-  du texte : environ 1 % de plus côté GPUI, plus l'arrondi vers le haut des feuilles mesurées (+1 px sur
-  l'infobulle, +2 px sur la carte de notice).
+  du texte : **résolue (fr-t1.3)**. Deux causes : DirectWrite, appelé par GPUI avec un objet de typographie, n'applique
+  plus `kern` de lui-même (« notice » +0,24 px, « Enregistré » +0,76 px à 12 px) : `polices::caracteristiques()` le
+  redemande, et les largeurs sont celles de HarfBuzz/Chromium à 0,001 px ; et GPUI arrondit au pixel SUPÉRIEUR la feuille
+  de texte (`elements/text.rs`) quand Chromium garde la fraction : une boîte ajustée au texte (notice, infobulle) est
+  posée à la largeur entière de Chromium par `polices::largeur_ajustee`.
 - **Ombres** : après correction, écart ≤ 2 niveaux, sauf quelques pixels isolés (formule d'erf approchée et 4
   échantillons du shader contre le flou de Skia). Bordures et séparateurs : 1 niveau de plus ou de moins (mélange
   alpha).

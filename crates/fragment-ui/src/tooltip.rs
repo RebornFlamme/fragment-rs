@@ -12,12 +12,13 @@ use std::time::{Duration, Instant};
 
 use fragment_core::{Command, CommandManager};
 use gpui_kit::{
-    Anchor, AnyElement, App, IntoElement, ParentElement as _, Styled as _, anchored, deferred, div,
-    point,
+    Anchor, AnyElement, App, FontWeight, IntoElement, ParentElement as _, Styled as _, anchored,
+    deferred, div, point,
 };
 
 use crate::echelle::u;
 use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombres, texte};
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Délai avant l'apparition (millisecondes), si la cible n'en fixe pas.
@@ -385,7 +386,25 @@ pub fn couche(cx: &App) -> AnyElement {
     let (c, f) = (&t.palette, &t.forme);
     let fenetre_w = 1280.0;
     let largeur = largeur_max(rect, placement, fenetre_w).unwrap_or(LARGEUR_MAX);
+    // ★ `fr-t1.3` : une bulle qui tient se peint à la largeur ENTIÈRE de Chromium (texte exact + rembourrage +
+    // bordures, arrondi), sans points de suspension ; GPUI arrondirait la feuille de texte au pixel supérieur.
+    let ajout = 2.0 * f.size_4_2 + 2.0 * f.border_width;
+    let texte_exact = largeur_texte(cx, &message, FontWeight::NORMAL, t.typo.font_ui_small);
+    let tient = texte_exact + ajout <= largeur;
+    // Chromium pose `left = Math.round(x)` (tooltip.ts) avec la largeur FRACTIONNAIRE de la bulle : on pose
+    // l'arête gauche soi-même, entière, au lieu de laisser GPUI centrer une largeur entière.
+    let gauche = |centre: f32| (centre - (texte_exact + ajout) / 2.0 + 0.5 + 1e-3).floor();
     let (ancre, x, y) = match placement {
+        Placement::Bottom if tient => (
+            Anchor::TopLeft,
+            gauche(rect.left + rect.width / 2.0),
+            rect.bottom() + ECART,
+        ),
+        Placement::Top if tient => (
+            Anchor::BottomLeft,
+            gauche(rect.left + rect.width / 2.0),
+            rect.top - ECART,
+        ),
         Placement::Bottom => (
             Anchor::TopCenter,
             rect.left + rect.width / 2.0,
@@ -416,9 +435,12 @@ pub fn couche(cx: &App) -> AnyElement {
         .text_color(couleur(c.text_normal))
         .shadow(ombres(cx, &c.menu_shadow))
         .whitespace_nowrap()
-        .overflow_hidden()
-        .text_ellipsis()
         .child(message);
+    let bulle = if tient {
+        bulle.w(largeur_ajustee(cx, texte_exact, ajout))
+    } else {
+        bulle.overflow_hidden().text_ellipsis()
+    };
     let bulle =
         bordure(bulle, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
     deferred(
