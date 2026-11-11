@@ -161,3 +161,11 @@ pub use config::{
     ConfigStore, DELAI_SAUVEGARDE_MS, Donnees, EVENEMENT_CHANGE, ErreurConfig, Horloge,
     OrigineChangement, StockageConfig, StockageMemoire,
 };
+
+// ─── Le coffre (fr-t2-vault) ───
+pub mod vault;
+pub use vault::{
+    CONFIG_DIR, ChangeType, DataAdapter, DataWriteOptions, FileHandle, FileId, FileStats,
+    ListedFiles, MemoryAdapter, Stat, TAbstractFile, TFile, TFolder, Vault, VaultDocumentProvider,
+    VaultError, VaultEvent, VaultEventInfo, VaultEventType, dans_la_config, relay_vault_events,
+};

@@ -35,17 +35,13 @@ portes! {
     SettingDefinitionControl, SettingDefinitionItem, SettingDefinitionGroup, SettingDefinitionPage,
     SettingDefinitionList, SettingDefinitionEmpty, SettingDefinitionAction,
     SettingDefinitionAddItem, SettingDefinitionTree,
+    // Le coffre (fr-t2-vault)
+    TAbstractFile, TFile, TFolder, Vault, VaultEventInfo,
 }
 
-/// Les noms du contrat PAS ENCORE portés : le Vault (`TAbstractFile`, `TFile`, `TFolder`,
-/// `Vault`, `VaultEventInfo`), la hiérarchie des vues (`View`…`TextFileView`, `ViewCreator`),
+/// Les noms du contrat PAS ENCORE portés : la hiérarchie des vues (`View`…`TextFileView`, `ViewCreator`),
 /// l'arbre d'objets du workspace (`Workspace*`) et l'`App` (traits d'hôte).
 const ATTENDUS_NON_PORTES: &[&str] = &[
-    "TAbstractFile",
-    "TFile",
-    "TFolder",
-    "Vault",
-    "VaultEventInfo",
     "View",
     "ItemView",
     "FileView",
@@ -134,7 +130,7 @@ fn les_comptes_sont_ceux_du_contrat() {
     // 68 lignes `fragment-core` dans la table 1 le 01/11/2026 (docs/contrats.md).
     let lignes = lignes_fragment_core();
     assert_eq!(lignes.len(), 68, "lignes fragment-core de la table 1");
-    assert_eq!(PORTES.len(), 48, "noms portés");
-    assert_eq!(ATTENDUS_NON_PORTES.len(), 20, "noms attendus, non portés");
+    assert_eq!(PORTES.len(), 53, "noms portés");
+    assert_eq!(ATTENDUS_NON_PORTES.len(), 15, "noms attendus, non portés");
     assert_eq!(PORTES.len() + ATTENDUS_NON_PORTES.len(), lignes.len());
 }
