@@ -731,6 +731,9 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
             .filter(|e| e.pile == pile)
             .map(|e| e.recouvrement.unwrap_or(f64::from(f.frame_right_space)) as f32);
         let apercu_ici = apercu.filter(|a| a.pile == pile);
+        if let Some(exact) = disposition.cadre_exact(pile) {
+            crate::onglets::noter_largeur_exacte(pile, exact.largeur as f32);
+        }
         let contenu = if laterale {
             docks::rendre_pile_laterale(ctx, pile, retrait, apercu_ici, cx)
         } else {

@@ -138,6 +138,9 @@ pub struct Disposition {
     /// Le ruban, à gauche.
     pub ruban: Cadre,
     cadres: HashMap<ItemId, Cadre>,
+    /// Le cadre EXACT (avant calage) de chaque nœud posé : le contour de l'onglet actif suit ses
+    /// bornes non calées, comme celui de Fragment.
+    exacts: HashMap<ItemId, Cadre>,
     /// Les piles visibles, dans l'ordre du parcours (centre, dock gauche, dock droit).
     pub piles: Vec<ItemId>,
     pub poignees: Vec<Poignee>,
@@ -148,6 +151,11 @@ pub struct Disposition {
 }
 
 impl Disposition {
+    /// Le cadre EXACT (avant calage) d'un nœud posé, s'il est à l'écran.
+    pub fn cadre_exact(&self, id: ItemId) -> Option<Cadre> {
+        self.exacts.get(&id).copied()
+    }
+
     /// Le cadre calé d'un nœud ; `None` s'il n'est pas à l'écran (dock replié, onglet caché).
     pub fn cadre(&self, id: ItemId) -> Option<Cadre> {
         self.cadres.get(&id).copied()
@@ -362,6 +370,7 @@ fn poser<F>(
     z: f64,
 ) {
     d.cadres.insert(id, caler(r, z));
+    d.exacts.insert(id, r);
     if arbre.est_pile(id) {
         d.piles.push(id);
         return;

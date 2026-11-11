@@ -30,7 +30,7 @@ use super::actions::{self, LigneOnglet};
 use super::mesures::{
     INTERIEUR_AUTRES_COTES, INTERIEUR_COTE_TITRE, LARGEUR_ONGLET, NOUVEL_ONGLET_MARGE_GAUCHE,
     OPACITE_REPOS, OngletActif, REMBOURRAGE_ENTETE, SEPARATEUR_LARGEUR, SEPARATEUR_MARGE, Segment,
-    TRAIT_CONTOUR, coin_concave,
+    TRAIT_CONTOUR, bords_exacts, coin_concave,
 };
 use crate::echelle::{Echelle, u};
 use crate::entete;
@@ -56,6 +56,20 @@ pub struct OptionsPile {
     /// L'abscisse (px logiques, relative à la barre) de la barre d'insertion (`--drop-x`) ; lue
     /// seulement quand [`Self::apercu`] vaut `Reorder`.
     pub insertion: Option<f32>,
+}
+
+thread_local! {
+    /// La largeur EXACTE (px logiques, avant calage) de chaque pile, notée par la mise en page
+    /// pour son prochain rendu ([`noter_largeur_exacte`]) et consommée par [`rendre_pile`].
+    static LARGEURS_EXACTES: std::cell::RefCell<std::collections::HashMap<ItemId, f32>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Note la largeur EXACTE de `pile` (px logiques, son cadre avant calage au pixel) pour son
+/// prochain rendu : le trait du contour de l'onglet actif suit alors les bornes non calées, comme
+/// celui de Fragment ([`super::mesures::bords_exacts`]). Sans note, il suit l'en-tête calé par GPUI.
+pub fn noter_largeur_exacte(pile: ItemId, largeur: f32) {
+    LARGEURS_EXACTES.with(|l| l.borrow_mut().insert(pile, largeur));
 }
 
 /// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`), en
@@ -172,9 +186,14 @@ type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
 /// quatre arcs (et le bout de droite qui les raccorde au pixel entier suivant) sont des chemins
 /// GPUI, déclarés coin par coin sous [`ELEMENT_CONTOUR`] : leur anticrénelage (MSAA 4x contre
 /// Skia) est l'exception nommée de T1 rattachée à fr-p4.1.
+///
+/// `bords_exacts` : les bords gauche et droit EXACTS de l'actif (repère de la barre), quand ils
+/// diffèrent de l'en-tête calé ; seul le TRAIT les suit. Le fond des coins concaves reste au ras de
+/// l'en-tête calé, comme les pseudo-éléments de Fragment (des boîtes, calées elles aussi).
 fn peindre_contour(
     bornes: Bounds<Pixels>,
     actif: Option<Bounds<Pixels>>,
+    bords_exacts: Option<(f32, f32)>,
     couleurs: CouleursContour,
     (rayon_haut, rayon_bas): (f32, f32),
     epaisseur: f32,
@@ -240,7 +259,8 @@ fn peindre_contour(
         }
     }
 
-    let (gx, dx) = (x_(o.gauche), x_(o.droite));
+    let (trait_g, trait_d) = bords_exacts.unwrap_or((o.gauche, o.droite));
+    let (gx, dx) = (x_(trait_g), x_(trait_d));
     let haut = y_(o.haut) + demi;
     let (rh, rb) = (rayon_haut * k, rayon_bas * k);
     // Les coupes : le premier pixel entier au-delà de chaque bout d'arc.
@@ -546,7 +566,6 @@ fn entete_d_onglet(
         .pl(u(cx, INTERIEUR_COTE_TITRE))
         .pr(u(cx, INTERIEUR_AUTRES_COTES))
         .py(u(cx, INTERIEUR_AUTRES_COTES))
-        .rounded(u(cx, f.radius_s))
         // Le titre prend ce qui reste et s'ellipse ; le statut, vide, garde son rang (et donc l'écart).
         .child(
             div()
@@ -559,11 +578,16 @@ fn entete_d_onglet(
         )
         .child(div().flex().items_center())
         .child(croix);
-    if !actif {
+    if actif {
+        interieur = interieur.rounded(u(cx, f.radius_s));
+    } else {
         // Le fond de survol vit sur la pilule, pas sur la zone pleine hauteur ; réservé aux
         // inactifs (l'actif a déjà son fond fusionné avec le pane).
+        // ★ Ses coins sont DÉCLARÉS (bord d'arrondi d'ADR-009) : non déclarés, l'anticrénelage de
+        //   GPUI sortait hors boîte au delta 1 (`t1-onglet-survol`, les 4 coins de la pilule).
         let survol = couleur(c.background_modifier_hover);
-        interieur = interieur.hover(move |s| s.bg(survol));
+        interieur =
+            arrondir(interieur, cx, u(cx, f.radius_s), u(cx, 0.0)).hover(move |s| s.bg(survol));
     }
 
     let mut entete = div()
@@ -636,18 +660,37 @@ fn entete_d_onglet(
     entete.into_any_element()
 }
 
+/// Un `canvas` qui note les bornes (calées) de son parent, à poser en enfant `absolute`.
+fn mesurer(cellule: Rc<Cell<Option<Bounds<Pixels>>>>, cx: &App) -> impl IntoElement {
+    canvas(
+        move |bornes, _, _| cellule.set(Some(bornes)),
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top(u(cx, 0.0))
+    .left(u(cx, 0.0))
+    .right(u(cx, 0.0))
+    .bottom(u(cx, 0.0))
+}
+
 /// La barre d'onglets d'une pile.
 fn barre(
     ctx: &ContexteOnglets,
     pile: ItemId,
     lignes: &[LigneOnglet],
     options: OptionsPile,
+    largeur_exacte: Option<f32>,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
     let mesure: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    // Les bornes calées du conteneur des onglets et de l'espaceur : la place des onglets, à
+    // laquelle s'ajoute la fraction de largeur que le calage a retirée à la pile.
+    let place_onglets: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    let place_espaceur: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
     let n = lignes.len();
+    let rang_actif = lignes.iter().position(|l| l.visible);
 
     let entetes: Vec<AnyElement> = lignes
         .iter()
@@ -673,7 +716,8 @@ fn barre(
         .px(u(cx, f.size_4_1))
         .overflow_hidden()
         .min_w(u(cx, 0.0))
-        .children(entetes);
+        .children(entetes)
+        .child(mesurer(place_onglets.clone(), cx));
 
     let nouvel_onglet = div()
         .flex()
@@ -724,7 +768,12 @@ fn barre(
         .child(interieur)
         .child(nouvel_onglet)
         // Le spacer : reste en zone de glisser de la fenêtre, et pousse le chevron au bord.
-        .child(div().flex_grow(1.0))
+        .child(
+            div()
+                .relative()
+                .flex_grow(1.0)
+                .child(mesurer(place_espaceur.clone(), cx)),
+        )
         .child(liste);
 
     if let Some(retrait) = options.retrait_droit {
@@ -772,14 +821,35 @@ fn barre(
     };
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
+    let (marge, largeur_max) = (
+        f32::from(u(cx, f.size_4_1)),
+        f32::from(u(cx, LARGEUR_ONGLET)),
+    );
     barre
         .child(
             canvas(
                 |_, _, _| {},
                 move |bornes, (), window, _| {
+                    // Les bords exacts de l'actif, si la mise en page a noté la largeur exacte.
+                    let exacts = match (
+                        largeur_exacte,
+                        rang_actif,
+                        place_onglets.get(),
+                        place_espaceur.get(),
+                    ) {
+                        (Some(exacte), Some(rang), Some(o), Some(e)) => {
+                            let fraction = exacte - f32::from(bornes.size.width);
+                            let place = f32::from(o.size.width + e.size.width) + fraction;
+                            let depart = f32::from(o.origin.x - bornes.origin.x);
+                            let (g, d) = bords_exacts(place, marge, n, rang, largeur_max);
+                            Some((depart + g, depart + d))
+                        }
+                        _ => None,
+                    };
                     peindre_contour(
                         bornes,
                         mesure.get(),
+                        exacts,
                         couleurs,
                         (f32::from(rayon_haut), f32::from(rayon_bas)),
                         f32::from(epaisseur),
@@ -845,6 +915,7 @@ pub fn rendre_pile(
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
+    let largeur_exacte = LARGEURS_EXACTES.with(|l| l.borrow_mut().remove(&pile));
     let (lignes, visible) = match ctx.workspace.try_borrow() {
         Ok(w) => (
             actions::lignes_de_la_pile(&w, pile),
@@ -894,7 +965,7 @@ pub fn rendre_pile(
         .min_h(u(cx, 0.0))
         .overflow_hidden()
         .text_color(couleur(t.palette.text_normal))
-        .child(barre(ctx, pile, &lignes, options, cx))
+        .child(barre(ctx, pile, &lignes, options, largeur_exacte, cx))
         .child(conteneur);
     texte(pile_el, cx, t.typo.font_ui_small, 1.5).into_any_element()
 }

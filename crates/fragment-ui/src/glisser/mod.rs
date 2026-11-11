@@ -28,7 +28,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{ombres, texte};
+use crate::flottant::{ombrer, texte};
 use crate::onglets::mesures::{LARGEUR_ONGLET, largeur_d_un_onglet};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::splits::geometrie::Disposition;
@@ -474,12 +474,21 @@ pub fn rendre_fantome(label: &str, x: f64, y: f64, cx: &App) -> AnyElement {
         .w(largeur_ajustee(cx, largeur, 2.0 * f.size_2_5))
         .px(u(cx, f.size_2_5))
         .py(u(cx, REMBOURRAGE_FANTOME))
-        .rounded(u(cx, f.radius_sm))
         .bg(couleur(c.tab_bar_bg))
         .text_color(couleur(c.text_normal))
-        .shadow(ombres(cx, &c.shadow_s))
-        .whitespace_nowrap()
-        .child(label.to_owned());
+        .whitespace_nowrap();
+    // ★ L'ombre ET l'arrondi se DÉCLARENT (`ombrer`, ADR-009) : posés à la main (`.shadow`,
+    //   `.rounded`), le halo de `--shadow-s` et ses coins sortaient en divergences hors boîte au
+    //   delta 1 (t1-glisser-zone, run 43042397780 : bord haut du halo au-dessus de la pilule).
+    let pilule = ombrer(
+        pilule,
+        cx,
+        &c.shadow_s,
+        "--shadow-s",
+        u(cx, f.radius_sm),
+        u(cx, 0.0),
+    )
+    .child(label.to_owned());
     texte(pilule, cx, taille, 1.5).into_any_element()
 }
 

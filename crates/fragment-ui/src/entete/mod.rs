@@ -17,6 +17,7 @@
 //! avec elles (T2).
 
 use fragment_core::{CommandManager, DeferredView, EmptyView, ItemId, View};
+use fragment_theme::Aplat;
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
     ParentElement as _, StatefulInteractiveElement as _, Styled as _, div, svg,
@@ -128,7 +129,9 @@ fn bouton(
                 .text_color(couleur(c.text_normal)),
         );
     if actif {
-        let survol = couleur(c.background_modifier_active_hover);
+        // ★ Aplat pré-composé sur le fond de la feuille (`workspace_bg`), comme Chromium (ADR-009 c) :
+        // le jeton translucide mélangé par GPUI donne (41, 41, 43) au lieu de (40, 41, 43) en sombre.
+        let survol = couleur(c.aplat(Aplat::SurvolActif, c.workspace_bg));
         b.opacity(OPACITE_REPOS)
             .hover(move |s| s.opacity(1.0).bg(survol))
     } else {
