@@ -1,0 +1,20 @@
+# Parité de fr-t3-surface (fragment-ui) : l'élément éditeur du live preview et sa TextSurface.
+# Schéma `parite.d` : un fichier par tâche. CmEditor.ts n'a pas de test unitaire côté TS : les cas
+# viennent du bead (6) et de la spec e2e editor-hell (2 cas portés en headless). Les autres tests
+# sont AJOUTÉS (garde, thèmes, unitaires des modules).
+
+[[module]]
+ts = "app/src/ui/views/markdown/CmEditor.ts (TextSurface : getLine, offsetToPos, getSelection, coordsAtPos, coordsForRange, posAtCoords, viewportRange, renderedRanges, mapPos)"
+rs = "crates/fragment-ui/src/editeur/surface.rs, crates/fragment-ui/src/editeur/changement.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "coordonnees_aller_retour (tests/editeur.rs) et 3 unitaires de changement.rs (règle mapPos/TrackDel de CodeMirror). pos_at_coords hors écran rend le DÉBUT de la ligne visée (CM6 estime aussi) ; coords_at_pos hors mise en page = None (comme CM6). Écart : as_editor() = None (l'écriture `Editor` est le travail de fr-t3-vue)."
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (création de l'éditeur), decorationPlugin.ts (projection replace/mark/line), editor.css, markdown-view.css"
+rs = "crates/fragment-ui/src/editeur/element.rs, crates/fragment-ui/src/editeur/modele.rs, crates/fragment-ui/src/editeur/jetons.rs, crates/fragment-ui/src/editeur/constantes.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 13
+notes = "e2e editor-hell portés : note_ouverte_rien_n_est_revele_avant_le_premier_focus, titres_1_a_6_marques_cachees_hors_curseur_revelees_au_curseur. Cas du bead : masquage_sans_trou, titre_plus_grand, clic_juste_apres_un_titre, gauche_droite_franchissent_un_masque, dix_mille_lignes. Ajoutés : garde_de_comparaison, caret_visible_dans_les_deux_themes, les_marques_suivent_le_theme + unitaires (jetons, modele, constantes). Dettes : police/taille par plage (code en ligne monospace 0,9 em), coins et marge des fonds, fonds/bordures de ligne (citation, bloc de code : md_blocs) non représentables par HighlightStyle ; widgets en ligne non dessinés (fr-t3-widgets-inline) ; document entier projeté à chaque changement (pas le viewport)."
