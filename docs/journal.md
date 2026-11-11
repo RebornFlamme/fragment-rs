@@ -520,3 +520,8 @@ Livraison de T1 quand #49 est fusionnée.
 - ★ `bd update --notes` REMPLACE les notes. J'ai écrasé celles de fr-t1.5 (10k caractères) puis je les ai restaurées depuis `bd history fr-t1.5 --json`. Vérifié : aucun autre bead touché.
   - Règle : toujours `--append-notes`.
   - Briefs à corriger en conséquence (shell5 prévenu).
+- 11/11 19:10 UTC : fusionnée #65 (fr-t3.2). CI verte, audit à 0. 19 langages par tables, maths stex, oracle sur 500 éditions, surcoût ≈ 0,2 ms par frappe, aucune dépendance.
+  - Décision : 19 langages suffisent pour T3 ; le reste part dans un nouveau bead P3 sous fr-t3.
+  - Branchement sur `jetons_dans` noté sur fr-t3-surface.
+  - Bead fermé, worktree et dossier cible retirés.
+  - Lancée : fr-t3-surface (Opus, `../fragment-rs-surface`). Actifs : shell5, pdfpages, barre, treeitem, surface.
