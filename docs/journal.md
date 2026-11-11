@@ -323,3 +323,8 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
 - 11/11 11:45 UTC : fusionnée #44 (fr-t3-syntaxe : port de @lezer/markdown, 100 % des nœuds conformes à Lezer sur 108 546 nœuds réels, 32 tests, ADR-010 proposé).
   - Le port n'a pas d'analyse incrémentale : 31 à 56 ms par frappe sur 10 000 lignes. Nouveau bead `fr-t3.1` (incrémental, puis coloration des blocs de code).
   - Les documents des specs ont été comparés hors du dépôt ; seuls 7 documents réécrits sont commités.
+- Battement 11/11 11:38 UTC : fenêtre 5 h à 75 % (reset à 12:30), semaine à 25 %. Rythme cible : (97 − 25) ÷ 54,4 h ≈ 1,3 point par heure. Réel depuis 08:20 : environ 2,7, en avance. Trois équipiers actifs (binaire, fr-t1.1, maths), aucun nouveau lancement avant le reset.
+- 11/11 11:55 UTC : fusionnée #46 (fr-t1.1, étape 2 : bord d'arrondi et `--shadow-l` en place, 3 PNG sur 20 au vert). Bead rouvert, en attente de l'orchestrateur (envoyé) sur trois points :
+  - la garde d'arc à 0,15 px ;
+  - l'origine d'encre décalée d'1 px sur 14 PNG (calage des fûts) ; je recommande de la mesurer au barycentre du trait ;
+  - l'extension de l'exception `--shadow-l` aux résidus de mélange alpha.
