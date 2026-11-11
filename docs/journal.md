@@ -494,3 +494,7 @@ Reprise après clear, relancée par l'orchestrateur (pas par un réveil). Le ré
 
 Places libres ensuite, prises dans `bd ready` : fr-t4-barre, fr-t2-tree-item, fr-t3-scenes-a.
 Livraison de T1 quand #49 est fusionnée.
+- 11/11 18:10 UTC, fenêtre 5 h à 18 % (reset 22:30), semaine à 39 % : fusionnée #63 (fr-t11-cascade). CI verte sur les 7 jobs, audit à 0, 27 tests, `Theme` identique bit à bit sans surcharge (instantanés `tests/figes/`). `serde_json` ajouté à fragment-theme (déjà au lock). Bead fermé, worktree et dossier cible retirés.
+  - Écarts acceptés : piles de polices non surchargeables (avertissement), `color-mix` hors srgb et `calc` hors px non gérés.
+  - Note posée sur fr-t11-themes : l'accent des réglages s'applique en dernière surcharge.
+  - Lancée : fr-t4-barre (Sonnet, `../fragment-rs-barre`). Actifs : shell4, pdfpages, blocs, imbrique, barre.
