@@ -202,3 +202,16 @@ Le clear demandé à 18:49 n'a pas eu lieu : l'arrivée de ce message l'a annul�
 3. fr-t1-reglages si le budget du jour le permet.
 4. fr-t1.3 après fr-t1.2, puis fr-t1.1.
 Au plus 3 équipiers.
+
+## Vague 7 (reprise) — 11/11/2026 08:30 UTC — usage 5h 3 % / semaine 16 %
+Reprise : le réveil d'après-clear posé le 10/11 n'a PAS survécu (aucune tâche Cron à la reprise). C'est l'orchestrateur qui m'a relancé à 08:20 UTC. ★ Procédure §10 constatée en échec : au prochain clear, revenir à l'ancienne (réveils annulés, « prêt pour le clear » à l'orchestrateur, fin de tour).
+Phase : 3, T1. En cours :
+- fr-t1-onglets, équipier local Sonnet, worktree `../fragment-rs-onglets`, target `C:/dev/fragment-rs-target-onglets` ;
+- fr-t1.2 (sas, ADR-009), équipier local Sonnet, worktree `../fragment-rs-sas`, target `C:/dev/fragment-rs-target-sas`.
+Les fichiers des deux tâches sont disjoints. Bloqué : rien.
+**Part fixe** : cumul environ 8 points au 10/11. Le 11/11 : 0 sur 8 au lancement, avec environ 6 points prévus (onglets ≈ 3,5, sas ≈ 2,5). La semaine est passée de 15 % à 16 % hors travail.
+Battement recréé toutes les 2 h (CronCreate, à la minute 17).
+**Prochaine action exacte.** Aux comptes rendus d'onglets et du sas : revue habituelle (diff, audit à 0, CI, fusion, `bd close`, export, retrait du worktree, `TaskStop`). Puis :
+- fr-t1-reglages si la part du jour le permet, sinon le 12/11 ;
+- fr-t1.3 après fr-t1.2 ;
+- reprise de fr-t1.1.
