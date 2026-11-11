@@ -1,0 +1,29 @@
+# Parité de fr-t3-syntaxe (fragment-markdown). Schéma `parite.d` : un fichier par tâche, fusionné
+# par `cargo xtask parite`. `language.ts` n'a pas de test unitaire côté TS : `cas_source = 0`, tous
+# les tests sont AJOUTÉS (crates/fragment-markdown/tests/syntaxe.rs). La vérité est l'arbre de Lezer :
+# 7 documents réécrits comparés nœud pour nœud à des relevés du vrai parseur de Fragment
+# (tests/syntaxe/*.lezer, produits hors du dépôt), plus un test par règle et par extension (ADR-010).
+
+[[module]]
+ts = "app/src/ui/views/markdown/language.ts (markdownExtensions : GFM, Subscript, Superscript, WikiLink, Highlight, InlineMath, BlockMath, MathHighlight) sur @lezer/markdown 1.7.2"
+rs = "crates/fragment-markdown/src/syntaxe/analyse_blocs.rs, en_ligne.rs, genre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 28
+notes = "Port de @lezer/markdown 1.7.2 (MIT, notice dans syntaxe/mod.rs) et des extensions de Fragment. 7 tests lezer_* (relevés réécrits) + 21 tests de règles (tâche sans texte, $$ qui interrompt, tableau jusqu'à la ligne vide, blocs HTML CommonMark, svg en ligne, surligné, liens internes et embeds, maths, indice/exposant, URL nues, émoji, titres, listes, code, frontmatter, documents vides). Hors CI : 39 documents des specs editor-hell, markdown-html, properties et 98 documents Markdown des deux dépôts (108 546 nœuds) identiques à Lezer à 100 %. Pas de réanalyse incrémentale : une frappe réanalyse tout (mesure dans ADR-010). La coloration des langages dans les blocs de code (parseMixed, stexMath) n'est pas portée : hors arbre Markdown."
+
+[[module]]
+ts = "(ajout) arbre à plat et positions UTF-16 (ADR-004)"
+rs = "crates/fragment-markdown/src/syntaxe/arbre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 5
+notes = "Nœuds à plat (plages UTF-16 ET octets), parcours limité à une plage (viewport) avec Sauter, noeud_a (resolveInner, côté avant/après/dedans), ancêtres, plus les 2 tests de 10 000 lignes (forme ; mesure #[ignore]). FrontMatter est un AJOUT de fragment-rs (absent de Lezer) qui enveloppe la tête. L'outil releve_rust (#[ignore]) n'est pas compté."
+
+[[module]]
+ts = "(ajout) types partagés par fr-t3-decorations et fr-t3-blocs-modele (contrat set_row_model, ADR-006)"
+rs = "crates/fragment-markdown/src/syntaxe/modele_rangees.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "Etendue, Plage, lignes_de, HauteurLigne, PoliceLigne, GenreBloc, Placement, Bloc, ModeleRangees (normaliser, vers_fork → ArgumentsFork). ★ vers_fork d'un bloc ALaPlace multi-lignes (hauteur 0) non éprouvé sur le fork : à vérifier par fr-t3-surface."
