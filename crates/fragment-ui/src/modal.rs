@@ -29,6 +29,7 @@ use crate::flottant::ombrer;
 use crate::icones;
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::theme_global::{couleur, theme_ou_defaut};
+use fragment_theme::Aplat;
 
 // ── Le drapeau de fermeture ───────────────────────────────────────────────────
 
@@ -384,8 +385,10 @@ impl Render for Modale {
                 .text_color(couleur(t.palette.text_muted))
                 .cursor_pointer()
                 .hover(|s| {
-                    s.bg(couleur(t.palette.background_modifier_active_hover))
-                        .text_color(couleur(t.palette.text_normal))
+                    s.bg(couleur(
+                        t.palette.aplat(Aplat::SurvolActif, t.palette.workspace_bg),
+                    ))
+                    .text_color(couleur(t.palette.text_normal))
                 })
                 .on_mouse_down(MouseButton::Left, move |_, window, cx| {
                     fermer.demander();

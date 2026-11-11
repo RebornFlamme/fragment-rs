@@ -26,6 +26,7 @@ use crate::echelle::{calees, moitie, u};
 use crate::flottant::{bordure, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
+use fragment_theme::Aplat;
 
 /// Largeur minimale du contenu d'un menu (`min-width`, boîte de contenu).
 const LARGEUR_MIN: f32 = 180.0;
@@ -524,7 +525,7 @@ fn rendre_niveau(
                     .h(u(cx, 1.0))
                     .mx(u(cx, f.size_2_3))
                     .my(u(cx, f.size_4_1))
-                    .bg(couleur(c.background_modifier_active_hover))
+                    .bg(couleur(c.aplat(Aplat::SurvolActif, c.menu_bg)))
                     .into_any_element(),
                 Some((idx, it)) => {
                     let couleur_texte = if it.warning {
@@ -565,7 +566,7 @@ fn rendre_niveau(
                     if it.disabled {
                         ligne = ligne.opacity(0.4);
                     } else {
-                        let survol = couleur(c.background_modifier_active_hover);
+                        let survol = couleur(c.aplat(Aplat::SurvolActif, c.menu_bg));
                         ligne = ligne.hover(move |s| s.bg(survol));
                     }
                     if it.submenu.is_some() {

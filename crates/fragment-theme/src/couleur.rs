@@ -72,8 +72,38 @@ impl Couleur {
         )
     }
 
+    /// `self` (teinte) à l'opacité EXACTE `pourcent` (0 à 100), posée sur un fond opaque, comme le
+    /// fait Chromium : le résultat est une couleur opaque.
+    ///
+    /// ★ Mesuré sur les captures de Fragment (palette sombre et claire, menu clair, survol de
+    /// l'explorateur) : le canal de la teinte est PRÉMULTIPLIÉ par l'opacité exacte et arrondi
+    /// (`round(c × p / 100)`), le fond est atténué par l'opacité ramenée à l'octet
+    /// (`round(fond × (255 − A) / 255)`, `A = round(p × 2,55)`), puis les deux s'additionnent.
+    /// Composer avec l'octet d'opacité des deux côtés (`sur`) tombe un niveau à côté.
+    pub fn sur_chromium(self, pourcent: f32, fond: Self) -> Self {
+        // Pourcentage entier en pratique : `p × 255 / 100` est exact (25,5 pour 10 %).
+        let p = f64::from(pourcent);
+        let octet = arrondi(p * 255.0 / 100.0);
+        let reste = f64::from(255 - octet) / 255.0;
+        let canal = |c: u8, f: u8| {
+            let (teinte, dessous) = (
+                arrondi(f64::from(c) * p / 100.0),
+                arrondi(f64::from(f) * reste),
+            );
+            teinte.saturating_add(dessous)
+        };
+        Self::octets(
+            canal(self.r, fond.r),
+            canal(self.g, fond.g),
+            canal(self.b, fond.b),
+            255,
+        )
+    }
+
     /// Le résultat de `self` posée sur un fond opaque (composition sRGB, arrondie à l'octet).
-    /// Sert aux tests de pixels : c'est ce qu'on lit dans une capture.
+    ///
+    /// Approximation : elle se trompe d'un niveau quand l'opacité n'est pas un multiple exact de
+    /// l'octet (voir `sur_chromium`, qui est celle à utiliser pour un aplat).
     pub fn sur(self, fond: Self) -> Self {
         let a = f64::from(self.a) / 255.0;
         let canal = |c: u8, f: u8| arrondi(a * f64::from(c) + (1.0 - a) * f64::from(f));
@@ -128,7 +158,7 @@ impl Ombre {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Theme;
+    use crate::{Aplat, Mode, Palette, Theme};
     use std::path::PathBuf;
 
     /// Le pixel `(x, y)` d'une capture de référence de Fragment.
@@ -291,5 +321,284 @@ mod tests {
         let t = Theme::clair().palette;
         let attendu = pixel_de_reference("menu-light.png", 600, 481);
         assert_eq!(t.background_modifier_active_hover.sur(t.menu_bg), attendu);
+    }
+
+    // --- Aplats : un jeton translucide posé sur un fond connu (ADR-009 c). ---
+
+    /// Les 32 paires (thème, jeton, fond) avec la valeur attendue, calculée à part, hors du code
+    /// Rust, par la formule de Chromium (voir `sur_chromium`).
+    #[allow(clippy::type_complexity)]
+    fn paires() -> [(Mode, Aplat, &'static str, fn(&Palette) -> Couleur, u32); 32] {
+        [
+            (
+                Mode::Sombre,
+                Aplat::Bordure,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0x262729,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::BordureSurvol,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0x3d3d3d,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Survol,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0x202123,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::SurvolActif,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0x28292b,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Bordure,
+                "background_secondary",
+                |p| p.background_secondary,
+                0x232426,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::BordureSurvol,
+                "background_secondary",
+                |p| p.background_secondary,
+                0x3b3a3b,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Survol,
+                "background_secondary",
+                |p| p.background_secondary,
+                0x1d1e20,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::SurvolActif,
+                "background_secondary",
+                |p| p.background_secondary,
+                0x252628,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Bordure,
+                "menu_bg",
+                |p| p.menu_bg,
+                0x2d2e32,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::BordureSurvol,
+                "menu_bg",
+                |p| p.menu_bg,
+                0x434345,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Survol,
+                "menu_bg",
+                |p| p.menu_bg,
+                0x27282c,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::SurvolActif,
+                "menu_bg",
+                |p| p.menu_bg,
+                0x2f3034,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Bordure,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0x212223,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::BordureSurvol,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0x383839,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::Survol,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0x1a1b1d,
+            ),
+            (
+                Mode::Sombre,
+                Aplat::SurvolActif,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0x232325,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Bordure,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0xe1e0dc,
+            ),
+            (
+                Mode::Clair,
+                Aplat::BordureSurvol,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0xcbcac8,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Survol,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0xebeae8,
+            ),
+            (
+                Mode::Clair,
+                Aplat::SurvolActif,
+                "workspace_bg",
+                |p| p.workspace_bg,
+                0xe1e0dc,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Bordure,
+                "background_secondary",
+                |p| p.background_secondary,
+                0xdad9d4,
+            ),
+            (
+                Mode::Clair,
+                Aplat::BordureSurvol,
+                "background_secondary",
+                |p| p.background_secondary,
+                0xc4c3c0,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Survol,
+                "background_secondary",
+                |p| p.background_secondary,
+                0xe4e3df,
+            ),
+            (
+                Mode::Clair,
+                Aplat::SurvolActif,
+                "background_secondary",
+                |p| p.background_secondary,
+                0xdad9d4,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Bordure,
+                "menu_bg",
+                |p| p.menu_bg,
+                0xe8e8e8,
+            ),
+            (
+                Mode::Clair,
+                Aplat::BordureSurvol,
+                "menu_bg",
+                |p| p.menu_bg,
+                0xd1d1d2,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Survol,
+                "menu_bg",
+                |p| p.menu_bg,
+                0xf3f3f4,
+            ),
+            (
+                Mode::Clair,
+                Aplat::SurvolActif,
+                "menu_bg",
+                |p| p.menu_bg,
+                0xe8e8e8,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Bordure,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0xd3d2cd,
+            ),
+            (
+                Mode::Clair,
+                Aplat::BordureSurvol,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0xbfbeba,
+            ),
+            (
+                Mode::Clair,
+                Aplat::Survol,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0xdddcd8,
+            ),
+            (
+                Mode::Clair,
+                Aplat::SurvolActif,
+                "tab_bar_bg",
+                |p| p.tab_bar_bg,
+                0xd3d2cd,
+            ),
+        ]
+    }
+
+    #[test]
+    fn chaque_paire_jeton_et_fond_est_pre_composee_comme_chromium() {
+        for (mode, jeton, nom, fond, attendu) in paires() {
+            let palette = Theme::pour(mode).palette;
+            assert_eq!(
+                palette.aplat(jeton, fond(&palette)),
+                Couleur::hex(attendu),
+                "{mode:?} {jeton:?} sur {nom}"
+            );
+        }
+    }
+
+    #[test]
+    fn ligne_selectionnee_de_la_palette_sombre_relue_dans_la_reference() {
+        // Le cas qui a motivé la tâche : (40, 41, 43), pas (41, 41, 43) ; fond de la boîte (20, 21, 23).
+        let t = Theme::sombre().palette;
+        let attendu = pixel_de_reference("t1-palette-selection-dark.png", 700, 200);
+        assert_eq!(attendu, Couleur::hex(0x28292b));
+        assert_eq!(t.aplat(Aplat::SurvolActif, t.workspace_bg), attendu);
+        assert_eq!(
+            t.background_modifier_active_hover.sur(t.workspace_bg),
+            Couleur::hex(0x29292b),
+            "l'ancienne composition à l'octet se trompait d'un niveau"
+        );
+    }
+
+    #[test]
+    fn ligne_selectionnee_de_la_palette_claire_relue_dans_la_reference() {
+        let t = Theme::clair().palette;
+        let attendu = pixel_de_reference("t1-palette-selection-light.png", 700, 200);
+        assert_eq!(t.aplat(Aplat::SurvolActif, t.workspace_bg), attendu);
+    }
+
+    #[test]
+    fn survol_de_menu_clair_et_survols_de_l_explorateur_relus_dans_la_reference() {
+        let c = Theme::clair().palette;
+        let s = Theme::sombre().palette;
+        let menu = pixel_de_reference("menu-light.png", 600, 481);
+        assert_eq!(c.aplat(Aplat::SurvolActif, c.menu_bg), menu);
+        let explo_s = pixel_de_reference("survol-explorateur-dark.png", 250, 117);
+        assert_eq!(s.aplat(Aplat::Survol, s.background_secondary), explo_s);
+        let explo_c = pixel_de_reference("survol-explorateur-light.png", 60, 117);
+        assert_eq!(c.aplat(Aplat::Survol, c.background_secondary), explo_c);
     }
 }

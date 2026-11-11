@@ -13,7 +13,7 @@ pub mod theme;
 pub mod theme_model;
 
 pub use couleur::{Couleur, Ombre};
-pub use theme::{Forme, Mode, Palette, Pile, Theme, Typo};
+pub use theme::{Aplat, Forme, Mode, Opacites, Palette, Pile, Theme, Typo};
 
 pub use manager::{THEME_MANAGER_ID, ThemeManager, theme_manager};
 pub use theme_model::{
