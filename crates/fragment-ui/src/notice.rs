@@ -18,10 +18,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{bordure, bordure_translucide, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
-use fragment_theme::Aplat;
 
 /// La durée par défaut d'une notice (millisecondes), comme Obsidian.
 pub const DUREE_DEFAUT_MS: u64 = 5000;
@@ -237,9 +236,9 @@ pub fn couche(cx: &App) -> AnyElement {
                 Some(c) => carte.h(c[0]),
                 None => carte,
             };
-            // Bordure pré-composée sur le fond de la carte (ADR-009 c).
+            // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
             let carte = bordure(carte, u(cx, f.border_width))
-                .border_color(couleur(c.aplat(Aplat::Bordure, c.background_secondary_alt)));
+                .border_color(couleur(bordure_translucide(c, c.background_secondary_alt)));
             let carte = ombrer(
                 carte,
                 cx,
