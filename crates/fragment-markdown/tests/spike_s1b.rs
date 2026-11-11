@@ -11,6 +11,8 @@
 //! de rangées ACTIF, pour prouver que le fork ne casse rien quand on s'en sert.
 //!
 //! Windows seulement (les crates GPUI ne se construisent pas sous Linux sans bibliothèques système).
+// `set_row_model` prend une liste de plages : une plage seule y est voulue.
+#![allow(clippy::single_range_in_vec_init)]
 #![cfg(windows)]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 

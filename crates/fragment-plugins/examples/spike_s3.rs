@@ -9,6 +9,8 @@
 //! `CommandManager` de fragment-core avant de revenir au script. Voir `docs/spikes/S3-plugins.md`.
 //!
 //! Le rechargement à chaud et l'isolation sont exercés par `tests/spike_s3.rs` (headless).
+// Exemple lancé à la main (spike S3) : un échec doit arrêter le programme.
+#![allow(clippy::expect_used)]
 #[cfg(windows)]
 #[path = "../tests/spike_s3/host.rs"]
 mod host;
