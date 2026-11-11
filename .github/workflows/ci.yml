@@ -26,16 +26,17 @@ jobs:
       - run: rustup show active-toolchain || rustup toolchain install
       - run: cargo fmt --all -- --check
 
+  # ★ 11/11 : clippy passe sous Windows. Sous Ubuntu, l'étape apt (dépendances système de GPUI)
+  # tombait en panne DNS des miroirs pendant plus de 20 min et bloquait toutes les PR.
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - name: Dépendances système de GPUI (Linux)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxkbcommon-x11-dev libwayland-dev libx11-xcb-dev libfontconfig-dev libfreetype-dev libasound2-dev libvulkan-dev libssl-dev libzstd-dev pkg-config clang
       - run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: clippy-linux
+          shared-key: clippy-windows
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   test-linux:
