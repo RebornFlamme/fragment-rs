@@ -22,6 +22,9 @@ fragment-cli = { path = "../fragment-cli" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true
+# Les images d'ombre du calque (fr-p4.1, ADR-013) : `image::Frame` de `RenderImage`. Déjà tirée par
+# GPUI (même version, 0.25) et dans le workspace.
+image = { workspace = true }
 
 [dev-dependencies]
 # Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.

@@ -25,11 +25,12 @@ use gpui_kit::{
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::{arrondir, ombrer};
+use crate::flottant::arrondir;
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::rendu::melange::bord_unique;
+use crate::rendu::ombre::ombrer_au_calque;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -747,13 +748,14 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
         )
         .child(entree)
         .child(resultats);
-        boite = ombrer(
+        boite = ombrer_au_calque(
             boite,
             cx,
             &t.palette.shadow_l,
             "--shadow-l",
             u(cx, t.forme.radius_l),
             bordure,
+            t.palette.background_modifier_cover,
         );
         if !self.parametres.instructions.is_empty() {
             boite = boite.child(legende);

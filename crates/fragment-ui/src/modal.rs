@@ -25,10 +25,10 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::ombrer;
 use crate::icones;
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::rendu::melange::bord_unique;
+use crate::rendu::ombre::{ombrer_au_calque, voile};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -251,7 +251,8 @@ impl Render for CoucheModale {
                     .top_0()
                     .left_0()
                     .size_full()
-                    .bg(couleur(theme.palette.background_modifier_cover))
+                    // Le voile du calque : il peint aussi l'ombre de la boîte (`rendu::ombre`).
+                    .child(voile(theme.palette.background_modifier_cover))
                     .on_mouse_down(MouseButton::Left, move |_, window, _| {
                         fermeture.demander();
                         window.refresh();
@@ -369,13 +370,14 @@ impl Render for Modale {
             t.palette.workspace_bg,
             false,
         );
-        boite = ombrer(
+        boite = ombrer_au_calque(
             boite,
             cx,
             &t.palette.shadow_l,
             "--shadow-l",
             u(cx, t.forme.radius_l),
             u(cx, t.forme.border_width),
+            t.palette.background_modifier_cover,
         );
         // Le bouton de fermeture : 24 × 24 à 10 px du coin, icône de 16 px.
         boite = boite.child(
