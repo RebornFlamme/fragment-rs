@@ -53,7 +53,7 @@ fn main() {
         .with_assets(fragment_ui::icones::Ressources)
         .run(move |cx| {
             gpui_kit::init(cx);
-            if let Err(erreur) = fragment_ui::polices::enregistrer(&cx.text_system()) {
+            if let Err(erreur) = fragment_ui::polices::enregistrer(cx.text_system()) {
                 eprintln!("fragment-pixels : polices : {erreur:#}");
                 std::process::exit(1);
             }

@@ -5,6 +5,7 @@
   "themes": ["dark","light"],
   "vault": "pixels/vault",
   "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":4,"current":1}}},
     {"type":"command","id":"app:reset-zoom"},
     {"type":"command","id":"app:zoom-in"},
     {"type":"command","id":"app:zoom-in"},

@@ -1,0 +1,151 @@
+# Parité des tests de fragment-ui pour la tranche T1 (fr-t1-binaire, T1.md choix 5 : ce fichier est
+# tenu par la seule tâche d'assemblage). Le rendu n'a pas de `.test.ts` : la source des cas, ce sont
+# les specs e2e de Fragment (`app/e2e/*.spec.ts`), un `test(...)` = un cas. Un cas porté = un `#[test]`
+# du même nom en snake_case, sans accents, dans `crates/fragment-ui/tests/*.rs` ou, pour le démarrage
+# et le clavier de l'application, `crates/fragment-app/tests/*.rs` (le banc a besoin du binaire
+# assemblé). Les cas « n.a. » le sont pour T1, avec leur tranche.
+# Le rendu lui-même est jugé au pixel (`docs/parite-pixels.md`), pas ici.
+
+[crate]
+name = "fragment-ui"
+tache = "fr-t1-binaire"
+reference = "RebornFlamme/Fragment (specs e2e de T1, T1.md §1)"
+
+[[module]]
+ts = "app/e2e/workspace-structure.spec.ts"
+rs = "crates/fragment-ui/tests/splits.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/e2e/workspace-layout.spec.ts"
+rs = "crates/fragment-app/tests/boot.rs, crates/fragment-ui/tests/onglets.rs"
+cas_source = 5
+cas_portes = 4
+cas_ajoutes = 0
+notes = "Redémarrage = second boot::demarrer sur les mêmes stockages (en mémoire). Écart T1 : le layout par défaut replie les docks (pas d'explorateur avant T2)."
+[[module.non_portes]]
+quoi = "§8.4 — seules les feuilles visibles sont matérialisées ; un clic charge la suivante"
+raison = "Sans vue réelle (T1 n'a que la vue vide), la matérialisation ne se voit pas ; repris par T2/T3 avec la vue Markdown. Le cœur la teste (restauration.rs)."
+
+[[module]]
+ts = "app/e2e/activeleaf-tracking.spec.ts"
+rs = "crates/fragment-ui/tests/onglets.rs, crates/fragment-app/tests/boot.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 0
+notes = "« Un clic OU un focus » : seul l'appui active la feuille (focusin non traduit, note de fr-t1-onglets)."
+
+[[module]]
+ts = "app/e2e/boot-scope.spec.ts"
+rs = "crates/fragment-app/tests/boot.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 0
+notes = "Ctrl+F (recherche de la note, T3) remplacé par la portée de la vue active au sommet du Keymap."
+
+[[module]]
+ts = "app/e2e/tab-drag-split.spec.ts"
+rs = "crates/fragment-ui/tests/splits.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/e2e/app-zoom.spec.ts"
+rs = "crates/fragment-app/tests/boot.rs, crates/fragment-app/tests/clavier.rs, crates/fragment-ui/tests/reglages.rs"
+cas_source = 11
+cas_portes = 6
+cas_ajoutes = 2
+notes = "« valeur invalide » (paramétré en TS) = valeur_invalide_retombe_sur_une_valeur_sure. Ajoutés : la_portee_de_la_vue_passe_avant_la_racine (le cas PDF, sur une portée factice), les_modificateurs_se_comparent_a_l_identique. Pavé numérique : GPUI ne le distingue pas (n.a.)."
+[[module.non_portes]]
+quoi = "le menu Electron n’a plus de zoom actif"
+raison = "Pas de menu Electron : GPUI n'a pas de rôle de menu zoomIn/zoomOut (n.a.)."
+[[module.non_portes]]
+quoi = "Ctrl+molette sur une note ne zoome pas"
+raison = "Aucune liaison Ctrl+molette dans GPUI ni dans le pont ; à tester avec la vue Markdown (T3)."
+[[module.non_portes]]
+quoi = "capture : le rectangle en px CSS est converti selon le zoom"
+raison = "WindowHost::capture n'existe que sous la feature de test de GPUI (lecteur de scènes) ; dette notée dans fragment-app."
+[[module.non_portes]]
+quoi = "PDF : Ctrl+= reste le zoom du PDF, l’app ne bouge pas"
+raison = "Vue PDF : T4 (le mécanisme, une portée de vue qui consomme Ctrl+=, est testé par la_portee_de_la_vue_passe_avant_la_racine)."
+[[module.non_portes]]
+quoi = "PDF : après un zoom de l’app, les canvas sont repeints à la nouvelle densité"
+raison = "Vue PDF : T4."
+
+[[module]]
+ts = "app/e2e/hotkeys.spec.ts"
+rs = "crates/fragment-app/tests/clavier.rs"
+cas_source = 5
+cas_portes = 4
+cas_ajoutes = 2
+notes = "« §12.5 — un menu ouvert masque… » = un_menu_ouvert_masque_les_raccourcis_globaux_et_echap_le_ferme (un nom Rust ne commence pas par un chiffre). Ajoutés : une_frappe_non_reconnue_atteint_le_champ, la_portee_de_la_vue_passe_avant_la_racine."
+[[module.non_portes]]
+quoi = "★ éditer hotkeys.json à la main prend effet SANS redémarrage"
+raison = "Exige le watcher du dossier (notify, T2)."
+
+[[module]]
+ts = "app/e2e/command-palette.spec.ts"
+rs = "crates/fragment-ui/tests/palette.rs"
+cas_source = 6
+cas_portes = 3
+cas_ajoutes = 0
+[[module.non_portes]]
+quoi = "Mod+P ouvre, on tape, ↓ ↑ naviguent, ↵ exécute, la palette se ferme"
+raison = "Le parcours au clavier est rejoué par les scènes t1-palette* (fr-t1.1) ; pas de banc headless avec la couche modale et le pont clavier ensemble."
+[[module.non_portes]]
+quoi = "une commande dont checkCallback lève est masquée, la palette survit"
+raison = "Une fermeture Rust ne « lève » pas : le cas devient une panique absorbée par CommandManager, testé dans le cœur."
+[[module.non_portes]]
+quoi = "le préfixe du plugin est rendu à part, et le raccourci en <kbd>"
+raison = "Jugé au pixel (t1-palette), pas par le DOM."
+
+[[module]]
+ts = "app/e2e/resize-gesture.spec.ts"
+rs = "crates/fragment-ui/tests/splits.rs"
+cas_source = 6
+cas_portes = 4
+cas_ajoutes = 0
+[[module.non_portes]]
+quoi = "dock vers l'intérieur (cas du dock)"
+raison = "Repris par la scène t1-docks-ouverts et les tests de poignée de dock ; nom e2e non repris tel quel (fr-t1-splits)."
+[[module.non_portes]]
+quoi = "contre-épreuve : sans le CSS du gel, le côté qui rétrécit reflue aussi"
+raison = "Retire un CSS : sans objet dans GPUI (fr-t1-splits)."
+
+[[module]]
+ts = "app/e2e/tab-drop-frame-space.spec.ts"
+rs = "crates/fragment-ui/tests/splits.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/e2e/right-dock.spec.ts"
+rs = ""
+cas_source = 1
+cas_portes = 0
+cas_ajoutes = 0
+[[module.non_portes]]
+quoi = "panneau droit : toggle topbar + reveal + topbar intacte"
+raison = "« reveal » ouvre une vue d'outil (chat, T7) ; le basculement seul est couvert par les tests de splits et la scène t1-docks-ouverts."
+
+[[module]]
+ts = "app/e2e/view-header-nav.spec.ts"
+rs = ""
+cas_source = 1
+cas_portes = 0
+cas_ajoutes = 0
+[[module.non_portes]]
+quoi = "← → naviguent dans l’historique de l’onglet, le titre reste centré"
+raison = "Il faut des documents (T2) ; l'état grisé est la scène t1-entete-vue (T1.md §5)."
+
+[[module]]
+ts = "app/src/ui/core/keymap/Keymap.ts (écoute keydown de la fenêtre)"
+rs = "crates/fragment-ui/src/clavier/mod.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+notes = "Le pont Keystroke GPUI → KeyEvent : touche physique déduite de la touche imprimée (GPUI ne donne pas `code`), auto-répétition non transmise par l'intercepteur."

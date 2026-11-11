@@ -1,0 +1,17 @@
+{
+  "scene": "t1-binaire",
+  "sans_reference": true,
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark"],
+  "pixels_attendus": [
+    {"x":640,"y":400,"rgb":[20,21,23]},
+    {"x":18,"y":400,"rgb":[17,18,20]},
+    {"x":640,"y":18,"rgb":[14,15,17]},
+    {"x":640,"y":37,"rgb":[14,15,17]}
+  ],
+  "actions": [
+    {"type":"key","keys":"Control+="},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}

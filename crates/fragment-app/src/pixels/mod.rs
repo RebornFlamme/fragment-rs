@@ -45,7 +45,9 @@ const IMAGE: Duration = Duration::from_millis(17);
 struct Session {
     commandes: std::rc::Rc<fragment_core::CommandManager>,
     /// ★ Le manager ne tient son hôte que par un lien faible : on le garde vivant ici.
-    _hote: std::rc::Rc<fenetres::HoteScene>,
+    _hote: Option<std::rc::Rc<fenetres::HoteScene>>,
+    /// L'application, pour une scène `"vue": "app"`.
+    app: Option<fenetres::ScenesApp>,
     principale: AnyWindowHandle,
     reglages: Option<AnyWindowHandle>,
 }
@@ -84,15 +86,24 @@ pub async fn jouer(
         // (franges colorées) sur le moteur wgpu. Sans ce réglage, chaque bord de glyphe diffère de 100+.
         cx.set_text_rendering_mode(gpui_kit::TextRenderingMode::Grayscale);
         theme_global::installer(cx, mode(theme));
-        let (commandes, hote) = fenetres::commandes_de_scene();
-        let principale = fenetres::ouvrir_principale(cx, scene.vue, scene.fenetre)?;
+        let (commandes, hote, app, principale) = if scene.vue == VueScene::App {
+            let app = fenetres::ouvrir_app(cx, scene.fenetre, theme)?;
+            let commandes = app.application.noyau.commandes();
+            let principale = app.application.principale;
+            (commandes, None, Some(app), principale)
+        } else {
+            let (commandes, hote) = fenetres::commandes_de_scene();
+            let principale = fenetres::ouvrir_principale(cx, scene.vue, scene.fenetre)?;
+            (commandes, Some(hote), None, principale)
+        };
         let reglages = scene
             .reglages
-            .map(|t| fenetres::ouvrir_reglages(cx, t))
+            .map(|t| fenetres::ouvrir_reglages(cx, t, app.as_ref().map(|a| &*a.application)))
             .transpose()?;
         Ok(Session {
             commandes,
             _hote: hote,
+            app,
             principale,
             reglages,
         })
@@ -220,6 +231,11 @@ async fn executer(session: &Session, action: &Action, cx: &mut AsyncApp) -> anyh
 fn redessiner(session: &Session, cx: &mut AsyncApp) -> anyhow::Result<()> {
     let fenetres = [Some(session.principale), session.reglages];
     cx.update(|cx| -> anyhow::Result<()> {
+        // Le point de synchronisation de l'application : le zoom posé par une commande s'installe
+        // avant l'image, comme après une frappe dans le binaire.
+        if let Some(a) = &session.app {
+            a.application.synchroniser(cx);
+        }
         for f in fenetres.into_iter().flatten() {
             f.update(cx, |_, w, cx| entree::redessiner(w, cx))?;
         }
