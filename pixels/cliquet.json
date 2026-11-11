@@ -1,4 +1,11 @@
 {
-  "commentaire": "Cliquet ADR-009 : pire écart toléré dans les boîtes de texte et d'icônes, par PNG. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
-  "scenes": {}
+  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent) et dans les halos d'ombre (ombre_delta_max, ombre_pourcent). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+  "scenes": {
+    "t1-toolbar-horizontale-dark.png": {
+      "delta_max": 54,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 9.9501,
+      "pourcent": 26.6705
+    }
+  }
 }

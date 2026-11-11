@@ -23,7 +23,7 @@ use gpui_kit::{
 use serde_json::Value;
 
 use crate::echelle::{calees, moitie, u};
-use crate::flottant::{bordure, ecouter_args, nombre, ombres, texte};
+use crate::flottant::{bordure, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -625,7 +625,6 @@ fn rendre_niveau(
         .rounded(u(cx, f.radius_m))
         .bg(couleur(c.menu_bg))
         .text_color(couleur(c.text_normal))
-        .shadow(ombres(cx, &c.menu_shadow))
         .on_mouse_down_out(appui_exterieur)
         .child(
             canvas(
@@ -633,10 +632,19 @@ fn rendre_niveau(
                 |_, (), _, _| {},
             )
             .absolute()
+            .top(u(cx, 0.0))
+            .left(u(cx, 0.0))
             .size_full(),
         )
         .children(lignes);
     let boite =
         bordure(boite, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
+    let boite = ombrer(
+        boite,
+        cx,
+        &c.menu_shadow,
+        u(cx, f.radius_m),
+        u(cx, f.border_width),
+    );
     texte(boite, cx, t.typo.font_ui_medium, 1.5).into_any_element()
 }

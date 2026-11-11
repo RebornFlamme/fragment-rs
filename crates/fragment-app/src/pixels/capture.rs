@@ -4,9 +4,11 @@
 //! relecture) : elle ne dépend pas de ce que le compositeur affiche. ★ Sur un runner sans GPU,
 //! DirectX tombe sur WARP.
 
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::Path;
 
+use fragment_ui::flottant;
 use gpui_kit::{AnyWindowHandle, AsyncApp};
 use image::RgbaImage;
 
@@ -17,14 +19,47 @@ use super::actions::{PixelAttendu, Scene};
 #[path = "../../../../xtask/src/pixels/boites.rs"]
 mod boites;
 
+thread_local! {
+    /// Les surfaces ombrées de la dernière capture, déclarées par la mise en page pendant SA peinture.
+    static OMBRES: RefCell<Vec<boites::OmbreDeclaree>> = const { RefCell::new(Vec::new()) };
+}
+
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
+///
+/// ★ Le registre des ombres de `fragment-ui` est vidé juste avant CETTE peinture et relu juste
+/// après, dans le même `update` : les autres fenêtres (jamais fermées) peuvent repeindre ensuite
+/// sans y ajouter leurs surfaces.
 pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<RgbaImage> {
     cx.update(|cx| {
         fenetre.update(cx, |_, window, cx| {
+            flottant::vider_ombres();
             window.draw(cx).clear(cx);
+            let ombres = flottant::ombres_peintes().iter().map(declarer).collect();
+            OMBRES.with(|o| *o.borrow_mut() = ombres);
             window.render_to_image()
         })
     })?
+}
+
+/// Une surface ombrée de `fragment-ui` dans le format du fichier de déclaration.
+fn declarer(o: &flottant::OmbrePeinte) -> boites::OmbreDeclaree {
+    boites::OmbreDeclaree {
+        x: f64::from(o.x),
+        y: f64::from(o.y),
+        largeur: f64::from(o.largeur),
+        hauteur: f64::from(o.hauteur),
+        rayon: f64::from(o.rayon),
+        couches: o
+            .couches
+            .iter()
+            .map(|c| boites::CoucheDeclaree {
+                decalage_x: f64::from(c.decalage_x),
+                decalage_y: f64::from(c.decalage_y),
+                sigma: f64::from(c.sigma),
+                etendue: f64::from(c.etendue),
+            })
+            .collect(),
+    }
 }
 
 /// Compte les couleurs distinctes (plafonné) : une capture d'une seule couleur trahit un rendu
@@ -93,17 +128,19 @@ pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyh
     let chemin = dossier.join(format!("{nom}-{theme}.png"));
     image.save(&chemin)?;
     let boites = boites::detecter(image);
+    let ombres = OMBRES.with(|o| o.borrow().clone());
     std::fs::write(
         dossier.join(format!("{nom}-{theme}.boites.json")),
-        boites::serialiser(&boites),
+        boites::serialiser_tout(&boites, &ombres),
     )?;
     println!(
-        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes)",
+        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes, {} surfaces ombrées)",
         chemin.display(),
         image.width(),
         image.height(),
         compter_couleurs(image),
-        boites.len()
+        boites.len(),
+        ombres.len()
     );
     Ok(())
 }

@@ -33,6 +33,28 @@ Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-horizontale,toolbar-s
 Mesures CI du 10/11, de 0,12 % à 1,07 % de pixels différents (contre 0,5 à 4,3 % avant) ; la mise en page est
 désormais au pixel (arêtes du menu, séparateurs, bordures, hauteur de carte identiques).
 
+**État au 11/11, catégorie ombre en place (run CI 42997199734, après #33)** : sur les 20 PNG des 10 scènes flottantes
+et de palette, 1 passe (`t1-toolbar-horizontale-dark`, toléré, cliquet posé) ; les scènes restent en `"T2"` pour
+garder le job vert. Ce qui échoue encore, par cause :
+- **Coins arrondis** (toutes les surfaces) : 2 à 12 pixels d'anticrénelage de coin par surface, delta 1 à 6 (SDF de GPUI
+  contre couverture analytique de Skia). Seuls responsables des échecs de `t1-toolbar-horizontale-light` et
+  `t1-toolbar-sections-*` (12 px de delta 1). Rasterizeur, phase 4.
+- **Ombres** (garde-fous, voir ADR-009) : passent le menu sombre, les barres d'outils et la notice sombre (étalement
+  ≤ 0,07 px). Échouent : `--shadow-l` (modale, palette) avec un étalement de +1,4 à +1,7 px en sombre et −0,6 px en clair,
+  encre +24 à +34 % en sombre, plus 26 à 76 pixels de delta 3 à 4 dans le halo ; le menu clair (−0,19 px), l'infobulle
+  (+0,22 à +0,24 px), la notice claire (−0,16 px). Le signe qui change avec le thème désigne le mélange alpha (gamma), pas
+  la géométrie. Rasterizeur, phase 4.
+- **Notices empilées** : la carte à deux lignes (2 × 16,8 px) est décalée d'1 px en hauteur (résidu de `fr-t1.3`), ce
+  qui déplace aussi l'ombre de la carte suivante (glissement −34 à +80 %, 710 et 1151 px hors tolérance).
+- **Texte** : origines d'encre décalées d'1 px en x sur des traits plus fins (encre −10 à −14 %, sous le seuil de 10 % de
+  couverture, sans décalage visible) ; flèches de repli « ↑↓ », « ↵ » (forme 67 à 80 %) ; libellé de barre d'outils :
+  la RÉFÉRENCE a un anticrénelage sous-pixel (franges colorées), d'où une origine à +1 px.
+- **Palette** : fond de ligne sélectionnée et de puce `kbd` à 1 niveau (composition, malgré `Couleur::sur`) sur
+  ~17 000 px ; 2 pixels isolés du pied de légende sans équivalent (delta 63 et 112).
+
+Corrigé ici : la puce `kbd` de la palette, 20 px au lieu de 21 (interligne de 16,5 arrondi par GPUI), calée par
+`echelle::calees` ; le rectangle d'enregistrement des niveaux de menu (position statique d'un enfant absolu, 4 px de trop).
+
 **Corrigé (fr-t1.1)**
 - Lignes de menu de 29,5 px : GPUI arrondit les longueurs écrites AVANT la mise en page ; `echelle::calees` leur
   donne les hauteurs entières (30, 29, 30…) qui reproduisent l'arrondi arête par arête de Chromium (voir
@@ -92,9 +114,11 @@ Mesure sur l'artefact CI (run 42873546813), boîte et ombre comprises :
 | Dans les boîtes (px), % | pixels divergents dans l'union des boîtes (élargies de 1 px), et part de leur aire |
 | Delta max | plus fort écart de canal dans les boîtes |
 | Largeur ±1 | boîtes dont le bord droit d'encre diffère d'un pixel : la dette T1 (`fr-t1.3`) |
+| Ombres | surfaces ombrées déclarées par le candidat (boîte de bordure, rayon, couches), version 2 de `.boites.json` |
+| Halos (px tolérés), % halos, Delta ombre | pixels de delta ≤ 2 dans les halos, leur part de l'aire des halos, leur plus fort delta (cliquet `ombre_delta_max`, `ombre_pourcent`) |
 | Cliquet | `ok`, `réécrit` (sous `--maj-cliquet`) ou la raison de l'aggravation |
 
-Sous le tableau, « Échecs » liste, pour chaque scène en échec : les pixels hors boîtes (dont combien de delta ≤ 2), les zones, et pour chaque boîte fautive son rectangle, le garde-fou violé et ses chiffres (`encre`, `forme`, `teinte`, écart des quatre bords d'encre). Le candidat écrit `<scène>-<thème>.boites.json` à côté de chaque PNG ; sans ce fichier `xtask` déduit les boîtes de l'image. Les diffs `pixels/diff/*.png` montrent en orange l'écart toléré dans une boîte et en rouge celui hors boîte.
+Sous le tableau, « Échecs » liste, pour chaque scène en échec : les pixels hors boîtes (dont combien de delta ≤ 2), les zones, et pour chaque boîte fautive son rectangle, le garde-fou violé et ses chiffres (`encre`, `forme`, `teinte`, écart des quatre bords d'encre). Le candidat écrit `<scène>-<thème>.boites.json` à côté de chaque PNG ; sans ce fichier `xtask` déduit les boîtes de l'image. Les diffs `pixels/diff/*.png` montrent en orange l'écart toléré dans une boîte, en bleu celui toléré dans un halo d'ombre et en rouge le reste. Une section « Ombres » donne, pour chaque surface, l'écart (candidat moins référence) de distance au bord et d'encre de chacun de ses côtés droits.
 
 <!-- sas:debut -->
 (Section générée par le job `pixels`.)
