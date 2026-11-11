@@ -532,3 +532,7 @@ Livraison de T1 quand #49 est fusionnée.
   - #67 (fr-t4-barre) : 12 tests, 6 icônes Lucide. Consignes de montage notées sur fr-t4-vue-pdf.
   - Lancées : fr-t4-texte (Opus, `../fragment-rs-pdftexte`) et fr-t11-themes (Sonnet, `../fragment-rs-themes`).
   - Actifs : shell5, treeitem, surface, pdftexte, themes.
+- 11/11 20:05 UTC : fusionnée #68 (fr-t2-tree-item). CI verte, audit à 0, 13 tests headless.
+  - Écarts et scène reportés sur fr-t2-montage.
+  - Bead fermé, worktree et dossier cible retirés.
+  - Lancée : fr-t4.1 (Sonnet, `../fragment-rs-fondpage`). Actifs : shell5, surface, pdftexte, themes, fondpage.
