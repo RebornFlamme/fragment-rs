@@ -30,6 +30,7 @@ use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
 use crate::echelle::{calees, u};
 use crate::flottant::{bordure, texte};
 use crate::icones;
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Les définitions d'un onglet, relues à chaque rendu (le thème courant en argument : l'accent du thème).
@@ -535,21 +536,17 @@ impl FenetreReglages {
             .map(|(_, l)| l.clone())
             .unwrap_or_default();
         let ligne = 18.0;
-        // La pile invisible de toutes les options donne sa largeur à la boîte ; une ligne seulement
-        // en est visible (elle est rognée), et le libellé choisi se pose dessus.
-        let mesure = div()
-            .h(u(cx, ligne))
-            .overflow_hidden()
-            .flex()
-            .flex_col()
-            .children(
-                d.options
-                    .iter()
-                    .map(|(_, l)| div().h(u(cx, ligne)).invisible().child(l.clone())),
-            );
+        // La largeur de la boîte : le plus long libellé + rembourrage et bordures, arrondie comme Chromium.
+        let texte_max = d
+            .options
+            .iter()
+            .map(|(_, l)| largeur_texte(cx, l, FontWeight::NORMAL, ty.font_ui_medium))
+            .fold(0.0_f32, f32::max);
+        let ajout = f.size_4_2 + f.size_4_7 + 2.0 * f.border_width;
         let boite = div()
             .relative()
             .flex_none()
+            .w(largeur_ajustee(cx, texte_max, ajout))
             .h(u(cx, 2.0 * f.size_2_3 + 2.0 * f.border_width + ligne))
             .flex()
             .items_center()
@@ -558,7 +555,6 @@ impl FenetreReglages {
             .rounded(u(cx, f.radius_sm))
             .bg(couleur(p.background_secondary))
             .text_color(couleur(p.text_normal))
-            .child(mesure)
             .child(
                 div()
                     .absolute()

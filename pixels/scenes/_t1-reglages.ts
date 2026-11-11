@@ -10,6 +10,8 @@
 //  réglages ne le voit pas (elle a son propre App). La fonction `reglages` de _commun.ts sert de
 //  modèle pour l'ouverture et le gel.
 // ═══════════════════════════════════════════════════════════════════════════
+import { writeFileSync } from 'fs';
+import path from 'path';
 import type { Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { expect, type ContexteT1 } from './_t1';
 
@@ -52,4 +54,16 @@ export async function attendreZoom(p: Page, facteur: number): Promise<void> {
 export async function rendreLeZoom(c: ContexteT1): Promise<void> {
     await c.act.command('app:reset-zoom');
     await attendreZoom(c.p, 1);
+}
+
+/**
+ * Capture la fenêtre principale en PIXELS ÉCRAN (`capturePage`) : `page.screenshot` rend des px CSS,
+ * donc 853 × 533 à 150 %. Le candidat Rust rend 1280 × 800 : on compare des pixels écran.
+ */
+export async function capturerFenetre(c: ContexteT1, fichier: string): Promise<void> {
+    const b64 = await c.h.electronApp.evaluate(async ({ BrowserWindow }) => {
+        const img = await BrowserWindow.getAllWindows()[0].webContents.capturePage();
+        return img.toPNG().toString('base64');
+    });
+    writeFileSync(path.resolve(__dirname, '..', 'reference', fichier), Buffer.from(b64, 'base64'));
 }
