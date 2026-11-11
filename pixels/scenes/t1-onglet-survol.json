@@ -1,5 +1,6 @@
 {
   "scene": "t1-onglet-survol",
+  "depuis": "T2",
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",
