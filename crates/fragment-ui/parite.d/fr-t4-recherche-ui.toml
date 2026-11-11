@@ -1,0 +1,8 @@
+# Parité de fr-t4-recherche-ui (fragment-ui) : EN COURS (non compilé au moment de la pause).
+[[module]]
+ts = "app/src/ui/views/pdf/PdfFindBar.ts, pdf-view.css (.pdf-find-*)"
+rs = "crates/fragment-ui/src/pdf_recherche/*.rs, crates/fragment-ui/tests/pdf_recherche.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 3
+notes = "Tests 2 à 6 de pdf-find.spec.ts portés (non exécutés). Écarts : couleurs de surlignage dérivées de color_yellow/color_orange (jetons --pdf-find-bg* absents de fragment-theme) ; champ sans curseur ni flèches."
