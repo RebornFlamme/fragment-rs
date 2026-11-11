@@ -30,3 +30,24 @@ Le sas de `program.md` (delta ≤ 16, ≤ 0,3 %, zones < 20 × 20) est mesuré p
 - La tâche d'outillage `fr-t1.2` (xtask, export des boîtes par `fragment-pixels`, garde-fous, contre-épreuve, cliquet) précède la reprise de `fr-t1.1`. La largeur du texte est le bug `fr-t1.3`, à fermer avant T2.
 - Le binaire de T1 peut être livré avec cette dette déclarée, que le compte rendu de livraison mentionne.
 - Le seuil d'une scène ne se relâche toujours que par ADR.
+
+## Chiffres des garde-fous (fr-t1.2, outillage livré)
+
+Fixés sur les captures candidates de la palette et de la modale (run CI 42873546813, avant #30) contre la référence : 15 boîtes de texte et une d'icône, mesures réelles ci-dessous. Les constantes sont dans `xtask/src/pixels/sas.rs` (garde-fous) et `boites.rs` (détection).
+
+- **Boîte** : candidat seul, jamais la référence. Pixel « de bord » : écart ≥ 14 avec un voisin ; traits droits ≥ 24 px (bordures, séparateurs) et composantes qui les touchent (arcs des coins) écartés comme géométrie ; composantes restantes regroupées à 5 px en x et 2 px en y (une ligne, une icône) ; moins de 8 pixels de bord : poussière, laissée au strict. Icône : 10 à 28 px de côté, presque carrée ; sinon texte.
+- **Hors boîte** (élargie de 1 px, l'anticrénelage qui déborde) : 0 pixel de différence.
+- **Origine** de la boîte d'encre (couverture ≥ 10 %) : identique à la référence, 0 px d'écart en x et en y.
+- **Boîte d'encre** : bord droit et bord bas à ±1 px (la largeur à ±1 est la dette T1 `fr-t1.3`, comptée dans la colonne « Largeur ±1 » du rapport).
+- **Encre totale** (distance au fond normalisée par le contraste de la référence) : écart relatif ≤ ±25 %. Mesuré : −15 % à +18 % pour un même texte, −37 % pour les flèches « ↑↓ » et « ↵ » (glyphes de repli différents).
+- **Forme**, mot par mot : un pixel de cœur de trait (couverture ≥ 0,8) doit trouver un trait (≥ 0,2) au même endroit de l'autre image, au meilleur décalage de ±3 px en x et ±1 px en y ; part d'orphelins ≤ 5 %. Mesuré : ≤ 2,3 % pour un même texte, 67 % pour les flèches. Limite connue : une lettre changée est vue dans environ deux cas sur trois sur du texte réel de 13 px (les glyphes voisins partagent leurs traits) ; un mot absent, un autre mot, une autre couleur ou une autre graisse le sont toujours. La contre-épreuve (`une_lettre_changee_fait_echouer`) porte sur des glyphes agrandis.
+- **Teinte** : cosinus entre les couleurs d'encre ≥ 0,995 (mesuré ≥ 0,999).
+- **Cliquet** : `pixels/cliquet.json`, par PNG : delta max et % de pixels divergents dans les boîtes (arrondi à 4 décimales). Une mesure au-dessus de la base échoue ; une scène qui diverge dans ses boîtes sans base échoue aussi. `cargo xtask pixels --maj-cliquet` réécrit la base (la PR montre la différence).
+
+### Limite de l'export des boîtes
+
+GPUI ne laisse pas lire les sprites de glyphes et d'icônes d'une scène peinte (`Window::rendered_frame` est privé, `painted_quads` ne rend que les quads) : `fragment-pixels` déduit donc les boîtes de l'IMAGE candidate (`<scène>-<thème>.boites.json` à côté du PNG), par le même code que `xtask`. L'export exact (chaque `div` de texte et chaque icône déclarent leur rectangle) demanderait un crochet dans `fragment-ui` ; le format de fichier est prêt à le recevoir.
+
+### Ce que le sas montre sur les captures avant #30
+
+Aucune scène de palette ni de modale ne passe, et ce n'est pas le texte : plus de 99 % des pixels divergents HORS boîtes ont un delta ≤ 2 (ombre `--shadow-l`, mélange alpha), le reste est l'arrondi des coins de la boîte (delta jusqu'à 200), un libellé de pied absent côté candidat et la ligne sélectionnée. Dans les boîtes : décalages d'origine de 1 à 3 px sur les libellés du pied (dette de largeur en cascade) et les flèches de repli. L'ombre est le point à trancher : le sas strict hors boîte la fait échouer.

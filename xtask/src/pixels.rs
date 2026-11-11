@@ -1,24 +1,26 @@
-//! Diff d'images référence (Fragment) / candidat (fragment-rs), program.md « Parité au PIXEL ».
+//! Diff d'images référence (Fragment) / candidat (fragment-rs), program.md « Parité au PIXEL » et
+//! ADR-009 (sas par catégorie).
 //!
-//! Deux niveaux :
 //! - STRICT : 0 pixel différent (la cible) ;
-//! - TOLÉRÉ : delta de canal ≤ 16 ET ≤ 0,3 % des pixels ET chaque zone divergente
-//!   tient dans moins de 20 × 20 px (bords de glyphes). ★ Tout le reste (boîtes, traits,
-//!   rayons, fonds, positions) doit être strict : une grande zone = une vraie divergence.
+//! - TOLÉRÉ : seuls des pixels DANS les boîtes de texte et d'icônes déclarées par le candidat
+//!   diffèrent, et les garde-fous de chaque boîte tiennent (voir [`sas`]) ;
+//! - ÉCHEC : un pixel différent hors d'une boîte, ou un garde-fou violé, ou un cliquet aggravé.
+//!
+//! ★ Tout le reste (boîtes, traits, rayons, fonds, positions) est strict : une divergence hors d'une
+//! boîte est une vraie divergence. Les anciens seuils (delta ≤ 16, 0,3 %, zones < 20 × 20) sont
+//! remplacés : ils faisaient échouer toute scène textuelle (ADR-009).
+
+mod boites;
+mod sas;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, bail};
-use image::{Rgba, RgbaImage};
+use image::RgbaImage;
 
-/// Delta de canal maximal toléré sur un pixel divergent.
-pub const DELTA_TOLERE: u8 = 16;
-/// Part maximale de pixels divergents tolérée (0,3 %).
-pub const PART_TOLEREE: f64 = 0.003;
-/// Côté maximal (exclu) de la boîte d'une zone divergente tolérée.
-pub const ZONE_MAX: u32 = 20;
+use boites::BoiteEncre;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
@@ -33,69 +35,6 @@ pub struct Boite {
     pub y: u32,
     pub largeur: u32,
     pub hauteur: u32,
-}
-
-#[derive(Debug)]
-pub struct Comparaison {
-    pub differents: u64,
-    pub total: u64,
-    pub pire_delta: u8,
-    pub zones: Vec<Boite>,
-    pub verdict: Verdict,
-    pub diff: RgbaImage,
-}
-
-/// Compare deux images de même taille. Une taille différente est un échec franc.
-pub fn comparer(reference: &RgbaImage, candidat: &RgbaImage) -> anyhow::Result<Comparaison> {
-    if reference.dimensions() != candidat.dimensions() {
-        bail!(
-            "tailles différentes : référence {:?}, candidat {:?}",
-            reference.dimensions(),
-            candidat.dimensions()
-        );
-    }
-    let (largeur, hauteur) = reference.dimensions();
-    let mut masque = vec![false; (largeur * hauteur) as usize];
-    let mut diff = RgbaImage::new(largeur, hauteur);
-    let mut differents = 0u64;
-    let mut pire_delta = 0u8;
-    for (x, y, r) in reference.enumerate_pixels() {
-        let c = candidat.get_pixel(x, y);
-        let delta = (0..4).map(|i| r.0[i].abs_diff(c.0[i])).max().unwrap_or(0);
-        if delta > 0 {
-            differents += 1;
-            pire_delta = pire_delta.max(delta);
-            masque[(y * largeur + x) as usize] = true;
-            diff.put_pixel(x, y, Rgba([255, 0, 0, 255]));
-        } else {
-            // Référence assombrie en fond, pour situer les divergences.
-            let g = (u16::from(r.0[0]) + u16::from(r.0[1]) + u16::from(r.0[2])) / 12;
-            let g = u8::try_from(g).unwrap_or(u8::MAX);
-            diff.put_pixel(x, y, Rgba([g, g, g, 255]));
-        }
-    }
-    let zones = zones_connexes(&masque, largeur, hauteur);
-    let total = u64::from(largeur) * u64::from(hauteur);
-    let verdict = if differents == 0 {
-        Verdict::Strict
-    } else if pire_delta <= DELTA_TOLERE
-        && (differents as f64) <= PART_TOLEREE * total as f64
-        && zones
-            .iter()
-            .all(|b| b.largeur < ZONE_MAX && b.hauteur < ZONE_MAX)
-    {
-        Verdict::Tolere
-    } else {
-        Verdict::Echec
-    };
-    Ok(Comparaison {
-        differents,
-        total,
-        pire_delta,
-        zones,
-        verdict,
-        diff,
-    })
 }
 
 /// Boîtes englobantes des composantes 8-connexes du masque de divergence.
@@ -153,6 +92,10 @@ struct Options {
     scenes: PathBuf,
     tranche: u32,
     exiger_references: bool,
+    /// Base commitée du cliquet (delta max et % dans les boîtes, par PNG).
+    cliquet: PathBuf,
+    /// Réécrit la base du cliquet avec les mesures du run.
+    maj_cliquet: bool,
 }
 
 fn lire_options(args: &[String]) -> anyhow::Result<Options> {
@@ -165,6 +108,8 @@ fn lire_options(args: &[String]) -> anyhow::Result<Options> {
         scenes: "pixels/scenes".into(),
         tranche: TRANCHE_COURANTE,
         exiger_references: false,
+        cliquet: "pixels/cliquet.json".into(),
+        maj_cliquet: false,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -179,6 +124,8 @@ fn lire_options(args: &[String]) -> anyhow::Result<Options> {
             "--diff" => o.diff = valeur()?.into(),
             "--report" => o.rapport = valeur()?.into(),
             "--scenes" => o.scenes = valeur()?.into(),
+            "--cliquet" => o.cliquet = valeur()?.into(),
+            "--maj-cliquet" => o.maj_cliquet = true,
             "--tranche" => {
                 let v = valeur()?;
                 o.tranche =
@@ -336,9 +283,137 @@ fn planifier(
     plan
 }
 
+/// Une entrée de la base du cliquet : le pire écart toléré, par PNG.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Base {
+    /// Plus fort delta de canal dans les boîtes.
+    delta_max: u8,
+    /// Part de pixels divergents dans les boîtes, en %, arrondie à 4 décimales.
+    pourcent: f64,
+}
+
+fn arrondir(pourcent: f64) -> f64 {
+    (pourcent * 10_000.0).round() / 10_000.0
+}
+
+/// Lit la base du cliquet ; un fichier absent donne une base vide.
+fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
+    let Ok(texte) = std::fs::read_to_string(chemin) else {
+        return Ok(BTreeMap::new());
+    };
+    let json: serde_json::Value =
+        serde_json::from_str(&texte).with_context(|| format!("{} illisible", chemin.display()))?;
+    let mut base = BTreeMap::new();
+    for (nom, v) in json["scenes"].as_object().into_iter().flatten() {
+        let delta_max = v["delta_max"]
+            .as_u64()
+            .and_then(|d| u8::try_from(d).ok())
+            .with_context(|| format!("{nom} : delta_max invalide"))?;
+        let pourcent = v["pourcent"]
+            .as_f64()
+            .with_context(|| format!("{nom} : pourcent invalide"))?;
+        base.insert(
+            nom.clone(),
+            Base {
+                delta_max,
+                pourcent,
+            },
+        );
+    }
+    Ok(base)
+}
+
+fn ecrire_cliquet(chemin: &Path, base: &BTreeMap<String, Base>) -> anyhow::Result<()> {
+    let scenes: serde_json::Map<String, serde_json::Value> = base
+        .iter()
+        .map(|(nom, b)| {
+            (
+                nom.clone(),
+                serde_json::json!({ "delta_max": b.delta_max, "pourcent": b.pourcent }),
+            )
+        })
+        .collect();
+    let json = serde_json::json!({
+        "commentaire": "Cliquet ADR-009 : pire écart toléré dans les boîtes de texte et d'icônes, par PNG. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+        "scenes": scenes,
+    });
+    if let Some(parent) = chemin.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(chemin, serde_json::to_string_pretty(&json)? + "\n")?;
+    Ok(())
+}
+
+/// Le cliquet : `None` si la mesure tient, sinon la raison de l'échec.
+fn verifier_cliquet(mesure: Base, base: Option<&Base>) -> Option<String> {
+    if mesure.delta_max == 0 && mesure.pourcent == 0.0 {
+        return None;
+    }
+    let Some(base) = base else {
+        return Some(
+            "pas de base : lancer `cargo xtask pixels --maj-cliquet` et commiter pixels/cliquet.json"
+                .to_owned(),
+        );
+    };
+    let mut raisons = Vec::new();
+    if mesure.delta_max > base.delta_max {
+        raisons.push(format!(
+            "delta max {} > base {}",
+            mesure.delta_max, base.delta_max
+        ));
+    }
+    if arrondir(mesure.pourcent) > base.pourcent {
+        raisons.push(format!(
+            "{:.4} % dans les boîtes > base {:.4} %",
+            mesure.pourcent, base.pourcent
+        ));
+    }
+    (!raisons.is_empty()).then(|| format!("cliquet aggravé : {}", raisons.join(" ; ")))
+}
+
+const DEBUT_RAPPORT: &str = "<!-- sas:debut -->";
+const FIN_RAPPORT: &str = "<!-- sas:fin -->";
+
+/// Écrit `section` dans `chemin`, entre les marqueurs : le reste du fichier (les dettes écrites à
+/// la main dans `docs/parite-pixels.md`) n'est jamais touché. Sans marqueurs, la section est ajoutée.
+fn ecrire_rapport(chemin: &Path, section: &str) -> anyhow::Result<()> {
+    let bloc = format!("{DEBUT_RAPPORT}\n{section}{FIN_RAPPORT}\n");
+    let existant = std::fs::read_to_string(chemin).unwrap_or_default();
+    let nouveau = match (existant.find(DEBUT_RAPPORT), existant.find(FIN_RAPPORT)) {
+        (Some(d), Some(f)) if d < f => format!(
+            "{}{bloc}{}",
+            &existant[..d],
+            existant[f + FIN_RAPPORT.len()..].trim_start_matches('\n')
+        ),
+        _ if existant.is_empty() => format!("# Parité au pixel\n\n{bloc}"),
+        _ => format!("{}\n\n{bloc}", existant.trim_end()),
+    };
+    if let Some(parent) = chemin.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(chemin, nouveau)?;
+    Ok(())
+}
+
+/// Les boîtes d'un candidat : son fichier de déclaration voisin du PNG, sinon dérivées de l'image
+/// (un candidat plus ancien que l'export n'a pas de fichier).
+fn boites_du_candidat(
+    dossier: &Path,
+    nom: &str,
+    image: &RgbaImage,
+) -> anyhow::Result<Vec<BoiteEncre>> {
+    let chemin = dossier.join(nom.replace(".png", ".boites.json"));
+    match std::fs::read_to_string(&chemin) {
+        Ok(texte) => {
+            boites::deserialiser(&texte).with_context(|| format!("{} illisible", chemin.display()))
+        }
+        Err(_) => Ok(boites::detecter(image)),
+    }
+}
+
 /// Point d'entrée de `cargo xtask pixels`. Rend `Ok(true)` si toutes les scènes passent.
 ///
-/// - divergence hors tolérance : échec ;
+/// - divergence hors d'une boîte, garde-fou violé ou cliquet aggravé : échec ;
 /// - référence absente : EN ATTENTE, code 0 (la référence d'une scène arrive quand Fragment l'a
 ///   rendue) ;
 /// - `--exiger-references` : toute scène de la tranche doit avoir référence ET candidat, sinon échec.
@@ -356,39 +431,92 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         o.scene.as_deref(),
     );
     std::fs::create_dir_all(&o.diff)?;
+    let base = lire_cliquet(&o.cliquet)?;
+    let mut nouvelle_base = base.clone();
 
     let mut ok = true;
     let mut rapport = String::from(
-        "# Parité au pixel\n\nGénéré par `cargo xtask pixels`. Strict = 0 pixel ; toléré = delta ≤ 16, ≤ 0,3 %, zones < 20×20 px (glyphes).\n\n| Scène | Verdict | Pixels différents | % | Pire delta | Zones (x,y,l×h) |\n|---|---|---|---|---|---|\n",
+        "Généré par `cargo xtask pixels` (ADR-009). Hors des boîtes de texte et d'icônes : strict, 0 pixel. Dans une boîte : anticrénelage seul, sous quatre garde-fous (encre totale, boîte d'encre, forme, teinte).\n\n| Scène | Verdict | Boîtes (texte/icônes) | Hors boîtes (px) | Dans les boîtes (px) | % dans les boîtes | Delta max | Largeur ±1 (dette fr-t1.3) | Cliquet |\n|---|---|---|---|---|---|---|---|---|\n",
     );
+    let mut details = String::new();
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
-        let ligne = match comparer(&r, &c) {
-            Ok(cmp) => {
-                cmp.diff.save(o.diff.join(nom))?;
-                if cmp.verdict == Verdict::Echec {
-                    ok = false;
+        let ligne = match boites_du_candidat(&o.candidat, nom, &c)
+            .and_then(|boites| sas::comparer(&r, &c, &boites).map(|s| (boites, s)))
+        {
+            Ok((boites, s)) => {
+                s.diff.save(o.diff.join(nom))?;
+                let mesure = Base {
+                    delta_max: s.delta_max_boites,
+                    pourcent: arrondir(s.pourcent_boites()),
+                };
+                let mut verdict = s.verdict;
+                let cliquet = if verdict == Verdict::Echec {
+                    "—".to_owned()
+                } else if let Some(raison) = verifier_cliquet(mesure, base.get(nom)) {
+                    if o.maj_cliquet {
+                        // Mise à jour voulue : la base change, la PR montre la différence.
+                        println!("{nom} : base réécrite ({raison})");
+                        "réécrit".to_owned()
+                    } else {
+                        verdict = Verdict::Echec;
+                        writeln!(details, "- {nom} : {raison}")?;
+                        raison
+                    }
+                } else {
+                    "ok".to_owned()
+                };
+                if o.maj_cliquet && s.verdict != Verdict::Echec {
+                    if mesure.delta_max == 0 && mesure.pourcent == 0.0 {
+                        nouvelle_base.remove(nom);
+                    } else {
+                        nouvelle_base.insert(nom.clone(), mesure);
+                    }
                 }
-                let zones: Vec<String> = cmp
-                    .zones
-                    .iter()
-                    .take(8)
-                    .map(|b| format!("{},{},{}×{}", b.x, b.y, b.largeur, b.hauteur))
-                    .collect();
+                if verdict == Verdict::Echec {
+                    ok = false;
+                    if s.differents_hors > 0 {
+                        writeln!(
+                            details,
+                            "- {nom} : {} px HORS boîtes (delta max {}, dont {} de delta ≤ 2)",
+                            s.differents_hors, s.delta_max_hors, s.differents_hors_faibles
+                        )?;
+                    }
+                    for z in s.zones_hors.iter().take(8) {
+                        writeln!(
+                            details,
+                            "- {nom} : divergence HORS boîte en ({},{}) {}×{} px",
+                            z.x, z.y, z.largeur, z.hauteur
+                        )?;
+                    }
+                    for b in s.boites.iter().filter(|b| !b.ok()) {
+                        writeln!(
+                            details,
+                            "- {nom} : boîte {} ({},{}) {}×{} : {} [{}]",
+                            b.boite.categorie.nom(),
+                            b.boite.x,
+                            b.boite.y,
+                            b.boite.largeur,
+                            b.boite.hauteur,
+                            b.violations.join(" ; "),
+                            b.mesures()
+                        )?;
+                    }
+                }
+                let (texte, icones) = sas::par_categorie(&boites);
                 format!(
-                    "| {nom} | {:?} | {} | {:.4} | {} | {}{} |",
-                    cmp.verdict,
-                    cmp.differents,
-                    100.0 * cmp.differents as f64 / cmp.total as f64,
-                    cmp.pire_delta,
-                    zones.join(" ; "),
-                    if cmp.zones.len() > 8 { " …" } else { "" }
+                    "| {nom} | {verdict:?} | {texte}/{icones} | {} | {} | {:.4} | {} | {} | {cliquet} |",
+                    s.differents_hors,
+                    s.differents_boites,
+                    s.pourcent_boites(),
+                    s.delta_max_boites,
+                    s.dettes_largeur(),
                 )
             }
             Err(erreur) => {
                 ok = false;
-                format!("| {nom} | Echec | — | — | — | {erreur} |")
+                format!("| {nom} | Echec | — | — | — | — | — | — | {erreur} |")
             }
         };
         println!("{ligne}");
@@ -401,7 +529,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         (&plan.hors_tranche, "hors tranche"),
     ] {
         for nom in liste {
-            writeln!(rapport, "| {nom} | {etat} | — | — | — | — |")?;
+            writeln!(rapport, "| {nom} | {etat} | — | — | — | — | — | — | — |")?;
         }
         if !liste.is_empty() {
             println!("{etat} : {}", liste.join(", "));
@@ -411,79 +539,30 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         ok = false;
         writeln!(
             rapport,
-            "| {nom} | MANQUANT (--exiger-references) | — | — | — | — |"
+            "| {nom} | MANQUANT (--exiger-references) | — | — | — | — | — | — | — |"
         )?;
         eprintln!(
             "xtask pixels : {nom} manque (référence ou candidat), exigé par --exiger-references"
         );
     }
+    if !details.is_empty() {
+        write!(rapport, "\nÉchecs :\n\n{details}")?;
+        eprint!("{details}");
+    }
     if plan.paires.is_empty() && !o.exiger_references {
         println!("xtask pixels : aucune paire référence/candidat à comparer (en attente)");
     }
-    if let Some(parent) = o.rapport.parent() {
-        std::fs::create_dir_all(parent)?;
+    ecrire_rapport(&o.rapport, &rapport)?;
+    if o.maj_cliquet {
+        ecrire_cliquet(&o.cliquet, &nouvelle_base)?;
+        println!("cliquet réécrit : {}", o.cliquet.display());
     }
-    std::fs::write(&o.rapport, rapport)?;
     Ok(ok)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn unie(l: u32, h: u32, c: [u8; 4]) -> RgbaImage {
-        RgbaImage::from_pixel(l, h, Rgba(c))
-    }
-
-    #[test]
-    fn identiques_strict() {
-        let a = unie(10, 10, [1, 2, 3, 255]);
-        let cmp = comparer(&a, &a.clone()).unwrap();
-        assert_eq!(cmp.verdict, Verdict::Strict);
-        assert_eq!(cmp.differents, 0);
-    }
-
-    #[test]
-    fn petit_ecart_de_glyphe_tolere() {
-        let a = unie(100, 100, [0, 0, 0, 255]);
-        let mut b = a.clone();
-        b.put_pixel(5, 5, Rgba([10, 10, 10, 255]));
-        b.put_pixel(6, 5, Rgba([10, 10, 10, 255]));
-        let cmp = comparer(&a, &b).unwrap();
-        assert_eq!(cmp.verdict, Verdict::Tolere);
-        assert_eq!(
-            cmp.zones,
-            vec![Boite {
-                x: 5,
-                y: 5,
-                largeur: 2,
-                hauteur: 1
-            }]
-        );
-    }
-
-    #[test]
-    fn delta_fort_echoue() {
-        let a = unie(100, 100, [0, 0, 0, 255]);
-        let mut b = a.clone();
-        b.put_pixel(5, 5, Rgba([200, 0, 0, 255]));
-        assert_eq!(comparer(&a, &b).unwrap().verdict, Verdict::Echec);
-    }
-
-    #[test]
-    fn grande_zone_echoue() {
-        let a = unie(100, 100, [0, 0, 0, 255]);
-        let mut b = a.clone();
-        for x in 0..25 {
-            b.put_pixel(x, 0, Rgba([1, 1, 1, 255]));
-        }
-        assert_eq!(comparer(&a, &b).unwrap().verdict, Verdict::Echec);
-    }
-
-    #[test]
-    fn tailles_differentes_echouent() {
-        assert!(comparer(&unie(2, 2, [0; 4]), &unie(3, 2, [0; 4])).is_err());
-    }
 
     fn ens(noms: &[&str]) -> BTreeSet<String> {
         noms.iter().map(|n| (*n).to_owned()).collect()
@@ -615,5 +694,132 @@ mod tests {
         assert_eq!(meta["menu"].depuis, Some(7));
         assert!(meta["mire"].sans_reference);
         assert_eq!(meta["fenetre-vide"].themes.len(), 2);
+    }
+
+    fn dossier_temporaire(nom: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("xtask-pixels-{nom}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn lancer(racine: &Path, extra: &[&str]) -> anyhow::Result<bool> {
+        let chemin = |s: &str| racine.join(s).to_string_lossy().into_owned();
+        let mut args: Vec<String> = [
+            "--reference",
+            &chemin("ref"),
+            "--candidate",
+            &chemin("cand"),
+            "--diff",
+            &chemin("diff"),
+            "--report",
+            &chemin("rapport.md"),
+            "--cliquet",
+            &chemin("cliquet.json"),
+            "--scenes",
+            &chemin("scenes"),
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        args.extend(extra.iter().map(|s| (*s).to_owned()));
+        run(&args)
+    }
+
+    #[test]
+    fn le_sas_et_le_cliquet_de_bout_en_bout() {
+        use sas::tests::{ENCRE, ligne};
+        let racine = dossier_temporaire("sas");
+        std::fs::create_dir_all(racine.join("ref")).unwrap();
+        std::fs::create_dir_all(racine.join("cand")).unwrap();
+        ligne("panneau", 1.0, ENCRE, 0)
+            .save(racine.join("ref/s-dark.png"))
+            .unwrap();
+        let candidat = |texte: &str, couverture: f64| {
+            ligne(texte, couverture, ENCRE, 0)
+                .save(racine.join("cand/s-dark.png"))
+                .unwrap();
+        };
+        // Un trait plus fin passe le sas, mais sans base de cliquet l'écart n'est pas publié : échec.
+        candidat("panneau", 0.85);
+        assert!(!lancer(&racine, &[]).unwrap());
+        // --maj-cliquet publie la base ; le run suivant passe.
+        assert!(lancer(&racine, &["--maj-cliquet"]).unwrap());
+        assert!(lancer(&racine, &[]).unwrap());
+        let rapport = std::fs::read_to_string(racine.join("rapport.md")).unwrap();
+        assert!(rapport.contains("| s-dark.png | Tolere |"), "{rapport}");
+        // Un trait plus pâle aggrave le delta : le cliquet échoue.
+        candidat("panneau", 0.78);
+        assert!(!lancer(&racine, &[]).unwrap());
+        let rapport = std::fs::read_to_string(racine.join("rapport.md")).unwrap();
+        assert!(rapport.contains("cliquet aggravé"), "{rapport}");
+        // ★ Contre-épreuve : une lettre changée sort rouge, même avec la base.
+        candidat("ponneau", 0.85);
+        assert!(!lancer(&racine, &[]).unwrap());
+        let rapport = std::fs::read_to_string(racine.join("rapport.md")).unwrap();
+        assert!(rapport.contains("| s-dark.png | Echec |"), "{rapport}");
+        assert!(rapport.contains("forme"), "{rapport}");
+        let _ = std::fs::remove_dir_all(&racine);
+    }
+
+    #[test]
+    fn le_cliquet_refuse_une_aggravation_et_accepte_une_amelioration() {
+        let base = Base {
+            delta_max: 100,
+            pourcent: 1.0,
+        };
+        let mieux = Base {
+            delta_max: 90,
+            pourcent: 0.5,
+        };
+        assert_eq!(verifier_cliquet(mieux, Some(&base)), None);
+        assert_eq!(verifier_cliquet(base, Some(&base)), None);
+        let pire_delta = Base {
+            delta_max: 101,
+            ..base
+        };
+        assert!(verifier_cliquet(pire_delta, Some(&base)).is_some());
+        let pire_part = Base {
+            pourcent: 1.0001,
+            ..base
+        };
+        assert!(verifier_cliquet(pire_part, Some(&base)).is_some());
+        // Rien à publier si rien ne diverge dans les boîtes ; sinon une base est exigée.
+        let zero = Base {
+            delta_max: 0,
+            pourcent: 0.0,
+        };
+        assert_eq!(verifier_cliquet(zero, None), None);
+        assert!(verifier_cliquet(base, None).is_some());
+    }
+
+    #[test]
+    fn le_rapport_ne_touche_que_sa_section() {
+        let d = dossier_temporaire("rapport");
+        let f = d.join("parite.md");
+        std::fs::write(
+            &f,
+            "# Dettes
+écrites à la main
+",
+        )
+        .unwrap();
+        ecrire_rapport(
+            &f, "premier
+",
+        )
+        .unwrap();
+        ecrire_rapport(
+            &f, "second
+",
+        )
+        .unwrap();
+        let texte = std::fs::read_to_string(&f).unwrap();
+        assert!(texte.starts_with(
+            "# Dettes
+écrites à la main"
+        ));
+        assert!(texte.contains("second") && !texte.contains("premier"));
+        assert_eq!(texte.matches(DEBUT_RAPPORT).count(), 1);
+        let _ = std::fs::remove_dir_all(&d);
     }
 }
