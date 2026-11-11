@@ -675,11 +675,15 @@ fn rendre_poignee(
         cx,
     );
     let large = trait_peint(p.exact, vertical, TRAIT_POIGNEE_ACTIVE, zoom);
-    let mut accent = div().absolute().size_full().children(quads_du_trait(
+    // ★ Le trait d'accent aussi est pré-composé sur les fonds connus : mélangé par GPUI, son bord
+    //   sur la ligne de base sortait un niveau au-dessus de Chromium (`t1-poignee-survol`, (656,35) :
+    //   158 contre 157 = 60 + ⌊195 × 128 / 256⌋).
+    let mut accent = div().absolute().size_full().children(quads_du_trait_opaque(
         large,
         zone,
         vertical,
-        couleur(c.color_accent),
+        c.color_accent,
+        fonds,
         cx,
     ));
     if !active {
