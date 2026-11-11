@@ -64,7 +64,11 @@ pub fn arcs(a: &ArrondiDeclare) -> Vec<Arc> {
         (x1 - r, y1 - r, 1.0, 1.0),
     ];
     let mut liste = Vec::new();
-    for (cx, cy, sx, sy) in coins {
+    for ((cx, cy, sx, sy), declare) in coins.into_iter().zip(a.coins) {
+        // Un coin non déclaré (côté droit, ou arc d'un autre élément) reste strict.
+        if !declare {
+            continue;
+        }
         liste.push(Arc {
             cx,
             cy,
@@ -319,6 +323,7 @@ pub(super) mod tests {
                     hauteur: 40.0,
                     rayon: 8.0,
                     bordure: 1.0,
+                    ..ArrondiDeclare::default()
                 },
             }
         }

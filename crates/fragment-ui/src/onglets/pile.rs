@@ -18,10 +18,11 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use fragment_core::{DropZone, ItemId};
+use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
     ParentElement as _, PathBuilder, Pixels, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Visibility, Window, canvas, div, point, px, relative, svg,
+    Styled as _, Visibility, Window, canvas, div, fill, point, px, relative, svg,
 };
 
 use super::ContexteOnglets;
@@ -29,13 +30,14 @@ use super::actions::{self, LigneOnglet};
 use super::mesures::{
     INTERIEUR_AUTRES_COTES, INTERIEUR_COTE_TITRE, LARGEUR_ONGLET, NOUVEL_ONGLET_MARGE_GAUCHE,
     OPACITE_REPOS, OngletActif, REMBOURRAGE_ENTETE, SEPARATEUR_LARGEUR, SEPARATEUR_MARGE, Segment,
-    TRAIT_CONTOUR, coin_concave, contour,
+    TRAIT_CONTOUR, coin_concave,
 };
 use crate::echelle::{Echelle, u};
 use crate::entete;
-use crate::flottant::{arrondir, texte};
+use crate::flottant::{ArrondiPeint, arrondir, declarer_arrondi, texte};
 use crate::icones;
 use crate::menu::Menu;
+use crate::splits::geometrie;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Ce qui change d'une pile à l'autre.
@@ -87,15 +89,94 @@ fn tracer(construit: &mut PathBuilder, segments: &[Segment], origine: gpui_kit::
     }
 }
 
-/// Peint le fond des coins concaves, puis le trait du contour, dans la barre `bornes`.
-#[allow(clippy::too_many_arguments)]
+/// Les couleurs du contour : le trait, le fond de la barre et celui du pane (fond de l'onglet actif
+/// et des coins concaves).
+#[derive(Clone, Copy)]
+struct CouleursContour {
+    trait_: Couleur,
+    barre: Couleur,
+    pane: Couleur,
+}
+
+/// Le nom de l'élément sous lequel les arcs du contour sont déclarés (exception nommée de T1,
+/// `xtask/src/pixels/exceptions.rs`, `CONTOUR_ONGLET`).
+const ELEMENT_CONTOUR: &str = "contour d'onglet actif";
+
+/// Un trait droit d'épaisseur `[a, b]` (pixels physiques, en travers), sur les cellules `[d0, d1[`
+/// (le long), peint en quads OPAQUES d'un pixel d'épaisseur : la couleur de chaque colonne (ou
+/// ligne) est pré-composée par le mélange de Chromium ([`geometrie::melange_couverture`]) sur le
+/// fond `fond(x, y)` du centre du pixel (coordonnées physiques).
+///
+/// ★ Le chemin de GPUI mélange l'anticrénelage au plus proche : le côté gauche du trait, à moitié
+/// sur la barre claire, sortait à 222 au lieu des 221 de Chromium (232 + ⌊−21 × 128 / 256⌋).
+fn trait_droit(
+    window: &mut Window,
+    k: f32,
+    vertical: bool,
+    (a, b): (f32, f32),
+    (d0, d1): (i32, i32),
+    teinte: Couleur,
+    fond: &dyn Fn(f32, f32) -> Couleur,
+) {
+    let carre = |x0: f32, y0: f32, x1: f32, y1: f32| {
+        Bounds::from_corners(point(px(x0 / k), px(y0 / k)), point(px(x1 / k), px(y1 / k)))
+    };
+    if d1 <= d0 {
+        return;
+    }
+    for cellule in (a.floor() as i32)..(b.ceil() as i32) {
+        let c0 = cellule as f32;
+        let part = (b.min(c0 + 1.0) - a.max(c0)).max(0.0);
+        if part <= 0.0 {
+            continue;
+        }
+        let couleur_en = |t: i32| {
+            let (x, y) = if vertical {
+                (c0 + 0.5, t as f32 + 0.5)
+            } else {
+                (t as f32 + 0.5, c0 + 0.5)
+            };
+            let f = fond(x, y);
+            let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, part);
+            Couleur::octets(m(teinte.r, f.r), m(teinte.g, f.g), m(teinte.b, f.b), 255)
+        };
+        // Des suites de pixels de même fond : un quad par suite.
+        let mut debut = d0;
+        let mut courante = couleur_en(d0);
+        for t in d0 + 1..=d1 {
+            let suivante = (t < d1).then(|| couleur_en(t));
+            if suivante == Some(courante) {
+                continue;
+            }
+            let (t0, t1) = (debut as f32, t as f32);
+            let bornes = if vertical {
+                carre(c0, t0, c0 + 1.0, t1)
+            } else {
+                carre(t0, c0, t1, c0 + 1.0)
+            };
+            window.paint_quad(fill(bornes, couleur(courante)));
+            if let Some(c) = suivante {
+                (debut, courante) = (t, c);
+            }
+        }
+    }
+}
+
+/// Un arc du contour : départ, raccord (début de l'arc), arrivée de l'arc, fin, rayon (px
+/// physiques), sens horaire.
+type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
+
+/// Peint le fond des coins concaves, puis le contour, dans la barre `bornes`.
+///
+/// ★ Les droites (ligne de base, côtés, haut) sont des quads pré-composés, STRICTS ; seuls les
+/// quatre arcs (et le bout de droite qui les raccorde au pixel entier suivant) sont des chemins
+/// GPUI, déclarés coin par coin sous [`ELEMENT_CONTOUR`] : leur anticrénelage (MSAA 4x contre
+/// Skia) est l'exception nommée de T1 rattachée à fr-p4.1.
 fn peindre_contour(
     bornes: Bounds<Pixels>,
     actif: Option<Bounds<Pixels>>,
-    fond_pane: gpui_kit::Rgba,
-    trait_: gpui_kit::Rgba,
-    rayon_haut: f32,
-    rayon_bas: f32,
+    couleurs: CouleursContour,
+    (rayon_haut, rayon_bas): (f32, f32),
     epaisseur: f32,
     window: &mut Window,
 ) {
@@ -109,31 +190,181 @@ fn peindre_contour(
     // L'onglet sorti de la barre n'a plus de contour (son fond est rogné aussi).
     let onglet = onglet.filter(|o| o.droite >= 0.0 && o.gauche <= largeur);
 
-    if let Some(o) = onglet {
-        for (bord, gauche) in [(o.gauche, true), (o.droite, false)] {
-            let segments = coin_concave(bord, hauteur, rayon_bas, gauche);
-            let mut p = PathBuilder::fill();
-            tracer(&mut p, &segments, bornes.origin);
-            p.close();
-            if let Ok(chemin) = p.build() {
-                window.paint_path(chemin, fond_pane);
-            }
+    let k = window.scale_factor();
+    let (ox, oy) = (f32::from(bornes.origin.x), f32::from(bornes.origin.y));
+    // Repère de la barre (px logiques) vers l'écran (px physiques), et retour.
+    let x_ = |x: f32| (ox + x) * k;
+    let y_ = |y: f32| (oy + y) * k;
+    let pt = |x: f32, y: f32| point(px(x / k), px(y / k));
+    let demi = epaisseur * k / 2.0;
+    let base = y_(hauteur) - demi;
+    let (barre_g, barre_d) = (x_(0.0).round() as i32, x_(largeur).round() as i32);
+    // Le fond sous un pixel : l'en-tête actif (quad de GPUI, calé au pixel) ou la barre.
+    let entete = onglet.and(actif).map(|b| {
+        let v = |p: Pixels| (f32::from(p) * k).round();
+        (
+            v(b.origin.x),
+            v(b.origin.y),
+            v(b.origin.x + b.size.width),
+            v(b.origin.y + b.size.height),
+        )
+    });
+    let fond = move |x: f32, y: f32| match entete {
+        Some((x0, y0, x1, y1)) if x >= x0 && x < x1 && y >= y0 && y < y1 => couleurs.pane,
+        _ => couleurs.barre,
+    };
+    let ligne_de_base = |window: &mut Window, d0: i32, d1: i32| {
+        trait_droit(
+            window,
+            k,
+            false,
+            (base - demi, base + demi),
+            (d0.max(barre_g), d1.min(barre_d)),
+            couleurs.trait_,
+            &fond,
+        );
+    };
+
+    let Some(o) = onglet else {
+        ligne_de_base(window, barre_g, barre_d);
+        return;
+    };
+
+    for (bord, gauche) in [(o.gauche, true), (o.droite, false)] {
+        let segments = coin_concave(bord, hauteur, rayon_bas, gauche);
+        let mut p = PathBuilder::fill();
+        tracer(&mut p, &segments, bornes.origin);
+        p.close();
+        if let Ok(chemin) = p.build() {
+            window.paint_path(chemin, couleur(couleurs.pane));
         }
     }
 
-    let segments = contour(
-        largeur,
-        hauteur,
-        onglet,
-        rayon_haut,
-        rayon_bas,
-        epaisseur / 2.0,
-    );
-    let mut p = PathBuilder::stroke(px(epaisseur));
-    tracer(&mut p, &segments, bornes.origin);
-    if let Ok(chemin) = p.build() {
-        window.paint_path(chemin, trait_);
+    let (gx, dx) = (x_(o.gauche), x_(o.droite));
+    let haut = y_(o.haut) + demi;
+    let (rh, rb) = (rayon_haut * k, rayon_bas * k);
+    // Les coupes : le premier pixel entier au-delà de chaque bout d'arc.
+    let cote_haut = (haut + rh).ceil();
+    let cote_bas = (base - rb).floor();
+    let (haut_g, haut_d) = ((gx + rh).ceil(), (dx - rh).floor());
+    let (base_g, base_d) = ((gx - rb).floor(), (dx + rb).ceil());
+
+    ligne_de_base(window, barre_g, base_g as i32);
+    ligne_de_base(window, base_d as i32, barre_d);
+    for cote in [gx, dx] {
+        trait_droit(
+            window,
+            k,
+            true,
+            (cote - demi, cote + demi),
+            (cote_haut as i32, cote_bas as i32),
+            couleurs.trait_,
+            &fond,
+        );
     }
+    trait_droit(
+        window,
+        k,
+        false,
+        (haut - demi, haut + demi),
+        (haut_g as i32, haut_d as i32),
+        couleurs.trait_,
+        &fond,
+    );
+
+    let arcs: [ArcContour; 4] = [
+        (
+            (gx, cote_haut),
+            (gx, haut + rh),
+            (gx + rh, haut),
+            (haut_g, haut),
+            rh,
+            true,
+        ),
+        (
+            (haut_d, haut),
+            (dx - rh, haut),
+            (dx, haut + rh),
+            (dx, cote_haut),
+            rh,
+            true,
+        ),
+        (
+            (base_g, base),
+            (gx - rb, base),
+            (gx, base - rb),
+            (gx, cote_bas),
+            rb,
+            false,
+        ),
+        (
+            (dx, cote_bas),
+            (dx, base - rb),
+            (dx + rb, base),
+            (base_d, base),
+            rb,
+            false,
+        ),
+    ];
+    for (depart, raccord, arrivee, fin, r, horaire) in arcs {
+        let mut p = PathBuilder::stroke(px(epaisseur));
+        p.move_to(pt(depart.0, depart.1));
+        if depart != raccord {
+            p.line_to(pt(raccord.0, raccord.1));
+        }
+        p.arc_to(
+            point(px(r / k), px(r / k)),
+            px(0.0),
+            false,
+            horaire,
+            pt(arrivee.0, arrivee.1),
+        );
+        if fin != arrivee {
+            p.line_to(pt(fin.0, fin.1));
+        }
+        if let Ok(chemin) = p.build() {
+            window.paint_path(chemin, couleur(couleurs.trait_));
+        }
+    }
+
+    // Les déclarations, en px physiques : le trait de 1 px est la bordure d'une boîte de rayon
+    // extérieur `r + demi`, au demi-pixel. Le haut : les deux coins hauts de l'en-tête élargi ;
+    // chaque pied : le coin d'une boîte de 2R × 2R posée hors de l'onglet, au ras du bas.
+    let declarer = |x: f32, y: f32, cote: (f32, f32), r: f32, coins: [bool; 4]| {
+        declarer_arrondi(ArrondiPeint {
+            x,
+            y,
+            largeur: cote.0,
+            hauteur: cote.1,
+            rayon: r,
+            bordure: 2.0 * demi,
+            coins,
+            element: ELEMENT_CONTOUR,
+        });
+    };
+    let (rh2, rb2) = (rh + demi, rb + demi);
+    declarer(
+        gx - demi,
+        haut - demi,
+        (dx - gx + 2.0 * demi, base - haut + 2.0 * demi),
+        rh2,
+        [true, true, false, false],
+    );
+    let (bas, pied) = (base + demi, (2.0 * rb2, 2.0 * rb2));
+    declarer(
+        gx + demi - 2.0 * rb2,
+        bas - 2.0 * rb2,
+        pied,
+        rb2,
+        [false, false, false, true],
+    );
+    declarer(
+        dx - demi,
+        bas - 2.0 * rb2,
+        pied,
+        rb2,
+        [false, false, true, false],
+    );
 }
 
 /// L'icône cliquable générique (`.clickable-icon`, workspace.css:368) : 16 px dans une case de 24.
@@ -388,9 +619,6 @@ fn entete_d_onglet(
             );
         }
     }
-    if actif {
-        entete = entete.children(declarations_du_contour(cx));
-    }
     if let Some(cellule) = mesure.filter(|_| actif) {
         // La mesure de l'en-tête actif, pour le contour (bornes de la boîte de bordure).
         entete = entete.child(
@@ -406,56 +634,6 @@ fn entete_d_onglet(
         );
     }
     entete.into_any_element()
-}
-
-/// Les arcs du contour de l'onglet actif, DÉCLARÉS (catégorie bord d'arrondi d'ADR-009) par des boîtes
-/// invisibles posées dans l'en-tête actif, une seule source avec le tracé : le trait de 1 px est centré
-/// sur le chemin, donc une boîte « à bordure » de 1 px, de rayon extérieur `r + 0,5`, décalée d'un
-/// demi-pixel, a ses arcs extérieur et intérieur de part et d'autre du trait.
-///
-/// - Le haut : la boîte de l'en-tête élargie d'un demi-pixel de chaque côté (les côtés du trait
-///   tombent sur les bords de l'en-tête), prolongée sous la barre pour que ses coins bas, qui ne
-///   sont pas des arcs du contour, tombent dans le pane vide.
-/// - Les pieds (coins concaves) : le coin bas-droit (à gauche) ou bas-gauche (à droite) d'une boîte
-///   de `2R + 3` × `2R` posée hors de l'onglet, au ras du bas de la barre. ★ Limite de l'API
-///   (`flottant::arrondir` déclare toujours quatre coins) : le coin haut de ces boîtes chevauche le
-///   bas du côté de l'onglet sur quelques pixels, tolérés eux aussi (bande ±1 px, delta ≤ 6).
-fn declarations_du_contour(cx: &App) -> Vec<AnyElement> {
-    let f = theme_ou_defaut(cx).forme;
-    let demi = TRAIT_CONTOUR / 2.0;
-    let (haut, pied) = (f.input_radius + demi, f.radius_s + demi);
-    let (large, haute) = (2.0 * pied + 3.0, 2.0 * pied);
-    let boite = || div().absolute();
-    let declarer = |e: gpui_kit::Div, r: f32| {
-        arrondir(e, cx, u(cx, r), u(cx, TRAIT_CONTOUR)).into_any_element()
-    };
-    vec![
-        declarer(
-            boite()
-                .top(u(cx, 0.0))
-                .left(u(cx, -demi))
-                .right(u(cx, -demi))
-                .bottom(u(cx, -60.0)),
-            haut,
-        ),
-        declarer(
-            boite()
-                .bottom(u(cx, 0.0))
-                .left(u(cx, demi - large))
-                .w(u(cx, large))
-                .h(u(cx, haute)),
-            pied,
-        ),
-        declarer(
-            boite()
-                .bottom(u(cx, 0.0))
-                .left(relative(1.0))
-                .ml(u(cx, -demi))
-                .w(u(cx, large))
-                .h(u(cx, haute)),
-            pied,
-        ),
-    ]
 }
 
 /// La barre d'onglets d'une pile.
@@ -587,7 +765,11 @@ fn barre(
         });
 
     // Le contour : peint APRÈS tous les en-têtes, donc par-dessus le fond de l'actif.
-    let (fond_pane, trait_) = (couleur(c.workspace_bg), couleur(c.tab_outline_color));
+    let couleurs = CouleursContour {
+        trait_: c.tab_outline_color,
+        barre: c.tab_bar_bg,
+        pane: c.workspace_bg,
+    };
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
     barre
@@ -598,10 +780,8 @@ fn barre(
                     peindre_contour(
                         bornes,
                         mesure.get(),
-                        fond_pane,
-                        trait_,
-                        f32::from(rayon_haut),
-                        f32::from(rayon_bas),
+                        couleurs,
+                        (f32::from(rayon_haut), f32::from(rayon_bas)),
                         f32::from(epaisseur),
                         window,
                     );

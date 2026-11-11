@@ -82,6 +82,11 @@ pub struct ArrondiPeint {
     pub hauteur: f32,
     pub rayon: f32,
     pub bordure: f32,
+    /// Les coins déclarés (haut gauche, haut droit, bas gauche, bas droit) : `[true; 4]` pour une
+    /// boîte arrondie ordinaire, un seul pour un arc isolé (pied concave de l'onglet actif).
+    pub coins: [bool; 4],
+    /// Le nom de l'élément pour une exception nommée sans ombre (ADR-009) ; vide sinon.
+    pub element: &'static str,
 }
 
 thread_local! {
@@ -150,9 +155,18 @@ pub fn arrondir<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels, bordur
                 hauteur: h,
                 rayon: f32::from(rayon) * k,
                 bordure: f32::from(bordure) * k,
+                coins: [true; 4],
+                element: "",
             };
-            ARRONDIS_PEINTS.with(|a| a.borrow_mut().push(arrondi));
+            declarer_arrondi(arrondi);
         }))
+}
+
+/// Déclare une boîte arrondie peinte à la main (un chemin, des quads pré-composés), en pixels
+/// physiques : même registre que [`arrondir`], pour un dessin qui n'est pas un `div` arrondi (le
+/// contour de l'onglet actif déclare ainsi chacun de ses arcs, coin par coin).
+pub fn declarer_arrondi(arrondi: ArrondiPeint) {
+    ARRONDIS_PEINTS.with(|a| a.borrow_mut().push(arrondi));
 }
 
 /// Pose sur `e` les ombres du jeton `liste` (de nom CSS `jeton`), l'arrondi `rayon`, ET les déclare

@@ -11,7 +11,8 @@
 //! ce que Fragment dessine, et tout écart hors d'une boîte reste strict.
 //!
 //! Méthode : un pixel est « de bord » s'il diffère d'un voisin de plus de [`SEUIL_BORD`] ;
-//! les traits droits de plus de [`RUN_DROIT`] pixels (bordures, séparateurs, bords de fonds) et
+//! les traits droits de plus de [`RUN_UNIFORME`] pixels DE COULEUR UNIFORME (bordures, séparateurs,
+//! bords de fonds : les deux pixels de part et d'autre du bord identiques tout le long) et
 //! toute composante qui les touche (arcs des coins arrondis) sont écartés : c'est de la
 //! géométrie, donc strict ; les composantes restantes (traits de glyphes, d'icônes) sont
 //! regroupées quand leurs boîtes sont proches ([`ECART_H`], [`ECART_V`]) : un mot, une ligne,
@@ -26,8 +27,12 @@ use serde_json::{Value, json};
 
 /// Différence minimale (canal le plus écarté) entre deux voisins pour parler de bord.
 pub const SEUIL_BORD: u8 = 14;
-/// Longueur à partir de laquelle une suite de bords alignés est un trait droit (géométrie).
-pub const RUN_DROIT: u32 = 24;
+/// Longueur à partir de laquelle une suite de bords de couleur UNIFORME est un trait droit.
+/// ★ Plus courte que les 24 px de l'ancienne règle (sans uniformité) : le côté du bouton actif d'une barre d'outils (32 px, coins
+/// arrondis) n'a que 20 px uniformes, les pixels anticrénelés de l'arc changeant de couleur. À 20,
+/// les boîtes de toutes les captures de T1 restent celles de l'ancienne règle, plus le texte de la
+/// barre d'état ; à 16, des icônes de `t1-zoom-150` deviennent de la géométrie.
+pub const RUN_UNIFORME: u32 = 20;
 /// Écart horizontal maximal entre deux composantes d'un même passage de texte.
 pub const ECART_H: u32 = 5;
 /// Écart vertical maximal entre deux composantes d'un même passage de texte.
@@ -109,22 +114,29 @@ pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
             }
         }
     }
-    // Traits droits : suites de `dessous` en ligne, de `droite` en colonne.
+    // Traits droits : suites de `dessous` en ligne, de `droite` en colonne, de couleur UNIFORME.
+    // ★ Le bas des lettres d'un passage (« Fragment 0.0.0 ») aligne des bords sur 24 px et plus :
+    // sans l'exigence d'uniformité, tout le texte touchait un « trait droit » et devenait strict.
+    // La clé d'un bord est la paire de pixels qu'il sépare : une bordure, un séparateur, le bord
+    // d'un fond la gardent constante ; l'encre anticrénelée d'un glyphe la change à chaque colonne.
     let mut droit = vec![false; n];
+    let pixel = |i: usize| *image.get_pixel((i % l) as u32, (i / l) as u32);
     for y in 0..h {
         marquer_suites(
             (0..l).map(|x| y * l + x),
             &dessous,
+            |i| (pixel(i), pixel(i + l)),
             &mut droit,
-            RUN_DROIT as usize,
+            RUN_UNIFORME as usize,
         );
     }
     for x in 0..l {
         marquer_suites(
             (0..h).map(|y| y * l + x),
             &droite,
+            |i| (pixel(i), pixel(i + 1)),
             &mut droit,
-            RUN_DROIT as usize,
+            RUN_UNIFORME as usize,
         );
     }
     // Composantes 8-connexes du masque de bord ; une composante qui touche un trait droit est
@@ -203,14 +215,17 @@ pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
     boites
 }
 
-/// Marque dans `dehors` les pixels des suites d'au moins `min` positions vraies de `masque`.
-fn marquer_suites(
+/// Marque dans `dehors` les pixels des suites d'au moins `min` positions vraies de `masque` dont
+/// la `cle` (la paire de pixels de part et d'autre du bord) ne change pas : un trait UNIFORME.
+fn marquer_suites<K: PartialEq>(
     indices: impl Iterator<Item = usize>,
     masque: &[bool],
+    cle: impl Fn(usize) -> K,
     dehors: &mut [bool],
     min: usize,
 ) {
     let mut courante: Vec<usize> = Vec::new();
+    let mut cle_courante: Option<K> = None;
     let mut vider = |courante: &mut Vec<usize>| {
         if courante.len() >= min {
             for &i in courante.iter() {
@@ -220,11 +235,17 @@ fn marquer_suites(
         courante.clear();
     };
     for i in indices {
-        if masque[i] {
-            courante.push(i);
-        } else {
+        if !masque[i] {
             vider(&mut courante);
+            cle_courante = None;
+            continue;
         }
+        let k = cle(i);
+        if cle_courante.as_ref() != Some(&k) {
+            vider(&mut courante);
+            cle_courante = Some(k);
+        }
+        courante.push(i);
     }
     vider(&mut courante);
 }
@@ -309,6 +330,31 @@ pub struct ArrondiDeclare {
     pub hauteur: f64,
     pub rayon: f64,
     pub bordure: f64,
+    /// Les coins dont l'arc est déclaré, dans l'ordre haut gauche, haut droit, bas gauche, bas
+    /// droit ([`TOUS_LES_COINS`] par défaut) : un arc isolé (pied concave de l'onglet actif, posé
+    /// comme le coin d'une boîte voisine) ne déclare que le sien, les autres coins restent stricts.
+    pub coins: [bool; 4],
+    /// Le nom de l'élément, pour une exception nommée qui ne porte pas d'ombre (« contour
+    /// d'onglet actif ») ; vide sinon.
+    pub element: String,
+}
+
+/// Les quatre coins d'une boîte arrondie.
+pub const TOUS_LES_COINS: [bool; 4] = [true; 4];
+
+impl Default for ArrondiDeclare {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            largeur: 0.0,
+            hauteur: 0.0,
+            rayon: 0.0,
+            bordure: 0.0,
+            coins: TOUS_LES_COINS,
+            element: String::new(),
+        }
+    }
 }
 
 /// Le fichier de déclaration voisin du PNG candidat, sans ombres.
@@ -354,10 +400,18 @@ pub fn serialiser_tout(
     let arrondis: Vec<Value> = arrondis
         .iter()
         .map(|a| {
-            json!({
+            let mut v = json!({
                 "x": a.x, "y": a.y, "largeur": a.largeur, "hauteur": a.hauteur,
                 "rayon": a.rayon, "bordure": a.bordure,
-            })
+            });
+            // Clés facultatives : un fichier sans elles déclare les quatre coins, sans élément.
+            if a.coins != TOUS_LES_COINS {
+                v["coins"] = json!(a.coins);
+            }
+            if !a.element.is_empty() {
+                v["element"] = json!(a.element);
+            }
+            v
         })
         .collect();
     let json = json!({ "version": 3, "boites": liste, "ombres": ombres, "arrondis": arrondis });
@@ -417,6 +471,15 @@ pub fn deserialiser_arrondis(texte: &str) -> Option<Vec<ArrondiDeclare>> {
                 hauteur: a["hauteur"].as_f64()?,
                 rayon: a["rayon"].as_f64()?,
                 bordure: a["bordure"].as_f64()?,
+                coins: match a.get("coins") {
+                    None => TOUS_LES_COINS,
+                    Some(c) => {
+                        let c = c.as_array()?;
+                        let coin = |i: usize| c.get(i).and_then(Value::as_bool);
+                        [coin(0)?, coin(1)?, coin(2)?, coin(3)?]
+                    }
+                },
+                element: a["element"].as_str().unwrap_or_default().to_owned(),
             })
         })
         .collect()
@@ -503,6 +566,61 @@ mod tests {
         assert_eq!(boites[0].categorie, Categorie::Icone);
     }
 
+    /// Un passage dont le bas des lettres aligne des bords sur plus de 24 px, d'une
+    /// encre qui varie d'une colonne à l'autre (anticrénelage) : c'est du texte, pas un trait.
+    fn passage_a_ligne_d_encre(img: &mut RgbaImage, x0: u32, y0: u32) {
+        for x in x0..x0 + 60 {
+            let encre = 120 + ((x * 37) % 100) as u8;
+            img.put_pixel(x, y0 + 8, Rgba([encre, encre, encre, 255]));
+            if x % 4 == 0 {
+                for y in y0..y0 + 8 {
+                    img.put_pixel(x, y, Rgba([220, 220, 220, 255]));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn une_ligne_d_encre_non_uniforme_reste_du_texte() {
+        let mut img = fond(120, 40);
+        passage_a_ligne_d_encre(&mut img, 20, 10);
+        let boites = detecter(&img);
+        assert_eq!(boites.len(), 1, "{boites:?}");
+        assert_eq!(boites[0].categorie, Categorie::Texte);
+        assert!(boites[0].largeur >= 60, "{boites:?}");
+    }
+
+    /// Contre-épreuve : un vrai trait de 1 px, uniforme, reste de la géométrie (strict), même à
+    /// côté d'un passage ; le décaler d'1 px fait donc échouer la comparaison hors boîte.
+    #[test]
+    fn un_trait_uniforme_de_1_px_reste_strict_et_son_decalage_echoue() {
+        let trait_en = |y_trait: u32| {
+            let mut img = fond(160, 60);
+            passage_a_ligne_d_encre(&mut img, 20, 10);
+            for x in 10..150 {
+                img.put_pixel(x, y_trait, Rgba([90, 90, 90, 255]));
+            }
+            img
+        };
+        let (reference, candidat) = (trait_en(40), trait_en(41));
+        let boites = detecter(&candidat);
+        assert_eq!(boites.len(), 1, "{boites:?}");
+        let b = boites[0];
+        let dans =
+            |x: u32, y: u32| x >= b.x && x < b.x + b.largeur && y >= b.y && y < b.y + b.hauteur;
+        // Les pixels qui diffèrent entre les deux traits sont tous hors des boîtes.
+        let hors: Vec<(u32, u32)> = (0..60)
+            .flat_map(|y| (0..160).map(move |x| (x, y)))
+            .filter(|&(x, y)| reference.get_pixel(x, y) != candidat.get_pixel(x, y))
+            .filter(|&(x, y)| !dans(x, y))
+            .collect();
+        assert_eq!(
+            hors.len(),
+            2 * 140,
+            "le trait décalé doit diverger hors boîte"
+        );
+    }
+
     #[test]
     fn la_declaration_fait_l_aller_retour() {
         let boites = vec![
@@ -541,14 +659,27 @@ mod tests {
             }],
             jeton: "--menu-shadow".to_owned(),
         }];
-        let arrondis = vec![ArrondiDeclare {
-            x: 420.0,
-            y: 260.5,
-            largeur: 180.0,
-            hauteur: 96.0,
-            rayon: 8.0,
-            bordure: 1.0,
-        }];
+        let arrondis = vec![
+            ArrondiDeclare {
+                x: 420.0,
+                y: 260.5,
+                largeur: 180.0,
+                hauteur: 96.0,
+                rayon: 8.0,
+                bordure: 1.0,
+                ..ArrondiDeclare::default()
+            },
+            ArrondiDeclare {
+                x: 30.0,
+                y: 4.0,
+                largeur: 10.0,
+                hauteur: 10.0,
+                rayon: 4.5,
+                bordure: 1.0,
+                coins: [false, false, false, true],
+                element: "contour d'onglet actif".to_owned(),
+            },
+        ];
         let texte = serialiser_tout(&[], &ombres, &arrondis);
         assert_eq!(deserialiser_ombres(&texte), Some(ombres));
         assert_eq!(deserialiser_arrondis(&texte), Some(arrondis));

@@ -79,6 +79,8 @@ fn declarer_arrondi(a: &flottant::ArrondiPeint) -> boites::ArrondiDeclare {
         hauteur: f64::from(a.hauteur),
         rayon: f64::from(a.rayon),
         bordure: f64::from(a.bordure),
+        coins: a.coins,
+        element: a.element.to_owned(),
     }
 }
 
