@@ -59,15 +59,15 @@ pub struct RegionPx {
     pub hauteur: u32,
 }
 
-/// Image RGBA 8 bits, lignes jointives (`octets.len() == largeur × hauteur × 4`), alpha opaque.
+/// Raster RGBA 8 bits, lignes jointives (`octets.len() == largeur × hauteur × 4`), alpha opaque.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ImageRgba {
+pub struct Raster {
     pub largeur: u32,
     pub hauteur: u32,
     pub octets: Vec<u8>,
 }
 
-impl ImageRgba {
+impl Raster {
     /// Le pixel (x, y) en `[r, g, b, a]`.
     pub fn pixel(&self, x: u32, y: u32) -> [u8; 4] {
         let i = ((y * self.largeur + x) * 4) as usize;
@@ -167,7 +167,7 @@ impl Document {
     }
 
     /// Rend la page entière à l'échelle (pixels par point), en RGBA de taille physique exacte.
-    pub fn rendre_page(&self, page: u32, echelle: f64) -> Result<ImageRgba, ErreurPdf> {
+    pub fn rendre_page(&self, page: u32, echelle: f64) -> Result<Raster, ErreurPdf> {
         let (l, h) = self.taille_raster(page, echelle)?;
         self.rendre_region(
             page,
@@ -188,7 +188,7 @@ impl Document {
         page: u32,
         echelle: f64,
         region: RegionPx,
-    ) -> Result<ImageRgba, ErreurPdf> {
+    ) -> Result<Raster, ErreurPdf> {
         let (pl, ph) = self.taille_raster(page, echelle)?;
         if region.largeur == 0 || region.hauteur == 0 {
             return Err(ErreurPdf::Rendu("région vide".into()));
@@ -222,7 +222,7 @@ impl Document {
             px.swap(0, 2);
             px[3] = 255;
         }
-        Ok(ImageRgba {
+        Ok(Raster {
             largeur: region.largeur,
             hauteur: region.hauteur,
             octets: tampon,
