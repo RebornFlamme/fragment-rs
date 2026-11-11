@@ -386,3 +386,13 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
 - 11/11 13:45 UTC : fr-t1.5, premier équipier arrêté à 375k tokens (PR #49 brouillon, 0/42 PNG ; zone de dépôt claire 472 133 → 1 386 px, split-vertical 2 120 → 511, réglages 11 000 → 4 850). Bloquant commun aux 42 PNG : `boites.rs` prend le texte « Fragment 0.0.0 » pour un trait droit. Décisions du chef : `boites.rs` passe à fr-t1.5 (trait droit = couleur uniforme, resserrement avec contre-épreuve), extension d'`arrondir` à un arc par coin, trait de l'onglet actif (221/220) et proportions (199,5/199,75) en strict, `t1-boutons-fenetre` rejoué par resize puis référence recapturée. fr-p4.1 prévenu. Reprise par un équipier Opus neuf (shell2).
 - 11/11 13:55 UTC : fusionnée #53 (fr-t4-laterale-modele : 6/6 cas de pdf-toolbar 7 à 12, 15 ajoutés ; le cas 7 « Page width » compté deux fois, avec vue_modele). Lancée : fr-t2-fileview (Sonnet). Actifs : shell2, alpha, recherche, fs, fileview.
 - 11/11 14:05 UTC : fusionnée #55 (fr-t4-recherche-modele : 4/5 cas de pdf-find, 21 ajoutés ; dépendances notées : regex, unicode-normalization, unicode-segmentation, déjà au lock, MIT/Apache). Lancée : fr-t3.1 (Opus, incrémental). fr-t11-cascade différée : elle touche sombre.rs/clair.rs de fragment-theme, que fr-p4.1 peut toucher. Actifs : shell2, alpha, fs, fileview, incremental.
+- 11/11 14:30 UTC, fenêtre 5 h à 36 %, semaine à 31 % : fr-p4.1, premier équipier arrêté à 309k tokens. PR #56 en brouillon (pixels rouge), S8 et ADR-013 proposés.
+  - ★ Cause : PAS linéaire contre sRGB, les deux mélangent en sRGB encodé. Il y en a quatre :
+    - (a) Chromium compose le conteneur fixed de la modale dans un calque RGBA8 prémultiplié, ce qui reproduit `--shadow-l` à 100 % en simulation ;
+    - (b) le flou GPU de Skia s'écarte jusqu'à 4/255 : hors d'atteinte au bit près, 0,11 à 0,20 px restants ;
+    - (c) GPUI anticrénèle deux fois le bord extérieur, fond puis bordure ;
+    - (d) `opacite_exacte` corrige les côtés mais dégrade les arcs clairs.
+  - Reprise (Opus, alpha2), dans l'ordre : (c) et (d) ensemble par un fond en retrait, puis (a) en ombre calculée sur le CPU avec le calque émulé.
+  - (b) est une dette à remonter à l'orchestrateur (divergence §8) avec la livraison de T1.
+  - PR #54 (fr-t2-fs) bonne pour fusion, renvoyée au rebase (conflit lock et parité).
+  - Actifs : shell2, alpha2, fs (rebase), fileview, incremental.
