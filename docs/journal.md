@@ -320,3 +320,6 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
   - Aucun lancement avant le reset : au rythme actuel, la fenêtre atteindrait 90 % avant 12:30.
   - PR ouvertes, en attente du compte rendu de leur équipier : #48 (binaire), #46 (fr-t1.1), #45 (maths S5), #44 (syntaxe, brouillon).
   - Contexte du chef : 303k tokens. Clear prévu dès que ces quatre équipiers auront rendu compte. Procédure de §10 revenue à l'ancienne, puisque le réveil d'après-clear n'a pas survécu le 10/11.
+- 11/11 11:45 UTC : fusionnée #44 (fr-t3-syntaxe : port de @lezer/markdown, 100 % des nœuds conformes à Lezer sur 108 546 nœuds réels, 32 tests, ADR-010 proposé).
+  - Le port n'a pas d'analyse incrémentale : 31 à 56 ms par frappe sur 10 000 lignes. Nouveau bead `fr-t3.1` (incrémental, puis coloration des blocs de code).
+  - Les documents des specs ont été comparés hors du dépôt ; seuls 7 documents réécrits sont commités.
