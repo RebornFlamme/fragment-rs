@@ -24,6 +24,7 @@ pub mod pile;
 pub mod redimension;
 pub mod restauration;
 pub mod vue;
+pub mod vue_fichier;
 
 /// L'état SÉRIALISABLE d'une feuille (§8.2). Ce qui finit dans workspace.json.
 ///
