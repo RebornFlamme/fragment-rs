@@ -396,3 +396,4 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - (b) est une dette à remonter à l'orchestrateur (divergence §8) avec la livraison de T1.
   - PR #54 (fr-t2-fs) bonne pour fusion, renvoyée au rebase (conflit lock et parité).
   - Actifs : shell2, alpha2, fs (rebase), fileview, incremental.
+- 11/11 14:40 UTC : décision du chef sur fr-t1.5, contour de l'onglet actif. Côtés et ligne de base : colonnes pré-composées, strict (221/222 = arrondi au plus proche de GPUI contre floor de Skia). Arcs r5/r4 et raccords : delta 9 à 17, au-delà de la catégorie arrondi (≤ 6). Cause : MSAA 4x asymétrique de GPUI, et environ 40 % d'encre en plus aux raccords chez Chromium ; une couverture exacte laisse encore un delta de 10. Ils passent en exception NOMMÉE temporaire « contour d'onglet actif », limitée au halo de chaque arc, en cliquet, avec contre-épreuve, rattachée à fr-p4.1. À remonter à l'orchestrateur avec la livraison de T1.
