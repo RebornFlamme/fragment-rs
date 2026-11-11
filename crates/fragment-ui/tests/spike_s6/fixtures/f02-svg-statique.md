@@ -1,0 +1,1 @@
+<svg id="s" width="160" height="60" viewBox="0 0 160 60"><rect x="4" y="4" width="60" height="40" rx="6" fill="#3366cc"/><circle cx="100" cy="24" r="14" style="fill: var(--color-accent)"/><path d="M8 54 L150 54" stroke="currentColor" stroke-width="3" fill="none"/><text x="76" y="58" font-size="9">fin</text></svg>

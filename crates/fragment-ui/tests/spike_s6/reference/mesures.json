@@ -1,0 +1,136 @@
+{
+  "f01-div-stylee": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 44
+    },
+    "texte": "Une boîte verte avec du gras."
+  },
+  "f02-svg-statique": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 67
+    },
+    "texte": "fin",
+    "svg": {
+      "width": 160,
+      "height": 60
+    }
+  },
+  "f03-svg-smil": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 47
+    },
+    "texte": "",
+    "temps": {
+      "1": {
+        "cx": 110,
+        "tx": 30
+      },
+      "0.5": {
+        "cx": 60,
+        "tx": 15
+      },
+      "1.5": {
+        "cx": 60,
+        "tx": 45
+      }
+    }
+  },
+  "f04-details": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 24
+    },
+    "texte": "Un détail",
+    "hauteur_ferme": 24,
+    "hauteur_ouvert": 48
+  },
+  "f05-en-ligne": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 54.5
+    },
+    "texte": "Du rouge, du marqué, du souligné, H2O, x2, Ctrl et\nun retour."
+  },
+  "f06-commentaire": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 48
+    },
+    "texte": "Avant le commentaire.\n\nAprès le commentaire."
+  },
+  "f07-tableau-html": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 86
+    },
+    "texte": "Nom\tValeur\nalpha\t1\nbeta\t22"
+  },
+  "f08-iframe": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 187
+    },
+    "texte": ""
+  },
+  "f09-pieges": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 48
+    },
+    "texte": "Paragraphe piégé\n\nlien piégé ",
+    "globales": [
+      1,
+      1,
+      1,
+      1
+    ]
+  },
+  "f10-image": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 67
+    },
+    "texte": ""
+  },
+  "f11-animation-css": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 24
+    },
+    "texte": "Un texte qui pulse"
+  },
+  "f12-mise-en-page": {
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 24
+    },
+    "texte": "Gauche\nDroite"
+  }
+}

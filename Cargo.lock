@@ -2993,6 +2993,7 @@ dependencies = [
  "fragment-text",
  "fragment-theme",
  "gpui-kit",
+ "image",
  "serde_json",
 ]
 
