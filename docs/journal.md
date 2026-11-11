@@ -364,3 +364,16 @@ Livraison de T1 à l'orchestrateur : lien de l'artefact `build.yml` de main, lis
 2. Lancer fr-t1.5 (Opus, `../fragment-rs-shell`). Ses fichiers sont disjoints de ceux de fr-t1.1, sauf l'API de déclaration des arrondis, qu'il utilise sans la modifier.
 3. Places restantes (5 au plus), d'après `bd ready` et dans l'ordre du planificateur : `fr-t3-html`, `fr-t3-commandes`, `fr-t4-recherche-modele`, `fr-t4-laterale-modele`, `fr-t2-fs`, `fr-t2-fileview`, `fr-t11-cascade`, `fr-t3.1`. Les scènes une à une, à cause du verrou de capture.
 4. Reposer le battement horaire (CronCreate) et le vérifier par CronList.
+
+## Vague 9 — 11/11/2026 12:40 UTC — usage 5h 0 % (reset à 17:30) / semaine 26 %
+Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le réveil d'après-clear n'est pas en jeu, procédure ancienne de §10 confirmée).
+- ★ L'équipier de fr-t1.1 étape 3 n'a pas survécu au clear : deux commits poussés sur `task/fr-t1.1` (9350d7e, 3993aee), job pixels rouge sur 43018474495, pas de PR. Décision du chef : reprise par un équipier Opus neuf dans `../fragment-rs-flottantes`, qui s'arrête si la branche bouge sans lui.
+- Lancés (5 équipiers locaux, worktrees frères, `CARGO_TARGET_DIR=C:/dev/fragment-rs-target-<nom>`) :
+  - fr-t1.5 (Opus, `../fragment-rs-shell`) ;
+  - fr-p4.1 (Opus, `../fragment-rs-alpha`, fichiers de fr-t1.1 seulement après sa fusion ; fichiers déclarés au bead) ;
+  - fr-t1.1 étape 3, reprise (Opus) ;
+  - fr-t3-html (Sonnet, `../fragment-rs-html`) ;
+  - fr-t3-commandes (Sonnet, `../fragment-rs-commandes`).
+- Battement horaire reposé (CronCreate, minute 17).
+**Part et rythme** : cible (97 − 26) ÷ 53,3 h ≈ 1,3 point par heure.
+**Prochaine action exacte** : aux comptes rendus, revue habituelle (diff, audit à 0, CI, fusion, `bd close`, export, retrait du worktree). Livraison de T1 quand fr-t1.1 et fr-t1.5 sont fusionnées et fr-t1-binaire fermée : lien de l'artefact `build.yml` de main, dettes (ADR-009, ADR-011 maths), correction de §4 (`rex`, `typst-math`). Places libres : fr-t4-recherche-modele, fr-t4-laterale-modele, fr-t2-fs, fr-t2-fileview, fr-t11-cascade, fr-t3.1.
