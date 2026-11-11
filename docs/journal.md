@@ -472,3 +472,25 @@ fr-t1.5 : troisième équipier arrêté à 274k tokens. PR #49 en brouillon, bra
 4. Livraison de T1 quand #49 est fusionnée et fr-t1-binaire fermée : lien de l'artefact `build.yml` de main, plus les points ci-dessus.
 **Part et rythme** : cible (97 − 36) ÷ 49 h ≈ 1,25 point par heure ; réel ≈ 2,5, en avance.
 **Clear** : contexte du chef à 300k. Battement annulé, orchestrateur prévenu, puis clear_session("self").
+
+## Vague 10 — 11/11/2026 17:40 UTC — usage 5h 2 % (reset 22:30) / semaine 37 %
+Reprise après clear, relancée par l'orchestrateur (pas par un réveil). Le réveil d'après-clear n'a donc pas été mis à l'épreuve.
+- #49 (fr-t1.5) : la branche rebasée (02015c2) est passée en CI, run 43061092662. Tout est vert sauf le job pixels.
+- Lancés : 5 équipiers locaux, worktrees frères, `CARGO_TARGET_DIR=C:/dev/fragment-rs-target-<nom>`, beads réclamés.
+  - fr-t1.5 : Opus, 4e équipier, `../fragment-rs-shell`, arrêt à 250k tokens.
+  - fr-t4-pages : Opus, `../fragment-rs-pdfpages`.
+  - fr-t11-cascade : Sonnet, `../fragment-rs-cascade`. Prévenue que la fin de theme.rs est réservée aux deux constantes de fr-t1.5.
+  - fr-t3-blocs-modele : Sonnet, `../fragment-rs-blocs`.
+  - fr-t3.2 : Sonnet, `../fragment-rs-imbrique`. Même crate que blocs, fichiers disjoints ; seule la ligne `mod` est commune.
+- Battement horaire reposé (CronCreate 1b9dfc9f, minute 17, heure locale), vérifié par CronList.
+**Part et rythme** : cible (97 − 37) ÷ 48,3 h ≈ 1,25 point par heure.
+**Prochaine action exacte** : la revue habituelle à chaque compte rendu :
+  1. diff ;
+  2. audit à 0 ;
+  3. CI ;
+  4. fusion ;
+  5. `bd close` ;
+  6. retrait du worktree et du dossier cible.
+
+Places libres ensuite, prises dans `bd ready` : fr-t4-barre, fr-t2-tree-item, fr-t3-scenes-a.
+Livraison de T1 quand #49 est fusionnée.
