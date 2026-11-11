@@ -540,3 +540,8 @@ Livraison de T1 quand #49 est fusionnée.
   - Le montage dans le shell (`themes::monter`, `basculer_avec_themes`, CLI) est noté sur fr-t11-livraison.
   - Bead fermé, worktree et dossier cible retirés.
   - Lancée : fr-t2-explorateur (Sonnet, `../fragment-rs-explorateur`), débloquée par #68. Actifs : shell5, surface, pdftexte, fondpage, explorateur.
+- 11/11 20:35 UTC : fusionnée #71 (fr-t4.1). CI verte, audit à 0. Jeton `--pdf-page-bg` = #ffffff dans les deux thèmes ; instantanés en ajout seul.
+  - Bead fermé, worktree et dossier cible retirés.
+  - Lancée : fr-t4-laterale-ui (Sonnet, `../fragment-rs-laterale`).
+  - #70 (fr-t3-surface) et #72 (fr-t4-texte) en CI.
+  - Actifs : shell5, surface, pdftexte, explorateur, laterale.
