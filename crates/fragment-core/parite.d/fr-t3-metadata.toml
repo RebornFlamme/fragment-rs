@@ -1,0 +1,11 @@
+# Parité de fr-t3-metadata (fragment-core). Pas de test unitaire côté TS pour le gestionnaire :
+# `cas_source = 1` (le cas e2e « menu : Property type ▸ Number écrit types.json »), le reste est AJOUTÉ
+# (crates/fragment-core/tests/metadonnees.rs).
+
+[[module]]
+ts = "app/src/ui/core/metadata/MetadataTypeManager.ts"
+rs = "crates/fragment-core/src/vault/metadonnees.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 15
+notes = "Au-dessus du ConfigStore du cœur. Ajouts : recharger() après modification disque (changement distant ; fichier illisible = types en mémoire gardés), concerne(chemin) pour la surveillance, entrées non textuelles ignorées, désinscription par EventRef. L'inférence par défaut (infer_type) reste dans fragment-markdown : le cœur ne connaît que les chaînes."

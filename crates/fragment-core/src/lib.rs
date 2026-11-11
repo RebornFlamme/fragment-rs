@@ -164,6 +164,7 @@ pub use config::{
 
 // ─── Le coffre (fr-t2-vault) ───
 pub mod vault;
+pub use vault::metadonnees::{FICHIER_TYPES, MetadataTypeManager};
 pub use vault::{
     CONFIG_DIR, ChangeType, DataAdapter, DataWriteOptions, FileHandle, FileId, FileStats,
     ListedFiles, MemoryAdapter, Stat, TAbstractFile, TFile, TFolder, Vault, VaultDocumentProvider,
