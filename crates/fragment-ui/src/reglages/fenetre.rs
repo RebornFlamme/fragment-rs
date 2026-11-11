@@ -395,7 +395,10 @@ impl FenetreReglages {
                     .cursor_pointer()
                     .text_color(encre);
                 item = if actif {
-                    item.bg(couleur(c.aplat(Aplat::SurvolActif, c.background_secondary)))
+                    // ★ Coins DÉCLARÉS (bord d'arrondi d'ADR-009) : en clair, l'anticrénelage de
+                    //   Chromium laisse un niveau de bleu aux bouts des arcs (213 contre 212).
+                    arrondir(item, cx, u(cx, f.radius_sm), u(cx, 0.0))
+                        .bg(couleur(c.aplat(Aplat::SurvolActif, c.background_secondary)))
                 } else {
                     item.hover(move |s| s.bg(survol))
                 };
