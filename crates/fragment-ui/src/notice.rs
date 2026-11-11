@@ -18,8 +18,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::{bordure, bordure_translucide, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::rendu::melange::opacite_exacte;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La durée par défaut d'une notice (millisecondes), comme Obsidian.
@@ -236,9 +237,12 @@ pub fn couche(cx: &App) -> AnyElement {
                 Some(c) => carte.h(c[0]),
                 None => carte,
             };
-            // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-            let carte = bordure(carte, u(cx, f.border_width))
-                .border_color(couleur(bordure_translucide(c, c.background_secondary_alt)));
+            // Bordure translucide à l'opacité exacte du jeton, comme Chromium (`rendu::melange`).
+            let carte = bordure(carte, u(cx, f.border_width)).border_color(opacite_exacte(
+                c.background_modifier_border,
+                c.opacites.bordure,
+                c.background_secondary_alt,
+            ));
             let carte = ombrer(
                 carte,
                 cx,

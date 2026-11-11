@@ -17,8 +17,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, bordure_translucide, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::rendu::melange::opacite_exacte;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Délai avant l'apparition (millisecondes), si la cible n'en fixe pas.
@@ -440,9 +441,12 @@ pub fn couche(cx: &App) -> AnyElement {
     } else {
         bulle.overflow_hidden().text_ellipsis()
     };
-    // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-    let bulle = bordure(bulle, u(cx, f.border_width))
-        .border_color(couleur(bordure_translucide(c, c.menu_bg)));
+    // Bordure translucide à l'opacité exacte du jeton, comme Chromium (`rendu::melange`).
+    let bulle = bordure(bulle, u(cx, f.border_width)).border_color(opacite_exacte(
+        c.background_modifier_border,
+        c.opacites.bordure,
+        c.menu_bg,
+    ));
     let bulle = ombrer(
         bulle,
         cx,

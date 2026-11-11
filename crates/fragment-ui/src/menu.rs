@@ -23,8 +23,9 @@ use gpui_kit::{
 use serde_json::Value;
 
 use crate::echelle::{calees, moitie, u};
-use crate::flottant::{bordure, bordure_translucide, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{bordure, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
+use crate::rendu::melange::opacite_exacte;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -638,9 +639,12 @@ fn rendre_niveau(
             .size_full(),
         )
         .children(lignes);
-    // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-    let boite = bordure(boite, u(cx, f.border_width))
-        .border_color(couleur(bordure_translucide(c, c.menu_bg)));
+    // Bordure translucide à l'opacité exacte du jeton, comme Chromium (`rendu::melange`).
+    let boite = bordure(boite, u(cx, f.border_width)).border_color(opacite_exacte(
+        c.background_modifier_border,
+        c.opacites.bordure,
+        c.menu_bg,
+    ));
     let boite = ombrer(
         boite,
         cx,
