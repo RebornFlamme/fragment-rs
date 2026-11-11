@@ -30,8 +30,10 @@ use super::boites::OmbreDeclaree;
 pub const DELTA_OMBRE: u8 = 2;
 /// Portée d'une ombre, en écarts-types (le shader de GPUI coupe à 3 σ, Skia aussi).
 pub const SIGMAS: f64 = 3.0;
-/// Écart maximal (px) de l'étalement : moyenne des écarts de distance au bord.
-pub const ECART_ETALEMENT: f64 = 0.15;
+/// Écart maximal (px) de l'étalement : moyenne des écarts de distance au bord. Calé entre les vraies
+/// captures qui passent (≤ 0,07 : menu sombre, barres d'outils, notice sombre) et un flou CSS de
+/// ±1 px sur la référence du menu (−0,10 à +0,15).
+pub const ECART_ETALEMENT: f64 = 0.08;
 /// Écart maximal du glissement : différence d'écart d'encre relatif entre côtés opposés.
 pub const ECART_GLISSEMENT: f64 = 0.10;
 /// Écart relatif maximal de l'encre moyenne.
@@ -350,7 +352,7 @@ pub(super) mod tests {
         if x < 0.0 { -v } else { v }
     }
 
-    fn phi(x: f64) -> f64 {
+    pub(in crate::pixels) fn phi(x: f64) -> f64 {
         0.5 * (1.0 + erf(x / std::f64::consts::SQRT_2))
     }
 
@@ -491,34 +493,102 @@ pub(super) mod tests {
         }
     }
 }
+
+/// ★ CONTRE-ÉPREUVE SUR LA RÉFÉRENCE : la capture de Fragment du menu sombre, où la vraie capture
+/// candidate passe le sas (run CI 42997199734 : étalement +0,02 px, glissement −2 %). On y déplace
+/// l'ombre d'1 px, ou on élargit son flou, par le modèle gaussien de CSS appliqué au fond réel ; aucun
+/// pixel ne bouge de plus de 2 niveaux, et pourtant le sas échoue.
 #[cfg(test)]
-mod sonde {
-    use super::tests::Modele;
+mod contre_epreuve {
+    use super::super::boites::CoucheDeclaree;
+    use super::tests::phi;
     use super::*;
+
+    /// Le menu de `t1-menu-dark` tel que le candidat le déclare : boîte 190 × 205 en (420, 260),
+    /// rayon 8, `--menu-shadow` sombre (0 8 24, σ = 12).
+    fn menu() -> OmbreDeclaree {
+        OmbreDeclaree {
+            x: 420.0,
+            y: 260.0,
+            largeur: 190.0,
+            hauteur: 205.0,
+            rayon: 8.0,
+            couches: vec![CoucheDeclaree {
+                decalage_x: 0.0,
+                decalage_y: 8.0,
+                sigma: 12.0,
+                etendue: 0.0,
+            }],
+        }
+    }
+
+    /// Alpha du modèle (boîte rectangulaire floutée) au centre du pixel.
+    fn alpha(o: &OmbreDeclaree, x: u32, y: u32, dy: f64, sigma: f64) -> f64 {
+        let (cx, cy) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+        0.55 * (phi((cx - o.x) / sigma) - phi((cx - o.x - o.largeur) / sigma))
+            * (phi((cy - o.y - dy) / sigma) - phi((cy - o.y - o.hauteur - dy) / sigma))
+    }
+
+    /// La référence dont l'ombre passe du décalage 8 et
+    /// du σ 12 à `dy` et `sigma`, dans le halo seulement.
+    fn deplacer(reference: &RgbaImage, o: &OmbreDeclaree, dy: f64, sigma: f64) -> RgbaImage {
+        let (l, h) = reference.dimensions();
+        let ms = masques(std::slice::from_ref(o), l, h);
+        let mut c = reference.clone();
+        for (x, y, p) in c.enumerate_pixels_mut() {
+            if !ms.halo[(y * l + x) as usize] {
+                continue;
+            }
+            // Le pas quantifié du modèle (fond du thème sombre, 0x141517) s'ajoute à la référence :
+            // une ombre noire multiplie le fond par 1 − a.
+            let (a0, a1) = (alpha(o, x, y, 8.0, 12.0), alpha(o, x, y, dy, sigma));
+            for (canal, f) in [20.0f64, 21.0, 23.0].into_iter().enumerate() {
+                let pas = (f * (1.0 - a1)).round() - (f * (1.0 - a0)).round();
+                p.0[canal] = (f64::from(p.0[canal]) + pas).clamp(0.0, 255.0) as u8;
+            }
+        }
+        c
+    }
+
+    fn reference() -> RgbaImage {
+        let chemin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../pixels/reference/t1-menu-dark.png");
+        image::open(chemin)
+            .map(|i| i.to_rgba8())
+            .unwrap_or_else(|e| panic!("référence illisible : {e}"))
+    }
+
+    fn sas(r: &RgbaImage, c: &RgbaImage) -> crate::pixels::sas::Sas {
+        crate::pixels::sas::comparer(r, c, &[], &[menu()]).unwrap()
+    }
+
     #[test]
-    fn sonde_mesures() {
-        let m = Modele::menu_sombre();
-        let r = m.peindre(8.0, 12.0, 0.0);
-        let ms = masques(std::slice::from_ref(&m.o), 400, 320);
-        for (dy, s, b) in [
-            (8.0, 12.0, 0.04),
-            (8.0, 12.0, -0.04),
-            (8.0, 12.0, 0.08),
-            (9.0, 12.0, 0.0),
-            (8.0, 12.5, 0.0),
-            (8.0, 12.5, 0.04),
-            (9.0, 12.0, 0.04),
-            (8.0, 13.0, 0.0),
-            (8.0, 11.5, 0.0),
-            (8.5, 12.0, 0.0),
+    fn la_reference_contre_elle_meme_est_stricte() {
+        let r = reference();
+        assert_eq!(sas(&r, &r).verdict, crate::pixels::Verdict::Strict);
+    }
+
+    #[test]
+    fn une_ombre_deplacee_ou_plus_floue_sur_la_reference_echoue() {
+        let r = reference();
+        for (dy, sigma, quoi) in [
+            (9.0, 12.0, "décalage +1"),
+            (7.0, 12.0, "décalage −1"),
+            (8.0, 12.5, "flou CSS +1 (σ +0,5)"),
+            (8.0, 11.5, "flou CSS −1 (σ −0,5)"),
         ] {
-            let c = m.peindre(dy, s, b);
-            let res = juger(&r, &c, &m.o, &ms.halo, &ms.interieur);
-            println!(
-                "dy {dy} s {s} b {b}: {:?} {} | ref {:?}",
-                res.violations,
-                res.mesures(),
-                res.reference.map(|c| (c.encre, c.distance))
+            let c = deplacer(&r, &menu(), dy, sigma);
+            let s = sas(&r, &c);
+            assert!(s.differents_ombre > 0, "{quoi} : l'ombre doit bouger");
+            assert!(
+                s.forts_dans_halos == 0 && s.differents_hors == 0,
+                "{quoi} : le delta seul (≤ 2) ne le verrait pas"
+            );
+            assert_eq!(
+                s.verdict,
+                crate::pixels::Verdict::Echec,
+                "{quoi} : [{}]",
+                s.ombres[0].mesures()
             );
         }
     }

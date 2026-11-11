@@ -63,3 +63,16 @@ Aucune scène de palette ni de modale ne passe, et ce n'est pas le texte : plus 
 - Mise en œuvre : dans `fr-t1.1`, qui possède les surfaces flottantes et leurs ombres.
 
 **Boîtes déduites de l'image : confirmées pour T1.** 2 lettres changées détectées sur 3, c'est insuffisant pour l'éditeur. L'export exact des boîtes par `fragment-ui` est le bead `fr-p3.1`, à mener le plus tôt possible dans T3 ; il bloque la FIN de T3.
+
+### Chiffres de la catégorie ombre (fr-t1.1, outillage livré)
+
+Constantes dans `xtask/src/pixels/ombres.rs`, mesures sur le run CI 42997199734.
+- **Déclaration** : `fragment_ui::flottant::ombrer` pose l'ombre ET l'enregistre (boîte de bordure lue au prépeint, rayon, couches en pixels physiques) ; `capture.rs` vide le registre avant la peinture capturée et l'écrit dans `.boites.json` (version 2, clé `ombres`). Sans déclaration, aucune tolérance d'ombre.
+- **Halo** : par couche, la boîte décalée, gonflée de l'étendue puis de 3 σ (σ = `blur_radius` de GPUI = flou CSS / 2) ; union des couches et de la boîte, moins l'intérieur (pixels entièrement couverts par la boîte arrondie, strict). Les boîtes de texte gardent leurs propres garde-fous.
+- **Constat** : le delta seul ne suffit pas à la contre-épreuve. Une ombre décalée d'1 px ou au flou changé d'1 px ne bouge aucun pixel de plus de 2 niveaux (pente de 0,4 niveau par pixel pour `--menu-shadow` sombre). D'où trois garde-fous sur les côtés droits de la surface, mesurés sur les mêmes pixels des deux images :
+  - **étalement** : moyenne des écarts de distance de l'ombre au bord, pondérée par l'encre, ≤ 0,08 px ;
+  - **glissement** : écart d'encre relatif entre côtés opposés ≤ 10 % ;
+  - **encre** moyenne à ±20 % près.
+- **Calage** : ce qui passe en vrai a un étalement ≤ 0,07 px (menu sombre +0,02, barres d'outils +0,06, notice sombre +0,02). Sur la référence du menu sombre (`contre_epreuve` dans `ombres.rs`), un décalage de ±1 px donne un glissement de ±20 % ou plus, et un flou CSS de ±1 px un étalement de −0,10 à +0,15 px : tout cela échoue.
+- **Cliquet** : `ombre_delta_max` et `ombre_pourcent` (part de pixels tolérés dans l'aire des halos) par PNG, dans `pixels/cliquet.json`.
+- **Ce qui ne passe pas** (détail dans `docs/parite-pixels.md`) : `--shadow-l` (étalement +1,4 à +1,7 px en sombre, −0,6 px en clair, quelques pixels de delta 3 à 4), le menu clair (−0,19 px), l'infobulle (+0,23 px). Le signe change avec le thème, ce qui désigne le mélange (gamma) et non la géométrie : c'est pour la phase 4. Les coins arrondis (delta 1 à 6 sur 2 à 12 pixels par surface) restent stricts et font échouer seuls trois PNG de barre d'outils.
