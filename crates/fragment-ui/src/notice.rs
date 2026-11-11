@@ -164,9 +164,13 @@ pub fn couche(cx: &App) -> AnyElement {
             // ★ `fr-t1.3` : une notice d'une ligne qui tient se peint à la largeur ENTIÈRE de Chromium (texte
             // exact + rembourrage + bordures, arrondi) ; GPUI arrondirait la feuille au pixel supérieur.
             // Sans retour à la ligne, la boîte est posée en `nowrap` (le texte dépasse de 0,3 px au plus).
-            let texte_exact =
-                largeur_texte(cx, &e.message, FontWeight::NORMAL, t.typo.font_ui_small);
-            let tient = !e.message.contains('\n') && texte_exact <= LARGEUR_MAX;
+            // Plusieurs lignes (`\n`, `white-space: pre-wrap`) : la boîte suit la plus large.
+            let texte_exact = e
+                .message
+                .split('\n')
+                .map(|l| largeur_texte(cx, l, FontWeight::NORMAL, t.typo.font_ui_small))
+                .fold(0.0_f32, f32::max);
+            let tient = texte_exact <= LARGEUR_MAX;
             let carte = div()
                 .id(("notice", id))
                 .max_w(u(cx, largeur_max))
