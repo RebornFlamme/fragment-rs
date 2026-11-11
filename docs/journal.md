@@ -426,3 +426,4 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - jeton `fragment-theme` ajouté pour le littéral CSS #8f8e89 (flèche de liste).
   - À remonter avec T1.
 - Un `arbre.rs` non suivi traîne à la racine du dépôt principal, d'origine inconnue. Je n'y touche pas.
+- Battement 11/11 15:34 UTC : fenêtre 5 h à 68 % (reset 17:30), semaine à 35 %. Rythme cible (97 − 35) ÷ 50,4 h ≈ 1,2 point par heure ; réel depuis 12:40 ≈ 3,1, en avance. Fusionnée #61 (clippy sous Windows). #54, #57, #58, #59, #60 et #62 mises à jour depuis main, en CI. Actifs : shell3 (fr-t1.5), alpha2 (fr-p4.1). Pas de lancement avant le reset : la fenêtre est trop près de 80 %. Contexte du chef : 282k, clear prévu après les fusions.
