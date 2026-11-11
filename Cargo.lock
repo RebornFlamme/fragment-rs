@@ -2716,6 +2716,11 @@ dependencies = [
 [[package]]
 name = "fragment-pdf"
 version = "0.0.1"
+dependencies = [
+ "fragment-core",
+ "fragment-text",
+ "serde_json",
+]
 
 [[package]]
 name = "fragment-plugins"
@@ -2753,7 +2758,11 @@ name = "fragment-ui"
 version = "0.0.1"
 dependencies = [
  "fragment-annotation",
+ "fragment-cli",
  "fragment-core",
+ "fragment-markdown",
+ "fragment-pdf",
+ "fragment-text",
  "fragment-theme",
  "gpui-kit",
  "serde_json",

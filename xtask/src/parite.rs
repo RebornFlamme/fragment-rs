@@ -1,6 +1,6 @@
 //! `cargo xtask parite` : table de parité des tests (program.md §6 et §7).
 //!
-//! Lit `crates/*/parite.toml` et écrit `docs/parite-tests.md`. Trois formes de fichier
+//! Lit `crates/*/parite.toml` et `crates/*/parite.d/*.toml` (modules fusionnés par crate), écrit `docs/parite-tests.md`. Trois formes de fichier
 //! coexistent dans le dépôt, et ce module les accepte toutes :
 //!
 //! - **Schéma A** : une table par module (`[nom]`) avec `ts`, `tests_ts`, `source` (entier),
@@ -24,6 +24,8 @@ use anyhow::{Context, bail};
 const PORTE_PHASE_1: usize = 90;
 const DOSSIER_CRATES: &str = "crates";
 const FICHIER_PARITE: &str = "parite.toml";
+/// Un fichier par tâche : deux tâches d'une même crate n'écrivent plus le même fichier.
+const DOSSIER_PARITE_D: &str = "parite.d";
 const SORTIE: &str = "docs/parite-tests.md";
 
 /// Un cas du TS non porté, avec la raison écrite dans le `parite.toml`.
@@ -202,7 +204,21 @@ fn non_portes(t: &toml::Table) -> anyhow::Result<Vec<NonPorte>> {
     Ok(sortie)
 }
 
-/// Lit `crates/*/parite.toml`. Rend les crates qui en ont un, et les noms des autres.
+/// Les `*.toml` de `parite.d/`, triés par nom (vide si le dossier n'existe pas).
+fn fichiers_parite_d(dossier: &Path) -> Vec<std::path::PathBuf> {
+    let Ok(entrees) = std::fs::read_dir(dossier) else {
+        return Vec::new();
+    };
+    let mut fichiers: Vec<_> = entrees
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.extension().is_some_and(|x| x == "toml"))
+        .collect();
+    fichiers.sort();
+    fichiers
+}
+
+/// Lit `crates/*/parite.toml` et `crates/*/parite.d/*.toml` (modules fusionnés par crate). Rend les crates qui en ont un, et les noms des autres.
 ///
 /// # Errors
 ///
@@ -220,18 +236,34 @@ pub fn lire_crates(dossier: &Path) -> anyhow::Result<(Vec<CrateParite>, Vec<Stri
     let mut avec = Vec::new();
     let mut sans = Vec::new();
     for nom in noms {
-        let fichier = dossier.join(&nom).join(FICHIER_PARITE);
-        if !fichier.is_file() {
+        let racine = dossier.join(&nom);
+        let mut fichiers = Vec::new();
+        let principal = racine.join(FICHIER_PARITE);
+        if principal.is_file() {
+            fichiers.push(principal);
+        }
+        fichiers.extend(fichiers_parite_d(&racine.join(DOSSIER_PARITE_D)));
+        if fichiers.is_empty() {
             sans.push(nom);
             continue;
         }
-        let resultat = std::fs::read_to_string(&fichier)
-            .with_context(|| format!("lecture de {}", fichier.display()))
-            .and_then(|texte| analyser(&texte));
-        let (modules, erreur) = match resultat {
-            Ok(modules) => (modules, None),
-            Err(e) => (Vec::new(), Some(format!("{nom} : {e:#}"))),
-        };
+        // Les modules de tous les fichiers sont fusionnés dans la table de la crate ; la première
+        // erreur rend la crate illisible.
+        let mut modules = Vec::new();
+        let mut erreur = None;
+        for fichier in &fichiers {
+            let resultat = std::fs::read_to_string(fichier)
+                .with_context(|| format!("lecture de {}", fichier.display()))
+                .and_then(|texte| analyser(&texte));
+            match resultat {
+                Ok(mut lus) => modules.append(&mut lus),
+                Err(e) => {
+                    erreur = Some(format!("{nom} : {e:#}"));
+                    modules.clear();
+                    break;
+                }
+            }
+        }
         avec.push(CrateParite {
             nom,
             modules,
@@ -683,5 +715,52 @@ raison = "propriété de la chaîne JS"
         let (rapport, bilan) = rediger(&crates, &[]).unwrap();
         assert!(!bilan.total.porte_atteinte());
         assert!(rapport.contains("porte non atteinte"));
+    }
+
+    #[test]
+    fn fusionne_parite_d_dans_la_table_de_la_crate() {
+        let racine = std::env::temp_dir().join(format!("xtask-parite-d-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&racine);
+        let crate_dir = racine.join("fragment-x");
+        std::fs::create_dir_all(crate_dir.join("parite.d")).unwrap();
+        std::fs::create_dir_all(racine.join("fragment-vide")).unwrap();
+        std::fs::write(
+            crate_dir.join("parite.toml"),
+            "[a]
+ts = \"a.ts\"
+source = 2
+portes = 2
+non_portes = []
+",
+        )
+        .unwrap();
+        std::fs::write(
+            crate_dir.join("parite.d/fr-t-un.toml"),
+            "[b]
+ts = \"b.ts\"
+source = 3
+portes = 3
+non_portes = []
+",
+        )
+        .unwrap();
+        std::fs::write(
+            crate_dir.join("parite.d/fr-t-deux.toml"),
+            "[[module]]
+ts = \"c.ts\"
+rs = \"c\"
+cas_source = 1
+cas_portes = 1
+",
+        )
+        .unwrap();
+        let (crates, sans) = lire_crates(&racine).unwrap();
+        let _ = std::fs::remove_dir_all(&racine);
+        assert_eq!(sans, vec!["fragment-vide".to_owned()]);
+        assert_eq!(crates.len(), 1);
+        assert!(crates[0].erreur.is_none());
+        let mut noms: Vec<_> = crates[0].modules.iter().map(|m| m.nom.as_str()).collect();
+        noms.sort_unstable();
+        assert_eq!(noms, ["a", "b", "c"]);
     }
 }

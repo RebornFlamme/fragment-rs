@@ -14,6 +14,11 @@ fragment-core = { path = "../fragment-core" }
 fragment-theme = { path = "../fragment-theme" }
 # Le modèle de la barre d'outils (sections, groupes, orientation) est déjà porté là (fr-t1-menus).
 fragment-annotation = { path = "../fragment-annotation" }
+# Socle T2-T4-T11 : les crates de modèle que les vues aval rapprochent de GPUI.
+fragment-text = { path = "../fragment-text" }
+fragment-markdown = { path = "../fragment-markdown" }
+fragment-pdf = { path = "../fragment-pdf" }
+fragment-cli = { path = "../fragment-cli" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true
