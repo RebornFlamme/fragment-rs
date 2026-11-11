@@ -415,17 +415,40 @@ pub(crate) struct Fonds {
     pub pane: fragment_theme::Couleur,
     /// L'épaisseur du trait bas d'une barre (px logiques).
     pub epaisseur: f64,
+    /// Le bord droit EXACT (avant calage, px logiques) de chaque barre de [`Self::barres`].
+    pub droites_exactes: Vec<Option<f64>>,
+    pub zoom: f64,
 }
 
 impl Fonds {
     /// Le fond au point (x, y), px logiques.
     fn en(&self, x: f64, y: f64) -> fragment_theme::Couleur {
-        for b in &self.barres {
+        for (i, b) in self.barres.iter().enumerate() {
             if x >= b.x && x < b.droite() && y >= b.y && y < b.bas() {
-                return if y >= b.bas() - self.epaisseur {
-                    self.trait_bas
-                } else {
-                    self.barre
+                if y < b.bas() - self.epaisseur {
+                    return self.barre;
+                }
+                // ★ Le trait bas s'arrête au bord droit EXACT de la barre, en cellule partielle,
+                //   sur le fond de barre calé (onglets::pile, `peindre_contour`).
+                let bout = self
+                    .droites_exactes
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .map(|d| d * self.zoom)
+                    .filter(|d| d.fract() > 1e-3 && (x * self.zoom).floor() == d.floor());
+                return match bout {
+                    Some(d) => {
+                        let part = d.fract() as f32;
+                        let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, part);
+                        fragment_theme::Couleur::octets(
+                            m(self.trait_bas.r, self.barre.r),
+                            m(self.trait_bas.g, self.barre.g),
+                            m(self.trait_bas.b, self.barre.b),
+                            255,
+                        )
+                    }
+                    None => self.trait_bas,
                 };
             }
         }
@@ -773,7 +796,11 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
             .map(|e| e.recouvrement.unwrap_or(f64::from(f.frame_right_space)) as f32);
         let apercu_ici = apercu.filter(|a| a.pile == pile);
         if let Some(exact) = disposition.cadre_exact(pile) {
-            crate::onglets::noter_largeur_exacte(pile, exact.largeur as f32);
+            crate::onglets::noter_largeur_exacte(
+                pile,
+                exact.largeur as f32,
+                (exact.x - cadre.x) as f32,
+            );
         }
         let contenu = if laterale {
             docks::rendre_pile_laterale(ctx, pile, retrait, apercu_ici, cx)
@@ -792,12 +819,21 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         racine = racine.child(place(cadre, cx).flex().child(contenu));
     }
 
+    let barres: Vec<(Cadre, Option<f64>)> = disposition
+        .piles
+        .iter()
+        .filter_map(|&p| {
+            disposition.barre(p, f64::from(f.header_height)).map(|b| {
+                // Le bord droit exact : le trait bas de la barre s'y arrête.
+                let exacte = disposition.cadre_exact(p).map(|e| e.droite());
+                (b, exacte)
+            })
+        })
+        .collect();
     let fonds = Fonds {
-        barres: disposition
-            .piles
-            .iter()
-            .filter_map(|&p| disposition.barre(p, f64::from(f.header_height)))
-            .collect(),
+        droites_exactes: barres.iter().map(|(_, d)| *d).collect(),
+        zoom: f64::from(Echelle::courante(cx).zoom()),
+        barres: barres.into_iter().map(|(b, _)| b).collect(),
         barre: t.palette.tab_bar_bg,
         trait_bas: t.palette.tab_outline_color,
         pane: t.palette.workspace_bg,

@@ -61,15 +61,16 @@ pub struct OptionsPile {
 thread_local! {
     /// La largeur EXACTE (px logiques, avant calage) de chaque pile, notée par la mise en page
     /// pour son prochain rendu ([`noter_largeur_exacte`]) et consommée par [`rendre_pile`].
-    static LARGEURS_EXACTES: std::cell::RefCell<std::collections::HashMap<ItemId, f32>> =
+    static LARGEURS_EXACTES: std::cell::RefCell<std::collections::HashMap<ItemId, (f32, f32)>> =
         std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 /// Note la largeur EXACTE de `pile` (px logiques, son cadre avant calage au pixel) pour son
 /// prochain rendu : le trait du contour de l'onglet actif suit alors les bornes non calées, comme
 /// celui de Fragment ([`super::mesures::bords_exacts`]). Sans note, il suit l'en-tête calé par GPUI.
-pub fn noter_largeur_exacte(pile: ItemId, largeur: f32) {
-    LARGEURS_EXACTES.with(|l| l.borrow_mut().insert(pile, largeur));
+/// `decalage` : le bord gauche exact moins le bord gauche calé (px logiques) ; les titres le suivent.
+pub fn noter_largeur_exacte(pile: ItemId, largeur: f32, decalage: f32) {
+    LARGEURS_EXACTES.with(|l| l.borrow_mut().insert(pile, (largeur, decalage)));
 }
 
 /// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`), en
@@ -127,8 +128,24 @@ fn trait_droit(
     window: &mut Window,
     k: f32,
     vertical: bool,
+    travers: (f32, f32),
+    long: (i32, i32),
+    teinte: Couleur,
+    fond: &dyn Fn(f32, f32) -> Couleur,
+) {
+    trait_droit_couvert(window, k, vertical, travers, long, 1.0, teinte, fond);
+}
+
+/// [`trait_droit`], chaque cellule couverte à `le_long` (0 à 1) dans le sens du trait : le bout
+/// d'un trait qui s'arrête à une abscisse fractionnaire.
+#[allow(clippy::too_many_arguments)]
+fn trait_droit_couvert(
+    window: &mut Window,
+    k: f32,
+    vertical: bool,
     (a, b): (f32, f32),
     (d0, d1): (i32, i32),
+    le_long: f32,
     teinte: Couleur,
     fond: &dyn Fn(f32, f32) -> Couleur,
 ) {
@@ -165,9 +182,9 @@ fn trait_droit(
             let f = fond(x, y);
             let m = |t: u8, f: u8| {
                 if fin {
-                    geometrie::melange_filet(t, f, f64::from(part))
+                    geometrie::melange_filet(t, f, f64::from(part * le_long))
                 } else {
-                    geometrie::melange_couverture(t, f, part)
+                    geometrie::melange_couverture(t, f, part * le_long)
                 }
             };
             Couleur::octets(m(teinte.r, f.r), m(teinte.g, f.g), m(teinte.b, f.b), 255)
@@ -211,10 +228,15 @@ type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
 /// `bords_exacts` : les bords gauche et droit EXACTS de l'actif (repère de la barre), quand ils
 /// diffèrent de l'en-tête calé ; seul le TRAIT les suit. Le fond des coins concaves reste au ras de
 /// l'en-tête calé, comme les pseudo-éléments de Fragment (des boîtes, calées elles aussi).
+///
+/// `droite_exacte` : le bord droit EXACT de la barre (repère de la barre) ; la ligne de base s'y
+/// arrête, en cellule partielle.
+#[allow(clippy::too_many_arguments)]
 fn peindre_contour(
     bornes: Bounds<Pixels>,
     actif: Option<Bounds<Pixels>>,
     bords_exacts: Option<(f32, f32)>,
+    droite_exacte: Option<f32>,
     couleurs: CouleursContour,
     (rayon_haut, rayon_bas, haut_exact, hauteur_exacte): (f32, f32, f32, f32),
     epaisseur: f32,
@@ -256,16 +278,41 @@ fn peindre_contour(
         Some((x0, y0, x1, y1)) if x >= x0 && x < x1 && y >= y0 && y < y1 => couleurs.pane,
         _ => couleurs.barre,
     };
+    // ★ Le bord droit EXACT de la barre (px physiques), quand il tombe dans un pixel : Chromium y
+    //   arrête la ligne de base (une bordure, anticrénelée), alors que le fond de la barre est calé.
+    //   La poignée de split se mélange ensuite par-dessus (`t1-split-vertical`, (657,35) : 42 = 52
+    //   sur 33, et 33 = la ligne de base à moitié sur la barre).
+    let bout = droite_exacte
+        .map(x_)
+        .filter(|d| d.fract() > 1e-3 && (d.floor() as i32) < barre_d)
+        .map(|d| (d.floor() as i32, d.fract()));
     let ligne_de_base = |window: &mut Window, d0: i32, d1: i32| {
+        let d1 = d1.min(barre_d);
+        let (d1, reste) = match bout {
+            Some((cellule, part)) if d1 == barre_d => (cellule, Some((cellule, part))),
+            _ => (d1, None),
+        };
         trait_droit(
             window,
             k,
             false,
             (base - demi, base + demi),
-            (d0.max(barre_g), d1.min(barre_d)),
+            (d0.max(barre_g), d1),
             couleurs.trait_,
             &fond,
         );
+        if let Some((cellule, part)) = reste.filter(|&(c, _)| c >= d0.max(barre_g)) {
+            trait_droit_couvert(
+                window,
+                k,
+                false,
+                (base - demi, base + demi),
+                (cellule, cellule + 1),
+                part,
+                couleurs.trait_,
+                &fond,
+            );
+        }
     };
 
     let Some(o) = onglet else {
@@ -527,11 +574,27 @@ fn entete_d_onglet(
     est_dernier: bool,
     suivant_actif: bool,
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
+    decalage: f32,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
     let actif = ligne.visible;
+    // ★ Le titre suit le bord gauche EXACT de la pile (`decalage`) : Chromium pose le texte à la
+    //   position de mise en page non calée (sous-pixel), les fonds seuls sont calés. Sans lui, le
+    //   titre du 2e pane de `t1-split-vertical` sortait à +0,6 px (barycentre de la moitié gauche).
+    let titre = div()
+        .flex_1()
+        .min_w(u(cx, 0.0))
+        .overflow_hidden()
+        .whitespace_nowrap()
+        .text_ellipsis()
+        .child(ligne.titre.clone());
+    let titre = if decalage.abs() > 1e-3 {
+        titre.relative().left(u(cx, decalage))
+    } else {
+        titre
+    };
     let leaf = ligne.leaf;
     let index = ligne.index;
     let rang = leaf.index() as usize;
@@ -591,15 +654,7 @@ fn entete_d_onglet(
         .pr(u(cx, INTERIEUR_AUTRES_COTES))
         .py(u(cx, INTERIEUR_AUTRES_COTES))
         // Le titre prend ce qui reste et s'ellipse ; le statut, vide, garde son rang (et donc l'écart).
-        .child(
-            div()
-                .flex_1()
-                .min_w(u(cx, 0.0))
-                .overflow_hidden()
-                .whitespace_nowrap()
-                .text_ellipsis()
-                .child(ligne.titre.clone()),
-        )
+        .child(titre)
         .child(div().flex().items_center())
         .child(croix);
     if actif {
@@ -703,7 +758,7 @@ fn barre(
     pile: ItemId,
     lignes: &[LigneOnglet],
     options: OptionsPile,
-    largeur_exacte: Option<f32>,
+    (largeur_exacte, decalage): (Option<f32>, f32),
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -728,6 +783,7 @@ fn barre(
                 i + 1 == n,
                 suivant_actif,
                 Some(mesure.clone()),
+                decalage,
                 cx,
             )
         })
@@ -879,6 +935,8 @@ fn barre(
                         bornes,
                         mesure.get(),
                         exacts,
+                        // Repère de la barre (son bord gauche calé) : décalage plus largeur exacte.
+                        largeur_exacte.map(|e| (decalage + e) * zoom),
                         couleurs,
                         (
                             f32::from(rayon_haut),
@@ -949,7 +1007,9 @@ pub fn rendre_pile(
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
-    let largeur_exacte = LARGEURS_EXACTES.with(|l| l.borrow_mut().remove(&pile));
+    let note = LARGEURS_EXACTES.with(|l| l.borrow_mut().remove(&pile));
+    let largeur_exacte = note.map(|(l, _)| l);
+    let decalage = note.map_or(0.0, |(_, d)| d);
     let (lignes, visible) = match ctx.workspace.try_borrow() {
         Ok(w) => (
             actions::lignes_de_la_pile(&w, pile),
@@ -999,7 +1059,14 @@ pub fn rendre_pile(
         .min_h(u(cx, 0.0))
         .overflow_hidden()
         .text_color(couleur(t.palette.text_normal))
-        .child(barre(ctx, pile, &lignes, options, largeur_exacte, cx))
+        .child(barre(
+            ctx,
+            pile,
+            &lignes,
+            options,
+            (largeur_exacte, decalage),
+            cx,
+        ))
         .child(conteneur);
     texte(pile_el, cx, t.typo.font_ui_small, 1.5).into_any_element()
 }
