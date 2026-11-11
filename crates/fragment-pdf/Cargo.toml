@@ -10,6 +10,9 @@ repository.workspace = true
 fragment-core = { path = "../fragment-core" }
 fragment-text = { path = "../fragment-text" }
 serde_json.workspace = true
+thiserror.workspace = true
+# Moteur PDF (program.md §4). Version exacte : elle fixe la feature `pdfium_8125`, appariée au binaire épinglé (scripts/pdfium.ps1). Chargement dynamique uniquement.
+pdfium-render = { version = "=0.9.5", default-features = false, features = ["pdfium_8125", "thread_safe"] }
 
 [lints]
 workspace = true

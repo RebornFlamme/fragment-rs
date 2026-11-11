@@ -1,0 +1,12 @@
+# Parité de fr-t4-pdfium (fragment-pdf). Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. Le moteur remplace pdf.js : aucun test unitaire côté TS (PdfView.ts et
+# pdfOutline.ts n'ont pas de test pour la partie pdf.js), tous les tests sont AJOUTÉS
+# (crates/fragment-pdf/tests/document.rs), sur des PDF générés par les tests eux-mêmes.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (chargement, pages, couche texte, liens), pdfOutline.ts (resoudreOutline, resoudreDestination)"
+rs = "crates/fragment-pdf/src/document/mod.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 11
+notes = "Document sur pdfium-render 0.9.5 (binaire chromium/8125 épinglé, chargé dynamiquement par document/moteur.rs). Pages 1-based, tailles et boîtes en points origine en haut ; rendu RGBA de taille exacte round(pt × échelle), région = recadrage exact du rendu entier ; caractères avec boîte large ; liens internes/externes ; signets en EntreeToc. Ajouts : erreurs de page/échelle/octets."

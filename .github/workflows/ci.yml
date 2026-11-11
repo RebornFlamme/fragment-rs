@@ -47,6 +47,8 @@ jobs:
         with:
           shared-key: test-linux
       # Crates pures : les crates UI (fragment-ui, fragment-app) sont vérifiées sous Windows.
+      - name: pdfium (binaire épinglé, scripts/pdfium.sh)
+        run: scripts/pdfium.sh
       - run: cargo test --workspace --locked --exclude fragment-ui --exclude fragment-app
 
   test-windows:
@@ -57,6 +59,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: windows
+      - name: pdfium (binaire épinglé, scripts/pdfium.ps1)
+        shell: pwsh
+        run: ./scripts/pdfium.ps1
       - run: cargo test --workspace --locked
 
   # Fork n°1 (ADR-006) : vendor/gpui-base = gpui-base à la version ÉPINGLÉE par gpui-kit + un patch
@@ -151,6 +156,9 @@ jobs:
         run: |
           Set-DisplayResolution -Width 1920 -Height 1080 -Force
           Get-CimInstance Win32_VideoController | Format-List Name, CurrentHorizontalResolution, CurrentVerticalResolution
+      - name: pdfium (binaire épinglé, scripts/pdfium.ps1)
+        shell: pwsh
+        run: ./scripts/pdfium.ps1
       - run: cargo build -p fragment-app --features pixels --bin fragment-pixels --locked
       - name: Capture n°1
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
