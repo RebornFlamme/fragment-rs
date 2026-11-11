@@ -80,7 +80,7 @@ Orchestrateur (Fable 5.1, session « Fragment »)
 - Brief ≤ 400 mots : la tâche, les fichiers possédés, les fichiers TS de référence (chemins), la commande de vérification, la définition de « fini ». Jamais de code collé : des chemins.
 - Le chef compacte sa conversation à chaque fin de vague (`/compact` avec pour consigne : garder décisions, vague en cours, blocages).
 - Les résultats CI se lisent par `gh run view <id> --log-failed` (le log des échecs), jamais le log complet.
-- Un équipier qui dépasse 300k tokens de contexte s'arrête, écrit où il en est dans la tâche Beads (`bd update <id> --notes`), et le chef relance un équipier neuf.
+- Un équipier qui dépasse 300k tokens de contexte s'arrête, écrit où il en est dans la tâche Beads (`bd update <id> --append-notes` ; ★ `--notes` REMPLACE tout le texte), et le chef relance un équipier neuf.
 
 **Vague** = l'unité de travail : ≤ 3 équipiers, ≤ 5 tâches chacun, se termine par CI verte sur `main` et une entrée de journal. Durée cible 2 à 4 h de travail d'agents.
 
@@ -97,7 +97,7 @@ Installation (phase 0) : `npm install -g @beads/bd` puis `bd init` dans `fragmen
 4. `Fini quand :` critères observables (nombre de cas de test portés, PR fusionnée, mesure).
 5. La règle, dans le brief aussi : **aucune copie de source de Fragment ; une fixture se réécrit. Un port TRADUIT le code et RÉÉCRIT les commentaires dans ses mots ; il ne recopie ni en-tête ni diagramme** (ADR-007).
 
-**Cycle d'un équipier.** `bd ready` → `bd update <id> --claim` → branche `task/<id>` → travail → `gh pr create` → CI → `bd update <id> --notes "PR #n"` → le chef lance l'audit des sources (code 0 obligatoire, §7) puis fusionne → `bd close <id>`. Une tâche fermée sans PR fusionnée est une erreur.
+**Cycle d'un équipier.** `bd ready` → `bd update <id> --claim` → branche `task/<id>` → travail → `gh pr create` → CI → `bd update <id> --append-notes "PR #n"` → le chef lance l'audit des sources (code 0 obligatoire, §7) puis fusionne → `bd close <id>`. Une tâche fermée sans PR fusionnée est une erreur.
 
 **Bugs.** Un échec CI répété deux fois sur une tâche → la tâche est mise en pause et un bead `bug` est créé avec le log des échecs. Un bug ne se corrige pas dans la tâche qui l'a trouvé si ses fichiers sont ailleurs.
 
