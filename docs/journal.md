@@ -303,3 +303,4 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
   - Actifs : splits, vault, maths, aplats, syntaxe.
   - `cargo xtask parite` échoue sur main pour fragment-theme : la correction est confiée à fr-t1.4.
   - **Prochaine action exacte** : aux places libres, dans l'ordre, fr-t1.1 (après fr-t1.4), `fr-t4-pdfium`, `fr-t3-html`, `fr-t3-commandes`, puis les modèles de T4. Les scènes une à une (verrou de capture).
+- 11/11 12:05 UTC : fusionnée #40 (fr-t2-vault : 129 tests ; vault.ts n'a pas de test TS). Écarts acceptés : un `rename` par dossier, comme le TS, et la racine protégée (`VaultError::Racine`). `tests/contrats.rs` touché hors liste (5 noms passés à « portés »). Lancée : fr-t4-pdfium (Sonnet). Actifs : splits, maths, aplats, syntaxe, pdfium.
