@@ -555,3 +555,9 @@ Livraison de T1 quand #49 est fusionnée.
   - Rythme cible : (97 − 43) ÷ 46,7 h ≈ 1,2 point par heure. Réel depuis 17:40 : environ 3,6, en avance.
   - #70 (fr-t3-surface) et #73 (fr-t2-explorateur) en CI. #49 en brouillon, pixels rouge, shell5 au travail.
   - Cinq actifs, pas de place libre.
+- 19:25 UTC : fr-t2-explorateur terminé, PR #73 en CI (20 tests locaux, audit à 0).
+  - L'équipier a été arrêté : il ne faisait plus que relancer son minuteur d'attente. Le chef surveille la CI de #73.
+  - Montage noté sur fr-t2-montage.
+  - Lancée : fr-t4-raster (spike S7, Opus, `../fragment-rs-raster`). ★ ADR-013 est déjà pris (ombres) : S7 écrira ADR-014.
+  - fr-t11-reglages est en attente : elle partagerait `reglages/` avec fr-t1.5.
+  - Actifs : shell5, surface, laterale, rechercheui, raster.
