@@ -1,0 +1,14 @@
+{
+  "scene": "t1-zoom-80",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"command","id":"app:reset-zoom"},
+    {"type":"command","id":"app:zoom-out"},
+    {"type":"command","id":"app:zoom-out"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

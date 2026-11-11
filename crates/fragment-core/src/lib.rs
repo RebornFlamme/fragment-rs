@@ -103,7 +103,10 @@ pub use workspace::vue::{
 pub use workspace::{OpenViewState, SplitDirection, ViewState, ViewStateResult};
 pub mod app;
 pub use app::{App, AppCoeur};
+pub mod apparence;
 pub mod attachments;
+pub mod commandes_zoom;
+pub mod config;
 pub mod debounce;
 pub mod dispatch;
 pub mod drag;
@@ -146,4 +149,15 @@ pub use window_host::{CaptureRect, WindowHost, WindowHostError};
 pub use zoom::{
     SensZoom, ZOOM_DEFAUT, ZOOM_MAX, ZOOM_MIN, ZOOM_PALIERS, format_zoom, normaliser_zoom,
     normaliser_zoom_valeur, zoom_suivant,
+};
+
+// ─── Apparence et zoom (fr-t1-reglages) ───
+pub use apparence::{
+    Apparence, EffetsApparence, FICHIER_APPEARANCE, TAILLE_POLICE_DEFAUT, ThemesDefinition,
+    appliquer_apparence, cabler_apparence, defauts_apparence, definitions_appearance, ligne_zoom,
+};
+pub use commandes_zoom::enregistrer_commandes_zoom;
+pub use config::{
+    ConfigStore, DELAI_SAUVEGARDE_MS, Donnees, EVENEMENT_CHANGE, ErreurConfig, Horloge,
+    OrigineChangement, StockageConfig, StockageMemoire,
 };

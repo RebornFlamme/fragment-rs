@@ -533,3 +533,69 @@ notes = "trait App (accesseurs) + AppCoeur : Keymap, CommandManager (CommandHost
 [[module.non_portes]]
 quoi = "vault, plugins, dragManager, cliHost, windowHost, appearance / appSettings, icons, embeds, codeBlockProcessors, layers, ribbon, statusBar, settingTabs, metadataTypeManager, secrets, artefacts, handleProtocol, localStorage"
 raison = "hors de ce bead : Vault T2, apparence fr-t1-reglages, hôtes fenêtre / CLI dans fragment-app / fragment-cli, registres de rendu dans fragment-ui ; chacun s'ajoute à AppCoeur avec sa tâche"
+
+# ─── fr-t1-reglages : apparence, zoom de l'application, commandes de zoom ───
+
+[[module]]
+ts = "app/src/ui/core/settings/ConfigStore.ts + config.ts (AppearanceConfig, applyAppearance) + sync.ts"
+rs = "crates/fragment-core/src/config.rs + apparence.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "ConfigStore sur un objet JSON non typé (le fichier édité à la main peut porter `\"zoom\": \"abc\"` : on se protège à la lecture, comme le TS) ; disque derrière StockageConfig, temps injecté (Debouncer à 300 ms, sonder / prochaine_echeance). Les 4 ajoutés : fichier corrompu, clefs manquantes, changement distant sans écriture, vider(). Les 7 tests de boot et de commandes sont ceux d'app-zoom.spec.ts (module suivant)."
+
+[[module.non_portes]]
+quoi = "wireSettingsSync : relais IPC 'settings:changed' entre renderers, scopes 'app' / 'plugins' / 'plugin-data' / 'plugin-options'"
+raison = "Rust n'a qu'UNE App par processus : la fenêtre de réglages et la fenêtre principale partagent le même magasin d'apparence (un zoom fait ailleurs se voit au prochain rendu). Le relais n'a pas d'objet ; `appliquer_distant` garde la sémantique 'remote' (sans I/O). Les scopes 'plugin-data' et 'plugin-options' viennent avec les plugins (fr-p1-plugins, T10)."
+
+[[module.non_portes]]
+quoi = "applyAppearance : variables CSS (--color-accent, --font-text-size), classes body.theme-dark / theme-light, écoute de prefers-color-scheme"
+raison = "rendu : le cœur appelle `EffetsApparence` (accent, taille de police, schéma), implémenté par fragment-ui / fragment-theme"
+
+[[module]]
+ts = "app/e2e/app-zoom.spec.ts + app/src/ui/coreCommands/AppCommandsPlugin.ts (zoom-in, zoom-out, reset-zoom)"
+rs = "crates/fragment-core/tests/apparence.rs + crates/fragment-core/src/commandes_zoom.rs + crates/fragment-ui/tests/reglages.rs"
+cas_source = 13
+cas_portes = 8
+cas_ajoutes = 0
+notes = "13 `test()` (dont la boucle de 3 valeurs invalides, comptée pour 3) : 7 dans apparence.rs (boot à 1.5 ; abc / 10 / -1 ; défaut 100 % ; commandes, paliers, bornes, persistance ; raccourcis AZERTY Ctrl+= / Ctrl+Maj+= / Ctrl+- / Ctrl+0 par le Keymap, frappe consommée) et le test du curseur au relâché dans fragment-ui/tests/reglages.rs. L'hôte est un double (FauxHote) ; le coffre un StockageMemoire."
+
+[[module.non_portes]]
+quoi = "le menu Electron n'a plus de zoom actif (neutraliserZoomDuMenu)"
+raison = "propre à Electron : GPUI n'a pas de menu d'application à neutraliser"
+
+[[module.non_portes]]
+quoi = "Ctrl+molette sur une note ne zoome pas"
+raison = "Chromium zoomerait de lui-même ; GPUI n'a aucun zoom par molette. Aucune garde à tester (le geste n'est lié à rien)"
+
+[[module.non_portes]]
+quoi = "capture : le rectangle en px CSS est converti selon le zoom (devicePixelRatio)"
+raison = "contrat WindowHost::capture, dont l'implémentation GPUI est dans fr-t1-binaire ; pas de devicePixelRatio ici (u() met les longueurs à l'échelle, pas la capture)"
+
+[[module.non_portes]]
+quoi = "PDF : Ctrl+= reste le zoom du PDF ; PDF : canvas repeints à la nouvelle densité"
+raison = "la vue PDF est de la phase 5 (portée de vue avant la racine : à rejouer avec elle) ; la repeinte des canvas est un souci de Chromium"
+
+[[module.non_portes]]
+quoi = "boot : `window.outerWidth / window.innerWidth > 1.3` (toute l'interface a rétréci)"
+raison = "mesure du DOM ; la mise à l'échelle de toute l'interface par u() est vérifiée par les scènes pixels t1-zoom-150 et t1-zoom-80"
+
+[[module]]
+ts = "app/src/ui/settings/SettingsWindow.ts + core/settings/{Setting,SettingTab,SettingPage,SettingManager}.ts + settings.css (Appearance)"
+rs = "crates/fragment-ui/src/reglages/{mod,fenetre,curseur}.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 5
+notes = "Fenêtre de réglages rendue depuis les SettingDefinition déclaratives (rail vertical, cartes Setting, curseur au relâché, bouton ↺). Les définitions de l'onglet Appearance sont dans le cœur (apparence.rs : `definitions_appearance`, testées par apparence.rs via la ligne « Zoom level »). Les 5 ajoutés sont ceux de curseur.rs. Les onglets General / Editor / Files / Hotkeys / Community / Keychain / Agent ne sont que des entrées de rail (leurs tranches)."
+
+[[module.non_portes]]
+quoi = "saisie de la recherche « Search settings... » et filtre des cartes"
+raison = "champ statique : l'index de recherche et le champ de saisie viennent avec le champ de texte de gpui-kit (T2, quand le premier onglet filtrable existe)"
+
+[[module.non_portes]]
+quoi = "ouverture de la liste déroulante (select), sélecteur de couleur natif, contrôles texte / nombre / fichier / secret, définitions page / liste / arbre / action / libre"
+raison = "Appearance n'en a besoin que fermés (dropdown, pastille) ; chaque contrôle arrive avec le premier onglet qui l'emploie (Editor T3, Files T2, Keychain, Community T10)"
+
+[[module.non_portes]]
+quoi = "letter-spacing 0.04em du titre de groupe du rail, boutons de fenêtre actifs (réduire / agrandir / fermer), infobulle des boutons ↺"
+raison = "GPUI n'a pas de crénage de lettres ; les boutons de fenêtre et l'infobulle sont de fr-t1-binaire et de tooltip.rs"

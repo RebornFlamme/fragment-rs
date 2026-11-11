@@ -1,0 +1,14 @@
+{
+  "scene": "t1-reglages-zoom",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "settings_window": {"width":1000,"height":700,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"click","target":"settings","x":118,"y":233},
+    {"type":"wait-stable"},
+    {"type":"drag","target":"settings","from":{"x":861,"y":472},"to":{"x":905,"y":472},"release":false,"steps":8},
+    {"type":"wait-stable"}
+  ]
+}
