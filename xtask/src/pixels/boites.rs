@@ -284,7 +284,8 @@ pub struct CoucheDeclaree {
 }
 
 /// Une surface ombrée déclarée par le candidat (ADR-009, amendement du 11/11) : sa boîte de bordure
-/// telle que la MISE EN PAGE l'a posée (pas lue dans l'image), son rayon de coin et ses couches.
+/// telle que la MISE EN PAGE l'a posée (pas lue dans l'image), son rayon de coin, ses couches et le
+/// nom du jeton d'ombre (`--shadow-l`…), qui seul peut porter une exception nommée (2e amendement).
 #[derive(Debug, Clone, PartialEq)]
 pub struct OmbreDeclaree {
     pub x: f64,
@@ -293,16 +294,35 @@ pub struct OmbreDeclaree {
     pub hauteur: f64,
     pub rayon: f64,
     pub couches: Vec<CoucheDeclaree>,
+    /// Le jeton CSS de l'ombre (`--menu-shadow`, `--shadow-l`…) ; vide s'il n'est pas déclaré.
+    pub jeton: String,
+}
+
+/// Une boîte arrondie déclarée par le candidat (ADR-009, amendement de 11:15, point a) : sa boîte de
+/// bordure posée par la mise en page, son rayon de coin et la largeur de sa bordure (l'arc intérieur
+/// de la bordure a pour rayon `rayon - bordure`), en pixels physiques.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArrondiDeclare {
+    pub x: f64,
+    pub y: f64,
+    pub largeur: f64,
+    pub hauteur: f64,
+    pub rayon: f64,
+    pub bordure: f64,
 }
 
 /// Le fichier de déclaration voisin du PNG candidat, sans ombres.
 pub fn serialiser(boites: &[BoiteEncre]) -> String {
-    serialiser_tout(boites, &[])
+    serialiser_tout(boites, &[], &[])
 }
 
-/// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, et surfaces
-/// ombrées (version 2).
-pub fn serialiser_tout(boites: &[BoiteEncre], ombres: &[OmbreDeclaree]) -> String {
+/// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, surfaces
+/// ombrées et boîtes arrondies (version 3).
+pub fn serialiser_tout(
+    boites: &[BoiteEncre],
+    ombres: &[OmbreDeclaree],
+    arrondis: &[ArrondiDeclare],
+) -> String {
     let liste: Vec<Value> = boites
         .iter()
         .map(|b| {
@@ -327,11 +347,20 @@ pub fn serialiser_tout(boites: &[BoiteEncre], ombres: &[OmbreDeclaree]) -> Strin
                 .collect();
             json!({
                 "x": o.x, "y": o.y, "largeur": o.largeur, "hauteur": o.hauteur,
-                "rayon": o.rayon, "couches": couches,
+                "rayon": o.rayon, "couches": couches, "jeton": o.jeton,
             })
         })
         .collect();
-    let json = json!({ "version": 2, "boites": liste, "ombres": ombres });
+    let arrondis: Vec<Value> = arrondis
+        .iter()
+        .map(|a| {
+            json!({
+                "x": a.x, "y": a.y, "largeur": a.largeur, "hauteur": a.hauteur,
+                "rayon": a.rayon, "bordure": a.bordure,
+            })
+        })
+        .collect();
+    let json = json!({ "version": 3, "boites": liste, "ombres": ombres, "arrondis": arrondis });
     serde_json::to_string_pretty(&json).unwrap_or_default() + "\n"
 }
 
@@ -364,6 +393,30 @@ pub fn deserialiser_ombres(texte: &str) -> Option<Vec<OmbreDeclaree>> {
                 hauteur: o["hauteur"].as_f64()?,
                 rayon: o["rayon"].as_f64()?,
                 couches,
+                jeton: o["jeton"].as_str().unwrap_or_default().to_owned(),
+            })
+        })
+        .collect()
+}
+
+/// Relit les boîtes arrondies d'un fichier de déclaration (aucune avant la version 3 : leurs
+/// coins restent alors stricts, l'arc ne se déduit jamais de l'image).
+pub fn deserialiser_arrondis(texte: &str) -> Option<Vec<ArrondiDeclare>> {
+    let json: Value = serde_json::from_str(texte).ok()?;
+    let Some(liste) = json.get("arrondis") else {
+        return Some(Vec::new());
+    };
+    liste
+        .as_array()?
+        .iter()
+        .map(|a| {
+            Some(ArrondiDeclare {
+                x: a["x"].as_f64()?,
+                y: a["y"].as_f64()?,
+                largeur: a["largeur"].as_f64()?,
+                hauteur: a["hauteur"].as_f64()?,
+                rayon: a["rayon"].as_f64()?,
+                bordure: a["bordure"].as_f64()?,
             })
         })
         .collect()
@@ -486,9 +539,23 @@ mod tests {
                 sigma: 12.0,
                 etendue: 0.0,
             }],
+            jeton: "--menu-shadow".to_owned(),
         }];
-        let texte = serialiser_tout(&[], &ombres);
+        let arrondis = vec![ArrondiDeclare {
+            x: 420.0,
+            y: 260.5,
+            largeur: 180.0,
+            hauteur: 96.0,
+            rayon: 8.0,
+            bordure: 1.0,
+        }];
+        let texte = serialiser_tout(&[], &ombres, &arrondis);
         assert_eq!(deserialiser_ombres(&texte), Some(ombres));
+        assert_eq!(deserialiser_arrondis(&texte), Some(arrondis));
+        assert_eq!(
+            deserialiser_arrondis(r#"{"version": 2, "boites": [], "ombres": []}"#),
+            Some(Vec::new())
+        );
         assert_eq!(deserialiser(&texte), Some(Vec::new()));
         // Un fichier de version 1 n'a pas d'ombres.
         assert_eq!(

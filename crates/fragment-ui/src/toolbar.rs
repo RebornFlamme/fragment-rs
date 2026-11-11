@@ -23,7 +23,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{arrondir, bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -262,7 +262,13 @@ fn rendre_item(index: usize, item: &ToolbarItem, cx: &App) -> AnyElement {
         .cursor_default()
         .text_color(couleur(couleur_texte));
     if item.active {
-        el = el.bg(couleur(c.color_accent));
+        // Le fond actif est arrondi : ses coins sont déclarés (ADR-009, bord d'arrondi).
+        el = arrondir(
+            el.bg(couleur(c.color_accent)),
+            cx,
+            u(cx, f.radius_sm),
+            u(cx, 0.0),
+        );
     } else if item.disabled {
         el = el.opacity(0.35);
     } else {
@@ -392,6 +398,7 @@ fn rendre(modele: &Toolbar, cx: &App) -> AnyElement {
         racine,
         cx,
         &c.menu_shadow,
+        "--menu-shadow",
         u(cx, f.radius_ml),
         u(cx, f.border_width),
     );

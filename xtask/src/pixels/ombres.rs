@@ -43,6 +43,11 @@ pub const ECART_ENCRE_OMBRE: f64 = 0.20;
 pub const ENCRE_MIN: f64 = 2.0;
 /// Nombre minimal de pixels de bord d'un côté jugé.
 pub const BORD_MIN: usize = 8;
+/// ★ Le seul jeton dont l'ombre porte l'EXCEPTION NOMMÉE (ADR-009, amendement de 11:15, point b) :
+/// le mélange alpha (linéaire contre sRGB) y étale l'ombre de +1,5 px en sombre et de −0,6 px en
+/// clair. Ses garde-fous et son delta ne bloquent pas : leurs valeurs mesurées font cliquet, par PNG
+/// (donc par thème). Toute autre ombre garde tous ses garde-fous.
+pub const JETON_EXCEPTION: &str = "--shadow-l";
 
 /// Rectangle réel (x0, y0, x1, y1), bords exclus en haut.
 type RectF = (f64, f64, f64, f64);
@@ -111,28 +116,36 @@ fn pixels_etendue(
 pub struct Masques {
     pub halo: Vec<bool>,
     pub interieur: Vec<bool>,
+    /// Le halo des seules surfaces de [`JETON_EXCEPTION`] (hors intérieurs) : un delta > 2 y est
+    /// mesuré par le cliquet au lieu d'échouer.
+    pub exception: Vec<bool>,
 }
 
 pub fn masques(ombres: &[OmbreDeclaree], largeur: u32, hauteur: u32) -> Masques {
     let n = (largeur * hauteur) as usize;
     let mut halo = vec![false; n];
     let mut dedans = vec![false; n];
+    let mut exception = vec![false; n];
     for o in ombres {
+        let nommee = o.jeton == JETON_EXCEPTION;
         for (x, y) in pixels_etendue(o, largeur, hauteur) {
             let i = (y * largeur + x) as usize;
             if interieur(o, x, y) {
                 dedans[i] = true;
             } else {
                 halo[i] = true;
+                exception[i] |= nommee;
             }
         }
     }
-    for (h, d) in halo.iter_mut().zip(&dedans) {
+    for ((h, e), d) in halo.iter_mut().zip(exception.iter_mut()).zip(&dedans) {
         *h &= !*d;
+        *e &= !*d;
     }
     Masques {
         halo,
         interieur: dedans,
+        exception,
     }
 }
 
@@ -242,11 +255,26 @@ pub struct ResultatOmbre {
     pub reference: [Cote; 4],
     pub candidat: [Cote; 4],
     pub violations: Vec<String>,
+    /// Les valeurs des trois garde-fous (0 pour un garde-fou sans côté jugé).
+    pub gardes: Gardes,
+    /// L'ombre est celle de [`JETON_EXCEPTION`] : ses violations ne bloquent pas, ses gardes font
+    /// cliquet.
+    pub exception: bool,
+}
+
+/// Les valeurs mesurées des garde-fous d'une ombre : étalement (px), encre et glissement (écarts
+/// relatifs ; le glissement est celui de l'axe le plus écarté).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Gardes {
+    pub etalement: f64,
+    pub encre: f64,
+    pub glissement: f64,
 }
 
 impl ResultatOmbre {
+    /// Les garde-fous tiennent, ou l'ombre est l'exception nommée (jugée par le cliquet).
     pub fn ok(&self) -> bool {
-        self.violations.is_empty()
+        self.exception || self.violations.is_empty()
     }
 
     /// Les chiffres des côtés, pour le rapport : écart de distance (px) et d'encre (%).
@@ -292,6 +320,7 @@ pub fn juger(
     };
     let juges: Vec<usize> = (0..4).filter(|&k| juge(k)).collect();
     let mut violations = Vec::new();
+    let mut gardes = Gardes::default();
     if !juges.is_empty() {
         let n = juges.len() as f64;
         let etalement = juges
@@ -299,12 +328,14 @@ pub fn juger(
             .map(|&k| c[k].distance - r[k].distance)
             .sum::<f64>()
             / n;
+        gardes.etalement = etalement;
         if etalement.abs() > ECART_ETALEMENT {
             violations.push(format!(
                 "ombre : étalement {etalement:+.2} px (borne ±{ECART_ETALEMENT}) : flou différent"
             ));
         }
         let encre = juges.iter().map(|&k| encre_rel(k)).sum::<f64>() / n;
+        gardes.encre = encre;
         if encre.abs() > ECART_ENCRE_OMBRE {
             violations.push(format!(
                 "ombre : encre {:+.0} % (borne ±{:.0} %) : couleur ou opacité",
@@ -318,6 +349,9 @@ pub fn juger(
             continue;
         }
         let glissement = encre_rel(b) - encre_rel(a);
+        if glissement.abs() > gardes.glissement.abs() {
+            gardes.glissement = glissement;
+        }
         if glissement.abs() > ECART_GLISSEMENT {
             violations.push(format!(
                 "ombre : glissement {axe} {:+.0} % d'encre entre {} et {} (borne ±{:.0} %) : décalage différent",
@@ -333,6 +367,8 @@ pub fn juger(
         reference: r,
         candidat: c,
         violations,
+        gardes,
+        exception: o.jeton == JETON_EXCEPTION,
     }
 }
 
@@ -384,6 +420,7 @@ pub(super) mod tests {
                         sigma: 12.0,
                         etendue: 0.0,
                     }],
+                    jeton: String::new(),
                 },
             }
         }
@@ -429,6 +466,7 @@ pub(super) mod tests {
             hauteur: 20.0,
             rayon: 6.0,
             couches: vec![],
+            jeton: String::new(),
         };
         assert!(interieur(&o, 20, 20));
         assert!(interieur(&o, 10, 20), "bord droit, pixel entier");
@@ -480,6 +518,41 @@ pub(super) mod tests {
         assert!(!res.ok(), "[{}]", res.mesures());
     }
 
+    /// ★ L'exception nommée (amendement de 11:15, point b) : la même ombre trop floue échoue sous un
+    /// autre jeton, passe sous `--shadow-l` avec ses valeurs MESURÉES (pour le cliquet), et un pixel
+    /// de delta > 2 de son halo est compté au lieu d'échouer. Rien ne change pour les autres jetons.
+    #[test]
+    fn seul_shadow_l_porte_l_exception_et_ses_mesures() {
+        let mut m = Modele::menu_sombre();
+        let r = m.peindre(8.0, 12.0, 0.0);
+        let c = m.peindre(8.0, 13.5, 0.3);
+        m.o.jeton = "--menu-shadow".to_owned();
+        let autre = juger_modele(&m, &c, &r);
+        assert!(!autre.ok() && !autre.exception);
+        m.o.jeton = JETON_EXCEPTION.to_owned();
+        let nommee = juger_modele(&m, &c, &r);
+        assert!(nommee.exception && nommee.ok(), "{:?}", nommee.violations);
+        assert!(
+            !nommee.violations.is_empty(),
+            "les violations restent lisibles"
+        );
+        assert!(
+            nommee.gardes.etalement > ECART_ETALEMENT,
+            "{:?}",
+            nommee.gardes
+        );
+        let s = crate::pixels::sas::comparer(&r, &c, &[], std::slice::from_ref(&m.o)).unwrap();
+        assert_eq!(
+            s.differents_hors, 0,
+            "{} px hors tolérance",
+            s.differents_hors
+        );
+        assert!(s.forts_exception > 0 && s.delta_max_exception > DELTA_OMBRE);
+        assert_eq!(s.verdict, crate::pixels::Verdict::Tolere);
+        let g = s.gardes_exception().unwrap_or_default();
+        assert!(g.etalement > ECART_ETALEMENT, "{g:?}");
+    }
+
     /// ★ CONTRE-ÉPREUVE : un rayon de flou changé d'1 px (CSS : `flou` 24 → 25, σ 12 → 12,5 ; et
     /// σ 12 → 13) fait échouer.
     #[test]
@@ -519,6 +592,7 @@ mod contre_epreuve {
                 sigma: 12.0,
                 etendue: 0.0,
             }],
+            jeton: "--menu-shadow".to_owned(),
         }
     }
 

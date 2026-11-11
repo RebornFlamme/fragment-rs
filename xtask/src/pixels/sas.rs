@@ -18,7 +18,8 @@
 
 use image::{Rgba, RgbaImage};
 
-use super::boites::{BoiteEncre, Categorie, OmbreDeclaree};
+use super::arrondis::{self, ResultatArrondi};
+use super::boites::{ArrondiDeclare, BoiteEncre, Categorie, OmbreDeclaree};
 use super::ombres::{self, ResultatOmbre};
 use super::{Boite, Verdict, zones_connexes};
 
@@ -340,6 +341,18 @@ pub struct Sas {
     pub aire_halos: u64,
     pub forts_dans_halos: u64,
     pub ombres: Vec<ResultatOmbre>,
+    /// Exception nommée `--shadow-l` : pixels de delta > 2 dans son halo (non bloquants, en
+    /// cliquet) et leur plus fort delta.
+    pub forts_exception: u64,
+    pub delta_max_exception: u8,
+    /// Catégorie bord d'arrondi (amendement de 11:15) : pixels tolérés (delta ≤ 6) dans les bandes
+    /// des arcs déclarés, plus fort delta parmi eux, aire des bandes ; pixels de delta > 6 dans une
+    /// bande (comptés aussi dans `differents_hors`).
+    pub differents_arrondi: u64,
+    pub delta_max_arrondi: u8,
+    pub aire_bandes: u64,
+    pub forts_dans_bandes: u64,
+    pub arrondis: Vec<ResultatArrondi>,
     pub verdict: Verdict,
     pub diff: RgbaImage,
 }
@@ -363,17 +376,64 @@ impl Sas {
         }
     }
 
+    /// Part de pixels tolérés dans les bandes d'arrondi (en %).
+    pub fn pourcent_arrondi(&self) -> f64 {
+        if self.aire_bandes == 0 {
+            0.0
+        } else {
+            100.0 * self.differents_arrondi as f64 / self.aire_bandes as f64
+        }
+    }
+
+    /// Les garde-fous mesurés de l'exception nommée : le pire, en valeur absolue, des surfaces de
+    /// `--shadow-l` (`None` sans telle surface).
+    pub fn gardes_exception(&self) -> Option<ombres::Gardes> {
+        let liste: Vec<&ombres::Gardes> = self
+            .ombres
+            .iter()
+            .filter(|o| o.exception)
+            .map(|o| &o.gardes)
+            .collect();
+        if liste.is_empty() {
+            return None;
+        }
+        let pire = |f: fn(&ombres::Gardes) -> f64| {
+            liste
+                .iter()
+                .map(|g| f(g))
+                .fold(0.0f64, |p, v| p.max(v.abs()))
+        };
+        Some(ombres::Gardes {
+            etalement: pire(|g| g.etalement),
+            encre: pire(|g| g.encre),
+            glissement: pire(|g| g.glissement),
+        })
+    }
+
     pub fn dettes_largeur(&self) -> usize {
         self.boites.iter().filter(|b| b.dette_largeur).count()
     }
 }
 
-/// Compare `reference` et `candidat` avec les `boites` et les `ombres` déclarées par le candidat.
+/// Compare `reference` et `candidat` avec les `boites` et les `ombres` déclarées, sans arrondis.
+#[cfg(test)]
 pub fn comparer(
     reference: &RgbaImage,
     candidat: &RgbaImage,
     boites: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
+) -> anyhow::Result<Sas> {
+    comparer_tout(reference, candidat, boites, ombres, &[])
+}
+
+/// Compare `reference` et `candidat` avec les `boites`, les `ombres` et les `arrondis` déclarés par
+/// le candidat.
+pub fn comparer_tout(
+    reference: &RgbaImage,
+    candidat: &RgbaImage,
+    boites: &[BoiteEncre],
+    ombres: &[OmbreDeclaree],
+    arrondis: &[ArrondiDeclare],
 ) -> anyhow::Result<Sas> {
     if reference.dimensions() != candidat.dimensions() {
         anyhow::bail!(
@@ -402,6 +462,21 @@ pub fn comparer(
         .map(|(&h, &d)| h && !d)
         .collect();
     let aire_halos = halo.iter().filter(|&&h| h).count() as u64;
+    let exception: Vec<bool> = masques
+        .exception
+        .iter()
+        .zip(&dans)
+        .map(|(&e, &d)| e && !d)
+        .collect();
+    // Les bandes des arcs, hors des boîtes de texte.
+    let bande: Vec<bool> = arrondis::masque(arrondis, largeur, hauteur)
+        .iter()
+        .zip(&dans)
+        .map(|(&b, &d)| b && !d)
+        .collect();
+    let aire_bandes = bande.iter().filter(|&&b| b).count() as u64;
+    let (mut differents_arrondi, mut delta_max_arrondi, mut forts_dans_bandes) = (0u64, 0u8, 0u64);
+    let (mut forts_exception, mut delta_max_exception) = (0u64, 0u8);
     let (mut differents_ombre, mut delta_max_ombre, mut forts_dans_halos) = (0u64, 0u8, 0u64);
     let mut diff = RgbaImage::new(largeur, hauteur);
     let mut masque_hors = vec![false; dans.len()];
@@ -424,13 +499,24 @@ pub fn comparer(
             delta_max_boites = delta_max_boites.max(delta);
             // Orange : écart toléré dans une boîte ; rouge : hors boîte.
             diff.put_pixel(x, y, Rgba([255, 160, 0, 255]));
+        } else if bande[i] && delta <= arrondis::DELTA_ARRONDI {
+            differents_arrondi += 1;
+            delta_max_arrondi = delta_max_arrondi.max(delta);
+            // Violet : écart toléré dans la bande d'un arc.
+            diff.put_pixel(x, y, Rgba([190, 0, 255, 255]));
         } else if halo[i] && delta <= ombres::DELTA_OMBRE {
             differents_ombre += 1;
             delta_max_ombre = delta_max_ombre.max(delta);
             // Bleu : écart toléré dans un halo d'ombre.
             diff.put_pixel(x, y, Rgba([0, 140, 255, 255]));
+        } else if exception[i] && !bande[i] {
+            forts_exception += 1;
+            delta_max_exception = delta_max_exception.max(delta);
+            // Cyan : exception nommée `--shadow-l`, mesurée par le cliquet.
+            diff.put_pixel(x, y, Rgba([0, 230, 230, 255]));
         } else {
-            forts_dans_halos += u64::from(halo[i]);
+            forts_dans_bandes += u64::from(bande[i]);
+            forts_dans_halos += u64::from(halo[i] && !bande[i]);
             differents_hors += 1;
             delta_max_hors = delta_max_hors.max(delta);
             differents_hors_faibles += u64::from(delta <= 2);
@@ -480,7 +566,13 @@ pub fn comparer(
         .iter()
         .map(|o| ombres::juger(reference, candidat, o, &halo, &exclus))
         .collect();
-    let gardes = resultats.iter().all(ResultatBoite::ok) && resultats_ombres.iter().all(|o| o.ok());
+    let resultats_arrondis: Vec<ResultatArrondi> = arrondis
+        .iter()
+        .map(|a| arrondis::juger(reference, candidat, a, &dans))
+        .collect();
+    let gardes = resultats.iter().all(ResultatBoite::ok)
+        && resultats_ombres.iter().all(|o| o.ok())
+        && resultats_arrondis.iter().all(ResultatArrondi::ok);
     let verdict = if differents == 0 {
         Verdict::Strict
     } else if differents_hors == 0 && gardes {
@@ -508,6 +600,13 @@ pub fn comparer(
         aire_halos,
         forts_dans_halos,
         ombres: resultats_ombres,
+        forts_exception,
+        delta_max_exception,
+        differents_arrondi,
+        delta_max_arrondi,
+        aire_bandes,
+        forts_dans_bandes,
+        arrondis: resultats_arrondis,
         verdict,
         diff,
     })

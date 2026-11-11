@@ -1,11 +1,29 @@
 {
-  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent) et dans les halos d'ombre (ombre_delta_max, ombre_pourcent). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
   "scenes": {
+    "t1-notice-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 60.4167,
+      "delta_max": 104,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 1.6345,
+      "pourcent": 37.1968
+    },
     "t1-toolbar-horizontale-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 19.8413,
       "delta_max": 54,
       "ombre_delta_max": 1,
-      "ombre_pourcent": 9.9501,
+      "ombre_pourcent": 9.7349,
       "pourcent": 26.6705
+    },
+    "t1-toolbar-horizontale-light.png": {
+      "arrondi_delta_max": 2,
+      "arrondi_pourcent": 30.5556,
+      "delta_max": 62,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 7.0724,
+      "pourcent": 26.1521
     }
   }
 }

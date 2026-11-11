@@ -10,6 +10,7 @@
 //! boîte est une vraie divergence. Les anciens seuils (delta ≤ 16, 0,3 %, zones < 20 × 20) sont
 //! remplacés : ils faisaient échouer toute scène textuelle (ADR-009).
 
+mod arrondis;
 mod boites;
 mod ombres;
 mod sas;
@@ -21,7 +22,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, bail};
 use image::RgbaImage;
 
-use boites::{BoiteEncre, OmbreDeclaree};
+use boites::{ArrondiDeclare, BoiteEncre, OmbreDeclaree};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Verdict {
@@ -295,6 +296,23 @@ struct Base {
     ombre_delta_max: u8,
     /// Part de pixels tolérés dans les halos, en %, arrondie à 4 décimales.
     ombre_pourcent: f64,
+    /// Plus fort delta toléré dans les bandes d'arrondi (amendement de 11:15, point a).
+    arrondi_delta_max: u8,
+    /// Part de pixels tolérés dans les bandes, en %, arrondie à 4 décimales.
+    arrondi_pourcent: f64,
+    /// L'exception nommée `--shadow-l` (point b), quand le PNG en a une surface.
+    exception: Option<BaseException>,
+}
+
+/// Les valeurs mesurées de l'exception `--shadow-l` d'un PNG (donc d'un thème) : le pire, en valeur
+/// absolue, des trois garde-fous, et les pixels de delta > 2 de son halo.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+struct BaseException {
+    etalement: f64,
+    encre: f64,
+    glissement: f64,
+    delta_max: u8,
+    forts: u64,
 }
 
 impl Base {
@@ -341,6 +359,32 @@ fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
                 pourcent: part("pourcent")?,
                 ombre_delta_max: delta("ombre_delta_max")?,
                 ombre_pourcent: part("ombre_pourcent")?,
+                arrondi_delta_max: delta("arrondi_delta_max")?,
+                arrondi_pourcent: part("arrondi_pourcent")?,
+                exception: match v.get("shadow_l") {
+                    None => None,
+                    Some(e) => {
+                        let f = |cle: &str| {
+                            e[cle]
+                                .as_f64()
+                                .with_context(|| format!("{nom} : shadow_l.{cle} invalide"))
+                        };
+                        Some(BaseException {
+                            etalement: f("etalement")?,
+                            encre: f("encre")?,
+                            glissement: f("glissement")?,
+                            delta_max: e["delta_max"]
+                                .as_u64()
+                                .and_then(|d| u8::try_from(d).ok())
+                                .with_context(|| {
+                                format!("{nom} : shadow_l.delta_max invalide")
+                            })?,
+                            forts: e["forts"]
+                                .as_u64()
+                                .with_context(|| format!("{nom} : shadow_l.forts invalide"))?,
+                        })
+                    }
+                },
             },
         );
     }
@@ -351,19 +395,28 @@ fn ecrire_cliquet(chemin: &Path, base: &BTreeMap<String, Base>) -> anyhow::Resul
     let scenes: serde_json::Map<String, serde_json::Value> = base
         .iter()
         .map(|(nom, b)| {
-            (
-                nom.clone(),
-                serde_json::json!({
-                    "delta_max": b.delta_max,
-                    "pourcent": b.pourcent,
-                    "ombre_delta_max": b.ombre_delta_max,
-                    "ombre_pourcent": b.ombre_pourcent,
-                }),
-            )
+            let mut v = serde_json::json!({
+                "delta_max": b.delta_max,
+                "pourcent": b.pourcent,
+                "ombre_delta_max": b.ombre_delta_max,
+                "ombre_pourcent": b.ombre_pourcent,
+                "arrondi_delta_max": b.arrondi_delta_max,
+                "arrondi_pourcent": b.arrondi_pourcent,
+            });
+            if let Some(e) = b.exception {
+                v["shadow_l"] = serde_json::json!({
+                    "etalement": e.etalement,
+                    "encre": e.encre,
+                    "glissement": e.glissement,
+                    "delta_max": e.delta_max,
+                    "forts": e.forts,
+                });
+            }
+            (nom.clone(), v)
         })
         .collect();
     let json = serde_json::json!({
-        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent) et dans les halos d'ombre (ombre_delta_max, ombre_pourcent). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
         "scenes": scenes,
     });
     if let Some(parent) = chemin.parent() {
@@ -409,6 +462,49 @@ fn verifier_cliquet(mesure: Base, base: Option<&Base>) -> Option<String> {
             mesure.ombre_pourcent, base.ombre_pourcent
         ));
     }
+    if mesure.arrondi_delta_max > base.arrondi_delta_max {
+        raisons.push(format!(
+            "delta max d'arrondi {} > base {}",
+            mesure.arrondi_delta_max, base.arrondi_delta_max
+        ));
+    }
+    if arrondir(mesure.arrondi_pourcent) > base.arrondi_pourcent {
+        raisons.push(format!(
+            "{:.4} % dans les bandes d'arrondi > base {:.4} %",
+            mesure.arrondi_pourcent, base.arrondi_pourcent
+        ));
+    }
+    match (mesure.exception, base.exception) {
+        (None, _) => {}
+        (Some(_), None) => raisons.push("exception --shadow-l sans base".to_owned()),
+        (Some(m), Some(b)) => {
+            for (quoi, v, max) in [
+                ("étalement", m.etalement, b.etalement),
+                ("encre", m.encre, b.encre),
+                ("glissement", m.glissement, b.glissement),
+            ] {
+                if arrondir(v.abs()) > max.abs() {
+                    raisons.push(format!(
+                        "--shadow-l : {quoi} {:.4} > base {:.4}",
+                        v.abs(),
+                        max.abs()
+                    ));
+                }
+            }
+            if m.delta_max > b.delta_max {
+                raisons.push(format!(
+                    "--shadow-l : delta max {} > base {}",
+                    m.delta_max, b.delta_max
+                ));
+            }
+            if m.forts > b.forts {
+                raisons.push(format!(
+                    "--shadow-l : {} px de delta > 2 > base {}",
+                    m.forts, b.forts
+                ));
+            }
+        }
+    }
     (!raisons.is_empty()).then(|| format!("cliquet aggravé : {}", raisons.join(" ; ")))
 }
 
@@ -439,22 +535,30 @@ fn ecrire_rapport(chemin: &Path, section: &str) -> anyhow::Result<()> {
 /// Les boîtes et les surfaces ombrées d'un candidat : son fichier de déclaration voisin du PNG,
 /// sinon des boîtes dérivées de l'image et AUCUNE ombre (un candidat plus ancien que l'export n'a
 /// pas de fichier ; ses ombres restent strictes, le halo ne se déduit jamais de l'image).
-fn boites_du_candidat(
-    dossier: &Path,
-    nom: &str,
-    image: &RgbaImage,
-) -> anyhow::Result<(Vec<BoiteEncre>, Vec<OmbreDeclaree>)> {
+fn boites_du_candidat(dossier: &Path, nom: &str, image: &RgbaImage) -> anyhow::Result<Declaration> {
     let chemin = dossier.join(nom.replace(".png", ".boites.json"));
     match std::fs::read_to_string(&chemin) {
         Ok(texte) => {
             let illisible = || format!("{} illisible", chemin.display());
-            Ok((
-                boites::deserialiser(&texte).with_context(illisible)?,
-                boites::deserialiser_ombres(&texte).with_context(illisible)?,
-            ))
+            Ok(Declaration {
+                boites: boites::deserialiser(&texte).with_context(illisible)?,
+                ombres: boites::deserialiser_ombres(&texte).with_context(illisible)?,
+                arrondis: boites::deserialiser_arrondis(&texte).with_context(illisible)?,
+            })
         }
-        Err(_) => Ok((boites::detecter(image), Vec::new())),
+        Err(_) => Ok(Declaration {
+            boites: boites::detecter(image),
+            ombres: Vec::new(),
+            arrondis: Vec::new(),
+        }),
     }
+}
+
+/// Ce que le candidat déclare d'une capture (ADR-009) : boîtes, surfaces ombrées, boîtes arrondies.
+struct Declaration {
+    boites: Vec<BoiteEncre>,
+    ombres: Vec<OmbreDeclaree>,
+    arrondis: Vec<ArrondiDeclare>,
 }
 
 /// Point d'entrée de `cargo xtask pixels`. Rend `Ok(true)` si toutes les scènes passent.
@@ -482,15 +586,16 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
 
     let mut ok = true;
     let mut rapport = String::from(
-        "Généré par `cargo xtask pixels` (ADR-009). Hors des boîtes de texte et d'icônes : strict, 0 pixel. Dans une boîte : anticrénelage seul, sous quatre garde-fous (encre totale, boîte d'encre, forme, teinte). Dans le halo d'une ombre déclarée (hors intérieur de la surface) : delta ≤ 2, sous trois garde-fous (étalement, glissement, encre).\n\n| Scène | Verdict | Boîtes (texte/icônes) | Hors boîtes (px) | Dans les boîtes (px) | % dans les boîtes | Delta max | Largeur ±1 (dette fr-t1.3) | Ombres | Halos (px tolérés) | % halos | Delta ombre | Cliquet |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
+        "Généré par `cargo xtask pixels` (ADR-009). Hors des boîtes de texte et d'icônes : strict, 0 pixel. Dans une boîte : anticrénelage seul, sous quatre garde-fous (encre totale, boîte d'encre, forme, teinte). Dans le halo d'une ombre déclarée (hors intérieur de la surface) : delta ≤ 2, sous trois garde-fous (étalement, glissement, encre) ; exception nommée `--shadow-l` en cliquet. Dans la bande (±1 px) d'un arc de coin déclaré : delta ≤ 6, sous le garde-fou de position de l'arc.\n\n| Scène | Verdict | Boîtes (texte/icônes) | Hors boîtes (px) | Dans les boîtes (px) | % dans les boîtes | Delta max | Largeur ±1 (dette fr-t1.3) | Ombres | Halos (px tolérés) | % halos | Delta ombre | Arrondis | Bandes (px tolérés) | Delta arrondi | Cliquet |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n",
     );
     let mut details = String::new();
     let mut mesures_ombres = String::new();
+    let mut mesures_arrondis = String::new();
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
-        let ligne = match boites_du_candidat(&o.candidat, nom, &c).and_then(|(boites, ombres)| {
-            sas::comparer(&r, &c, &boites, &ombres).map(|s| (boites, s))
+        let ligne = match boites_du_candidat(&o.candidat, nom, &c).and_then(|d| {
+            sas::comparer_tout(&r, &c, &d.boites, &d.ombres, &d.arrondis).map(|s| (d.boites, s))
         }) {
             Ok((boites, s)) => {
                 s.diff.save(o.diff.join(nom))?;
@@ -499,6 +604,19 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     pourcent: arrondir(s.pourcent_boites()),
                     ombre_delta_max: s.delta_max_ombre,
                     ombre_pourcent: arrondir(s.pourcent_ombre()),
+                    arrondi_delta_max: s.delta_max_arrondi,
+                    arrondi_pourcent: arrondir(s.pourcent_arrondi()),
+                    exception: s
+                        .gardes_exception()
+                        .map(|g| BaseException {
+                            etalement: arrondir(g.etalement),
+                            encre: arrondir(g.encre),
+                            glissement: arrondir(g.glissement),
+                            delta_max: s.delta_max_exception,
+                            forts: s.forts_exception,
+                        })
+                        // Une exception sans écart (capture comparée à elle-même) ne demande pas de base.
+                        .filter(|e| *e != BaseException::default()),
                 };
                 let mut verdict = s.verdict;
                 let cliquet = if verdict == Verdict::Echec {
@@ -559,6 +677,27 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                             res.mesures()
                         )?;
                     }
+                    if s.forts_dans_bandes > 0 {
+                        writeln!(
+                            details,
+                            "- {nom} : {} px de delta > {} dans les bandes d'arrondi",
+                            s.forts_dans_bandes,
+                            arrondis::DELTA_ARRONDI
+                        )?;
+                    }
+                    for res in s.arrondis.iter().filter(|a| !a.ok()) {
+                        writeln!(
+                            details,
+                            "- {nom} : arrondi ({:.0},{:.0}) {:.0}×{:.0} r {} : {} [{}]",
+                            res.arrondi.x,
+                            res.arrondi.y,
+                            res.arrondi.largeur,
+                            res.arrondi.hauteur,
+                            res.arrondi.rayon,
+                            res.violations.join(" ; "),
+                            res.mesures()
+                        )?;
+                    }
                     for b in s.boites.iter().filter(|b| !b.ok()) {
                         writeln!(
                             details,
@@ -574,9 +713,22 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     }
                 }
                 for (k, res) in s.ombres.iter().enumerate() {
+                    let exception = if res.exception {
+                        format!(
+                            " EXCEPTION {} (étalement {:+.2} px, encre {:+.0} %, glissement {:+.0} %, {} px de delta > 2, delta max {})",
+                            ombres::JETON_EXCEPTION,
+                            res.gardes.etalement,
+                            100.0 * res.gardes.encre,
+                            100.0 * res.gardes.glissement,
+                            s.forts_exception,
+                            s.delta_max_exception
+                        )
+                    } else {
+                        String::new()
+                    };
                     writeln!(
                         mesures_ombres,
-                        "- {nom} : surface {k} ({:.0},{:.0}) {:.0}×{:.0}{} : {}",
+                        "- {nom} : surface {k} ({:.0},{:.0}) {:.0}×{:.0}{exception}{} : {}",
                         res.ombre.x,
                         res.ombre.y,
                         res.ombre.largeur,
@@ -585,9 +737,25 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         res.mesures()
                     )?;
                 }
+                for res in &s.arrondis {
+                    let pire = res.pire_aire();
+                    if pire > 0.0 {
+                        writeln!(
+                            mesures_arrondis,
+                            "- {nom} : ({:.0},{:.0}) {:.0}×{:.0} r {}{} : pire déplacement {pire:.3} px ({})",
+                            res.arrondi.x,
+                            res.arrondi.y,
+                            res.arrondi.largeur,
+                            res.arrondi.hauteur,
+                            res.arrondi.rayon,
+                            if res.ok() { "" } else { " ÉCHEC" },
+                            res.mesures()
+                        )?;
+                    }
+                }
                 let (texte, icones) = sas::par_categorie(&boites);
                 format!(
-                    "| {nom} | {verdict:?} | {texte}/{icones} | {} | {} | {:.4} | {} | {} | {} | {} | {:.4} | {} | {cliquet} |",
+                    "| {nom} | {verdict:?} | {texte}/{icones} | {} | {} | {:.4} | {} | {} | {} | {} | {:.4} | {} | {} | {} | {} | {cliquet} |",
                     s.differents_hors,
                     s.differents_boites,
                     s.pourcent_boites(),
@@ -597,11 +765,16 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     s.differents_ombre,
                     s.pourcent_ombre(),
                     s.delta_max_ombre,
+                    s.arrondis.len(),
+                    s.differents_arrondi,
+                    s.delta_max_arrondi,
                 )
             }
             Err(erreur) => {
                 ok = false;
-                format!("| {nom} | Echec | — | — | — | — | — | — | — | — | — | — | {erreur} |")
+                format!(
+                    "| {nom} | Echec | — | — | — | — | — | — | — | — | — | — | — | — | — | {erreur} |"
+                )
             }
         };
         println!("{ligne}");
@@ -616,7 +789,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         for nom in liste {
             writeln!(
                 rapport,
-                "| {nom} | {etat} | — | — | — | — | — | — | — | — | — | — | — |"
+                "| {nom} | {etat} | — | — | — | — | — | — | — | — | — | — | — | — | — | — |"
             )?;
         }
         if !liste.is_empty() {
@@ -627,7 +800,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         ok = false;
         writeln!(
             rapport,
-            "| {nom} | MANQUANT (--exiger-references) | — | — | — | — | — | — | — | — | — | — | — |"
+            "| {nom} | MANQUANT (--exiger-references) | — | — | — | — | — | — | — | — | — | — | — | — | — | — |"
         )?;
         eprintln!(
             "xtask pixels : {nom} manque (référence ou candidat), exigé par --exiger-references"
@@ -645,6 +818,13 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
             "\nOmbres (distance au bord et encre, candidat moins référence) :\n\n{mesures_ombres}"
         )?;
         print!("{mesures_ombres}");
+    }
+    if !mesures_arrondis.is_empty() {
+        write!(
+            rapport,
+            "\nArrondis (déplacement radial moyen de chaque arc, candidat moins référence) :\n\n{mesures_arrondis}"
+        )?;
+        print!("{mesures_arrondis}");
     }
     if plan.paires.is_empty() && !o.exiger_references {
         println!("xtask pixels : aucune paire référence/candidat à comparer (en attente)");
@@ -865,12 +1045,30 @@ mod tests {
             pourcent: 1.0,
             ombre_delta_max: 2,
             ombre_pourcent: 5.0,
+            arrondi_delta_max: 6,
+            arrondi_pourcent: 10.0,
+            exception: Some(BaseException {
+                etalement: 1.5,
+                encre: 0.3,
+                glissement: 0.4,
+                delta_max: 4,
+                forts: 30,
+            }),
         };
         let mieux = Base {
             delta_max: 90,
             pourcent: 0.5,
             ombre_delta_max: 1,
             ombre_pourcent: 4.0,
+            arrondi_delta_max: 5,
+            arrondi_pourcent: 9.0,
+            exception: Some(BaseException {
+                etalement: -1.4,
+                encre: 0.2,
+                glissement: -0.3,
+                delta_max: 3,
+                forts: 20,
+            }),
         };
         assert_eq!(verifier_cliquet(mieux, Some(&base)), None);
         assert_eq!(verifier_cliquet(base, Some(&base)), None);
@@ -895,6 +1093,43 @@ mod tests {
             ..base
         };
         assert!(verifier_cliquet(pire_halo, Some(&base)).is_some());
+        // Et pour les arrondis (amendement de 11:15, point a).
+        let pire_arrondi = Base {
+            arrondi_delta_max: 7,
+            ..base
+        };
+        assert!(verifier_cliquet(pire_arrondi, Some(&base)).is_some());
+        let pire_bande = Base {
+            arrondi_pourcent: 10.0001,
+            ..base
+        };
+        assert!(verifier_cliquet(pire_bande, Some(&base)).is_some());
+        // L'exception --shadow-l : chaque valeur mesurée fait cliquet, en valeur absolue.
+        let e = base.exception.unwrap_or_default();
+        for pire in [
+            BaseException {
+                etalement: -1.51,
+                ..e
+            },
+            BaseException { encre: 0.31, ..e },
+            BaseException {
+                glissement: -0.41,
+                ..e
+            },
+            BaseException { delta_max: 5, ..e },
+            BaseException { forts: 31, ..e },
+        ] {
+            let m = Base {
+                exception: Some(pire),
+                ..base
+            };
+            assert!(verifier_cliquet(m, Some(&base)).is_some(), "{pire:?}");
+        }
+        let sans_base = Base {
+            exception: None,
+            ..base
+        };
+        assert!(verifier_cliquet(base, Some(&sans_base)).is_some());
         // Rien à publier si rien ne diverge dans les boîtes ; sinon une base est exigée.
         let zero = Base::default();
         assert_eq!(verifier_cliquet(zero, None), None);

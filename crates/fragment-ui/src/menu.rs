@@ -644,6 +644,7 @@ fn rendre_niveau(
         boite,
         cx,
         &c.menu_shadow,
+        "--menu-shadow",
         u(cx, f.radius_m),
         u(cx, f.border_width),
     );

@@ -14,10 +14,10 @@ use std::time::{Duration, Instant};
 use fragment_core::{Command, CommandManager};
 use gpui_kit::{
     AnyElement, App, ClickEvent, FontWeight, InteractiveElement as _, IntoElement,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, Window, div,
+    ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, Window, div,
 };
 
-use crate::echelle::u;
+use crate::echelle::{calees, u};
 use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -157,9 +157,41 @@ pub fn couche(cx: &App) -> AnyElement {
     let f = &t.forme;
     // `max-width: 340px` s'applique à la boîte de CONTENU : on y ajoute rembourrage et bordure.
     let largeur_max = LARGEUR_MAX + 2.0 * f.size_2_7 + 2.0 * f.border_width;
+    // ★ Chromium empile les cartes en positions FRACTIONNAIRES (ligne de 12 × 1,4 = 16,8 px) et
+    // n'arrondit qu'à la peinture, arête par arête : la carte à deux lignes (55,6 px) posée à 62,8 se
+    // peint de 63 à 118 (55 px), la suivante part de 126,4, peinte à 126. GPUI arrondit chaque ligne à
+    // 17 px (56 px pour deux) : on lui donne donc hauteurs et écarts déjà calés (`echelle::calees`),
+    // quand le nombre de lignes de chaque carte est connu (aucune ne passe à la ligne d'elle-même).
+    let interligne = t.typo.font_ui_small * 1.4;
+    let lignes: Vec<Option<usize>> = entrees
+        .iter()
+        .map(|e| {
+            let lignes: Vec<&str> = e.message.split('\n').collect();
+            let tient = lignes.iter().all(|l| {
+                largeur_texte(cx, l, FontWeight::NORMAL, t.typo.font_ui_small) <= LARGEUR_MAX
+            });
+            tient.then_some(lignes.len())
+        })
+        .collect();
+    let calage: Option<Vec<Pixels>> =
+        lignes
+            .iter()
+            .copied()
+            .collect::<Option<Vec<usize>>>()
+            .map(|ns| {
+                let mut segments = Vec::with_capacity(2 * ns.len());
+                for (k, n) in ns.iter().enumerate() {
+                    if k > 0 {
+                        segments.push(f.size_4_2);
+                    }
+                    segments.push(*n as f32 * interligne + 2.0 * f.size_2_5 + 2.0 * f.border_width);
+                }
+                calees(cx, f.size_4_4, &segments)
+            });
     let cartes: Vec<AnyElement> = entrees
         .into_iter()
-        .map(|e| {
+        .enumerate()
+        .map(|(k, e)| {
             let id = e.id;
             // ★ `fr-t1.3` : une notice d'une ligne qui tient se peint à la largeur ENTIÈRE de Chromium (texte
             // exact + rembourrage + bordures, arrondi) ; GPUI arrondirait la feuille au pixel supérieur.
@@ -198,12 +230,19 @@ pub fn couche(cx: &App) -> AnyElement {
             } else {
                 carte
             };
+            // Hauteur et écart calés comme Chromium (voir plus haut).
+            let carte = match &calage {
+                Some(c) if k > 0 => carte.h(c[2 * k]).mt(c[2 * k - 1]),
+                Some(c) => carte.h(c[0]),
+                None => carte,
+            };
             let carte = bordure(carte, u(cx, f.border_width))
                 .border_color(couleur(c.background_modifier_border));
             let carte = ombrer(
                 carte,
                 cx,
                 &c.shadow_s,
+                "--shadow-s",
                 u(cx, f.radius_m),
                 u(cx, f.border_width),
             );
@@ -218,7 +257,11 @@ pub fn couche(cx: &App) -> AnyElement {
         .flex()
         .flex_col()
         .items_end()
-        .gap(u(cx, f.size_4_2))
+        .gap(if calage.is_some() {
+            u(cx, 0.0)
+        } else {
+            u(cx, f.size_4_2)
+        })
         .p(u(cx, f.size_4_4))
         .children(cartes)
         .into_any_element()

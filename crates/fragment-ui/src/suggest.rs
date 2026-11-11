@@ -18,14 +18,14 @@ use fragment_core::{
     prepare_fuzzy_search,
 };
 use gpui_kit::{
-    AppContext as _, Context, FocusHandle, FontWeight, HighlightStyle, Hsla,
-    InteractiveElement as _, IntoElement, KeyDownEvent, Modifiers, MouseButton, MouseDownEvent,
-    MouseMoveEvent, ParentElement as _, Render, ScrollHandle, StatefulInteractiveElement as _,
-    Styled as _, StyledText, Window, div, relative, svg,
+    AppContext as _, Context, FocusHandle, Font, FontFallbacks, FontStyle, FontWeight,
+    HighlightStyle, Hsla, InteractiveElement as _, IntoElement, KeyDownEvent, Modifiers,
+    MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement as _, Render, ScrollHandle,
+    StatefulInteractiveElement as _, Styled, StyledText, TextRun, Window, div, relative, svg,
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::ombrer;
+use crate::flottant::{arrondir, ombrer};
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
@@ -551,12 +551,11 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .gap(u(cx, t.forme.size_2_3));
             for a in &ligne.aux {
                 aux = match a {
-                    Auxiliaire::Raccourci(texte) => aux.child(
+                    Auxiliaire::Raccourci(texte) => aux.child(arrondir(
                         div()
                             .px(u(cx, t.forme.size_2_3))
                             .py(u(cx, 1.0))
                             .line_height(interligne_puce)
-                            .rounded(u(cx, t.forme.radius_s))
                             .bg(couleur(fond_puce))
                             .border(bordure)
                             .border_color(contour)
@@ -564,7 +563,10 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                             .text_size(u(cx, t.typo.font_ui_smaller))
                             .whitespace_nowrap()
                             .child(texte.clone()),
-                    ),
+                        cx,
+                        u(cx, t.forme.radius_s),
+                        bordure,
+                    )),
                     Auxiliaire::Epingle => aux.child(
                         div().flex().text_color(attenue).child(
                             svg()
@@ -587,7 +589,13 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .rounded(u(cx, t.forme.radius_sm))
                 .text_color(normal);
             if selection == Some(i) {
-                rangee = rangee.bg(couleur(fond_rangee));
+                // Le fond sélectionné est arrondi : ses coins sont déclarés (ADR-009, bord d'arrondi).
+                rangee = arrondir(
+                    rangee.bg(couleur(fond_rangee)),
+                    cx,
+                    u(cx, t.forme.radius_sm),
+                    u(cx, 0.0),
+                );
             }
             // mousemove et non « entrée » : le survol ne vole pas la sélection quand la liste
             // défile sous une souris immobile.
@@ -619,12 +627,48 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
         }
 
         // ── La légende ──
+        // ★ Chromium pose les morceaux de la légende en positions FRACTIONNAIRES (largeurs exactes du
+        // texte, écarts de 9 et 6 px) ; GPUI arrondit chaque feuille de texte au pixel supérieur, d'où
+        // +1 px par morceau, +2 à +3 px au bout de la ligne. Les largeurs sont donc mesurées (avec les
+        // replis de Chromium pour les touches) et calées arête par arête (`echelle::calees`).
+        let taille = t.typo.font_ui_small;
+        let mesurer = |texte: &str, graisse: FontWeight| -> f32 {
+            let police = Font {
+                family: FAMILLE_INTERFACE.into(),
+                features: caracteristiques(),
+                fallbacks: Some(replis_chromium()),
+                weight: graisse,
+                style: FontStyle::Normal,
+            };
+            let run = TextRun {
+                len: texte.len(),
+                font: police,
+                color: Default::default(),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            let zoom = u(cx, 1.0);
+            let l = window
+                .text_system()
+                .layout_line(texte, u(cx, taille), &[run], None);
+            f32::from(l.width) / f32::from(zoom)
+        };
+        let mut segments = Vec::new();
+        for (k, ins) in self.parametres.instructions.iter().enumerate() {
+            if k > 0 {
+                segments.push(t.forme.size_2_9);
+            }
+            segments.push(mesurer(&ins.commande, FontWeight::SEMIBOLD));
+            segments.push(t.forme.size_2_3);
+            segments.push(mesurer(&ins.but, FontWeight::NORMAL));
+        }
+        let largeurs = calees(cx, t.forme.size_2_7, &segments);
         let mut legende = div()
             .flex_none()
             .flex()
             .flex_row()
             .flex_wrap()
-            .gap_x(u(cx, t.forme.size_2_9))
             .gap_y(u(cx, t.forme.size_4_1))
             .py(u(cx, t.forme.size_4_2))
             .px(u(cx, t.forme.size_2_7))
@@ -632,20 +676,33 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             .border_color(contour)
             .text_color(attenue)
             .text_size(u(cx, t.typo.font_ui_small));
-        for ins in &self.parametres.instructions {
+        for (k, ins) in self.parametres.instructions.iter().enumerate() {
+            let base = if k > 0 { 4 * k - 1 } else { 0 };
+            let ecart = if k > 0 { largeurs[base] } else { u(cx, 0.0) };
+            let i = if k > 0 { base + 1 } else { 0 };
             legende = legende.child(
                 div()
                     .flex()
                     .flex_row()
                     .items_center()
-                    .gap(u(cx, t.forme.size_2_3))
-                    .child(
+                    .ml(ecart)
+                    .child(repli_chromium(
                         div()
+                            .flex_none()
+                            .w(largeurs[i])
+                            .whitespace_nowrap()
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(normal)
                             .child(ins.commande.clone()),
-                    )
-                    .child(div().child(ins.but.clone())),
+                    ))
+                    .child(
+                        div()
+                            .flex_none()
+                            .ml(largeurs[i + 1])
+                            .w(largeurs[i + 2])
+                            .whitespace_nowrap()
+                            .child(ins.but.clone()),
+                    ),
             );
         }
 
@@ -675,6 +732,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             boite,
             cx,
             &t.palette.shadow_l,
+            "--shadow-l",
             u(cx, t.forme.radius_l),
             bordure,
         );
@@ -683,6 +741,21 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
         }
         boite
     }
+}
+
+/// ★ Les polices de repli de Chromium sous Windows pour les touches de la légende (`↑↓`, `↵`), absentes
+/// de DM Sans. La pile de Fragment (`'DM Sans', system-ui, …, 'Segoe UI'`) donne `↑↓` à Segoe UI
+/// (`system-ui`) ; `↵` (U+21B5), absent de Segoe UI, tombe sur le repli système de Chromium, Cambria
+/// Math (vérifié sur la référence : flèche de 7 lignes posée 1 px au-dessus de la ligne de base, la
+/// forme de Cambria, et non celle de Segoe UI Symbol que choisit le repli de DirectWrite appelé par
+/// GPUI). Segoe UI vient en premier pour que `↑↓` y reste.
+fn repli_chromium<E: Styled>(mut e: E) -> E {
+    e.text_style().font_fallbacks = Some(replis_chromium());
+    e
+}
+
+fn replis_chromium() -> FontFallbacks {
+    FontFallbacks::from_fonts(vec!["Segoe UI".to_owned(), "Cambria Math".to_owned()])
 }
 
 /// Enregistre les commandes de scène `pixels:suggest` : aucune, la palette porte les siennes.
