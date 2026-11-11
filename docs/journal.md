@@ -502,3 +502,8 @@ Livraison de T1 quand #49 est fusionnée.
   - Rythme cible : (97 − 40) ÷ 47,6 h ≈ 1,2 point par heure. Réel depuis 17:40 : environ 4 points par heure, en avance.
   - PR : #64 en CI ; #49 en brouillon, pixels rouge, shell4 au travail.
   - Cinq actifs, pas de place libre. pdfpages est à 232k tokens, près de son arrêt à 250k.
+- 11/11 18:45 UTC : fusionnée #64 (fr-t3-blocs-modele). CI verte sur les 7 jobs, audit à 0, 80 tests, aucune dépendance.
+  - Le curseur dans un pli remonte en fin de ligne parent : accepté.
+  - Questions reportées sur fr-t3-widgets-blocs : rangée à hauteur 0 dans le fork ; repli par nœud non porté.
+  - Bead fermé, worktree et dossier cible retirés.
+  - Lancée : fr-t2-tree-item (Sonnet, `../fragment-rs-treeitem`). Actifs : shell4, pdfpages, imbrique, barre, treeitem.
