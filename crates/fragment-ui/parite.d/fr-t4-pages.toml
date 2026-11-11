@@ -1,0 +1,11 @@
+# Parité de fr-t4-pages (fragment-ui). Schéma `parite.d` : un fichier par tâche. La source est e2e
+# (pdf-nettete, cas pinch de pdf-toolbar) : PdfView.ts et devicePixels.ts n'ont pas de test unitaire.
+# Le modèle (géométrie, zoom, bande, fin de geste) est déjà porté et testé par fr-t4-vue-modele.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (Emplacement, peindre, liberer, repeindre, repeindrePage, recaler, molette), devicePixels.ts, PdfEditor.ts (renderedRanges), pdf-view.css (.pdf-pages, .pdf-page, is-stale, is-pending)"
+rs = "crates/fragment-ui/src/pdf_pages/{mod,vue,emplacements,fil}.rs, crates/fragment-ui/tests/pdf_pages.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 12
+notes = "Portés (tests/pdf_pages.rs) : pdf-nettete 1 (densités × échelles, avec contre-épreuve floor) et 2 (la page glisse, recalée ; la marge de lecture relève de la vue montée), pdf-toolbar 5 (pinch : aucun rendu pendant le geste, un repeint final, dézoom). Non porté : pdf-nettete 3 (vignettes, fr-t4-laterale-ui). Ajoutés : 5 tests de vue (libération hors bande et annulation, pages qui entrent au défilement, espacements du CSS, rendu hors du fil de l'interface, pdfium à la taille physique) et 6 tests unitaires d'emplacements (attente de mesure, image périmée gardée, jetée, libération, rendu raté, renderedRanges). Écart : toutes les tailles de page sont lues à l'ouverture (pdf.js les découvrait au rendu)."
