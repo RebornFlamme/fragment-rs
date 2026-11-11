@@ -403,3 +403,12 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
     - (a) le pixel de l'arc intérieur du coin de la barre d'état (1180,782), delta 9 à 11, entre dans l'exception nommée sous un élément « coin de la barre d'état », aux mêmes conditions ;
     - (b) le passage 221 → 222 au milieu du côté de l'onglet en clair est un artefact de Skia sur le MÊME chemin que le contour (updateTabOutline). Il est couvert par l'exception « contour d'onglet actif » pour les côtés, au delta 1 SEULEMENT, en cliquet.
   - Reprise par un troisième équipier Opus (shell3) : réglages, zoom-80/150, entete-vue, glisser-zone.
+- 11/11 14:55 UTC : fr-p4.1 (PR #56, run 43040649423), échange de cliquets accepté par le chef, sous conditions.
+  - Gains :
+    - étalement de `--shadow-l` : de +1,60 à +0,09 px pour la modale sombre, de +1,42 à 0 pour la palette sombre ;
+    - arcs clairs du menu, des notices et de l'infobulle : de 0,23–0,35 à 0,07–0,11 px, 5 exceptions retirées ;
+    - modale et palette claires : déplacement des arcs de 0,20 à 0,02 px, delta max de 33 à 8.
+  - Hausses, sur la modale et les palettes claires seulement : delta d'ombre de 1 à 2 (garde-fou tenu) ; glissement de `--shadow-l` de 0,024 à 0,071 ; pixels non identiques des bandes d'arrondi de 20–25 % à 35–46 % (anticrénelage à 1 niveau).
+  - Conditions : partout ailleurs, cliquet en baisse seulement (preuve dans la PR) ; garde-fous d'ADR-009 intacts ; section datée dans ADR-013.
+  - À REMONTER à l'orchestrateur avec la livraison de T1 (un seuil relâché, §5). Repli en cas de refus : GPUI pour ces quatre PNG.
+- 11/11 14:55 UTC : fr-t1.5, accepté environ 12 lignes dans `sas.rs` (masque `cote_nomme`, delta ≤ 1) et `flottant::arrondir_coins`, en ajout seul ; alpha2 prévenu.
