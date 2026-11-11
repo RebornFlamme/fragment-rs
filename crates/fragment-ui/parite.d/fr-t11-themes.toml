@@ -1,0 +1,11 @@
+# Parité de fr-t11-themes (fragment-ui + fragment-theme). Un fichier par tâche. Specs e2e de
+# Fragment traduites : theme-plugin.spec.ts (3 tests) sur les jetons du Global GPUI et sur le
+# ThemesCoffre (crates/fragment-theme/tests/themes_coffre.rs, crates/fragment-ui/tests/themes.rs).
+
+[[module]]
+ts = "app/src/ui/theme/ThemePlugin.ts, api.ts (theme:manager@1), e2e/theme-plugin.spec.ts"
+rs = "crates/fragment-theme/src/themes_coffre.rs, crates/fragment-ui/src/themes/mod.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 19
+notes = "Portés : le thème de plugin (palette partout, accent sans !important : le theme.json recolore par la cascade ; « aucun gris neutre » est un balayage de la capture, tâche des scènes), l'accent CHOISI en dernière surcharge et vide ignoré sans avertissement, le thème retiré (retour à la palette de Fragment). Ajoutés : liste triée, theme:list / theme:set, modification à chaud regroupée, événements raw du coffre, thème qui apparaît, theme.css signalé une seule fois, theme.json illisible, ouverture du dossier, désabonnement, montage dans le Global, changement de mode. Écarts : un theme.json est plat (pas de .theme-dark / .theme-light) ; pas d'ordre de feuilles à garder en dernier (MutationObserver sans objet)."
