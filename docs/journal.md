@@ -545,3 +545,8 @@ Livraison de T1 quand #49 est fusionnée.
   - Lancée : fr-t4-laterale-ui (Sonnet, `../fragment-rs-laterale`).
   - #70 (fr-t3-surface) et #72 (fr-t4-texte) en CI.
   - Actifs : shell5, surface, pdftexte, explorateur, laterale.
+- 11/11 20:50 UTC, fenêtre 5 h à 52 %, semaine à 43 % : fusionnée #72 (fr-t4-texte). CI verte, audit à 0, 20 tests sur un vrai pdfium.
+  - Écarts dans parite.d : un rect par ligne (et non par span), couche non masquée pendant un pinch.
+  - Décision : le PDF ne sera pas chargé deux fois. Au montage, le Document du fil de rendu est partagé (note sur fr-t4-vue-pdf).
+  - Lancée : fr-t4-recherche-ui (Sonnet, `../fragment-rs-rechercheui`). Actifs : shell5, surface, explorateur, laterale, rechercheui.
+  - Rythme : (97 − 43) ÷ 45,2 h ≈ 1,2 point par heure ; réel depuis 17:40 ≈ 1,9.
