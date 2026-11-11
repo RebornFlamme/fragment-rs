@@ -1,6 +1,7 @@
 // Port de app/src/ui/core/workspace/WorkspaceRibbon.ts, de la poignée de Workspace.attachSidebarResize
 // et de app/src/ui/workspace.css (`.workspace-ribbon`, `.workspace-sidedock*`,
-// `.workspace-sidebar-resize-handle`).
+// `.workspace-sidebar-resize-handle`), et de la présentation de app/src/ui/core/VaultSwitcher.ts
+// (app/src/ui/core/vault-switcher.css).
 //
 //! Le ruban et les docks latéraux.
 //!
@@ -168,6 +169,105 @@ pub fn rendre_fond_dock(dock: &CadreDock, cx: &App) -> AnyElement {
                 .h_full()
                 .bg(couleur(t.palette.tab_outline_color)),
         )
+        .into_any_element()
+}
+
+/// `.vault-switcher-action { opacity: 0.85 }` (vault-switcher.css).
+const OPACITE_COFFRE: f32 = 0.85;
+/// `.clickable-icon.is-disabled { opacity: 0.35 }` : l'aide, pas encore câblée (vault-switcher.css).
+const OPACITE_INERTE: f32 = 0.35;
+/// `.vault-switcher-buttons .clickable-icon svg { width/height: 15px }`.
+const ICONE_PIED: f32 = 15.0;
+
+/// La hauteur du pied du dock gauche (`.workspace-drawer-vault-switcher`) : le trait du haut, le
+/// rembourrage vertical, et le bouton du coffre (rembourré, une ligne de `--font-ui-small`), plus
+/// haut que les boutons de droite (15 px rembourrés).
+pub fn hauteur_pied_coffre(t: &fragment_theme::Theme) -> f32 {
+    let (f, ty) = (&t.forme, &t.typo);
+    f.border_width
+        + 2.0 * f.size_2_3
+        + (2.0 * f.size_4_1 + ty.font_ui_small * ty.line_height_normal)
+            .max(ICONE_PIED + 2.0 * f.size_4_1)
+}
+
+/// Le pied du dock gauche, au cadre `cadre` : le sélecteur de coffre (chevron + nom), puis l'aide
+/// (inerte) et les réglages. ★ Rendu STATIQUE en T1 : le menu des coffres et la fenêtre de gestion
+/// viennent avec T2 (modèle dans `fragment_cli::coffres`, fr-t2-coffres).
+pub fn rendre_pied_coffre(cadre: Cadre, nom: &str, cx: &App) -> AnyElement {
+    let t = theme_ou_defaut(cx);
+    let (c, f, ty) = (&t.palette, &t.forme, &t.typo);
+    let ligne = ty.font_ui_small * ty.line_height_normal;
+    let action = 2.0 * f.size_4_1 + ligne;
+    let bouton = ICONE_PIED + 2.0 * f.size_4_1;
+    let icone = |nom: &str, opacite: f32| {
+        div()
+            .flex()
+            .flex_none()
+            .p(u(cx, f.size_4_1))
+            .rounded(u(cx, f.radius_s))
+            .opacity(opacite)
+            .child(
+                svg()
+                    .path(icones::chemin(nom))
+                    .size(u(cx, ICONE_PIED))
+                    .flex_none()
+                    .text_color(couleur(c.text_normal)),
+            )
+    };
+    let selecteur = div()
+        .flex()
+        .flex_1()
+        .min_w(u(cx, 0.0))
+        .h(u(cx, action))
+        .items_center()
+        .gap(u(cx, f.size_2_3))
+        .px(u(cx, f.size_2_3))
+        .py(u(cx, f.size_4_1))
+        .rounded(u(cx, f.radius_s))
+        .opacity(OPACITE_COFFRE)
+        .text_color(couleur(c.text_normal))
+        .child(
+            svg()
+                .path(icones::chemin("chevrons-up-down"))
+                .size(u(cx, f.icon_xs))
+                .flex_none()
+                .text_color(couleur(c.text_muted)),
+        )
+        .child(
+            crate::flottant::texte(
+                div().whitespace_nowrap().overflow_hidden(),
+                cx,
+                ty.font_ui_small,
+                ty.line_height_normal,
+            )
+            .font_weight(gpui_kit::FontWeight::MEDIUM)
+            .child(nom.to_owned()),
+        );
+    let boutons = div()
+        .flex()
+        .flex_none()
+        .gap(u(cx, f.size_2_1))
+        // Centrés sur la hauteur du sélecteur, l'égalité vers le haut comme Chromium.
+        .pt(moitie(cx, action - bouton))
+        .child(icone("circle-help", OPACITE_INERTE))
+        .child(icone("settings", OPACITE_REPOS));
+    let mut pied = div();
+    pied.style().border_widths.top = Some(gpui_kit::AbsoluteLength::from(u(cx, f.border_width)));
+    pied.absolute()
+        .left(u(cx, cadre.x as f32))
+        .top(u(cx, cadre.y as f32))
+        .w(u(cx, cadre.largeur as f32))
+        .h(u(cx, cadre.hauteur as f32))
+        .flex()
+        .items_start()
+        .gap(u(cx, f.size_4_1))
+        .px(u(cx, f.size_4_2))
+        .py(u(cx, f.size_2_3))
+        .overflow_hidden()
+        .border_color(couleur(c.tab_outline_color))
+        .bg(couleur(c.background_secondary))
+        .child(selecteur)
+        .child(boutons)
         .into_any_element()
 }
 

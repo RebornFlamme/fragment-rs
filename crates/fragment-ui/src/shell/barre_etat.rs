@@ -10,12 +10,13 @@
 //! `padding: 0 --size-2-3`. La largeur suit le contenu, plafonnée à 400 px.
 
 use gpui_kit::{
-    AbsoluteLength, AnyElement, App, IntoElement, ParentElement as _, SharedString, Styled as _,
-    div,
+    AbsoluteLength, AnyElement, App, FontWeight, IntoElement, ParentElement as _, SharedString,
+    Styled as _, div,
 };
 
 use crate::echelle::u;
-use crate::flottant::texte;
+use crate::flottant::{arrondir, texte};
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La hauteur de la barre (`.status-bar`, `height: 20px`).
@@ -29,8 +30,18 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
         return div().into_any_element();
     }
     let t = theme_ou_defaut(cx);
-    let (c, f) = (&t.palette, &t.forme);
+    let (c, f, ty) = (&t.palette, &t.forme, &t.typo);
     let trait_ = u(cx, f.border_width);
+    // ★ La largeur est celle de Chromium : le contenu (textes exacts + rembourrages des éléments),
+    //   plus le rembourrage et le trait gauche de la barre (`border-box`), arrondie au pixel le plus
+    //   proche. GPUI arrondit chaque texte au pixel SUPÉRIEUR : ancrée à droite, la barre (et son
+    //   texte) partait jusqu'à un pixel trop à gauche.
+    let textes: f32 = elements
+        .iter()
+        .map(|e| largeur_texte(cx, e, FontWeight::NORMAL, ty.font_ui_smaller))
+        .sum();
+    let ajout = (elements.len() as f32 + 1.0) * 2.0 * f.size_2_3 + f.border_width;
+    let largeur = largeur_ajustee(cx, textes, ajout).min(u(cx, LARGEUR_MAX));
     let mut barre = div();
     {
         let s = barre.style();
@@ -40,26 +51,33 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
     let items = elements.iter().map(|e| {
         div()
             .flex()
+            .flex_none()
             .items_center()
             .h_full()
             .px(u(cx, f.size_2_3))
             .whitespace_nowrap()
             .child(e.clone())
     });
-    texte(barre, cx, t.typo.font_ui_smaller, t.typo.line_height_normal)
+    let barre = texte(barre, cx, ty.font_ui_smaller, ty.line_height_normal)
         .absolute()
         .right(u(cx, 0.0))
         .bottom(u(cx, 0.0))
         .flex()
         .items_center()
-        .max_w(u(cx, LARGEUR_MAX))
+        .w(largeur)
         .overflow_hidden()
         .h(u(cx, HAUTEUR))
         .px(u(cx, f.size_2_3))
         .bg(couleur(c.tab_bar_bg))
         .border_color(couleur(c.tab_outline_color))
-        .rounded_tl(u(cx, f.radius_sm))
         .text_color(couleur(c.text_muted))
-        .children(items)
+        .children(items);
+    // Le coin haut-gauche, déclaré (catégorie bord d'arrondi d'ADR-009). ★ La déclaration de
+    // `arrondir` vaut pour les quatre coins : les trois autres, carrés, sont remis à zéro ensuite ;
+    // leurs bandes déclarées tombent hors de l'image (droite, bas) ou sur un coin sans écart.
+    arrondir(barre, cx, u(cx, f.radius_sm), trait_)
+        .rounded_tr(u(cx, 0.0))
+        .rounded_bl(u(cx, 0.0))
+        .rounded_br(u(cx, 0.0))
         .into_any_element()
 }

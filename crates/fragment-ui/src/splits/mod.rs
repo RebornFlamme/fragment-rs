@@ -32,8 +32,8 @@ use fragment_core::{
 };
 use gpui_kit::{
     AnyElement, App, DispatchPhase, InteractiveElement as _, IntoElement, MouseButton,
-    MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Size, Styled as _, Visibility,
-    canvas, div,
+    MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, SharedString, Size, Styled as _,
+    Visibility, canvas, div,
 };
 
 use crate::docks::{self, ElementRuban};
@@ -81,6 +81,9 @@ pub struct ContexteSplits {
     /// L'horloge des images, en ms (le gel du geste compte le temps en images). Remplaçable par les
     /// tests.
     pub horloge: Rc<dyn Fn() -> f64>,
+    /// Le nom du coffre (`app.vault.getName()`), affiché au pied du dock gauche ; sans nom, pas de
+    /// pied.
+    pub coffre: Option<SharedString>,
     etat: Rc<RefCell<Etat>>,
 }
 
@@ -99,6 +102,7 @@ impl ContexteSplits {
             onglets,
             ruban: Rc::new(Vec::new()),
             horloge: Rc::new(move || debut.elapsed().as_secs_f64() * 1000.0),
+            coffre: None,
             etat: Rc::new(RefCell::new(Etat {
                 disposition,
                 taille: (0.0, 0.0),
@@ -113,6 +117,12 @@ impl ContexteSplits {
     /// Remplace les actions du ruban.
     pub fn avec_ruban(mut self, ruban: Vec<ElementRuban>) -> Self {
         self.ruban = Rc::new(ruban);
+        self
+    }
+
+    /// Le nom du coffre, pour le pied du dock gauche (le sélecteur de coffre).
+    pub fn avec_coffre(mut self, nom: impl Into<SharedString>) -> Self {
+        self.coffre = Some(nom.into());
         self
     }
 
@@ -393,6 +403,61 @@ pub(crate) fn quads_du_trait(
         .collect()
 }
 
+/// ★ Les fonds CONNUS sous le trait d'une poignée : les barres d'onglets des piles (fond de barre,
+/// trait bas) et, partout ailleurs, le fond du workspace. Un pixel de bord du trait y est peint en
+/// couleur OPAQUE, pré-composée par le mélange de Chromium ([`geometrie::melange_couverture`]),
+/// plutôt qu'en teinte translucide mélangée par GPUI.
+pub(crate) struct Fonds {
+    /// Les barres d'onglets calées (px logiques).
+    pub barres: Vec<Cadre>,
+    pub barre: fragment_theme::Couleur,
+    pub trait_bas: fragment_theme::Couleur,
+    pub pane: fragment_theme::Couleur,
+    /// L'épaisseur du trait bas d'une barre (px logiques).
+    pub epaisseur: f64,
+}
+
+impl Fonds {
+    /// Le fond au point (x, y), px logiques.
+    fn en(&self, x: f64, y: f64) -> fragment_theme::Couleur {
+        for b in &self.barres {
+            if x >= b.x && x < b.droite() && y >= b.y && y < b.bas() {
+                return if y >= b.bas() - self.epaisseur {
+                    self.trait_bas
+                } else {
+                    self.barre
+                };
+            }
+        }
+        self.pane
+    }
+
+    /// Les tronçons de fond constant le long de [`de`, `a`) sur la ligne `croise` de l'autre axe
+    /// (`vertical` : le long de y, à l'abscisse `croise`).
+    fn troncons(&self, vertical: bool, croise: f64, de: f64, a: f64) -> Vec<(f64, f64)> {
+        let mut bornes = vec![de, a];
+        for b in &self.barres {
+            let (dans, debuts) = if vertical {
+                (
+                    croise >= b.x && croise < b.droite(),
+                    [b.y, b.bas() - self.epaisseur, b.bas()],
+                )
+            } else {
+                (
+                    croise >= b.y && croise < b.bas(),
+                    [b.x, b.droite(), b.droite()],
+                )
+            };
+            if dans {
+                bornes.extend(debuts.into_iter().filter(|v| *v > de && *v < a));
+            }
+        }
+        bornes.sort_by(f64::total_cmp);
+        bornes.dedup();
+        bornes.windows(2).map(|w| (w[0], w[1])).collect()
+    }
+}
+
 /// Le trait d'une poignée élargi à `epaisseur` autour du même centre.
 pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
     if vertical {
@@ -402,6 +467,64 @@ pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
         let c = t.y + t.hauteur / 2.0;
         Cadre::new(t.x, c - epaisseur / 2.0, t.largeur, epaisseur)
     }
+}
+
+/// [`quads_du_trait`], les pixels de bord pré-composés sur `fonds` (couleurs opaques).
+fn quads_du_trait_opaque(
+    trait_: Cadre,
+    origine: Cadre,
+    vertical: bool,
+    teinte: fragment_theme::Couleur,
+    fonds: &Fonds,
+    cx: &App,
+) -> Vec<gpui_kit::Div> {
+    let zoom = f64::from(Echelle::courante(cx).zoom());
+    let (debut, fin, de, a) = if vertical {
+        (trait_.x, trait_.droite(), trait_.y, trait_.bas())
+    } else {
+        (trait_.y, trait_.bas(), trait_.x, trait_.droite())
+    };
+    let mut quads = Vec::new();
+    for c in geometrie::couverture(debut, fin, zoom) {
+        let milieu = c.debut + c.longueur / 2.0;
+        let troncons = if c.part >= 1.0 {
+            vec![(de, a)]
+        } else {
+            fonds.troncons(vertical, milieu, de, a)
+        };
+        for (t0, t1) in troncons {
+            let couleur_px = if c.part >= 1.0 {
+                teinte
+            } else {
+                let (x, y) = if vertical {
+                    (milieu, (t0 + t1) / 2.0)
+                } else {
+                    ((t0 + t1) / 2.0, milieu)
+                };
+                let f = fonds.en(x, y);
+                let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, c.part);
+                fragment_theme::Couleur::octets(
+                    m(teinte.r, f.r),
+                    m(teinte.g, f.g),
+                    m(teinte.b, f.b),
+                    255,
+                )
+            };
+            let q = div().absolute().bg(couleur(couleur_px));
+            quads.push(if vertical {
+                q.left(u(cx, (c.debut - origine.x) as f32))
+                    .w(u(cx, c.longueur as f32))
+                    .top(u(cx, (t0 - origine.y) as f32))
+                    .h(u(cx, (t1 - t0) as f32))
+            } else {
+                q.top(u(cx, (c.debut - origine.y) as f32))
+                    .h(u(cx, c.longueur as f32))
+                    .left(u(cx, (t0 - origine.x) as f32))
+                    .w(u(cx, (t1 - t0) as f32))
+            });
+        }
+    }
+    quads
 }
 
 /// Une poignée entre deux panes : la zone attrapable (7 px) et, dedans, le trait de 1 px qui passe à
@@ -416,6 +539,7 @@ fn rendre_poignee(
     rang: usize,
     p: &Poignee,
     active: bool,
+    fonds: &Fonds,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -423,7 +547,7 @@ fn rendre_poignee(
     let vertical = p.direction == SplitDirection::Vertical;
     let zone = p.zone();
     let groupe: gpui_kit::SharedString = format!("poignee-{rang}").into();
-    let repos = quads_du_trait(p.exact, zone, vertical, couleur(c.tab_outline_color), cx);
+    let repos = quads_du_trait_opaque(p.exact, zone, vertical, c.tab_outline_color, fonds, cx);
     let large = elargi(p.exact, vertical, TRAIT_POIGNEE_ACTIVE);
     let mut accent = div().absolute().size_full().children(quads_du_trait(
         large,
@@ -520,6 +644,11 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         entete: f64::from(f.header_height),
         bordure: f64::from(f.border_width),
         zoom,
+        pied_gauche: if ctx.coffre.is_some() {
+            f64::from(docks::hauteur_pied_coffre(&t))
+        } else {
+            0.0
+        },
     };
 
     // La mise en page de l'image, et ce qu'elle décide : la pile qui porte l'espace des boutons.
@@ -564,6 +693,9 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
     for dock in &disposition.docks {
         racine = racine.child(docks::rendre_fond_dock(dock, cx));
     }
+    if let (Some(pied), Some(nom)) = (disposition.pied_gauche, &ctx.coffre) {
+        racine = racine.child(docks::rendre_pied_coffre(pied, nom, cx));
+    }
 
     for (pile, laterale) in visibles {
         let Some(cadre) = disposition.cadre(pile) else {
@@ -590,9 +722,20 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         racine = racine.child(place(cadre, cx).flex().child(contenu));
     }
 
+    let fonds = Fonds {
+        barres: disposition
+            .piles
+            .iter()
+            .filter_map(|&p| disposition.barre(p, f64::from(f.header_height)))
+            .collect(),
+        barre: t.palette.tab_bar_bg,
+        trait_bas: t.palette.tab_outline_color,
+        pane: t.palette.workspace_bg,
+        epaisseur: f64::from(f.border_width),
+    };
     for (rang, p) in disposition.poignees.iter().enumerate() {
         let active = matches!(geste, Some(Geste::Split { poignee, .. }) if poignee == *p);
-        racine = racine.child(rendre_poignee(ctx, rang, p, active, cx));
+        racine = racine.child(rendre_poignee(ctx, rang, p, active, &fonds, cx));
     }
     for p in &disposition.poignees_docks {
         let active = matches!(geste, Some(Geste::Dock { dock, .. }) if dock == p.dock);

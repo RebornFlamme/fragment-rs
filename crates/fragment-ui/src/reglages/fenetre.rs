@@ -20,14 +20,14 @@ use fragment_core::{
 };
 use fragment_theme::{Aplat, Couleur, Theme};
 use gpui_kit::{
-    AbsoluteLength, AnyElement, Bounds, ClickEvent, Context, FontWeight, InteractiveElement as _,
-    IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
-    Pixels, Render, SharedString, StatefulInteractiveElement as _, Styled, Window, canvas, div,
-    svg,
+    AbsoluteLength, AnyElement, App, Bounds, ClickEvent, Context, FontWeight,
+    InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent,
+    MouseUpEvent, ParentElement as _, Pixels, Render, SharedString,
+    StatefulInteractiveElement as _, Styled, Window, canvas, div, svg,
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
-use crate::echelle::{calees, u};
+use crate::echelle::{Echelle, calees, u};
 use crate::flottant::{bordure, texte};
 use crate::icones;
 use crate::polices::{largeur_ajustee, largeur_texte};
@@ -97,6 +97,8 @@ pub struct FenetreReglages {
     glisse: Option<Glisse>,
     /// Boîtes des pistes (fenêtre), relevées à la peinture : le pointeur s'y mesure.
     bornes: Rc<RefCell<HashMap<String, Bounds<Pixels>>>>,
+    /// La largeur de la fenêtre (px logiques), relevée au rendu : la largeur des cartes en dépend.
+    largeur: f32,
 }
 
 /// Un morceau du contenu et ses marges verticales (qui se FUSIONNENT entre voisins, comme en CSS).
@@ -106,12 +108,50 @@ struct Bloc {
     el: AnyElement,
 }
 
-/// Hauteur de `.settings-titlebar`, bordure basse comprise.
+/// Hauteur de `.settings-titlebar` (`height: 32px`), SANS la bordure basse : ★ la boîte est en
+/// `content-box` (le défaut de Fragment), la bordure s'ajoute : 33 px en tout. Comptée dedans, tout
+/// le rail et le contenu montaient d'un pixel.
 const TITRE_HAUTEUR: f32 = 32.0;
 /// Largeur du contenu du rail (`.vertical-tab-header { width }`, hors rembourrage).
 const RAIL_LARGEUR: f32 = 220.0;
 /// `.vertical-tab-content { max-width }`.
 const CONTENU_LARGEUR: f32 = 760.0;
+/// La piste d'une bascule (`.checkbox-container { width: 42px }`).
+const LARGEUR_BASCULE: f32 = 42.0;
+
+/// La largeur totale du rail : contenu, rembourrage et bordure droite (`content-box`).
+fn largeur_rail(t: &Theme) -> f32 {
+    RAIL_LARGEUR + 2.0 * t.forme.size_4_2 + t.forme.border_width
+}
+
+/// ★ La règle de flexbox de Chromium (CSS Flexbox §9.7) pour la ligne d'une carte : l'information
+/// (`flex: 1 1 auto`, marge droite) et les contrôles (`flex: 0 1 auto`), dans `place` px. Chacun
+/// est `(base, min)` : largeur max-content et min-content ; l'information a en plus sa marge. Rend
+/// les largeurs de CONTENU (marge exclue).
+///
+/// - Place en trop : l'information seule grandit (`flex-grow: 1`).
+/// - Place en moins : chacun rétrécit au prorata de sa base (`flex-shrink` × base), sans passer sous
+///   son min-content (`min-width: auto`) ; un élément bloqué rend sa part à l'autre.
+pub fn repartir(place: f32, info: (f32, f32, f32), ctl: (f32, f32)) -> (f32, f32) {
+    let ((ib, imin, marge), (cb, cmin)) = (info, ctl);
+    let libre = place - (ib + marge + cb);
+    if libre >= 0.0 {
+        return (ib + libre, cb);
+    }
+    let total = ib + cb;
+    if total <= 0.0 {
+        return (ib, cb);
+    }
+    let (mut i, mut c) = (ib + libre * ib / total, cb + libre * cb / total);
+    if i < imin {
+        i = imin;
+        c = (place - marge - i).max(cmin);
+    } else if c < cmin {
+        c = cmin;
+        i = (place - marge - c).max(imin);
+    }
+    (i, c)
+}
 
 impl FenetreReglages {
     pub fn new(titre: impl Into<SharedString>, onglets: Vec<OngletReglages>) -> Self {
@@ -121,6 +161,7 @@ impl FenetreReglages {
             actif: 0,
             glisse: None,
             bornes: Rc::default(),
+            largeur: 0.0,
         }
     }
 
@@ -159,7 +200,7 @@ impl FenetreReglages {
             groupes.push((s, idx));
         }
         // L'arête haute du rail : barre de titre + rembourrage du haut.
-        let origine = TITRE_HAUTEUR + f.size_4_3;
+        let origine = TITRE_HAUTEUR + f.border_width + f.size_4_3;
         let mut h = calees(cx, origine, &hauteurs).into_iter();
         let mut suivant = || h.next().unwrap_or_default();
 
@@ -323,11 +364,13 @@ impl FenetreReglages {
                 control,
                 ..
             }) => {
+                let largeurs = Self::largeur_controle(control, t, cx).into_iter().collect();
                 let ctl = self.controle(&format!("{chemin}-0"), control, t, cx);
                 let carte = self.carte(
                     name,
                     description.as_deref(),
                     ctl.into_iter().collect(),
+                    largeurs,
                     t,
                     cx,
                 );
@@ -348,7 +391,11 @@ impl FenetreReglages {
                     .enumerate()
                     .filter_map(|(k, c)| self.controle(&format!("{chemin}-{k}"), c, t, cx))
                     .collect();
-                let carte = self.carte(name, description.as_deref(), ctl, t, cx);
+                let largeurs = controls
+                    .iter()
+                    .filter_map(|c| Self::largeur_controle(c, t, cx))
+                    .collect();
+                let carte = self.carte(name, description.as_deref(), ctl, largeurs, t, cx);
                 blocs.push(Bloc {
                     haut: 0.0,
                     bas: f.size_2_5,
@@ -390,18 +437,50 @@ impl FenetreReglages {
         nom: &str,
         desc: Option<&str>,
         controles: Vec<AnyElement>,
+        largeurs: Vec<f32>,
         t: &Theme,
         cx: &Context<Self>,
     ) -> AnyElement {
         let (f, ty, c) = (&t.forme, &t.typo, &t.palette);
-        let mut info = div().flex_auto().mr(u(cx, f.size_4_5)).child(texte(
-            div()
-                .text_color(couleur(c.text_normal))
-                .child(nom.to_owned()),
-            cx,
-            ty.font_ui_normal,
-            1.5,
-        ));
+        // ★ La répartition de la ligne, calculée comme Chromium (flexbox §9.7) au lieu d'être laissée à
+        //   taffy : le texte de GPUI n'a pas de largeur min-content (le mot le plus long), la
+        //   description refusait donc de se replier et poussait les contrôles.
+        let texte_de = |t: &str, taille: f32| largeur_texte(cx, t, FontWeight::NORMAL, taille);
+        let mots = |t: &str, taille: f32| {
+            t.split_whitespace()
+                .map(|m| texte_de(m, taille))
+                .fold(0.0_f32, f32::max)
+        };
+        let desc_pleine = desc.filter(|d| !d.is_empty());
+        let info_base = desc_pleine
+            .map_or(0.0, |d| texte_de(d, ty.font_ui_small))
+            .max(texte_de(nom, ty.font_ui_normal));
+        let info_min = desc_pleine
+            .map_or(0.0, |d| mots(d, ty.font_ui_small))
+            .max(mots(nom, ty.font_ui_normal));
+        let n = largeurs.len();
+        let ctl_base = largeurs.iter().sum::<f32>() + f.size_4_2 * n.saturating_sub(1) as f32;
+        let ctl_min = largeurs.iter().copied().fold(0.0_f32, f32::max);
+        let colonne = (self.largeur - largeur_rail(t)).min(CONTENU_LARGEUR + 2.0 * f.size_4_6)
+            - 2.0 * f.size_4_6;
+        let interieur = colonne - 2.0 * f.size_4_4;
+        let (info_l, ctl_l) = repartir(
+            interieur - if n > 0 { f.size_4_4 } else { 0.0 },
+            (info_base, info_min, f.size_4_5),
+            (ctl_base, ctl_min),
+        );
+        let mut info = div()
+            .flex_none()
+            .w(u(cx, info_l))
+            .mr(u(cx, f.size_4_5))
+            .child(texte(
+                div()
+                    .text_color(couleur(c.text_normal))
+                    .child(nom.to_owned()),
+                cx,
+                ty.font_ui_normal,
+                1.5,
+            ));
         if let Some(d) = desc.filter(|d| !d.is_empty()) {
             info = info.child(texte(
                 div()
@@ -416,7 +495,8 @@ impl FenetreReglages {
         let controles = div()
             .flex()
             .flex_wrap()
-            .flex_initial()
+            .flex_none()
+            .w(u(cx, ctl_l))
             .items_center()
             .justify_end()
             .gap(u(cx, f.size_4_2))
@@ -436,6 +516,33 @@ impl FenetreReglages {
     }
 
     // ── Les contrôles ──────────────────────────────────────────────────────
+
+    /// La largeur max-content (px logiques) d'un contrôle rendu par [`Self::controle`] ; `None` pour
+    /// ceux qui ne sont pas rendus.
+    fn largeur_controle(c: &SettingControl, t: &Theme, cx: &App) -> Option<f32> {
+        let (f, ty) = (&t.forme, &t.typo);
+        match c {
+            SettingControl::Slider(s) => {
+                let etiquette = s.format.as_ref().map(|fmt| {
+                    let texte = fmt(s.value);
+                    largeur_texte(cx, &texte, FontWeight::NORMAL, ty.font_ui_medium)
+                        .max(4.5 * ty.font_ui_medium)
+                });
+                Some(etiquette.map_or(0.0, |e| e + f.size_4_2) + LARGEUR_PISTE)
+            }
+            SettingControl::Dropdown(d) => {
+                let texte_max = d
+                    .options
+                    .iter()
+                    .map(|(_, l)| largeur_texte(cx, l, FontWeight::NORMAL, ty.font_ui_medium))
+                    .fold(0.0_f32, f32::max);
+                Some(texte_max + f.size_4_2 + f.size_4_7 + 2.0 * f.border_width)
+            }
+            SettingControl::Color(_) | SettingControl::ExtraButton(_) => Some(f.size_4_7),
+            SettingControl::Toggle(_) => Some(LARGEUR_BASCULE),
+            _ => None,
+        }
+    }
 
     fn controle(
         &self,
@@ -495,7 +602,7 @@ impl FenetreReglages {
                     .id(SharedString::from(format!("bascule-{cle}")))
                     .relative()
                     .flex_none()
-                    .w(u(cx, 42.0))
+                    .w(u(cx, LARGEUR_BASCULE))
                     .h(u(cx, 24.0))
                     .rounded(u(cx, f.radius_l))
                     .cursor_pointer()
@@ -683,7 +790,7 @@ impl FenetreReglages {
         let (f, ty, c) = (&t.forme, &t.typo, &t.palette);
         let titre = texte(
             div()
-                .h(u(cx, TITRE_HAUTEUR))
+                .h(u(cx, TITRE_HAUTEUR + f.border_width))
                 .flex()
                 .items_center()
                 .justify_center()
@@ -697,27 +804,9 @@ impl FenetreReglages {
         );
         let titre =
             cote_bas(titre, u(cx, f.border_width)).border_color(couleur(c.tab_outline_color));
-        // Les boutons de fenêtre : 46 × 34, posés sur le coin haut droit.
-        let boutons = div()
-            .absolute()
-            .top(u(cx, 0.0))
-            .right(u(cx, 0.0))
-            .flex()
-            .children(["minus", "square", "x"].into_iter().map(|nom| {
-                div()
-                    .w(u(cx, f.frame_button_width))
-                    .h(u(cx, 34.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .opacity(0.6)
-                    .child(
-                        svg()
-                            .path(icones::chemin(nom))
-                            .size(u(cx, f.icon_xs))
-                            .text_color(couleur(c.text_normal)),
-                    )
-            }));
+        // Les boutons de fenêtre : ceux de la fenêtre principale (`WindowControls`, le même composant
+        // chez Fragment) : 46 × 34, trait fin, centrés à la Chromium, posés sur le coin haut droit.
+        let boutons = crate::splits::boutons::rendre_boutons(cx);
         div()
             .relative()
             .flex_none()
@@ -728,8 +817,9 @@ impl FenetreReglages {
 }
 
 impl Render for FenetreReglages {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let t = theme_ou_defaut(cx);
+        self.largeur = f32::from(window.viewport_size().width) / Echelle::courante(cx).zoom();
         let c = &t.palette;
         let corps = div()
             .flex()
@@ -797,4 +887,34 @@ pub fn couleur_depuis_hex(texte: &str) -> Couleur {
 /// Un jeton en `#rrggbb`.
 pub fn hex_de(c: Couleur) -> String {
     format!("#{:02x}{:02x}{:02x}", c.r, c.g, c.b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::repartir;
+
+    #[test]
+    fn la_place_en_trop_va_a_l_information() {
+        assert_eq!(
+            repartir(500.0, (100.0, 40.0, 20.0), (200.0, 150.0)),
+            (280.0, 200.0)
+        );
+    }
+
+    #[test]
+    fn la_place_en_moins_se_retire_au_prorata_des_bases() {
+        // 300 + 20 + 300 dans 520 : 100 de trop, 50 de chaque côté (bases égales).
+        assert_eq!(
+            repartir(520.0, (300.0, 40.0, 20.0), (300.0, 150.0)),
+            (250.0, 250.0)
+        );
+    }
+
+    #[test]
+    fn un_element_bloque_a_son_min_content_rend_sa_part_a_l_autre() {
+        // Les contrôles tomberaient à 100 sous leur min de 180 : ils s'y arrêtent.
+        let (i, c) = repartir(400.0, (500.0, 40.0, 20.0), (125.0, 180.0));
+        assert_eq!(c, 180.0);
+        assert_eq!(i, 200.0);
+    }
 }

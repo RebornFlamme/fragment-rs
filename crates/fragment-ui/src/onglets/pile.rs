@@ -33,7 +33,7 @@ use super::mesures::{
 };
 use crate::echelle::{Echelle, u};
 use crate::entete;
-use crate::flottant::texte;
+use crate::flottant::{arrondir, texte};
 use crate::icones;
 use crate::menu::Menu;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -56,8 +56,9 @@ pub struct OptionsPile {
     pub insertion: Option<f32>,
 }
 
-/// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`).
-const OPACITE_APERCU: f32 = 0.22;
+/// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`), en
+/// pourcents.
+const OPACITE_APERCU: f32 = 22.0;
 /// La barre d'insertion du réordonnancement : 3 px de large, à 8 px du haut et du bas de la barre
 /// (workspace.css, `.workspace-tab-header-container::after`).
 const INSERTION_LARGEUR: f32 = 3.0;
@@ -387,6 +388,9 @@ fn entete_d_onglet(
             );
         }
     }
+    if actif {
+        entete = entete.children(declarations_du_contour(cx));
+    }
     if let Some(cellule) = mesure.filter(|_| actif) {
         // La mesure de l'en-tête actif, pour le contour (bornes de la boîte de bordure).
         entete = entete.child(
@@ -402,6 +406,56 @@ fn entete_d_onglet(
         );
     }
     entete.into_any_element()
+}
+
+/// Les arcs du contour de l'onglet actif, DÉCLARÉS (catégorie bord d'arrondi d'ADR-009) par des boîtes
+/// invisibles posées dans l'en-tête actif, une seule source avec le tracé : le trait de 1 px est centré
+/// sur le chemin, donc une boîte « à bordure » de 1 px, de rayon extérieur `r + 0,5`, décalée d'un
+/// demi-pixel, a ses arcs extérieur et intérieur de part et d'autre du trait.
+///
+/// - Le haut : la boîte de l'en-tête élargie d'un demi-pixel de chaque côté (les côtés du trait
+///   tombent sur les bords de l'en-tête), prolongée sous la barre pour que ses coins bas, qui ne
+///   sont pas des arcs du contour, tombent dans le pane vide.
+/// - Les pieds (coins concaves) : le coin bas-droit (à gauche) ou bas-gauche (à droite) d'une boîte
+///   de `2R + 3` × `2R` posée hors de l'onglet, au ras du bas de la barre. ★ Limite de l'API
+///   (`flottant::arrondir` déclare toujours quatre coins) : le coin haut de ces boîtes chevauche le
+///   bas du côté de l'onglet sur quelques pixels, tolérés eux aussi (bande ±1 px, delta ≤ 6).
+fn declarations_du_contour(cx: &App) -> Vec<AnyElement> {
+    let f = theme_ou_defaut(cx).forme;
+    let demi = TRAIT_CONTOUR / 2.0;
+    let (haut, pied) = (f.input_radius + demi, f.radius_s + demi);
+    let (large, haute) = (2.0 * pied + 3.0, 2.0 * pied);
+    let boite = || div().absolute();
+    let declarer = |e: gpui_kit::Div, r: f32| {
+        arrondir(e, cx, u(cx, r), u(cx, TRAIT_CONTOUR)).into_any_element()
+    };
+    vec![
+        declarer(
+            boite()
+                .top(u(cx, 0.0))
+                .left(u(cx, -demi))
+                .right(u(cx, -demi))
+                .bottom(u(cx, -60.0)),
+            haut,
+        ),
+        declarer(
+            boite()
+                .bottom(u(cx, 0.0))
+                .left(u(cx, demi - large))
+                .w(u(cx, large))
+                .h(u(cx, haute)),
+            pied,
+        ),
+        declarer(
+            boite()
+                .bottom(u(cx, 0.0))
+                .left(relative(1.0))
+                .ml(u(cx, -demi))
+                .w(u(cx, large))
+                .h(u(cx, haute)),
+            pied,
+        ),
+    ]
 }
 
 /// La barre d'onglets d'une pile.
@@ -630,21 +684,26 @@ pub fn rendre_pile(
         .filter(|z| !matches!(z, DropZone::Reorder | DropZone::Center))
     {
         // Le bloc d'accent remplit la moitié libérée : l'emplacement du futur pane.
+        // ★ `opacity: 0.22` sur un fond connu (le pane, `--workspace-bg`) : l'aplat est PRÉ-COMPOSÉ
+        //   comme Chromium (ADR-009 c). L'opacité de GPUI, mélangée en flottants, tombait un niveau
+        //   à côté en clair (209 au lieu de 210, sur 472 000 px). Les coins sont déclarés (bord
+        //   d'arrondi d'ADR-009).
+        let p = &t.palette;
+        let aplat = p.color_accent.sur_chromium(OPACITE_APERCU, p.workspace_bg);
         let bloc = div()
             .absolute()
             .top(u(cx, 0.0))
             .left(u(cx, 0.0))
             .right(u(cx, 0.0))
             .bottom(u(cx, 0.0))
-            .rounded(u(cx, t.forme.radius_m))
-            .bg(couleur(t.palette.color_accent))
-            .opacity(OPACITE_APERCU);
+            .bg(couleur(aplat));
         let bloc = match zone {
             DropZone::SplitRight => bloc.left(relative(0.5)),
             DropZone::SplitLeft => bloc.right(relative(0.5)),
             DropZone::SplitTop => bloc.bottom(relative(0.5)),
             _ => bloc.top(relative(0.5)),
         };
+        let bloc = arrondir(bloc, cx, u(cx, t.forme.radius_m), u(cx, 0.0));
         conteneur = conteneur.child(bloc);
     }
     let pile_el = div()

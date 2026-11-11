@@ -157,7 +157,10 @@ pub fn monter(
         keymap: keymap.clone(),
         contenu_de_vue: None,
     };
-    let splits = ContexteSplits::new(onglets).avec_ruban(noyau.ruban.clone());
+    // Le nom du coffre au pied du dock gauche (sélecteur de coffre, rendu statique en T1).
+    let splits = ContexteSplits::new(onglets)
+        .avec_ruban(noyau.ruban.clone())
+        .avec_coffre(options.nom.clone());
     let (s, barre, hote) = (splits.clone(), noyau.barre_etat.clone(), noyau.hote.clone());
     let (principale, _) = gpui_kit::open_window(
         options_fenetre(cx, TITRE, largeur, hauteur),

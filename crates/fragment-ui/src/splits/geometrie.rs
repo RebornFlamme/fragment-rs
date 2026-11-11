@@ -39,6 +39,9 @@ pub struct Mesures {
     pub bordure: f64,
     /// Le facteur de zoom : l'arrondi se fait en pixels de l'écran.
     pub zoom: f64,
+    /// La hauteur du pied du dock gauche (le sélecteur de coffre, `VaultSwitcher`), 0 sans pied :
+    /// les piles du dock s'arrêtent au-dessus.
+    pub pied_gauche: f64,
 }
 
 impl Default for Mesures {
@@ -47,6 +50,7 @@ impl Default for Mesures {
             entete: 36.0,
             bordure: 1.0,
             zoom: 1.0,
+            pied_gauche: 0.0,
         }
     }
 }
@@ -139,6 +143,8 @@ pub struct Disposition {
     pub poignees: Vec<Poignee>,
     pub poignees_docks: Vec<PoigneeDock>,
     pub docks: Vec<CadreDock>,
+    /// Le pied du dock gauche (sélecteur de coffre), calé, s'il est à l'écran.
+    pub pied_gauche: Option<Cadre>,
 }
 
 impl Disposition {
@@ -219,6 +225,17 @@ pub fn couverture(debut: f64, fin: f64, zoom: f64) -> Vec<Couvert> {
     out
 }
 
+/// ★ Un canal de `teinte` posé sur `fond` à la couverture `part` (0 à 1), comme le mélange
+/// d'anticrénelage de Chromium : `fond + ⌊(teinte − fond) × échelle / 256⌋`, l'échelle étant la part
+/// en 256es. Mesuré sur les traits de poignée à cheval sur deux pixels (`t1-split-vertical`) : 34
+/// sur 15 et 37 sur 21 en sombre (teinte 54), 222 sur 242 et 214 sur 225 en clair ; l'alpha de GPUI
+/// (flottant arrondi au plus proche) tombait un niveau à côté sur chaque différence impaire.
+pub fn melange_couverture(teinte: u8, fond: u8, part: f32) -> u8 {
+    let echelle = (part.clamp(0.0, 1.0) * 256.0).round() as i32;
+    let d = (i32::from(teinte) - i32::from(fond)) * echelle;
+    (i32::from(fond) + (d >> 8)).clamp(0, 255) as u8
+}
+
 /// Une arête exacte calée comme Chromium : au pixel de l'écran le plus proche, l'égalité vers le
 /// HAUT (`floor(v + 0,5)`), puis ramenée en px logiques.
 pub fn arrondi(v: f64, zoom: f64) -> f64 {
@@ -270,7 +287,13 @@ pub fn disposer<F>(arbre: &Arbre<F>, largeur: f64, hauteur: f64, m: Mesures) -> 
     let (g, dr) = (arbre.left(), arbre.right());
     if dock_visible(arbre, g) {
         let w = largeur_dock(g);
-        let contenu = Cadre::new(gauche, 0.0, w, hauteur);
+        // ★ Le pied (`.workspace-drawer-vault-switcher`, `order: 1; margin-top: auto`) est le dernier
+        //   enfant en flux de la colonne du dock : les piles (`flex: 1`) prennent le reste, au-dessus.
+        let pied = m.pied_gauche.clamp(0.0, hauteur);
+        let contenu = Cadre::new(gauche, 0.0, w, hauteur - pied);
+        if pied > 0.0 {
+            d.pied_gauche = Some(caler(Cadre::new(gauche, hauteur - pied, w, pied), z));
+        }
         let bordure = Cadre::new(gauche + w, 0.0, m.bordure, hauteur);
         let boite = Cadre::new(gauche, 0.0, w + m.bordure, hauteur);
         gauche += w + m.bordure;
@@ -427,6 +450,17 @@ mod tests {
         a.add_child(root, p1, None).unwrap();
         a.add_child(root, p2, None).unwrap();
         (a, p1, p2)
+    }
+
+    #[test]
+    fn le_melange_de_couverture_tombe_comme_chromium() {
+        // Mesures de t1-split-vertical (canal vert sombre, canal bleu clair).
+        assert_eq!(melange_couverture(54, 15, 0.5), 34);
+        assert_eq!(melange_couverture(54, 21, 0.5), 37);
+        assert_eq!(melange_couverture(203, 242, 0.5), 222);
+        assert_eq!(melange_couverture(203, 225, 0.5), 214);
+        assert_eq!(melange_couverture(54, 21, 1.0), 54);
+        assert_eq!(melange_couverture(54, 21, 0.0), 21);
     }
 
     #[test]
