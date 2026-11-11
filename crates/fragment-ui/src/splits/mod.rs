@@ -469,6 +469,24 @@ pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
     }
 }
 
+/// Le trait PEINT d'une poignée d'épaisseur `epaisseur`, centré sur la boîte `t` de la poignée
+/// (`::after { top: 50%; transform: translateY(-50%) }`, workspace.css:206-211).
+///
+/// ★ Chromium cale au pixel le décalage de peinture d'un élément transformé AVANT d'appliquer la
+/// transformation : le `top: 50%` (bord de la poignée + 0,5) est arrondi, puis le trait recule de
+/// la moitié de son épaisseur. Sondé sur Fragment (`t1-split-proportions`) : poignée posée à 199,75,
+/// trait peint de 199,5 à 200,5 et non de 199,75 à 200,75 ; à 346,5 (centre 347, entier) rien ne
+/// bouge.
+pub(crate) fn trait_peint(t: Cadre, vertical: bool, epaisseur: f64, zoom: f64) -> Cadre {
+    if vertical {
+        let c = geometrie::arrondi(t.x + t.largeur / 2.0, zoom);
+        Cadre::new(c - epaisseur / 2.0, t.y, epaisseur, t.hauteur)
+    } else {
+        let c = geometrie::arrondi(t.y + t.hauteur / 2.0, zoom);
+        Cadre::new(t.x, c - epaisseur / 2.0, t.largeur, epaisseur)
+    }
+}
+
 /// [`quads_du_trait`], les pixels de bord pré-composés sur `fonds` (couleurs opaques).
 fn quads_du_trait_opaque(
     trait_: Cadre,
@@ -547,8 +565,16 @@ fn rendre_poignee(
     let vertical = p.direction == SplitDirection::Vertical;
     let zone = p.zone();
     let groupe: gpui_kit::SharedString = format!("poignee-{rang}").into();
-    let repos = quads_du_trait_opaque(p.exact, zone, vertical, c.tab_outline_color, fonds, cx);
-    let large = elargi(p.exact, vertical, TRAIT_POIGNEE_ACTIVE);
+    let zoom = f64::from(Echelle::courante(cx).zoom());
+    let repos = quads_du_trait_opaque(
+        trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+        zone,
+        vertical,
+        c.tab_outline_color,
+        fonds,
+        cx,
+    );
+    let large = trait_peint(p.exact, vertical, TRAIT_POIGNEE_ACTIVE, zoom);
     let mut accent = div().absolute().size_full().children(quads_du_trait(
         large,
         zone,
@@ -752,3 +778,22 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
 /// Enregistre les commandes de scène `pixels:splits` : aucune, l'arbre des scènes arrive par
 /// l'action `layout` ([`brancher_scene`]).
 pub fn commandes_de_scene(_commandes: &CommandManager) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn le_trait_d_une_poignee_fractionnaire_est_cale_comme_chromium() {
+        // t1-split-proportions : poignée horizontale sondée à 199,75, trait peint à 199,5.
+        let h = Cadre::new(347.5, 199.75, 621.0, 1.0);
+        assert_eq!(trait_peint(h, false, 1.0, 1.0).y, 199.5);
+        assert_eq!(trait_peint(h, false, TRAIT_POIGNEE_ACTIVE, 1.0).y, 198.5);
+        // Poignée verticale à 346,5 : le centre (347) est entier, rien ne bouge.
+        let v = Cadre::new(346.5, 0.0, 1.0, 800.0);
+        assert_eq!(trait_peint(v, true, 1.0, 1.0).x, 346.5);
+        // Poignée de split-horizontal à 399,5 : idem.
+        let m = Cadre::new(36.0, 399.5, 1244.0, 1.0);
+        assert_eq!(trait_peint(m, false, 1.0, 1.0).y, 399.5);
+    }
+}

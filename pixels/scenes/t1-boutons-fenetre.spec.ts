@@ -5,6 +5,10 @@ import { sceneT1 } from './_t1';
 
 sceneT1('t1-boutons-fenetre', async ({ act, capturer, sonde, p }) => {
     await act.waitStable();
+    // ★ Le harnais pose les dimensions APRÈS le dernier calcul de l'espace des boutons : sans ce
+    // `resize` (écouté par Workspace, qui recalcule l'espace), il restait sur le pane étroit.
+    await p.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await act.waitStable();
     for (let i = 0; i < 2; i++) await sonde(`pile ${i + 1}`, p, '.workspace-tabs', i);
     await sonde('bouton du dock droit', p, '.workspace-tab-header-right-toggle');
     await sonde('boutons de fenêtre', p, '.titlebar-button-container');
