@@ -66,7 +66,7 @@ pub fn graisse_du_jeton(theme: &Theme, nom: &str) -> Option<FontWeight> {
     Some(FontWeight(g as f32))
 }
 
-fn hsla(theme: &Theme, nom: Option<&str>) -> Option<Hsla> {
+fn couleur_gpui(theme: &Theme, nom: Option<&str>) -> Option<Hsla> {
     nom.and_then(|n| couleur_du_jeton(theme, n))
         .map(|c| couleur(c).into())
 }
@@ -75,8 +75,8 @@ fn hsla(theme: &Theme, nom: Option<&str>) -> Option<Hsla> {
 #[must_use]
 pub fn style_marque(theme: &Theme, s: &StyleMarque) -> HighlightStyle {
     HighlightStyle {
-        color: hsla(theme, s.couleur),
-        background_color: hsla(theme, s.fond),
+        color: couleur_gpui(theme, s.couleur),
+        background_color: couleur_gpui(theme, s.fond),
         font_weight: s.graisse.and_then(|g| graisse_du_jeton(theme, g)),
         font_style: s.italique.then_some(FontStyle::Italic),
         underline: s.souligne.then_some(UnderlineStyle {
@@ -99,7 +99,7 @@ pub fn style_marque(theme: &Theme, s: &StyleMarque) -> HighlightStyle {
 #[must_use]
 pub fn style_ligne(theme: &Theme, s: &StyleLigne) -> HighlightStyle {
     HighlightStyle {
-        color: hsla(theme, s.couleur),
+        color: couleur_gpui(theme, s.couleur),
         font_weight: s.graisse.and_then(|g| graisse_du_jeton(theme, g)),
         font_style: s.italique.then_some(FontStyle::Italic),
         fade_out: s.opacite.map(|o| 1.0 - o),
@@ -111,7 +111,7 @@ pub fn style_ligne(theme: &Theme, s: &StyleLigne) -> HighlightStyle {
 #[must_use]
 pub fn style_code(theme: &Theme, j: JetonCode) -> HighlightStyle {
     HighlightStyle {
-        color: hsla(theme, Some(j.nom())),
+        color: couleur_gpui(theme, Some(j.nom())),
         font_style: j.italique().then_some(FontStyle::Italic),
         ..HighlightStyle::default()
     }

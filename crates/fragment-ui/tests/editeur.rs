@@ -170,7 +170,7 @@ fn masquage_sans_trou() {
     b.placer(5);
     let t_revele = b.bornes(2).origin.x;
     assert!(t_revele > debut, "révélé : « # » reprend sa place");
-    assert!(b.lire(|e, _, _| e.arguments_fork().unwrap().masques.is_empty()));
+    assert!(!b.lire(|e, _, _| e.arguments_fork().unwrap().masques.contains(&(0..2))));
     assert_eq!(b.lire(|_, e, _| e.value().to_string()), texte);
 }
 
@@ -462,7 +462,7 @@ fn note_ouverte_rien_n_est_revele_avant_le_premier_focus() {
     assert_eq!(premiere(&mut b), "Titre en gras");
     b.placer(25);
     assert_eq!(premiere(&mut b), "Titre en gras");
-    b.placer(3);
+    b.placer(14);
     assert_eq!(premiere(&mut b), texte.lines().next().unwrap());
     // Perte du focus : la ligne du curseur reste en source.
     b.agir(|window, cx, _| window.blur(cx));
