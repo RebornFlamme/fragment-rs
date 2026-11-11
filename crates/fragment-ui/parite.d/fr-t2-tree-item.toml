@@ -1,0 +1,11 @@
+# Parité de fr-t2-tree-item (fragment-ui) : gabarit d'item d'arbre, partagé par l'explorateur et la
+# table des matières du PDF. Aucun test unitaire côté TS : les cas sont ajoutés (géométrie de la mise
+# en page réelle en fenêtre de test, couleurs des états par jetons).
+
+[[module]]
+ts = "app/src/ui/views/TreeItem.tsx, treeItem.css (+ cible de dépôt de explorer.css)"
+rs = "crates/fragment-ui/src/tree_item/*.rs, crates/fragment-ui/tests/tree_item.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 13
+notes = "Ligne 26 px, pas de 17 px par niveau, chevron 10 px (bord gauche exact 7,5 + 17 n, arrondi de Chromium), guide au bord du conteneur d'enfants, survol plus fort que l'actif (spécificité CSS). Écarts : (1) la transition de 100 ms de rotation du chevron n'est pas portée (deux SVG, déplié et replié, sans animation) ; (2) l'icône facultative n'existe pas dans le CSS : taille icon_s et écart size_4_1 provisoires ; (3) la précédence cible de dépôt > survol est supposée (ordre des feuilles non vérifié) ; (4) pas de scène de pixels ici : la mesure au rognage contre t2-explorateur est reportée à fr-t2-montage."
