@@ -432,6 +432,8 @@ pub struct Report {
     pub message_types: Vec<String>,
     pub variants: Vec<Variant>,
     /// Expériences d'hébergement : (libellé, pixel écran relevé).
+    // Code de spike (S2), lint ignoré : le type reste lisible tel quel.
+    #[allow(clippy::type_complexity)]
     pub hosts: Vec<(String, Option<(u8, u8, u8)>)>,
     pub host_screenshots: Vec<PathBuf>,
 }
@@ -599,10 +601,10 @@ fn open_scene(
                 move |_id, req| servir(&vault, &bridge, &req)
             })
             .with_ipc_handler(move |req: Request<String>| {
-                if let Ok(v) = serde_json::from_str::<Value>(req.body()) {
-                    if let Ok(mut g) = sh.lock() {
-                        g.messages.push(v);
-                    }
+                if let Ok(v) = serde_json::from_str::<Value>(req.body())
+                    && let Ok(mut g) = sh.lock()
+                {
+                    g.messages.push(v);
                 }
             })
             .with_url(url);
@@ -732,11 +734,11 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
         .await
         {
             // WebView2 renvoie le JSON d'une chaîne : "\"{...}\"" ou "\"\"".
-            if let Ok(inner) = serde_json::from_str::<String>(&s) {
-                if !inner.is_empty() {
-                    r.sandbox = serde_json::from_str(&inner).ok();
-                    break;
-                }
+            if let Ok(inner) = serde_json::from_str::<String>(&s)
+                && !inner.is_empty()
+            {
+                r.sandbox = serde_json::from_str(&inner).ok();
+                break;
             }
         }
         cx.background_executor()
@@ -760,10 +762,10 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
     r.key = find_msg(&c.shared, "key");
     if let Ok(g) = c.shared.lock() {
         for m in &g.messages {
-            if let Some(t) = m["type"].as_str() {
-                if !r.message_types.iter().any(|x| x == t) {
-                    r.message_types.push(t.to_string());
-                }
+            if let Some(t) = m["type"].as_str()
+                && !r.message_types.iter().any(|x| x == t)
+            {
+                r.message_types.push(t.to_string());
             }
         }
     }
@@ -776,6 +778,8 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
 
     // Variante B : fenêtre TRANSPARENTE (fond GPUI absent) — la webview est-elle visible dessous,
     // et le calque GPUI passe-t-il alors AU-DESSUS d'elle ?
+    // Spike S2 : la scène GPUI n'est pas Send, et l'Arc ne quitte pas le fil principal.
+    #[allow(clippy::arc_with_non_send_sync)]
     let slot: Arc<Mutex<Option<Result<Scene, String>>>> = Arc::new(Mutex::new(None));
     let (s2, vault, bridge, shared) = (
         slot.clone(),
@@ -783,7 +787,7 @@ async fn drive(cx: &mut AsyncApp, c: Ctx) {
         c.bridge.clone(),
         c.shared.clone(),
     );
-    let _ = cx.update(move |cx| {
+    cx.update(move |cx| {
         let res = open_scene(cx, "spike-s2-transparent", true, &vault, &bridge, &shared);
         if let Ok(mut g) = s2.lock() {
             *g = Some(res);
@@ -880,7 +884,7 @@ async fn host_experiments(cx: &mut AsyncApp, c: &Ctx, r: &mut Report) {
                 (wx as f32 + ww as f32 / 2.0) / s - mw / 2.0,
                 (wy as f32 + wh as f32 / 2.0) / s - mh / 2.0,
             );
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let options = WindowOptions {
                     titlebar: None,
                     window_bounds: Some(WindowBounds::Windowed(Bounds::new(
@@ -955,7 +959,7 @@ pub fn run(out_dir: PathBuf) -> Report {
         };
         cx.spawn(async move |cx| {
             drive(cx, ctx).await;
-            let _ = cx.update(|cx| cx.quit());
+            cx.update(|cx| cx.quit());
         })
         .detach();
     });
