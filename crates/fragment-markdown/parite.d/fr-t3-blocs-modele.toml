@@ -1,0 +1,13 @@
+# Parité de fr-t3-blocs-modele (fragment-markdown). Schéma `parite.d` : un fichier par tâche, fusionné
+# par `cargo xtask parite`. Les champs de blocs (mathBlockField, embedField, htmlBlockField, tableField,
+# propertiesField) et le foldService n'ont pas de test unitaire côté TS : leurs cas sont les scénarios
+# e2e d'editor-hell (repli imbriqué, clic sous un bloc, Properties), rejoués sur le MODÈLE
+# (crates/fragment-markdown/tests/blocs.rs).
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (mathBlockField, embedField, markdownFoldService, atxHeadingLevel, toggleFoldAt, blockFoldProvider) ; htmlDecorations.ts (htmlBlockField) ; table/tableField.ts (buildTableDecos) ; properties/frontmatterField.ts (buildDecos, repli, curseurHorsDuBloc) ; scénarios app/e2e/editor-hell.spec.ts"
+rs = "crates/fragment-markdown/src/blocs/modele.rs, calcul.rs, rangees.rs, repli.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 77
+notes = "Cas editor-hell portés : repli imbriqué (replier un ## cache son ###, le déplier le rend), blocs de la note de l'e2e « clic sous un bloc » (Properties, tableau, code, maths, embed, séparateur), Properties (valides remplacées, repli, curseur chassé). Ajoutés : chaque type de bloc dans ses modes (maths curseur dedans / dehors / bornes / lecture seule / avant premier focus / sélection principale seule, embed seul ou en ligne, tableau jamais révélé, HTML et commentaire sous le curseur, code et sa langue, séparateur), traduction vers le modèle de rangées (à la place / dessous / commentaire / code sans effet / repli à hauteur nulle), plages de repli (titres 1 à 6, listes, indentation, lignes vides, titre dans un code ou une citation, UTF-16, 10 000 lignes), état de repli remappé aux éditions, curseur chassé d'une source cachée. Hors module : rendu des widgets et gouttière (fr-t3-widgets-blocs), survol de la puce, gestes clavier (↑ ↓ Retour arrière autour d'un bloc), frappe du 3e tiret, saisie sous un tableau. Écart : le repli par nœud de lang-markdown (FencedCode, Blockquote…) n'est pas porté, seul le foldService de Fragment l'est."
