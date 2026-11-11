@@ -901,6 +901,19 @@ fn barre(
         f32::from(u(cx, f.size_4_1)),
         f32::from(u(cx, LARGEUR_ONGLET)),
     );
+    // ★ Les largeurs EXACTES (px d'écran, chacune au 1/64 comme les `LayoutUnit` de Chromium, qui
+    //   met en page en px zoomés) de ce qui, dans la barre, n'est pas le conteneur des onglets ni
+    //   l'espaceur : « + », chevron, bouton du dock droit et retrait des boutons de fenêtre. GPUI
+    //   cale chacune au pixel : à 150 %, la somme calée perdait 1 px et les côtés de l'actif
+    //   tombaient 0,25 px à gauche (`t1-zoom-150`, (279,14) et (498,14)).
+    let fixes = {
+        let lu = |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
+        let bouton = lu(2.0 * f.size_4_1 + f.icon_s);
+        let nouvel = lu(NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
+        let liste = lu(f.size_2_1) + bouton + lu(f.size_4_1);
+        let dock = options.retrait_droit.map_or(0.0, |r| liste + lu(r));
+        nouvel + liste + dock
+    };
     barre
         .child(
             canvas(
@@ -913,10 +926,13 @@ fn barre(
                         place_onglets.get(),
                         place_espaceur.get(),
                     ) {
-                        (Some(exacte), Some(rang), Some(o), Some(e)) => {
-                            // La largeur exacte est LOGIQUE, les bornes sont à l'écran (zoomées).
-                            let fraction = exacte * zoom - f32::from(bornes.size.width);
-                            let place = f32::from(o.size.width + e.size.width) + fraction;
+                        (Some(exacte), Some(rang), Some(o), Some(_)) => {
+                            // La largeur exacte est LOGIQUE, les bornes sont à l'écran (zoomées) :
+                            // la place des onglets est celle de la pile moins les largeurs exactes
+                            // fixes, pas la somme des boîtes calées par GPUI.
+                            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom))
+                                as f32
+                                - fixes;
                             let depart = f32::from(o.origin.x - bornes.origin.x);
                             let (g, d) = bords_exacts(place, marge, n, rang, largeur_max);
                             Some((depart + g, depart + d))
