@@ -1,0 +1,13 @@
+{
+  "scene": "t1-entete-vue",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":4,"current":1}}},
+    {"type":"command","id":"pixels:monter-vue","args":{"onglet":1}},
+    {"type":"hover","x":1261,"y":51},
+    {"type":"wait-stable"}
+  ]
+}

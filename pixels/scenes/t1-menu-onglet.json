@@ -1,0 +1,13 @@
+{
+  "scene": "t1-menu-onglet",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":4,"current":1}}},
+    {"type":"click","x":555,"y":20,"button":"right"},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}
