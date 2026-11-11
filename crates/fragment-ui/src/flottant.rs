@@ -22,7 +22,7 @@ use gpui_kit::{
 use serde_json::Value;
 
 use crate::echelle::u;
-use crate::polices::FAMILLE_INTERFACE;
+use crate::polices::famille_interface;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use crate::{menu, notice, toolbar, tooltip};
 
@@ -58,7 +58,7 @@ pub fn bordure<E: Styled>(mut e: E, largeur: Pixels) -> E {
 
 /// La typographie d'une surface : DM Sans, `taille` px (zoom compris), interligne relatif.
 pub fn texte<E: Styled>(e: E, cx: &App, taille: f32, interligne: f32) -> E {
-    e.font_family(FAMILLE_INTERFACE)
+    famille_interface(e)
         .font_weight(FontWeight::NORMAL)
         .text_size(u(cx, taille))
         .line_height(relative(interligne))

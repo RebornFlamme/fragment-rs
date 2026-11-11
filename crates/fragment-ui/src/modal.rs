@@ -27,7 +27,7 @@ use gpui_kit::{
 use crate::echelle::u;
 use crate::flottant::ombres;
 use crate::icones;
-use crate::polices::FAMILLE_INTERFACE;
+use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 // ── Le drapeau de fermeture ───────────────────────────────────────────────────
@@ -357,6 +357,7 @@ impl Render for Modale {
             .rounded(u(cx, t.forme.radius_l))
             .shadow(ombres(cx, &t.palette.shadow_l))
             .font_family(FAMILLE_INTERFACE)
+            .font_features(caracteristiques())
             .text_size(u(cx, t.typo.font_ui_normal))
             .line_height(relative(t.typo.line_height_normal))
             .overflow_hidden()
