@@ -134,9 +134,12 @@ mod tests {
         // Curseur en 0 (la 1re ligne), jamais focalisé : tout est rendu.
         let p = projection(t, 0, false);
         assert!(p.fork.masques.contains(&(0..2)));
-        // Focalisé dans la ligne : la source se révèle.
+        // Focalisé dans le titre : `# ` se révèle ; `**` seulement si le curseur touche le gras.
         let p = projection(t, 3, true);
-        assert!(p.fork.masques.is_empty());
+        assert!(!p.fork.masques.contains(&(0..2)));
+        assert!(p.fork.masques.contains(&(11..13)));
+        let p = projection(t, 14, true);
+        assert!(p.fork.masques.is_empty(), "{:?}", p.fork.masques);
     }
 
     #[test]
