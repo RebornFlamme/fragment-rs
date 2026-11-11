@@ -17,11 +17,11 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use fragment_core::ItemId;
+use fragment_core::{DropZone, ItemId};
 use gpui_kit::{
     AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
     ParentElement as _, PathBuilder, Pixels, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Visibility, Window, canvas, div, point, px, svg,
+    Styled as _, Visibility, Window, canvas, div, point, px, relative, svg,
 };
 
 use super::ContexteOnglets;
@@ -46,7 +46,22 @@ pub struct OptionsPile {
     /// droit. Le recouvrement vient de `Workspace::espace_des_boutons` (la réserve entière à
     /// défaut : `frame_right_space`).
     pub retrait_droit: Option<f32>,
+    /// Le glisser d'onglet en cours vise cette pile (`crate::glisser`, fr-t1-splits) : la zone de
+    /// dépôt sous le pointeur. Un bord : la feuille visible recule sur la moitié opposée et un bloc
+    /// d'accent remplit la moitié libérée (`is-split-preview-*`). `Reorder` : la barre d'insertion,
+    /// à l'abscisse [`Self::insertion`].
+    pub apercu: Option<DropZone>,
+    /// L'abscisse (px logiques, relative à la barre) de la barre d'insertion (`--drop-x`) ; lue
+    /// seulement quand [`Self::apercu`] vaut `Reorder`.
+    pub insertion: Option<f32>,
 }
+
+/// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`).
+const OPACITE_APERCU: f32 = 0.22;
+/// La barre d'insertion du réordonnancement : 3 px de large, à 8 px du haut et du bas de la barre
+/// (workspace.css, `.workspace-tab-header-container::after`).
+const INSERTION_LARGEUR: f32 = 3.0;
+const INSERTION_MARGE: f32 = 8.0;
 
 /// Peint `segments` dans `construit`, décalés de `origine` (le coin de la barre à l'écran).
 fn tracer(construit: &mut PathBuilder, segments: &[Segment], origine: gpui_kit::Point<Pixels>) {
@@ -333,10 +348,13 @@ fn entete_d_onglet(
         .whitespace_nowrap()
         .on_mouse_down(MouseButton::Left, {
             let ws = ctx.workspace.clone();
-            move |_, _, cx| {
+            move |evt, _, cx| {
                 if let Ok(mut w) = ws.try_borrow_mut() {
                     actions::presser_entete(&mut w, pile, index);
                 }
+                // L'appui est aussi le début possible d'un glisser d'onglet (fr-t1-splits) : le
+                // seuil de 4 px et la suite vivent dans `crate::glisser`.
+                crate::glisser::noter_appui(pile, leaf, evt.position, cx);
                 cx.refresh_windows();
             }
         })
@@ -498,6 +516,22 @@ fn barre(
         barre = barre.child(bouton).pr(u(cx, retrait));
     }
 
+    // La barre d'insertion, centrée SUR l'interstice : peinte en dernier, au-dessus des onglets et
+    // du contour.
+    let insertion = options
+        .insertion
+        .filter(|_| options.apercu == Some(DropZone::Reorder))
+        .map(|x| {
+            div()
+                .absolute()
+                .top(u(cx, INSERTION_MARGE))
+                .bottom(u(cx, INSERTION_MARGE))
+                .left(u(cx, x - INSERTION_LARGEUR / 2.0))
+                .w(u(cx, INSERTION_LARGEUR))
+                .rounded(u(cx, f.radius_xxs))
+                .bg(couleur(c.color_accent))
+        });
+
     // Le contour : peint APRÈS tous les en-têtes, donc par-dessus le fond de l'actif.
     let (fond_pane, trait_) = (couleur(c.workspace_bg), couleur(c.tab_outline_color));
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
@@ -525,6 +559,7 @@ fn barre(
             .right(u(cx, 0.0))
             .bottom(u(cx, 0.0)),
         )
+        .children(insertion)
         .into_any_element()
 }
 
@@ -534,15 +569,29 @@ fn barre(
 /// seulement son onglet : sinon, revenir écrire dans la note après le chat du dock la laissait
 /// inactive, et ses raccourcis partaient au chat. Le focus (`focusin` de Fragment) viendra avec
 /// les vues qui ont un champ de saisie.
-fn feuille_visible(ctx: &ContexteOnglets, leaf: ItemId, cx: &App) -> AnyElement {
+fn feuille_visible(
+    ctx: &ContexteOnglets,
+    leaf: ItemId,
+    apercu: Option<DropZone>,
+    cx: &App,
+) -> AnyElement {
     let ws = ctx.workspace.clone();
-    div()
+    let feuille = div()
         .id(("feuille", leaf.index() as usize))
         .absolute()
         .top(u(cx, 0.0))
         .left(u(cx, 0.0))
         .right(u(cx, 0.0))
-        .bottom(u(cx, 0.0))
+        .bottom(u(cx, 0.0));
+    // L'aperçu de split : la feuille recule, son bord côté cible va au milieu.
+    let feuille = match apercu {
+        Some(DropZone::SplitRight) => feuille.right(relative(0.5)),
+        Some(DropZone::SplitLeft) => feuille.left(relative(0.5)),
+        Some(DropZone::SplitTop) => feuille.top(relative(0.5)),
+        Some(DropZone::SplitBottom) => feuille.bottom(relative(0.5)),
+        _ => feuille,
+    };
+    feuille
         .flex()
         .capture_any_mouse_down(move |_, _, cx| {
             if let Ok(mut w) = ws.try_borrow_mut() {
@@ -570,12 +619,34 @@ pub fn rendre_pile(
         // Un emprunt en cours (un écouteur du Workspace qui redessine) : on ne peint rien.
         Err(_) => return div().into_any_element(),
     };
-    let conteneur = div()
+    let mut conteneur = div()
         .relative()
         .flex_1()
         .min_h(u(cx, 0.0))
         .bg(couleur(t.palette.workspace_bg))
-        .children(visible.map(|l| feuille_visible(ctx, l, cx)));
+        .children(visible.map(|l| feuille_visible(ctx, l, options.apercu, cx)));
+    if let Some(zone) = options
+        .apercu
+        .filter(|z| !matches!(z, DropZone::Reorder | DropZone::Center))
+    {
+        // Le bloc d'accent remplit la moitié libérée : l'emplacement du futur pane.
+        let bloc = div()
+            .absolute()
+            .top(u(cx, 0.0))
+            .left(u(cx, 0.0))
+            .right(u(cx, 0.0))
+            .bottom(u(cx, 0.0))
+            .rounded(u(cx, t.forme.radius_m))
+            .bg(couleur(t.palette.color_accent))
+            .opacity(OPACITE_APERCU);
+        let bloc = match zone {
+            DropZone::SplitRight => bloc.left(relative(0.5)),
+            DropZone::SplitLeft => bloc.right(relative(0.5)),
+            DropZone::SplitTop => bloc.bottom(relative(0.5)),
+            _ => bloc.top(relative(0.5)),
+        };
+        conteneur = conteneur.child(bloc);
+    }
     let pile_el = div()
         .flex()
         .flex_col()

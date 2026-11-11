@@ -1,0 +1,12 @@
+{
+  "scene": "t1-split-proportions",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"split","direction":"vertical","children":[{"type":"tabs","tabs":1,"dimension":25},{"type":"split","direction":"horizontal","dimension":50,"children":[{"type":"tabs","tabs":2,"current":1,"dimension":25},{"type":"tabs","tabs":1,"dimension":75}]},{"type":"tabs","tabs":1,"dimension":25}]}}},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}
