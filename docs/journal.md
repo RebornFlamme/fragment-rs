@@ -498,3 +498,7 @@ Livraison de T1 quand #49 est fusionnée.
   - Écarts acceptés : piles de polices non surchargeables (avertissement), `color-mix` hors srgb et `calc` hors px non gérés.
   - Note posée sur fr-t11-themes : l'accent des réglages s'applique en dernière surcharge.
   - Lancée : fr-t4-barre (Sonnet, `../fragment-rs-barre`). Actifs : shell4, pdfpages, blocs, imbrique, barre.
+- Battement 11/11 18:23 UTC : fenêtre 5 h à 27 % (reset 22:30), semaine à 40 %.
+  - Rythme cible : (97 − 40) ÷ 47,6 h ≈ 1,2 point par heure. Réel depuis 17:40 : environ 4 points par heure, en avance.
+  - PR : #64 en CI ; #49 en brouillon, pixels rouge, shell4 au travail.
+  - Cinq actifs, pas de place libre. pdfpages est à 232k tokens, près de son arrêt à 250k.
