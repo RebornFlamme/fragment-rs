@@ -108,3 +108,18 @@ Constantes dans `xtask/src/pixels/arrondis.rs` et `ombres.rs`, mesures sur le ru
 - **Constat** : le delta seul ne fait pas la contre-épreuve (un rayon changé d'1 px ne déplace l'arc que de 0,41 px au plus : sous 6 niveaux sur une bordure de 12 niveaux de contraste). D'où un garde-fou de **position** : par arc, Σ (candidat − référence) projeté sur la couleur « dedans − dehors » (lue au milieu du côté droit voisin), divisé par la longueur de l'arc = déplacement radial moyen, **≤ 0,15 px**. Un rayon ±1 donne 0,27 px quel que soit `r` (contre-épreuve `un_rayon_change_d_un_pixel_fait_echouer`, déclaré au rayon dessiné ou non, dont une bordure peu contrastée) ; une boîte décalée d'1 px échoue par ses côtés stricts.
 - **Mesuré** : sombre et barres d'outils ≤ 0,10 px (barres ≤ 0,024) ; clair 0,20 à 0,25 px (menu, notices, infobulle : contraste de bordure de 7 niveaux, un niveau = 0,14 de couverture ; palette et modale : arc de GPUI 0,2 px plus à l'extérieur, 60 px de delta 7 à 33 sur une bordure de 92 niveaux). Ces coins clairs échouent.
 - **`--shadow-l`** (`ombres::JETON_EXCEPTION`) : garde-fous et delta > 2 non bloquants, valeurs en cliquet par PNG (clé `shadow_l`, valeur absolue). Mesuré : sombre étalement +1,42 à +1,60 px, encre +24 à +34 %, glissement −28 à −43 % ; clair −0,58 à −0,60 px, encre −3 à −7 %, glissement +2 à +7 % ; 0 pixel de delta > 2 hors des bandes d'arrondi (les 26 à 76 pixels de delta 3-4 étaient les coins).
+
+## Amendement du 11/11/2026, 12:00 UTC (orchestrateur) : origine d'encre, garde d'arc, résidus de T1
+
+**Garde d'arc (fr-t1.1, #46) : APPROUVÉE.** Le glissement moyen de chaque arc est limité à 0,15 px.
+
+**Origine d'encre, au barycentre.** Elle remplace le bord de couverture à 10 %, que le calage des fûts de GPUI décalait d'1 px sur un seul côté.
+- L'origine se mesure au BARYCENTRE de l'encre, à ±0,5 px, en x ET en y.
+- La boîte d'encre à ±1 px reste exigée en plus.
+- Barycentre par passage et, si la boîte est assez longue, par moitié gauche et moitié droite : un décalage d'un côté ne peut pas être compensé de l'autre.
+- Contre-épreuve : un passage déplacé d'1 px fait échouer.
+
+**Résidus sous le pixel : extension TEMPORAIRE, limitée à la livraison de T1.**
+- Liste NOMMÉE des scènes et des éléments, avec leurs valeurs mesurées en cliquet : ombres de l'infobulle, du menu clair et de la notice claire ; arcs clairs ; palette et modale claires.
+- Aucune tolérance générique par thème.
+- Ces exceptions et celle de `--shadow-l` sont cinq symptômes d'une seule cause, le mélange alpha. `fr-p4.1` est lancée MAINTENANT, sans attendre la phase 4. Son critère de fin : toutes ces exceptions retirées, cliquets ramenés à 0.
