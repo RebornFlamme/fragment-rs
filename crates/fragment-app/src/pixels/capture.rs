@@ -12,6 +12,11 @@ use image::RgbaImage;
 
 use super::actions::{PixelAttendu, Scene};
 
+// ★ Les boîtes de texte et d'icônes (ADR-009) : le fichier est celui de `xtask` (même code des deux
+// côtés, voir son en-tête). Le candidat les déclare ; `cargo xtask pixels` les relit.
+#[path = "../../../../xtask/src/pixels/boites.rs"]
+mod boites;
+
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
 pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<RgbaImage> {
     cx.update(|cx| {
@@ -80,17 +85,25 @@ pub fn verifier_pixels(
     Ok(())
 }
 
-/// Écrit le PNG `<dossier>/<scène>-<thème>.png`.
+/// Écrit le PNG `<dossier>/<scène>-<thème>.png` et, à côté, `<scène>-<thème>.boites.json` : les boîtes
+/// de texte et d'icônes de CETTE capture (catégorie et rectangle), dérivées de l'image candidate
+/// seule, jamais de la référence (ADR-009).
 pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(dossier)?;
     let chemin = dossier.join(format!("{nom}-{theme}.png"));
     image.save(&chemin)?;
+    let boites = boites::detecter(image);
+    std::fs::write(
+        dossier.join(format!("{nom}-{theme}.boites.json")),
+        boites::serialiser(&boites),
+    )?;
     println!(
-        "capturée : {} ({}×{}, {} couleurs distinctes)",
+        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes)",
         chemin.display(),
         image.width(),
         image.height(),
-        compter_couleurs(image)
+        compter_couleurs(image),
+        boites.len()
     );
     Ok(())
 }

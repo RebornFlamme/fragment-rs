@@ -77,3 +77,22 @@ Mesure sur l'artefact CI (run 42873546813), boîte et ombre comprises :
   approché (sans casse ni accents) pour l'ordre alphabétique à requête vide.
 - **Décision du chef (10/11)** : scènes en `"depuis": "T2"` (en attente du shell, à repasser à T1 par `fr-t1-binaire`) ;
   les écarts de rendu relèvent de `fr-t1.1`.
+
+## Format du rapport du sas (ADR-009)
+`cargo xtask pixels` écrit sa section entre `<!-- sas:debut -->` et `<!-- sas:fin -->` (en fin de fichier, ajoutée si les marqueurs manquent) : le reste de ce fichier, écrit à la main, n'est jamais touché. Une ligne par PNG comparé :
+
+| Colonne | Sens |
+|---|---|
+| Verdict | `Strict` (0 pixel), `Tolere` (écarts seulement dans les boîtes, garde-fous tenus, cliquet tenu), `Echec` |
+| Boîtes (texte/icônes) | nombre de boîtes déclarées par le candidat, par catégorie |
+| Hors boîtes (px) | pixels divergents hors de toute boîte : doit être 0 |
+| Dans les boîtes (px), % | pixels divergents dans l'union des boîtes (élargies de 1 px), et part de leur aire |
+| Delta max | plus fort écart de canal dans les boîtes |
+| Largeur ±1 | boîtes dont le bord droit d'encre diffère d'un pixel : la dette T1 (`fr-t1.3`) |
+| Cliquet | `ok`, `réécrit` (sous `--maj-cliquet`) ou la raison de l'aggravation |
+
+Sous le tableau, « Échecs » liste, pour chaque scène en échec : les pixels hors boîtes (dont combien de delta ≤ 2), les zones, et pour chaque boîte fautive son rectangle, le garde-fou violé et ses chiffres (`encre`, `forme`, `teinte`, écart des quatre bords d'encre). Le candidat écrit `<scène>-<thème>.boites.json` à côté de chaque PNG ; sans ce fichier `xtask` déduit les boîtes de l'image. Les diffs `pixels/diff/*.png` montrent en orange l'écart toléré dans une boîte et en rouge celui hors boîte.
+
+<!-- sas:debut -->
+(Section générée par le job `pixels`.)
+<!-- sas:fin -->
