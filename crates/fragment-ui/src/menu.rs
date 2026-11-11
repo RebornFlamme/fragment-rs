@@ -23,7 +23,7 @@ use gpui_kit::{
 use serde_json::Value;
 
 use crate::echelle::{calees, moitie, u};
-use crate::flottant::{bordure, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{bordure, bordure_translucide, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
@@ -638,8 +638,9 @@ fn rendre_niveau(
             .size_full(),
         )
         .children(lignes);
-    let boite =
-        bordure(boite, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
+    // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
+    let boite = bordure(boite, u(cx, f.border_width))
+        .border_color(couleur(bordure_translucide(c, c.menu_bg)));
     let boite = ombrer(
         boite,
         cx,

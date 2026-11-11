@@ -12,6 +12,7 @@
 
 mod arrondis;
 mod boites;
+mod exceptions;
 mod ombres;
 mod sas;
 
@@ -391,7 +392,63 @@ fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
     Ok(base)
 }
 
-fn ecrire_cliquet(chemin: &Path, base: &BTreeMap<String, Base>) -> anyhow::Result<()> {
+/// Les mesures d'exceptions nommées d'un PNG : par élément, ses valeurs (en valeur absolue).
+type Nommees = BTreeMap<String, BTreeMap<String, f64>>;
+
+/// Lit les exceptions nommées temporaires de T1 du cliquet (clé `exceptions_t1`, à retirer par
+/// `fr-p4.1`), par PNG.
+fn lire_nommees(chemin: &Path) -> anyhow::Result<BTreeMap<String, Nommees>> {
+    let Ok(texte) = std::fs::read_to_string(chemin) else {
+        return Ok(BTreeMap::new());
+    };
+    let json: serde_json::Value =
+        serde_json::from_str(&texte).with_context(|| format!("{} illisible", chemin.display()))?;
+    let mut tout = BTreeMap::new();
+    for (nom, v) in json["scenes"].as_object().into_iter().flatten() {
+        let Some(elements) = v.get("exceptions_t1").and_then(|e| e.as_object()) else {
+            continue;
+        };
+        let mut n = Nommees::new();
+        for (element, mesures) in elements {
+            let mut m = BTreeMap::new();
+            for (cle, val) in mesures.as_object().into_iter().flatten() {
+                let val = val
+                    .as_f64()
+                    .with_context(|| format!("{nom} : exceptions_t1.{element}.{cle} invalide"))?;
+                m.insert(cle.clone(), val);
+            }
+            n.insert(element.clone(), m);
+        }
+        tout.insert(nom.clone(), n);
+    }
+    Ok(tout)
+}
+
+/// Le cliquet des exceptions nommées : `None` si chaque mesure tient sous sa base.
+fn verifier_nommees(mesure: &Nommees, base: Option<&Nommees>) -> Option<String> {
+    let mut raisons = Vec::new();
+    for (element, valeurs) in mesure {
+        let Some(b) = base.and_then(|b| b.get(element)) else {
+            if valeurs.values().any(|v| *v != 0.0) {
+                raisons.push(format!("exception nommée « {element} » sans base"));
+            }
+            continue;
+        };
+        for (cle, v) in valeurs {
+            let max = b.get(cle).copied().unwrap_or(0.0);
+            if arrondir(*v) > max {
+                raisons.push(format!("« {element} » : {cle} {v:.4} > base {max:.4}"));
+            }
+        }
+    }
+    (!raisons.is_empty()).then(|| format!("cliquet aggravé : {}", raisons.join(" ; ")))
+}
+
+fn ecrire_cliquet(
+    chemin: &Path,
+    base: &BTreeMap<String, Base>,
+    nommees: &BTreeMap<String, Nommees>,
+) -> anyhow::Result<()> {
     let scenes: serde_json::Map<String, serde_json::Value> = base
         .iter()
         .map(|(nom, b)| {
@@ -412,11 +469,14 @@ fn ecrire_cliquet(chemin: &Path, base: &BTreeMap<String, Base>) -> anyhow::Resul
                     "forts": e.forts,
                 });
             }
+            if let Some(n) = nommees.get(nom).filter(|n| !n.is_empty()) {
+                v["exceptions_t1"] = serde_json::json!(n);
+            }
             (nom.clone(), v)
         })
         .collect();
     let json = serde_json::json!({
-        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes), en valeur absolue. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
         "scenes": scenes,
     });
     if let Some(parent) = chemin.parent() {
@@ -583,6 +643,8 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     std::fs::create_dir_all(&o.diff)?;
     let base = lire_cliquet(&o.cliquet)?;
     let mut nouvelle_base = base.clone();
+    let base_nommees = lire_nommees(&o.cliquet)?;
+    let mut nouvelles_nommees = base_nommees.clone();
 
     let mut ok = true;
     let mut rapport = String::from(
@@ -591,11 +653,21 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let mut details = String::new();
     let mut mesures_ombres = String::new();
     let mut mesures_arrondis = String::new();
+    let mut mesures_barycentres = String::new();
+    let mut mesures_nommees = String::new();
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
         let ligne = match boites_du_candidat(&o.candidat, nom, &c).and_then(|d| {
-            sas::comparer_tout(&r, &c, &d.boites, &d.ombres, &d.arrondis).map(|s| (d.boites, s))
+            sas::comparer_tout(
+                &r,
+                &c,
+                &d.boites,
+                &d.ombres,
+                &d.arrondis,
+                &exceptions::du_png(nom),
+            )
+            .map(|s| (d.boites, s))
         }) {
             Ok((boites, s)) => {
                 s.diff.save(o.diff.join(nom))?;
@@ -618,10 +690,34 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         // Une exception sans écart (capture comparée à elle-même) ne demande pas de base.
                         .filter(|e| *e != BaseException::default()),
                 };
+                let mesure_nommees: Nommees = s
+                    .nommees
+                    .iter()
+                    .map(|(e, m)| {
+                        (
+                            (*e).to_owned(),
+                            m.iter()
+                                .map(|(k, v)| ((*k).to_owned(), arrondir(*v)))
+                                .collect(),
+                        )
+                    })
+                    .collect();
+                for (e, m) in &mesure_nommees {
+                    let valeurs = m
+                        .iter()
+                        .map(|(k, v)| format!("{k} {v}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    writeln!(mesures_nommees, "- {nom} : {e} : {valeurs}")?;
+                }
+                let raison_cliquet = verifier_cliquet(mesure, base.get(nom))
+                    .into_iter()
+                    .chain(verifier_nommees(&mesure_nommees, base_nommees.get(nom)))
+                    .reduce(|a, b| format!("{a} ; {b}"));
                 let mut verdict = s.verdict;
                 let cliquet = if verdict == Verdict::Echec {
                     "—".to_owned()
-                } else if let Some(raison) = verifier_cliquet(mesure, base.get(nom)) {
+                } else if let Some(raison) = raison_cliquet {
                     if o.maj_cliquet {
                         // Mise à jour voulue : la base change, la PR montre la différence.
                         println!("{nom} : base réécrite ({raison})");
@@ -639,6 +735,11 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         nouvelle_base.remove(nom);
                     } else {
                         nouvelle_base.insert(nom.clone(), mesure);
+                    }
+                    if mesure_nommees.is_empty() {
+                        nouvelles_nommees.remove(nom);
+                    } else {
+                        nouvelles_nommees.insert(nom.clone(), mesure_nommees.clone());
                     }
                 }
                 if verdict == Verdict::Echec {
@@ -753,6 +854,12 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         )?;
                     }
                 }
+                if let Some((x, y, ou)) = s.pire_barycentre() {
+                    writeln!(
+                        mesures_barycentres,
+                        "- {nom} : pire écart {x:.2} px en x, {y:.2} px en y ({ou})"
+                    )?;
+                }
                 let (texte, icones) = sas::par_categorie(&boites);
                 format!(
                     "| {nom} | {verdict:?} | {texte}/{icones} | {} | {} | {:.4} | {} | {} | {} | {} | {:.4} | {} | {} | {} | {} | {cliquet} |",
@@ -826,12 +933,31 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         )?;
         print!("{mesures_arrondis}");
     }
+    if !mesures_nommees.is_empty() {
+        write!(
+            rapport,
+            "
+Exceptions NOMMÉES temporaires de T1, à retirer par fr-p4.1 (mesures en valeur absolue, en cliquet) :
+
+{mesures_nommees}"
+        )?;
+    }
+    if !mesures_barycentres.is_empty() {
+        write!(
+            rapport,
+            "
+Barycentres d'encre (pire écart absolu des passages et de leurs moitiés, borne ±{} px) :
+
+{mesures_barycentres}",
+            sas::ECART_BARYCENTRE
+        )?;
+    }
     if plan.paires.is_empty() && !o.exiger_references {
         println!("xtask pixels : aucune paire référence/candidat à comparer (en attente)");
     }
     ecrire_rapport(&o.rapport, &rapport)?;
     if o.maj_cliquet {
-        ecrire_cliquet(&o.cliquet, &nouvelle_base)?;
+        ecrire_cliquet(&o.cliquet, &nouvelle_base, &nouvelles_nommees)?;
         println!("cliquet réécrit : {}", o.cliquet.display());
     }
     Ok(ok)
@@ -856,6 +982,21 @@ mod tests {
             ("menu".to_owned(), sc(Some(7), false)),
             ("mire".to_owned(), sc(None, true)),
         ])
+    }
+
+    #[test]
+    fn le_cliquet_des_exceptions_nommees_refuse_une_aggravation() {
+        let n = |v: f64| -> Nommees {
+            BTreeMap::from([(
+                "arcs du menu".to_owned(),
+                BTreeMap::from([("deplacement".to_owned(), v)]),
+            )])
+        };
+        assert_eq!(verifier_nommees(&n(0.22), Some(&n(0.224))), None);
+        assert!(verifier_nommees(&n(0.23), Some(&n(0.224))).is_some());
+        // Sans base : refusé, sauf mesure nulle.
+        assert!(verifier_nommees(&n(0.1), None).is_some());
+        assert_eq!(verifier_nommees(&n(0.0), None), None);
     }
 
     #[test]

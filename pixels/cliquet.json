@@ -1,6 +1,106 @@
 {
-  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes), en valeur absolue. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
   "scenes": {
+    "t1-infobulle-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 54.8077,
+      "delta_max": 85,
+      "exceptions_t1": {
+        "ombre de l'infobulle": {
+          "encre": 0.032,
+          "etalement": 0.2432,
+          "glissement": 0.0373
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 5.6405,
+      "pourcent": 35.5867
+    },
+    "t1-infobulle-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 82.6923,
+      "delta_max": 73,
+      "exceptions_t1": {
+        "arcs de l'infobulle": {
+          "delta_max": 0.0,
+          "deplacement": 0.2122,
+          "forts": 0.0
+        },
+        "ombre de l'infobulle": {
+          "encre": 0.0276,
+          "etalement": 0.2227,
+          "glissement": 0.0322
+        }
+      },
+      "ombre_delta_max": 2,
+      "ombre_pourcent": 18.586,
+      "pourcent": 35.4592
+    },
+    "t1-menu-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 71.5278,
+      "delta_max": 85,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 12.107,
+      "pourcent": 34.2581
+    },
+    "t1-menu-light.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 73.6111,
+      "delta_max": 71,
+      "exceptions_t1": {
+        "arcs du menu": {
+          "delta_max": 7.0,
+          "deplacement": 0.2313,
+          "forts": 1.0
+        },
+        "ombre du menu": {
+          "encre": 0.0672,
+          "etalement": 0.1851,
+          "glissement": 0.0879
+        }
+      },
+      "ombre_delta_max": 2,
+      "ombre_pourcent": 29.3005,
+      "pourcent": 34.1774
+    },
+    "t1-modale-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 61.1607,
+      "delta_max": 88,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 25.7687,
+      "pourcent": 32.0004,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.3397,
+        "etalement": 1.5956,
+        "forts": 0,
+        "glissement": 0.4317
+      }
+    },
+    "t1-modale-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 20.5357,
+      "delta_max": 61,
+      "exceptions_t1": {
+        "arcs de la modale": {
+          "delta_max": 33.0,
+          "deplacement": 0.2009,
+          "forts": 60.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 22.0725,
+      "pourcent": 31.7154,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.0327,
+        "etalement": 0.5978,
+        "forts": 0,
+        "glissement": 0.024
+      }
+    },
     "t1-notice-dark.png": {
       "arrondi_delta_max": 5,
       "arrondi_pourcent": 60.4167,
@@ -8,6 +108,165 @@
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.6345,
       "pourcent": 37.1968
+    },
+    "t1-notice-empilees-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 61.5741,
+      "delta_max": 153,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 9.2902,
+      "pourcent": 37.839
+    },
+    "t1-notice-empilees-light.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 70.1389,
+      "delta_max": 160,
+      "exceptions_t1": {
+        "arcs des notices": {
+          "delta_max": 7.0,
+          "deplacement": 0.2673,
+          "forts": 3.0
+        },
+        "ombre des notices": {
+          "encre": 0.129,
+          "etalement": 0.1457,
+          "glissement": 0.0819
+        }
+      },
+      "ombre_delta_max": 2,
+      "ombre_pourcent": 42.7348,
+      "pourcent": 38.0267
+    },
+    "t1-notice-light.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 69.4444,
+      "delta_max": 102,
+      "exceptions_t1": {
+        "arcs de la notice": {
+          "delta_max": 7.0,
+          "deplacement": 0.2477,
+          "forts": 1.0
+        },
+        "ombre de la notice": {
+          "encre": 0.1206,
+          "etalement": 0.16,
+          "glissement": 0.1155
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 38.8935,
+      "pourcent": 37.3989
+    },
+    "t1-palette-aucun-resultat-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 58.9286,
+      "delta_max": 129,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 26.9982,
+      "pourcent": 33.244,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.2824,
+        "etalement": 1.4232,
+        "forts": 0,
+        "glissement": 0.3821
+      }
+    },
+    "t1-palette-aucun-resultat-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 22.3214,
+      "delta_max": 118,
+      "exceptions_t1": {
+        "arcs de la palette": {
+          "delta_max": 33.0,
+          "deplacement": 0.2026,
+          "forts": 60.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 23.2937,
+      "pourcent": 33.1866,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.0557,
+        "etalement": 0.5803,
+        "forts": 0,
+        "glissement": 0.0428
+      }
+    },
+    "t1-palette-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 39.1089,
+      "delta_max": 129,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 25.7442,
+      "pourcent": 32.5023,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.245,
+        "etalement": 1.4169,
+        "forts": 0,
+        "glissement": 0.2802
+      }
+    },
+    "t1-palette-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 25.2475,
+      "delta_max": 118,
+      "exceptions_t1": {
+        "arcs de la palette": {
+          "delta_max": 33.0,
+          "deplacement": 0.2037,
+          "forts": 60.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 23.7059,
+      "pourcent": 32.4486,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.0668,
+        "etalement": 0.5832,
+        "forts": 0,
+        "glissement": 0.0674
+      }
+    },
+    "t1-palette-selection-dark.png": {
+      "arrondi_delta_max": 4,
+      "arrondi_pourcent": 39.1089,
+      "delta_max": 129,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 25.7442,
+      "pourcent": 32.5077,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.245,
+        "etalement": 1.4169,
+        "forts": 0,
+        "glissement": 0.2802
+      }
+    },
+    "t1-palette-selection-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 25.2475,
+      "delta_max": 118,
+      "exceptions_t1": {
+        "arcs de la palette": {
+          "delta_max": 33.0,
+          "deplacement": 0.2037,
+          "forts": 60.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 23.7059,
+      "pourcent": 32.4486,
+      "shadow_l": {
+        "delta_max": 0,
+        "encre": 0.0668,
+        "etalement": 0.5832,
+        "forts": 0,
+        "glissement": 0.0674
+      }
     },
     "t1-toolbar-horizontale-dark.png": {
       "arrondi_delta_max": 1,
@@ -24,6 +283,22 @@
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.0724,
       "pourcent": 26.1521
+    },
+    "t1-toolbar-sections-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 19.0476,
+      "delta_max": 94,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 9.3249,
+      "pourcent": 33.0614
+    },
+    "t1-toolbar-sections-light.png": {
+      "arrondi_delta_max": 2,
+      "arrondi_pourcent": 31.746,
+      "delta_max": 77,
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 7.4181,
+      "pourcent": 32.5563
     }
   }
 }

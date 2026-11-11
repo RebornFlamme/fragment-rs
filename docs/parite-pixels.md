@@ -71,6 +71,16 @@ forme 0 % au lieu de 67 à 80 %), légende de la palette calée (écart ramené 
   `exécuter` à −2 px, `esc`/`fermer` à −1 px.
 - **Titre de la modale** et champ de la palette : origine à +1 px en y (interligne).
 
+**État au 11/11, étape 3 (PR #50, run CI 43024988037)** : les 10 scènes sont à T1, 20 PNG sur 20 tolérés, cliquet posé.
+Origine d'encre au barycentre, exceptions nommées temporaires de T1 (`xtask/src/pixels/exceptions.rs`, 13 éléments, à
+retirer par `fr-p4.1`), `↵` en gras synthétique, titre de modale remonté d'1 px. Deux causes trouvées en route :
+- **Bordures translucides** : pré-composées en opaque, elles éloignaient l'anticrénelage des arcs de 2 à 4 niveaux ;
+  laissées translucides, GPUI les mélange à l'octet d'opacité (26/255) quand Chromium prend l'opacité exacte (10 %),
+  d'où 232 au lieu de 233 sur les côtés droits clairs. `flottant::bordure_translucide` déplace la teinte, canal par
+  canal, pour que le mélange de GPUI tombe sur celui de Chromium.
+- **Zoom qui fuit** : depuis #48, le zoom d'une scène d'app (110 %) survivait dans les scènes flottantes suivantes ;
+  chaque scène repart à 100 % (`pixels/mod.rs`).
+
 **Corrigé (fr-t1.1)**
 - Lignes de menu de 29,5 px : GPUI arrondit les longueurs écrites AVANT la mise en page ; `echelle::calees` leur
   donne les hauteurs entières (30, 29, 30…) qui reproduisent l'arrondi arête par arête de Chromium (voir

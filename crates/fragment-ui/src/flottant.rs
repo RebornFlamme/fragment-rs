@@ -14,7 +14,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use fragment_core::CommandManager;
-use fragment_theme::Ombre;
+use fragment_theme::{Couleur, Ombre, Palette};
 use gpui_kit::{
     AbsoluteLength, App, Bounds, BoxShadow, Context, FontWeight, IntoElement, ParentElement,
     Pixels, Render, Styled, Window, canvas, div, point, relative,
@@ -207,6 +207,52 @@ pub fn bordure<E: Styled>(mut e: E, largeur: Pixels) -> E {
     e
 }
 
+/// La couleur de `--background-modifier-border` d'une surface de fond opaque `fond`, à passer à
+/// `border_color`.
+///
+/// ★ Elle reste TRANSLUCIDE : pré-composée en opaque (`Palette::aplat`), l'anticrénelage des arcs
+/// extérieurs s'éloignait de Chromium de 2 à 4 niveaux (notice sombre, run 43018474495), car
+/// Chromium y pose un trait translucide sur un fond déjà anticrénelé. Sur les côtés droits,
+/// Chromium mélange la bordure à l'opacité EXACTE du jeton (`fond + p × (teinte − fond)`,
+/// arrondi au plus proche : 232,5 → 233 sur le blanc du menu clair) ; GPUI la mélange à l'octet
+/// d'opacité (26/255 pour 10 %) et tombe un niveau à côté (232). On garde donc l'octet d'opacité
+/// et on déplace, canal par canal et seulement si besoin, la teinte vers celle dont le mélange de
+/// GPUI tombe au plus près de la valeur de Chromium. À retirer par `fr-p4.1` (mélange alpha).
+pub fn bordure_translucide(c: &Palette, fond: Couleur) -> Couleur {
+    let teinte = c.background_modifier_border;
+    let p = f64::from(c.opacites.bordure) / 100.0;
+    let a = f64::from(teinte.a) / 255.0;
+    if a <= 0.0 {
+        return teinte;
+    }
+    let canal = |t: u8, f: u8| -> u8 {
+        let f = f64::from(f);
+        let cible = (f + p * (f64::from(t) - f) + 0.5).floor();
+        let gpui = |x: u8| f + a * (f64::from(x) - f);
+        if (gpui(t) + 0.5).floor() == cible {
+            return t;
+        }
+        // La teinte la plus proche de `t` parmi celles dont le mélange tombe au plus près.
+        (0..=255u8)
+            .min_by(|x, y| {
+                let ex = (gpui(*x) - cible).abs();
+                let ey = (gpui(*y) - cible).abs();
+                ex.total_cmp(&ey).then(
+                    (i16::from(*x) - i16::from(t))
+                        .abs()
+                        .cmp(&(i16::from(*y) - i16::from(t)).abs()),
+                )
+            })
+            .unwrap_or(t)
+    };
+    Couleur::octets(
+        canal(teinte.r, fond.r),
+        canal(teinte.g, fond.g),
+        canal(teinte.b, fond.b),
+        teinte.a,
+    )
+}
+
 /// La typographie d'une surface : DM Sans, `taille` px (zoom compris), interligne relatif.
 pub fn texte<E: Styled>(e: E, cx: &App, taille: f32, interligne: f32) -> E {
     famille_interface(e)
@@ -257,5 +303,38 @@ impl Render for Decor {
             .child(tooltip::couche(cx))
             // Les modales passent devant tout (z-index 1100, au-dessus du menu).
             .child(crate::modal::couche(window, cx))
+    }
+}
+
+#[cfg(test)]
+mod tests_bordure {
+    use super::*;
+    use fragment_theme::Theme;
+
+    /// Le mélange de GPUI : la teinte à son octet d'opacité sur le fond, arrondi au plus proche.
+    fn gpui(c: Couleur, fond: Couleur) -> [u8; 3] {
+        let a = f64::from(c.a) / 255.0;
+        let m = |t: u8, f: u8| {
+            let f = f64::from(f);
+            (f + a * (f64::from(t) - f) + 0.5).floor() as u8
+        };
+        [m(c.r, fond.r), m(c.g, fond.g), m(c.b, fond.b)]
+    }
+
+    /// Valeurs relevées sur les captures de Fragment (run 43018474495) : côtés droits des bordures
+    /// du menu (clair, sombre) et de la notice sombre.
+    #[test]
+    fn bordure_translucide_tombe_sur_les_cotes_de_chromium() {
+        let clair = Theme::clair().palette;
+        let sombre = Theme::sombre().palette;
+        let menu_clair = bordure_translucide(&clair, clair.menu_bg);
+        assert_eq!(gpui(menu_clair, clair.menu_bg), [232, 232, 233]);
+        let menu_sombre = bordure_translucide(&sombre, sombre.menu_bg);
+        assert_eq!(gpui(menu_sombre, sombre.menu_bg), [46, 46, 50]);
+        let notice = bordure_translucide(&sombre, sombre.background_secondary_alt);
+        assert_eq!(gpui(notice, sombre.background_secondary_alt), [51, 52, 56]);
+        // La teinte ne bouge que là où il le faut, et l'opacité jamais.
+        assert_eq!(menu_sombre, sombre.background_modifier_border);
+        assert_eq!(menu_clair.a, clair.background_modifier_border.a);
     }
 }

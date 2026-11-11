@@ -86,6 +86,11 @@ pub async fn jouer(
         // (franges colorées) sur le moteur wgpu. Sans ce réglage, chaque bord de glyphe diffère de 100+.
         cx.set_text_rendering_mode(gpui_kit::TextRenderingMode::Grayscale);
         theme_global::installer(cx, mode(theme));
+        // ★ L'échelle est un global de l'application, qui survit d'une scène à l'autre : le zoom
+        // posé par une scène d'app (`app:zoom-in`, 110 %) agrandissait les surfaces flottantes des
+        // scènes suivantes (menu 209 px au lieu de 190, run 43023627987). Chaque scène repart à
+        // 100 % ; une scène d'app réinstalle le sien à sa première synchronisation.
+        fragment_ui::echelle::Echelle::installer(cx, fragment_core::ZOOM_DEFAUT);
         let (commandes, hote, app, principale) = if scene.vue == VueScene::App {
             let app = fenetres::ouvrir_app(cx, scene.fenetre, theme)?;
             let commandes = app.application.noyau.commandes();
