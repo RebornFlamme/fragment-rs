@@ -82,3 +82,17 @@ Voir l'ADR-013 :
 - fond en retrait sous une bordure opaque ;
 - l'exception `--shadow-l` ramenée à ses nouvelles valeurs en cliquet ;
 - le résidu de forme de Skia accepté en dette chiffrée, ou réduit par une table de couverture par géométrie.
+
+## Reprise (fr-p4.1, 11/11 après-midi) : bord unique et calque émulé
+
+### Bord unique (causes 3 et 4 ensemble)
+
+- `rendu::melange::bord_unique` : la boîte est peinte de l'aplat OPAQUE de sa bordure, sans quad de bordure (largeur gardée pour la mise en page, couleur absente) ; le fond est un enfant absolu en retrait, de rayon `r − bordure`. Un seul anticrénelage porte le bord extérieur.
+- Bordure translucide : l'aplat est `fond + p × (teinte − fond)` en flottant, la demie vers le haut (`aplat_exact`, 232,5 → 233). `Palette::aplat` suit le chemin prémultiplié des remplissages et donne 232 : il ne convient pas aux bordures.
+- ★ Arc intérieur d'une bordure translucide : sur la mire `a-transl` (1 px à 10 %, r 8), le modèle à `r − 1` reste à 4 niveaux de Chromium à l'intérieur de l'arc (bordure trop fine sur l'arc), le modèle « aire exacte » aussi. Le meilleur rayon peint par GPUI est `r − 1 + 0,4` : 2 niveaux au pire, somme signée nulle (0,3 à 0,5 : ≤ 3). Devant une bordure opaque (mires `a-opaque`, 1 et 2 px), le meilleur reste `r − bordure`.
+- CI (run 43037958177) : arcs du menu, des notices et de l'infobulle claires de 0,23–0,35 px à 0,07–0,11 px (borne 0,15), delta d'arrondi ≤ 5 ; modale et palette claires de 0,20 à 0,02 px, delta max de 33 à 7–8, mais 20 à 22 px de delta 7–8 à la jonction de l'arc et du côté droit (la mire en prévoyait 6 par coin : l'anticrénelage propre à Skia).
+### Calque émulé (cause 1)
+
+- `rendu::ombre` : la modale et la palette déclarent leur boîte au prépeint (`ombrer_au_calque`, qui garde la déclaration pour `fragment-pixels` et retire le `BoxShadow`). Le voile (`voile`) peint, à sa peinture, une image calculée sur le CPU : gaussienne exacte, noyau intégré par pixel, voile et ombre quantifiés en RGBA8 prémultiplié comme le calque, puis rendus en alpha droit pour le mélange `SRC_ALPHA` des images de GPUI. Autour de l'image, le voile seul.
+- CI (run 43040649423), étalement de `--shadow-l` : sombre +1,60 → +0,09 px (modale), +1,42 → 0,00 (palettes) ; clair −0,60 → +0,18 / +0,21. La simulation de S8 l'annonçait (0,11 / 0,20). Le reste est la forme du flou de Skia, dette (b) d'ADR-013.
+- Coût : 0,33 s en debug pour une modale (758 × 250 px), une fois par géométrie, puis lu dans le cache. Le flou se fait par formes de rangées (le masque d'un rectangle arrondi n'a qu'une vingtaine de rangées distinctes), au lieu de deux noyaux de 145 sur toute l'image (2,2 s).
