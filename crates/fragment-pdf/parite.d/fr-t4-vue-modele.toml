@@ -1,0 +1,11 @@
+# Parité de fr-t4-vue-modele (fragment-pdf). Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. Tests e2e (Playwright) de Fragment traduits en tests du MODÈLE pur
+# (crates/fragment-pdf/tests/vue_modele.rs), même nom en snake_case.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (appliquerEchelle, modes, ResizeObserver, IntersectionObserver, majPage, champ de page, repeindre, finDeGeste, zoomerMolette, lirePosition, allerAPosition, getEphemeralState), devicePixels.ts"
+rs = "crates/fragment-pdf/src/vue_modele/*.rs"
+cas_source = 12
+cas_portes = 12
+cas_ajoutes = 20
+notes = "Specs e2e pdf-toolbar (tests 2 à 7) et pdf-geometry (6 tests) traduites en modèle : une vue sans DOM, le temps et les mesures viennent de l'appelant. Non portés (hors modèle, à la vue montée : fr-t4-pages, fr-t4-barre) : facteur de zoom de la fenêtre Electron (portée des raccourcis), classes is-zooming / is-stale, couche de texte et largeur du canvas lue dans le DOM, contre-épreuve du DOM (la géométrie est comparée à une somme de crans recalculée à part). Ajoutés : virtualisation (le défilement ne peint que les pages qui entrent), fin de geste repoussée, largeur 0 ignorée, champ de page (parseInt), destination PDF, reprise de position, état éphémère, taille physique et recalage."
