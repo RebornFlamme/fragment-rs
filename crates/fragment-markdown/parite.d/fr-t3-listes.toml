@@ -1,0 +1,23 @@
+# Parité de fr-t3-listes (fragment-markdown). Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. listKeys.ts n'a pas de test unitaire côté TS : ses cas sont des scénarios e2e
+# (editor-hell, « listes et tâches »), rejoués sur le MODÈLE avec un faux éditeur (frappe, touches,
+# application de la transaction) dans crates/fragment-markdown/tests/listes.rs.
+
+[[module]]
+ts = "app/src/ui/views/markdown/listKeys.ts (sortirDeTacheVide, continuerListe, retirerCase, listKeymap) + comportement de @codemirror/lang-markdown (insertNewlineContinueMarkup nonTightLists:false, deleteMarkupBackward) et @codemirror/commands (indentMore, indentLess)"
+rs = "crates/fragment-markdown/src/listes/clavier.rs, contexte.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 16
+notes = "8 tests « listes et tâches » d'editor-hell portés sous le même nom en snake_case (Entrée sur puce / tâche / numérotée / liste lâche / item vide, Retour arrière après la case, Tab et Maj+Tab, cocher). Cas ajoutés (préfixe port_) : sortie d'une sous-liste, renumérotation, citation, sélection non vide, indentation de plusieurs lignes, UTF-16. Écarts : sélection unique (pas de multi-curseurs) ; dans un bloc de code clôturé les touches rendent None (CodeMirror y passe la main au langage du bloc) ; l'indentation est en espaces (indentUnit de Fragment), pas en tabulations."
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (toogleCheckbox ; détection des cases, y compris `- [ ]` sans texte)"
+rs = "crates/fragment-markdown/src/listes/case.rs"
+cas_source = 3
+cas_portes = 2
+cas_ajoutes = 3
+non_portes = [
+  { cas = "alignement : sous-puce bien décalée, case alignée sur les puces, texte aligné", raison = "mesures de pixels du DOM (boundingBox) : présentation, portée par fr-t3-widgets-inline et la porte pixels" },
+]
+notes = "Non porté : « alignement : sous-puce bien décalée… » (mesures de pixels du DOM : présentation, fr-t3-widgets-inline). Le test editor-hell « `- [ ]` en fin de ligne se rend en case » est porté sur le relevé des cases (cases_de_taches) : le rendu DOM (.cm-task-checkbox) reste à fr-t3-widgets-inline, qui consomme ce relevé. La bascule est UN changement d'un caractère, sans sélection, état lu au moment de l'appel."
