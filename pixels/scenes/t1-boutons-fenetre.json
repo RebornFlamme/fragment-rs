@@ -1,0 +1,12 @@
+{
+  "scene": "t1-boutons-fenetre",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"split","direction":"vertical","children":[{"type":"tabs","tabs":2,"current":0,"dimension":10},{"type":"tabs","tabs":1,"dimension":1}]}}},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}

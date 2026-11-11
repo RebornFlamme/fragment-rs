@@ -1,0 +1,12 @@
+{
+  "scene": "t1-docks-ouverts",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":2,"current":0},"left":{"collapsed":false,"tabs":1},"right":{"collapsed":false,"tabs":2}}},
+    {"type":"hover","x":640,"y":500},
+    {"type":"wait-stable"}
+  ]
+}
