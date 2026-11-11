@@ -136,7 +136,9 @@ fn un_menu_ouvert_masque_les_raccourcis_globaux_et_echap_le_ferme() {
     assert_eq!(n.hote.get_zoom().unwrap(), 1.0);
     vcx.simulate_keystrokes("escape");
     assert!(ferme.get());
-    assert_eq!(recu(&champ, vcx), "");
+    // Masquer n'est pas consommer : Ctrl+= n'a trouvé aucune liaison et a continué son chemin ;
+    // Échap, lui, est consommé par le menu et n'atteint pas le champ.
+    assert_eq!(recu(&champ, vcx), "=");
     keymap.pop_scope(&menu);
     vcx.simulate_keystrokes("ctrl-=");
     assert_eq!(n.hote.get_zoom().unwrap(), 1.1);

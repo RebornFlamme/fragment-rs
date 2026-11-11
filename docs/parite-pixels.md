@@ -119,6 +119,21 @@ Mesure sur l'artefact CI (run 42873546813), boîte et ombre comprises :
 - **Décision du chef (10/11)** : scènes en `"depuis": "T2"` (en attente du shell, à repasser à T1 par `fr-t1-binaire`) ;
   les écarts de rendu relèvent de `fr-t1.1`.
 
+## Dettes de parité : shell assemblé T1 (fr-t1-binaire)
+
+Les 21 scènes des tâches fermées (onglets, splits, réglages et zoom, `t1-fenetre-vide`) sont rejouées sur l'application réelle (boot, coquille, pont clavier) depuis fr-t1-binaire. Premier passage (run CI 43011739987) : **0 PNG vert sur 42**. Causes, chiffrées sur ce run (px = pixels divergents), aucune tolérance nouvelle :
+
+1. **Texte et icônes, origine décalée de 1 px (strict)** : toutes les scènes. Titres « New Tab » décalés de +1 px en x (boîte (52,14) 48×12, encre −5 à −10 %) : dette de largeur/position `fr-t1.3`. Icône du ruban `square-pen` (9,48) décalée de +1 px en y (encre +15 %) : placement vertical du ruban (`docks`, fr-t1-splits). Barre d'état : « Fragment 0.0.0 » (1191,786) 49×11 hors boîte, la largeur du texte arrondie au pixel supérieur par GPUI déplace l'élément ancré à droite.
+2. **Arcs (strict faute de déclaration)** : coins du contour de l'onglet actif (4 zones de 5×6 et 5×5 px par onglet actif, delta max 71) et coin haut-gauche de la barre d'état (1178,780) 5×5. La catégorie « bords d'arrondi » (ADR-009, amendement 11:15) exige des arcs DÉCLARÉS par le candidat : ni `onglets` ni `shell::barre_etat` ne les déclarent encore (crochet à ajouter dans `capture.rs`, possédé par fr-t1.1).
+3. **Poignée de split en abscisse fractionnaire** : bande 7×800 px à x = 657 (`t1-split-vertical`, `t1-glisser-depot`, 2 120 px dont 1 662 de delta ≤ 2), 12×800 à x = 1160 (`t1-boutons-fenetre`, 3 354 px) : dernier pixel du contour d'une barre de largeur fractionnaire (dette notée par fr-t1-splits).
+4. **`t1-split-proportions`** : zone 629×800 à partir de x = 346 (5 046 px, delta max 201) : largeurs des panes imbriqués 25/50/25 décalées, à reprendre dans `splits::geometrie`.
+5. **Aplat translucide de la zone de dépôt en clair** : `t1-glisser-zone-light`, 472 133 px à delta 1 ((210,210,236) contre (209,210,236)) : le jeton n'est pas pré-composé sur son fond (ADR-009 c, fr-t1.4).
+6. **Pied du dock gauche absent** (`VaultSwitcher`, T2) : `t1-docks-ouverts`, trait (36,761) 260×1 et libellé « coffre » + 2 icônes.
+7. **Fenêtre de réglages** (`t1-reglages-*`, ~11 000 px hors boîtes) : rail et contenu 1 px plus haut que la référence ; description du zoom non coupée (largeur maximale du bloc d'information du réglage) ; corrigé ici : le schéma de couleurs affiché (« Adapt to system » → « Dark »/« Light », fixé par la scène comme le harnais de Fragment).
+8. **Scènes de zoom et de réglages sans décor** : leurs JSON n'avaient pas le layout par défaut du harnais (`PILE_PAR_DEFAUT`, 4 onglets, le 2e actif) ; corrigé ici (action `layout` ajoutée), d'où les 16 916 à 17 760 px de `t1-zoom-150` au premier passage.
+
+Le cliquet (`pixels/cliquet.json`, fr-t1.1) n'a pas de base pour ces 42 PNG : une scène qui diverge dans ses boîtes sans base échoue même dans le sas. Sa mise à jour (`--maj-cliquet`) revient au chef après les corrections 1 à 7.
+
 ## Format du rapport du sas (ADR-009)
 `cargo xtask pixels` écrit sa section entre `<!-- sas:debut -->` et `<!-- sas:fin -->` (en fin de fichier, ajoutée si les marqueurs manquent) : le reste de ce fichier, écrit à la main, n'est jamais touché. Une ligne par PNG comparé :
 
