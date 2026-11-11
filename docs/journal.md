@@ -507,3 +507,16 @@ Livraison de T1 quand #49 est fusionnée.
   - Questions reportées sur fr-t3-widgets-blocs : rangée à hauteur 0 dans le fork ; repli par nœud non porté.
   - Bead fermé, worktree et dossier cible retirés.
   - Lancée : fr-t2-tree-item (Sonnet, `../fragment-rs-treeitem`). Actifs : shell4, pdfpages, imbrique, barre, treeitem.
+- 11/11 18:55 UTC, fenêtre 5 h à 35 %, semaine à 41 % : fr-t1.5, 4e équipier arrêté à 268k tokens, tête 10c5f46.
+  - 20/42 PNG verts en mesure locale. Bases du cliquet ajoutées, en ajout seul.
+  - Lignes de base en cellule partielle : vertes.
+  - Régression : split-proportions (968,35) et (968,236).
+  - Décisions du chef, sur demande :
+    - [A] boutons-fenêtre : on reproduit la règle de Chromium (titre coupé quand « … » ne tient pas). Le texte et le « − » restent en catégorie glyphes. Pas d'exception.
+    - [B] troncature : PAS de fork de gpui-pre. Troncature maison dans fragment-ui, qui garde l'espace avant « … ».
+    - [C] accordé : `arrondis::dans_bande` inclut le pixel en bord de quadrant, avec contre-épreuve.
+    - [D] refusé comme exception. Le menu de l'onglet est dans la borne. Le fantôme du glisser prend l'ombre CPU du calque émulé de #56.
+  - Reprise par un 5e équipier Opus (shell5).
+- ★ `bd update --notes` REMPLACE les notes. J'ai écrasé celles de fr-t1.5 (10k caractères) puis je les ai restaurées depuis `bd history fr-t1.5 --json`. Vérifié : aucun autre bead touché.
+  - Règle : toujours `--append-notes`.
+  - Briefs à corriger en conséquence (shell5 prévenu).
