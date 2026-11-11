@@ -6,6 +6,7 @@
 //! des coffres, les décisions du client et le traitement d'une requête côté serveur.
 
 pub mod client_pur;
+pub mod coffres;
 pub mod hote;
 pub mod instance_index;
 pub mod pipe;

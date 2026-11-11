@@ -71,3 +71,13 @@ tests_ts = ""   # aucun .test.ts : types et contrat seulement
 source = 0
 portes = 0
 non_portes = []
+
+[coffres]
+ts = "app/src/electron/vaults.ts + main.ts (canaux vaults:) + shared/vaultManagerRoute.ts + ui/vault-manager/VaultManager.ts + ui/core/VaultSwitcher.ts"
+tests_ts = "app/e2e/vaults.spec.ts"   # tests/coffres.rs ; l'e2e compte 7 tests (le bead en annonçait 8)
+source = 7
+portes = 7
+non_portes = []
+# ★ Les 7 sont portés pour leur LOGIQUE (décision de démarrage, choix, menu, fermeture) ; ce que
+#   l'e2e vérifiait par des fenêtres Electron, des captures et le dialogue natif relève de
+#   fr-t2-gestionnaire (fenêtre 840×560, dialogue, relance, dessin des vues).
