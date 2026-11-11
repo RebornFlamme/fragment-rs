@@ -25,7 +25,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::ombres;
+use crate::flottant::ombrer;
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
@@ -647,7 +647,6 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             .border(bordure)
             .border_color(contour)
             .rounded(u(cx, t.forme.radius_l))
-            .shadow(ombres(cx, &t.palette.shadow_l))
             .font_family(FAMILLE_INTERFACE)
             .font_features(caracteristiques())
             .text_size(u(cx, t.typo.font_ui_normal))
@@ -656,6 +655,13 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .child(entree)
             .child(resultats);
+        boite = ombrer(
+            boite,
+            cx,
+            &t.palette.shadow_l,
+            u(cx, t.forme.radius_l),
+            bordure,
+        );
         if !self.parametres.instructions.is_empty() {
             boite = boite.child(legende);
         }

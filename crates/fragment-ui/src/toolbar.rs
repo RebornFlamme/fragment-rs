@@ -23,7 +23,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombres, texte};
+use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -383,11 +383,17 @@ fn rendre(modele: &Toolbar, cx: &App) -> AnyElement {
         .p(u(cx, f.size_4_1))
         .rounded(u(cx, f.radius_ml))
         .bg(couleur(c.background_secondary))
-        .text_color(couleur(c.text_normal))
-        .shadow(ombres(cx, &c.menu_shadow));
+        .text_color(couleur(c.text_normal));
     let racine = if vertical { racine.flex_col() } else { racine };
     let racine = bordure(racine, u(cx, f.border_width))
         .border_color(couleur(c.tab_outline_color))
         .children(enfants);
+    let racine = ombrer(
+        racine,
+        cx,
+        &c.menu_shadow,
+        u(cx, f.radius_ml),
+        u(cx, f.border_width),
+    );
     texte(racine, cx, t.typo.font_ui_small, 1.5).into_any_element()
 }

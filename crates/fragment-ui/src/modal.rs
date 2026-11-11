@@ -25,7 +25,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::ombres;
+use crate::flottant::ombrer;
 use crate::icones;
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -355,7 +355,6 @@ impl Render for Modale {
             .border(u(cx, t.forme.border_width))
             .border_color(couleur(t.palette.tab_outline_color))
             .rounded(u(cx, t.forme.radius_l))
-            .shadow(ombres(cx, &t.palette.shadow_l))
             .font_family(FAMILLE_INTERFACE)
             .font_features(caracteristiques())
             .text_size(u(cx, t.typo.font_ui_normal))
@@ -363,6 +362,13 @@ impl Render for Modale {
             .overflow_hidden()
             // La boîte avale les clics : le voile derrière est le seul à fermer.
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation());
+        boite = ombrer(
+            boite,
+            cx,
+            &t.palette.shadow_l,
+            u(cx, t.forme.radius_l),
+            u(cx, t.forme.border_width),
+        );
         // Le bouton de fermeture : 24 × 24 à 10 px du coin, icône de 16 px.
         boite = boite.child(
             div()

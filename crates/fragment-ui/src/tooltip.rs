@@ -17,7 +17,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombres, texte};
+use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -433,7 +433,6 @@ pub fn couche(cx: &App) -> AnyElement {
         .rounded(u(cx, f.radius_sm))
         .bg(couleur(c.menu_bg))
         .text_color(couleur(c.text_normal))
-        .shadow(ombres(cx, &c.menu_shadow))
         .whitespace_nowrap()
         .child(message);
     let bulle = if tient {
@@ -443,6 +442,13 @@ pub fn couche(cx: &App) -> AnyElement {
     };
     let bulle =
         bordure(bulle, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
+    let bulle = ombrer(
+        bulle,
+        cx,
+        &c.menu_shadow,
+        u(cx, f.radius_sm),
+        u(cx, f.border_width),
+    );
     deferred(
         anchored()
             .anchor(ancre)

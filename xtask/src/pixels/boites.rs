@@ -274,8 +274,35 @@ impl Groupe {
     }
 }
 
-/// Le fichier de déclaration voisin du PNG candidat.
+/// Une couche d'ombre déclarée, en pixels physiques : décalage, écart-type du flou, étendue.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CoucheDeclaree {
+    pub decalage_x: f64,
+    pub decalage_y: f64,
+    pub sigma: f64,
+    pub etendue: f64,
+}
+
+/// Une surface ombrée déclarée par le candidat (ADR-009, amendement du 11/11) : sa boîte de bordure
+/// telle que la MISE EN PAGE l'a posée (pas lue dans l'image), son rayon de coin et ses couches.
+#[derive(Debug, Clone, PartialEq)]
+pub struct OmbreDeclaree {
+    pub x: f64,
+    pub y: f64,
+    pub largeur: f64,
+    pub hauteur: f64,
+    pub rayon: f64,
+    pub couches: Vec<CoucheDeclaree>,
+}
+
+/// Le fichier de déclaration voisin du PNG candidat, sans ombres.
 pub fn serialiser(boites: &[BoiteEncre]) -> String {
+    serialiser_tout(boites, &[])
+}
+
+/// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, et surfaces
+/// ombrées (version 2).
+pub fn serialiser_tout(boites: &[BoiteEncre], ombres: &[OmbreDeclaree]) -> String {
     let liste: Vec<Value> = boites
         .iter()
         .map(|b| {
@@ -285,8 +312,61 @@ pub fn serialiser(boites: &[BoiteEncre]) -> String {
             })
         })
         .collect();
-    let json = json!({ "version": 1, "boites": liste });
+    let ombres: Vec<Value> = ombres
+        .iter()
+        .map(|o| {
+            let couches: Vec<Value> = o
+                .couches
+                .iter()
+                .map(|c| {
+                    json!({
+                        "decalage_x": c.decalage_x, "decalage_y": c.decalage_y,
+                        "sigma": c.sigma, "etendue": c.etendue,
+                    })
+                })
+                .collect();
+            json!({
+                "x": o.x, "y": o.y, "largeur": o.largeur, "hauteur": o.hauteur,
+                "rayon": o.rayon, "couches": couches,
+            })
+        })
+        .collect();
+    let json = json!({ "version": 2, "boites": liste, "ombres": ombres });
     serde_json::to_string_pretty(&json).unwrap_or_default() + "\n"
+}
+
+/// Relit les surfaces ombrées d'un fichier de déclaration (aucune pour un fichier de version 1).
+pub fn deserialiser_ombres(texte: &str) -> Option<Vec<OmbreDeclaree>> {
+    let json: Value = serde_json::from_str(texte).ok()?;
+    let Some(liste) = json.get("ombres") else {
+        return Some(Vec::new());
+    };
+    liste
+        .as_array()?
+        .iter()
+        .map(|o| {
+            let couches = o["couches"]
+                .as_array()?
+                .iter()
+                .map(|c| {
+                    Some(CoucheDeclaree {
+                        decalage_x: c["decalage_x"].as_f64()?,
+                        decalage_y: c["decalage_y"].as_f64()?,
+                        sigma: c["sigma"].as_f64()?,
+                        etendue: c["etendue"].as_f64()?,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(OmbreDeclaree {
+                x: o["x"].as_f64()?,
+                y: o["y"].as_f64()?,
+                largeur: o["largeur"].as_f64()?,
+                hauteur: o["hauteur"].as_f64()?,
+                rayon: o["rayon"].as_f64()?,
+                couches,
+            })
+        })
+        .collect()
 }
 
 /// Relit un fichier de déclaration.
@@ -390,5 +470,30 @@ mod tests {
         ];
         assert_eq!(deserialiser(&serialiser(&boites)), Some(boites));
         assert_eq!(deserialiser("pas du json"), None);
+    }
+
+    #[test]
+    fn les_ombres_declarees_font_l_aller_retour() {
+        let ombres = vec![OmbreDeclaree {
+            x: 420.0,
+            y: 260.5,
+            largeur: 180.0,
+            hauteur: 96.0,
+            rayon: 8.0,
+            couches: vec![CoucheDeclaree {
+                decalage_x: 0.0,
+                decalage_y: 8.0,
+                sigma: 12.0,
+                etendue: 0.0,
+            }],
+        }];
+        let texte = serialiser_tout(&[], &ombres);
+        assert_eq!(deserialiser_ombres(&texte), Some(ombres));
+        assert_eq!(deserialiser(&texte), Some(Vec::new()));
+        // Un fichier de version 1 n'a pas d'ombres.
+        assert_eq!(
+            deserialiser_ombres(r#"{"version": 1, "boites": []}"#),
+            Some(Vec::new())
+        );
     }
 }

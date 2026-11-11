@@ -18,7 +18,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombres, texte};
+use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -183,7 +183,6 @@ pub fn couche(cx: &App) -> AnyElement {
                 .rounded(u(cx, f.radius_m))
                 .bg(couleur(c.background_secondary_alt))
                 .text_color(couleur(c.text_normal))
-                .shadow(ombres(cx, &c.shadow_s))
                 .cursor_pointer()
                 .on_click(move |_: &ClickEvent, _: &mut Window, app: &mut App| {
                     Notice { id }.hide();
@@ -201,6 +200,13 @@ pub fn couche(cx: &App) -> AnyElement {
             };
             let carte = bordure(carte, u(cx, f.border_width))
                 .border_color(couleur(c.background_modifier_border));
+            let carte = ombrer(
+                carte,
+                cx,
+                &c.shadow_s,
+                u(cx, f.radius_m),
+                u(cx, f.border_width),
+            );
             texte(carte, cx, t.typo.font_ui_small, 1.4).into_any_element()
         })
         .collect();

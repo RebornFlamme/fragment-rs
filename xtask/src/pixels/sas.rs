@@ -18,7 +18,8 @@
 
 use image::{Rgba, RgbaImage};
 
-use super::boites::{BoiteEncre, Categorie};
+use super::boites::{BoiteEncre, Categorie, OmbreDeclaree};
+use super::ombres::{self, ResultatOmbre};
 use super::{Boite, Verdict, zones_connexes};
 
 /// Marge autour d'une boîte d'encre où l'écart est toléré (anticrénelage qui déborde).
@@ -331,6 +332,14 @@ pub struct Sas {
     pub delta_max_boites: u8,
     pub aire_boites: u64,
     pub boites: Vec<ResultatBoite>,
+    /// Catégorie ombre (amendement du 11/11) : pixels tolérés (delta ≤ 2) dans les halos, plus
+    /// fort delta parmi eux, aire des halos ; pixels de delta > 2 dans un halo (comptés aussi
+    /// dans `differents_hors`).
+    pub differents_ombre: u64,
+    pub delta_max_ombre: u8,
+    pub aire_halos: u64,
+    pub forts_dans_halos: u64,
+    pub ombres: Vec<ResultatOmbre>,
     pub verdict: Verdict,
     pub diff: RgbaImage,
 }
@@ -345,16 +354,26 @@ impl Sas {
         }
     }
 
+    /// Part de pixels tolérés dans les halos d'ombre (en %).
+    pub fn pourcent_ombre(&self) -> f64 {
+        if self.aire_halos == 0 {
+            0.0
+        } else {
+            100.0 * self.differents_ombre as f64 / self.aire_halos as f64
+        }
+    }
+
     pub fn dettes_largeur(&self) -> usize {
         self.boites.iter().filter(|b| b.dette_largeur).count()
     }
 }
 
-/// Compare `reference` et `candidat` avec les `boites` déclarées par le candidat.
+/// Compare `reference` et `candidat` avec les `boites` et les `ombres` déclarées par le candidat.
 pub fn comparer(
     reference: &RgbaImage,
     candidat: &RgbaImage,
     boites: &[BoiteEncre],
+    ombres: &[OmbreDeclaree],
 ) -> anyhow::Result<Sas> {
     if reference.dimensions() != candidat.dimensions() {
         anyhow::bail!(
@@ -374,6 +393,16 @@ pub fn comparer(
         }
     }
     let aire_boites = dans.iter().filter(|&&d| d).count() as u64;
+    // Les halos d'ombre, hors des boîtes de texte (qui gardent leurs propres garde-fous).
+    let masques = ombres::masques(ombres, largeur, hauteur);
+    let halo: Vec<bool> = masques
+        .halo
+        .iter()
+        .zip(&dans)
+        .map(|(&h, &d)| h && !d)
+        .collect();
+    let aire_halos = halo.iter().filter(|&&h| h).count() as u64;
+    let (mut differents_ombre, mut delta_max_ombre, mut forts_dans_halos) = (0u64, 0u8, 0u64);
     let mut diff = RgbaImage::new(largeur, hauteur);
     let mut masque_hors = vec![false; dans.len()];
     let (mut differents, mut differents_hors, mut differents_boites) = (0u64, 0u64, 0u64);
@@ -395,7 +424,13 @@ pub fn comparer(
             delta_max_boites = delta_max_boites.max(delta);
             // Orange : écart toléré dans une boîte ; rouge : hors boîte.
             diff.put_pixel(x, y, Rgba([255, 160, 0, 255]));
+        } else if halo[i] && delta <= ombres::DELTA_OMBRE {
+            differents_ombre += 1;
+            delta_max_ombre = delta_max_ombre.max(delta);
+            // Bleu : écart toléré dans un halo d'ombre.
+            diff.put_pixel(x, y, Rgba([0, 140, 255, 255]));
         } else {
+            forts_dans_halos += u64::from(halo[i]);
             differents_hors += 1;
             delta_max_hors = delta_max_hors.max(delta);
             differents_hors_faibles += u64::from(delta <= 2);
@@ -434,15 +469,27 @@ pub fn comparer(
         }
         resultats.push(res);
     }
+    // Les garde-fous d'ombre se mesurent hors des intérieurs et des boîtes de texte.
+    let exclus: Vec<bool> = masques
+        .interieur
+        .iter()
+        .zip(&dans)
+        .map(|(&i, &d)| i || d)
+        .collect();
+    let resultats_ombres: Vec<ResultatOmbre> = ombres
+        .iter()
+        .map(|o| ombres::juger(reference, candidat, o, &halo, &exclus))
+        .collect();
+    let gardes = resultats.iter().all(ResultatBoite::ok) && resultats_ombres.iter().all(|o| o.ok());
     let verdict = if differents == 0 {
         Verdict::Strict
-    } else if differents_hors == 0 && resultats.iter().all(ResultatBoite::ok) {
+    } else if differents_hors == 0 && gardes {
         Verdict::Tolere
     } else {
         Verdict::Echec
     };
     // Une boîte qui échoue échoue aussi sans divergence de pixel (encre d'un seul côté).
-    let verdict = if verdict == Verdict::Strict && !resultats.iter().all(ResultatBoite::ok) {
+    let verdict = if verdict == Verdict::Strict && !gardes {
         Verdict::Echec
     } else {
         verdict
@@ -456,6 +503,11 @@ pub fn comparer(
         delta_max_boites,
         aire_boites,
         boites: resultats,
+        differents_ombre,
+        delta_max_ombre,
+        aire_halos,
+        forts_dans_halos,
+        ombres: resultats_ombres,
         verdict,
         diff,
     })
@@ -536,7 +588,7 @@ pub(super) mod tests {
     }
 
     fn sas(reference: &RgbaImage, candidat: &RgbaImage) -> Sas {
-        comparer(reference, candidat, &detecter(candidat)).unwrap()
+        comparer(reference, candidat, &detecter(candidat), &[]).unwrap()
     }
 
     fn motifs(s: &Sas) -> String {
@@ -640,6 +692,6 @@ pub(super) mod tests {
     fn des_tailles_differentes_sont_une_erreur() {
         let a = RgbaImage::new(2, 2);
         let b = RgbaImage::new(3, 2);
-        assert!(comparer(&a, &b, &[]).is_err());
+        assert!(comparer(&a, &b, &[], &[]).is_err());
     }
 }
