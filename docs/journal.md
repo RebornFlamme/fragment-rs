@@ -438,3 +438,4 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
 - #56 (fr-p4.1, alpha2 terminé, 333k tokens) : pixels vert pour la première fois, prête, CI relancée depuis main.
   - Bordures à anticrénelage unique ; ombre `--shadow-l` calculée sur le CPU dans le calque émulé (0,33 s par géométrie en debug, puis cache ; release à mesurer) ; 5 exceptions d'arcs retirées ; `image` devient dépendance de fragment-ui.
   - Dettes (b) dans ADR-013. À fusionner AVANT #49.
+- Battement 11/11 16:32 UTC : fenêtre 5 h à 76 % (reset 17:30), semaine à 36 %. Rythme cible (97 − 36) ÷ 49,5 h ≈ 1,2 point par heure ; en avance. Fusionnée #56 (fr-p4.1, étape 1 : audit à 0 ; diff du cliquet relu, conforme à l'échange accordé). fr-p4.1 reste OUVERTE pour ses dettes. main verte. Un seul actif : shell3 (fr-t1.5, #49, prévenu de rebaser). Le clear du chef attend son compte rendu, sinon il le tuerait (comme fr-t1.1 au clear précédent).
