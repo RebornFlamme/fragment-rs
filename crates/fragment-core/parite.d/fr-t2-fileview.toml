@@ -1,0 +1,28 @@
+# Parité de fr-t2-fileview (fragment-core). FileView.ts, EditableFileView.ts et TextFileView.ts
+# n'ont AUCUN test unitaire côté TS : `cas_source = 0`, tous les tests sont AJOUTÉS
+# (crates/fragment-core/tests/vue_fichier.rs), écrits d'après le comportement du code source et
+# la spec e2e view-header-nav (fil d'Ariane, historique ← →).
+
+[[module]]
+ts = "app/src/ui/core/workspace/FileView.ts"
+rs = "crates/fragment-core/src/workspace/vue_fichier.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 34
+notes = "Trait FileView + FileViewBase embarquée (pas d'héritage). Les abonnements au coffre déposent dans une boîte que l'hôte vide (traiter_evenements_coffre). Événements view-file-open / view-document-change / reveal-in-folder par le flux du Workspace. Non porté : onPaneMenu (menu ⋯, rendu) et le DOM du titre. Ajout : refus de charger un dossier au set_state ; le TODO « détacher la feuille si !allow_no_file » reste à l'hôte."
+
+[[module]]
+ts = "app/src/ui/core/workspace/EditableFileView.ts"
+rs = "crates/fragment-core/src/workspace/vue_fichier.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Marqueur : trait EditableFileView + FileView::est_modifiable (le instanceof du TS)."
+
+[[module]]
+ts = "app/src/ui/core/workspace/TextFileView.ts"
+rs = "crates/fragment-core/src/workspace/vue_fichier.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 11
+notes = "Sauvegarde différée 500 ms à temps injecté (Debouncer, reset_timer = true) ; poll_save par l'hôte. Écart : une sauvegarde annule la demande différée en attente. Le test « l'historique n'est écrit que par open_document, pas par la restauration » exerce Workspace + une vue de fichier."
