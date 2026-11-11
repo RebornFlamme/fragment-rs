@@ -606,13 +606,17 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     ombre_pourcent: arrondir(s.pourcent_ombre()),
                     arrondi_delta_max: s.delta_max_arrondi,
                     arrondi_pourcent: arrondir(s.pourcent_arrondi()),
-                    exception: s.gardes_exception().map(|g| BaseException {
-                        etalement: arrondir(g.etalement),
-                        encre: arrondir(g.encre),
-                        glissement: arrondir(g.glissement),
-                        delta_max: s.delta_max_exception,
-                        forts: s.forts_exception,
-                    }),
+                    exception: s
+                        .gardes_exception()
+                        .map(|g| BaseException {
+                            etalement: arrondir(g.etalement),
+                            encre: arrondir(g.encre),
+                            glissement: arrondir(g.glissement),
+                            delta_max: s.delta_max_exception,
+                            forts: s.forts_exception,
+                        })
+                        // Une exception sans écart (capture comparée à elle-même) ne demande pas de base.
+                        .filter(|e| *e != BaseException::default()),
                 };
                 let mut verdict = s.verdict;
                 let cliquet = if verdict == Verdict::Echec {
