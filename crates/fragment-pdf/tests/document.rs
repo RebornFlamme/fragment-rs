@@ -2,6 +2,8 @@
 //! Prérequis : le binaire pdfium épinglé (`scripts/pdfium.ps1` / `scripts/pdfium.sh`, dossier dans
 //! `PDFIUM_LIB_DIR`).
 
+#![allow(clippy::expect_used, clippy::unwrap_used)] // fichier de tests
+
 use std::collections::BTreeMap;
 use std::path::Path;
 
