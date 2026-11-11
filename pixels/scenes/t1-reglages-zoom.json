@@ -5,6 +5,7 @@
   "themes": ["dark","light"],
   "vault": "pixels/vault",
   "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":4,"current":1}}},
     {"type":"click","target":"settings","x":118,"y":233},
     {"type":"wait-stable"},
     {"type":"drag","target":"settings","from":{"x":861,"y":472},"to":{"x":905,"y":472},"release":false,"steps":8},

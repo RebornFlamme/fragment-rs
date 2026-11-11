@@ -16,7 +16,7 @@ use gpui_kit::{
     rgb,
 };
 
-use super::actions::{Taille, VueScene};
+use super::actions::{Taille, ThemeScene, VueScene};
 
 /// Mire de contrôle : aplats, trait de 1 px, rayon, texte. Elle prouve que le rasterizeur
 /// (WARP sur le runner) dessine vraiment quads et glyphes : une fenêtre vide n'a qu'une couleur.
@@ -240,7 +240,7 @@ pub struct ScenesApp {
 ///   l'application, pas dans un gestionnaire à part : une scène d'app exécute les VRAIES commandes
 ///   (`app:zoom-in`). Les fixtures de la palette (`palette::commandes_de_scene`) n'y vont pas : elles
 ///   doublonneraient les commandes `app:*` réelles.
-pub fn ouvrir_app(cx: &mut App, taille: Taille) -> anyhow::Result<ScenesApp> {
+pub fn ouvrir_app(cx: &mut App, taille: Taille, theme: ThemeScene) -> anyhow::Result<ScenesApp> {
     // ★ Les surfaces flottantes vivent dans des magasins de fil (menus, notices, infobulle) que
     // chaque `commandes_de_scene` vide : un gestionnaire jetable les remet à zéro, sans quoi le menu
     // d'onglet d'une scène resterait ouvert dans la suivante.
@@ -248,6 +248,12 @@ pub fn ouvrir_app(cx: &mut App, taille: Taille) -> anyhow::Result<ScenesApp> {
     let options = fragment_app::boot::Options::memoire(VERSION_DES_REFERENCES);
     let application =
         fragment_app::monter(cx, &options, taille.width as f32, taille.height as f32)?;
+    // Le harnais de Fragment fixe le schéma de couleurs de la scène (`baseColorScheme`), que montre
+    // l'onglet Appearance : « Dark » ou « Light », pas « Adapt to system ».
+    application.noyau.apparence.set_schema(match theme {
+        ThemeScene::Dark => "dark",
+        ThemeScene::Light => "light",
+    });
     let commandes = application.noyau.commandes();
     fragment_ui::onglets::commandes_de_scene(&commandes);
     let ws = fragment_core::App::workspace(&*application.noyau.app).clone();

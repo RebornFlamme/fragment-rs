@@ -87,7 +87,7 @@ pub async fn jouer(
         cx.set_text_rendering_mode(gpui_kit::TextRenderingMode::Grayscale);
         theme_global::installer(cx, mode(theme));
         let (commandes, hote, app, principale) = if scene.vue == VueScene::App {
-            let app = fenetres::ouvrir_app(cx, scene.fenetre)?;
+            let app = fenetres::ouvrir_app(cx, scene.fenetre, theme)?;
             let commandes = app.application.noyau.commandes();
             let principale = app.application.principale;
             (commandes, None, Some(app), principale)

@@ -308,6 +308,18 @@ pub fn demarrer(options: &Options) -> Noyau {
             w.collapse(gauche);
             w.collapse(droite);
         }
+        // ★ boot-scope : démarrer sans clic laisse une feuille ACTIVE (sa portée au sommet du
+        //   Keymap). `change_layout` a ce repli ; `default_layout` (coffre neuf, fichier corrompu)
+        //   ne l'a pas dans le cœur : on active l'onglet visible de la première pile du centre.
+        if w.active_leaf().is_none() {
+            let centre = w.root_split();
+            let visible = w
+                .arbre()
+                .piles_sous(centre)
+                .first()
+                .and_then(|&p| w.arbre().active_leaf(p));
+            w.set_active_leaf(visible);
+        }
     }
 
     Noyau {
