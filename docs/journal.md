@@ -308,3 +308,6 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
   - Fusionnée #41 (fr-t1.4 : aplats pré-composés, formule de Chromium trouvée sur 5 pixels de référence, `xtask parite` réparé).
   - Reprise de fr-t1.1 (Opus) : catégorie bord d'arrondi, exception `--shadow-l`, scènes à T1.
   - En attente de compte rendu : #42 (splits) et #43 (pdfium). Actifs : splits, maths, syntaxe, pdfium, flottantes.
+- 11/11 11:15 UTC : fusionnée #42 (fr-t1-splits : 20 tests headless, 10 scènes et leurs références ; 438k tokens). Ses dettes et branchements sont notés sur fr-t1-binaire.
+  - Décision du chef : fr-t1-binaire n'est plus BLOQUÉE par fr-t1.1, les fichiers étant disjoints. Elle tourne en parallèle, et son bead ne se ferme qu'après fr-t1.1, car la tranche exige toutes ses scènes vertes.
+  - Lancée : fr-t1-binaire (Opus). Actifs : maths, syntaxe, pdfium, flottantes, binaire.
