@@ -1,0 +1,19 @@
+# Parité de fr-t2-fs (fragment-core). Aucun test unitaire côté TS pour FileSystemAdapter ni
+# vaultWatcher : `cas_source = 0`, tous les tests sont AJOUTÉS (tests/vault_fs.rs et tests
+# unitaires de fs.rs / surveillance.rs), sur un vrai dossier temporaire.
+
+[[module]]
+ts = "app/src/ui/core/vault/FileSystemAdapter.ts, app/src/shared/vaultPath.ts, app/src/shared/resourceUrl.ts"
+rs = "crates/fragment-core/src/vault/fs.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 23
+notes = "std::fs synchrone ; garde-fou de chemin (nul, absolu, lecteur, `..`) ; mtime imposé, pas le ctime (non modifiable) ; copy refuse une destination existante ; trash_system via la crate `trash`, Ok(false) si l'OS refuse ; `pomper` rappelle le coffre sur le fil de l'hôte (le rappel est un Rc, pas Send)."
+
+[[module]]
+ts = "app/src/electron/vaultWatcher.ts, app/src/electron/main.ts (branchement)"
+rs = "crates/fragment-core/src/vault/surveillance.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 19
+notes = "notify remplace les deux moteurs (natif récursif + chokidar). Regroupement 100 ms par chemin puis le disque tranche (absent = delete, apparu = create + modify, sinon modify) ; un renommage sort comme delete + create, un dossier apparu est parcouru. Ignore les segments en point sauf .fragment/. Arrêt propre (Drop joint le fil)."

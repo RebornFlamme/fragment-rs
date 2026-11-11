@@ -8,9 +8,9 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 922 | 864 | 414 | 58 | 93.7 % |
+| 927 | 868 | 477 | 59 | 93.6 % |
 
-**PORTE ATTEINTE** : 93.7 % des cas source portés.
+**PORTE ATTEINTE** : 93.6 % des cas source portés.
 
 - Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
@@ -193,6 +193,8 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | crates/fragment-core/src/config.rs + apparence.rs | app/src/ui/core/settings/ConfigStore.ts + config.ts (AppearanceConfig, applyAppearance) + sync.ts | 0 | 0 | 4 | — |
 | crates/fragment-core/tests/apparence.rs + crates/fragment-core/src/commandes_zoom.rs + crates/fragment-ui/tests/reglages.rs | app/e2e/app-zoom.spec.ts + app/src/ui/coreCommands/AppCommandsPlugin.ts (zoom-in, zoom-out, reset-zoom) | 13 | 8 | 0 | 5 — le menu Electron n'a plus de zoom actif (neutraliserZoomDuMenu) : propre à Electron : GPUI n'a pas de menu d'application à neutraliser ; Ctrl+molette sur une note ne zoome pas : Chromium zoomerait de lui-même ; GPUI n'a aucun zoom par molette. Aucune garde à tester (le geste n'est lié à rien) ; capture : le rectangle en px CSS est converti selon le zoom (devicePixelRatio) : contrat WindowHost::capture, dont l'implémentation GPUI est dans fr-t1-binaire ; pas de devicePixelRatio ici (u() met les longueurs à l'échelle, pas la capture) ; PDF : Ctrl+= reste le zoom du PDF ; PDF : canvas repeints à la nouvelle densité : la vue PDF est de la phase 5 (portée de vue avant la racine : à rejouer avec elle) ; la repeinte des canvas est un souci de Chromium ; boot : `window.outerWidth / window.innerWidth > 1.3` (toute l'interface a rétréci) : mesure du DOM ; la mise à l'échelle de toute l'interface par u() est vérifiée par les scènes pixels t1-zoom-150 et t1-zoom-80 |
 | crates/fragment-ui/src/reglages/{mod,fenetre,curseur}.rs | app/src/ui/settings/SettingsWindow.ts + core/settings/{Setting,SettingTab,SettingPage,SettingManager}.ts + settings.css (Appearance) | 0 | 0 | 5 | — |
+| crates/fragment-core/src/vault/fs.rs | app/src/ui/core/vault/FileSystemAdapter.ts, app/src/shared/vaultPath.ts, app/src/shared/resourceUrl.ts | 0 | 0 | 23 | — |
+| crates/fragment-core/src/vault/surveillance.rs | app/src/electron/vaultWatcher.ts, app/src/electron/main.ts (branchement) | 0 | 0 | 19 | — |
 | crates/fragment-core/src/vault/coffre.rs | app/src/ui/core/vault/vault.ts | 0 | 0 | 95 | — |
 | crates/fragment-core/src/vault/fichier.rs | app/src/ui/core/vault/TAbstractFile.ts, TFile.ts, TFolder.ts | 0 | 0 | 4 | — |
 | crates/fragment-core/src/vault/adaptateur.rs, memoire.rs | app/src/ui/core/vault/DataAdapter.ts | 0 | 0 | 0 | — |
@@ -201,7 +203,7 @@ fragment-html, spike-maths (pas de `parite.toml`).
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-core | 261 | 239 | 227 | 22 | 91.6 % |
+| fragment-core | 261 | 239 | 269 | 22 | 91.6 % |
 
 ## fragment-layers
 
@@ -251,11 +253,12 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | pdf_zoom | app/src/ui/views/pdf/pdfZoom.ts | 7 | 7 | 0 | — |
 | crates/fragment-pdf/src/laterale/*.rs | app/src/ui/views/pdf/PdfSidebar.ts (modes, vignettes virtualisées, arbre de la table, reveler, poignée), section barre latérale de pdf-view.css | 6 | 6 | 15 | — |
 | crates/fragment-pdf/src/document/mod.rs | app/src/ui/views/pdf/PdfView.ts (chargement, pages, couche texte, liens), pdfOutline.ts (resoudreOutline, resoudreDestination) | 0 | 0 | 11 | — |
+| crates/fragment-pdf/src/recherche/*.rs | app/src/ui/views/pdf/PdfFindBar.ts (état find, compteur, fermeture) ; contrôleur de recherche de pdf.js (normalize, correspondance, navigation) | 5 | 4 | 21 | 1 — ctrl_f_ouvre_la_barre_le_champ_a_le_focus : focus du champ et clavier de la barre montée : vue (fr-t4-recherche-ui), hors modèle |
 | crates/fragment-pdf/src/vue_modele/*.rs | app/src/ui/views/pdf/PdfView.ts (appliquerEchelle, modes, ResizeObserver, IntersectionObserver, majPage, champ de page, repeindre, finDeGeste, zoomerMolette, lirePosition, allerAPosition, getEphemeralState), devicePixels.ts | 12 | 12 | 20 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-pdf | 51 | 51 | 46 | 0 | 100.0 % |
+| fragment-pdf | 56 | 55 | 67 | 1 | 98.2 % |
 
 ## fragment-plugins
 

@@ -17,6 +17,14 @@ log = "0.4"
 fragment-text = { path = "../fragment-text" }
 # Pliage des accents de la recherche floue (`normalize('NFD')` de fuzzySearch.ts).
 unicode-normalization = "0.1"
+# Surveillance du coffre (fr-t2-fs) : inotify sous Linux, ReadDirectoryChangesW sous Windows.
+notify = "8"
+# Corbeille de l'OS (`trashSystem`), repliée sur la corbeille locale quand elle refuse.
+trash = "5"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# Dossiers temporaires des tests sur un vrai disque (fr-t2-fs).
+tempfile = "3"
