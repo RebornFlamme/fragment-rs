@@ -10,3 +10,9 @@ pub mod pdf_find_offsets;
 pub mod pdf_geometry;
 pub mod pdf_outline;
 pub mod pdf_zoom;
+
+// Socle T4 (fr-p3-socle) : coquilles vides, une par tâche aval.
+pub mod document;
+pub mod laterale;
+pub mod recherche;
+pub mod vue_modele;

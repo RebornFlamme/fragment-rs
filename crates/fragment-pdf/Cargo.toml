@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+fragment-core = { path = "../fragment-core" }
+fragment-text = { path = "../fragment-text" }
+serde_json.workspace = true
 
 [lints]
 workspace = true

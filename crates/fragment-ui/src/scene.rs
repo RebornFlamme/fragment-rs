@@ -8,6 +8,12 @@ use crate::{
     clavier, docks, entete, glisser, menu, modal, notice, onglets, palette, reglages, shell,
     splits, suggest, toolbar, tooltip,
 };
+// Socle T2-T4-T11 (fr-p3-socle).
+use crate::{
+    coffres, editeur, explorateur, lecture, md_blocs, md_html, md_inline, md_proprietes, md_repli,
+    md_tableau, pdf_barre, pdf_laterale, pdf_pages, pdf_recherche, pdf_texte, themes, tree_item,
+    vue_fichier, vue_markdown, vue_pdf,
+};
 
 /// Enregistre dans `commandes` toutes les commandes `pixels:*` des modules de rendu.
 pub fn commandes_de_scene(commandes: &CommandManager) {
@@ -26,4 +32,24 @@ pub fn commandes_de_scene(commandes: &CommandManager) {
     reglages::commandes_de_scene(commandes);
     clavier::commandes_de_scene(commandes);
     shell::commandes_de_scene(commandes);
+    tree_item::commandes_de_scene(commandes);
+    explorateur::commandes_de_scene(commandes);
+    coffres::commandes_de_scene(commandes);
+    lecture::commandes_de_scene(commandes);
+    vue_fichier::commandes_de_scene(commandes);
+    editeur::commandes_de_scene(commandes);
+    md_inline::commandes_de_scene(commandes);
+    md_blocs::commandes_de_scene(commandes);
+    md_repli::commandes_de_scene(commandes);
+    md_tableau::commandes_de_scene(commandes);
+    md_proprietes::commandes_de_scene(commandes);
+    md_html::commandes_de_scene(commandes);
+    vue_markdown::commandes_de_scene(commandes);
+    pdf_pages::commandes_de_scene(commandes);
+    pdf_barre::commandes_de_scene(commandes);
+    pdf_laterale::commandes_de_scene(commandes);
+    pdf_texte::commandes_de_scene(commandes);
+    pdf_recherche::commandes_de_scene(commandes);
+    vue_pdf::commandes_de_scene(commandes);
+    themes::commandes_de_scene(commandes);
 }

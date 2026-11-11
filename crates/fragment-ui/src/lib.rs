@@ -33,6 +33,28 @@ pub mod reglages;
 pub mod shell;
 pub mod splits;
 
+// Socle T2-T4-T11 (fr-p3-socle) : coquilles vides, une par tâche aval.
+pub mod coffres;
+pub mod editeur;
+pub mod explorateur;
+pub mod lecture;
+pub mod md_blocs;
+pub mod md_html;
+pub mod md_inline;
+pub mod md_proprietes;
+pub mod md_repli;
+pub mod md_tableau;
+pub mod pdf_barre;
+pub mod pdf_laterale;
+pub mod pdf_pages;
+pub mod pdf_recherche;
+pub mod pdf_texte;
+pub mod themes;
+pub mod tree_item;
+pub mod vue_fichier;
+pub mod vue_markdown;
+pub mod vue_pdf;
+
 /// Les fichiers de `assets/` embarqués (écrit par `build.rs`).
 pub(crate) mod embarque {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
