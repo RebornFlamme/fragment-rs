@@ -11,8 +11,13 @@ use crate::raster::{RenduSvg, unite_de_mise_en_page};
 /// Le paquet MathJax (1,8 Mo de JS minifié, Apache-2.0).
 pub const PAQUET: &str = include_str!("../assets/mathjax-svg.js");
 
-/// Pile JS accordée à QuickJS.
-pub const PILE: usize = 4 * 1024 * 1024;
+/// Pile JS accordée à QuickJS. ★ Minimum mesuré : 2 Mio en release, 4 Mio en débogage sur le
+/// portable, MAIS plus de 4 Mio en débogage sur le runner windows-latest (échec en CI) : marge prise.
+pub const PILE: usize = if cfg!(debug_assertions) {
+    16 << 20
+} else {
+    4 << 20
+};
 
 /// Une VM QuickJS avec MathJax chargé. Coût d'entrée : l'évaluation du paquet (voir S5).
 pub struct MathJax {
@@ -75,7 +80,7 @@ impl MathJax {
     fn sur(vm: Vm) -> Result<Self, Erreur> {
         // ★ La pile par défaut de QuickJS (256 Kio) NE suffit PAS : `convert` lève « Maximum
         // call stack size exceeded » dès x^2 (les constructeurs des mixins de MathJax
-        // s'empilent par nœud). Mesuré : 2 Mio en release, 4 Mio en débogage (1 Mio échoue en
+        // s'empilent par nœud). Mesuré : voir `PILE` (1 Mio échoue en
         // release). Le fil appelant doit avoir au moins autant de pile native : le principal de
         // Windows n'a que 1 Mio, il faut un fil dédié (comme gpui-shell, S3).
         vm.runtime().set_max_stack_size(PILE);

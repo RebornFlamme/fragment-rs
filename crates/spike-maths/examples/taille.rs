@@ -15,7 +15,7 @@ fn main() {
     #[cfg(feature = "voie-a")]
     {
         let ok = std::thread::Builder::new()
-            .stack_size(16 << 20)
+            .stack_size(64 << 20)
             .spawn(|| {
                 spike_maths::voie_a::MathJax::new()
                     .and_then(|m| m.rendre("x^2", false, 8.064, 16.0, [0, 0, 0]))

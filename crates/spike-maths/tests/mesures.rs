@@ -96,7 +96,7 @@ mod voie_a {
     /// MathJax veut plus de pile native que les 2 Mio d'un fil de test (voir voie_a::PILE).
     fn grand_fil(f: impl FnOnce() + Send + 'static) {
         std::thread::Builder::new()
-            .stack_size(16 << 20)
+            .stack_size(64 << 20)
             .spawn(f)
             .unwrap()
             .join()

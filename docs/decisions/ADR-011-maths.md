@@ -20,7 +20,7 @@ Fragment rend `$…$` et `$$…$$` avec `mathjax-full` 3.2.1 (TeX + tous les paq
    - La ligne de base se lit dans le `vertical-align` du SVG.
    - `currentColor` prend la couleur du texte (jeton `--text-normal` via `fragment-theme`).
 3. **Exécution.**
-   - Une VM QuickJS par application, sur un FIL DÉDIÉ d'au moins 4 Mio de pile : `set_max_stack_size` de 2 Mio en release, 4 Mio en débogage, sinon « Maximum call stack size exceeded ».
+   - Une VM QuickJS par application, sur un FIL DÉDIÉ à grande pile native (16 Mio en release). `set_max_stack_size` vaut 4 Mio en release (minimum mesuré : 2) et 16 Mio en débogage (4 suffisent sur le portable, pas sur le runner windows-latest). Sinon : « Maximum call stack size exceeded ».
    - Un cache LRU (source, mode) → SVG, comme `mathjax.ts`, est obligatoire. Un rendu à froid coûte de 4 à 57 ms selon la formule. Le démarrage de la VM et du bundle coûte environ 220 ms : il est donc paresseux, au premier `$` rencontré, hors du fil d'interface.
    - Le JIT de quickjs-jit est REFUSÉ : 2,8 s de démarrage, 1 s par formule.
 4. **Licences.** MathJax et mhchemparser sont en Apache-2.0 (bundlés, `LICENSE-MathJax` et `LICENSE-mhchemparser` livrés avec le binaire et dans la notice). QuickJS-ng et quickjs-jit sont en MIT. Pas de copyleft.

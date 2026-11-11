@@ -52,8 +52,8 @@ Un delta max de 203 à 221 est le contraste plein entre le texte et le fond : de
   - La géométrie est donc exacte. La seule différence restante est l'anticrénelage des tracés : tiny-skia contre Skia.
 - ★ **La pile.**
   - La pile JS par défaut de QuickJS (256 Kio) déborde dès `x^2`. Les constructeurs des mixins de MathJax s'empilent par nœud.
-  - Il faut 2 Mio en release et 4 Mio en débogage ; 1 Mio échoue en release.
-  - Le fil appelant a besoin d'autant de pile native. Le fil principal de Windows n'a que 1 Mio : il faut un fil dédié. Les tests tournent sur un fil de 16 Mio.
+  - Il faut 2 Mio en release et 4 Mio en débogage sur le portable ; 1 Mio échoue en release. ★ Sur le runner windows-latest, 4 Mio ne suffisent PAS en débogage (échec de la 1re CI). Retenu : 4 Mio en release, 16 Mio en débogage.
+  - Le fil appelant a besoin d'autant de pile native. Le fil principal de Windows n'a que 1 Mio : il faut un fil dédié. Les tests tournent sur un fil de 64 Mio.
 - ★ **Le calage, mesuré au 1/8 px** (`explorer_calage_voie_a`, ignoré par défaut)
   - Chromium tronque les longueurs à 1/64 px (LayoutUnit) : 2,282 ex × 8,0639 = 18,4018 donne 18,390625.
   - Chromium peint le `<svg>` à son origine arrondie au pixel, à sa taille de mise en page non accrochée. Accrocher la taille, ou garder l'origine fractionnaire, aggrave le diff.
@@ -103,7 +103,7 @@ Aucune licence copyleft. Les dépendances nouvelles sont notées dans la PR.
 
 **GO-AVEC pour la voie A.** C'est MathJax 3.2.1 lui-même dans QuickJS : le SVG de Fragment à l'octet près (aux ids de cache près), une géométrie exacte, toutes les formules, y compris `\ce`. Trois conditions :
 
-1. MathJax tourne sur un fil dédié, avec au moins 4 Mio de pile native, une VM démarrée paresseusement (220 ms) et un cache LRU des SVG.
+1. MathJax tourne sur un fil dédié, avec une grande pile native (16 Mio en release), une VM démarrée paresseusement (220 ms) et un cache LRU des SVG.
 2. **Dette de fidélité, à remonter à l'orchestrateur.** L'anticrénelage des tracés diffère de Skia :
    - dans les boîtes des formules : 19,1 % de pixels différents, 5,7 % au-delà de 16, delta max 82, encre de −4 à −8 % ;
    - 0 pixel de géométrie.
