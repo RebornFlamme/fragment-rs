@@ -12,7 +12,7 @@
 //! ★ Le nœud `FrontMatter` est un AJOUT de fragment-rs (absent de Lezer) : la comparaison le retire
 //!   et remonte ses enfants d'un niveau.
 
-use fragment_markdown::syntaxe::{self, Arbre, Cote, Genre, Parcours};
+use fragment_markdown::syntaxe::{self, Arbre, Changement, Cote, Genre, Parcours};
 
 // ─── Relevés de Lezer ────────────────────────────────────────────────────────
 
@@ -564,6 +564,286 @@ fn dix_mille_lignes_s_analysent() {
     assert_eq!(compte(Genre::WikiLink), 667);
     assert_eq!(compte(Genre::InlineMath), 667);
     assert_eq!(a.noeud(0).plage.octets.to, doc.len());
+}
+
+// ─── Analyse incrémentale (fr-t3.1) : l'oracle ──────────────────────────────
+
+/// Générateur pseudo-aléatoire déterministe (xorshift64*), pour des éditions reproductibles.
+struct Hasard(u64);
+
+impl Hasard {
+    fn suivant(&mut self) -> u64 {
+        self.0 ^= self.0 >> 12;
+        self.0 ^= self.0 << 25;
+        self.0 ^= self.0 >> 27;
+        self.0.wrapping_mul(0x2545_F491_4F6C_DD1D)
+    }
+    fn sous(&mut self, n: usize) -> usize {
+        (self.suivant() % n.max(1) as u64) as usize
+    }
+}
+
+/// Ce que l'on insère : de quoi ouvrir, fermer ou casser chaque construction (clôtures, listes,
+/// tableaux, citations, maths, HTML, titres Setext, frontmatter), et du texte banal.
+const MORCEAUX: &[&str] = &[
+    "x",
+    "a",
+    " ",
+    "\n",
+    "\n\n",
+    "```",
+    "\n```\n",
+    "~~~",
+    "|",
+    " | ",
+    "\n| --- | --- |\n",
+    "- ",
+    "\n- ",
+    "* ",
+    "1. ",
+    "\n2) ",
+    "> ",
+    "\n> ",
+    "$$",
+    "\n$$\n",
+    "#",
+    "## ",
+    "---",
+    "\n---\n",
+    "===",
+    "    ",
+    "\t",
+    "[[",
+    "]]",
+    "![[",
+    "==",
+    "**",
+    "_",
+    "`",
+    "<div>",
+    "\n<!--",
+    "-->",
+    "[x] ",
+    "- [ ] ",
+    "é",
+    "😀",
+    "[ref]: /url \"t\"\n",
+    "\\",
+    "\r\n",
+];
+
+/// Une position d'édition : souvent sur une construction (début de ligne, clôture, barre…).
+fn position(h: &mut Hasard, t: &str) -> usize {
+    let mut p = match h.sous(6) {
+        0 => 0,
+        1 => t.len(),
+        2 => t.len() / 2,
+        3 => {
+            let marques = ["```", "|", "\n- ", "\n> ", "$$", "\n\n", "---", "\n1. "];
+            let m = marques[h.sous(marques.len())];
+            let trouves: Vec<usize> = t.match_indices(m).map(|(i, _)| i).collect();
+            if trouves.is_empty() {
+                h.sous(t.len() + 1)
+            } else {
+                trouves[h.sous(trouves.len())] + h.sous(m.len() + 1)
+            }
+        }
+        _ => h.sous(t.len() + 1),
+    };
+    p = p.min(t.len());
+    while !t.is_char_boundary(p) {
+        p -= 1;
+    }
+    p
+}
+
+/// Une édition au hasard sur `t` : (début, fin dans l'ancien, texte inséré).
+fn edition(h: &mut Hasard, t: &str) -> (usize, usize, String) {
+    let de = position(h, t);
+    let mut a = de;
+    if h.sous(3) > 0 && de < t.len() {
+        let portee = if h.sous(4) == 0 { 400 } else { 12 };
+        a = (de + 1 + h.sous(portee)).min(t.len());
+        while !t.is_char_boundary(a) {
+            a += 1;
+        }
+    }
+    let insere = if h.sous(3) == 0 && a > de {
+        String::new()
+    } else {
+        (0..1 + h.sous(2))
+            .map(|_| MORCEAUX[h.sous(MORCEAUX.len())])
+            .collect()
+    };
+    (de, a, insere)
+}
+
+/// Compare nœud à nœud ; panique avec le premier écart.
+fn verifier_identiques(incr: &Arbre, complet: &Arbre, contexte: &str) {
+    let (a, b) = (incr.noeuds(), complet.noeuds());
+    if let Some(i) = (0..a.len().max(b.len())).find(|&i| a.get(i) != b.get(i)) {
+        panic!(
+            "{contexte} : nœud {i} diffère\n  incrémental : {:?}\n  complet     : {:?}",
+            a.get(i),
+            b.get(i)
+        );
+    }
+    assert_eq!(incr.front_matter(), complet.front_matter(), "{contexte}");
+    // Repères compris : la réanalyse SUIVANTE partira du même état.
+    assert!(incr == complet, "{contexte} : repères différents");
+}
+
+/// Enchaîne `n` éditions au hasard sur `texte`, l'arbre étant chaque fois RÉANALYSÉ à partir du
+/// précédent (pas d'une analyse fraîche) et comparé à une analyse complète.
+fn oracle(nom: &str, texte: &str, graine: u64, n: usize) {
+    let mut h = Hasard(graine | 1);
+    let mut t = texte.to_owned();
+    let mut arbre = syntaxe::analyser(&t);
+    for k in 0..n {
+        let (de, a, insere) = edition(&mut h, &t);
+        let mut nouveau = t.clone();
+        nouveau.replace_range(de..a, &insere);
+        // Deux descriptions également valables : l'édition telle quelle, ou le plus petit écart.
+        let c = if k % 2 == 0 {
+            Changement::remplacement(de, a, &insere)
+        } else {
+            Changement::entre(&t, &nouveau)
+        };
+        arbre = arbre.reanalyser(&nouveau, c);
+        let complet = syntaxe::analyser(&nouveau);
+        verifier_identiques(
+            &arbre,
+            &complet,
+            &format!("{nom}, édition {k} ({de}..{a} ← {insere:?})"),
+        );
+        t = nouveau;
+    }
+}
+
+/// Les documents réels du dépôt : ceux de `tests/syntaxe/` et tous les `.md` versionnés.
+fn documents_reels() -> Vec<(String, String)> {
+    let racine = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut fichiers = Vec::new();
+    let mut a_voir = vec![racine];
+    while let Some(d) = a_voir.pop() {
+        let Ok(entrees) = std::fs::read_dir(&d) else {
+            continue;
+        };
+        for e in entrees.flatten() {
+            let p = e.path();
+            let nom = e.file_name().to_string_lossy().into_owned();
+            if p.is_dir() {
+                if !nom.starts_with('.') && nom != "target" && nom != "node_modules" {
+                    a_voir.push(p);
+                }
+            } else if nom.ends_with(".md")
+                && let Ok(t) = std::fs::read_to_string(&p)
+            {
+                fichiers.push((p.display().to_string(), t));
+            }
+        }
+    }
+    fichiers.sort();
+    assert!(fichiers.len() >= 7, "documents introuvables");
+    fichiers
+}
+
+#[test]
+fn incremental_identique_sur_les_documents_reels() {
+    for (i, (nom, texte)) in documents_reels().iter().enumerate() {
+        // Les grands documents coûtent une analyse complète par édition (en debug) : moins d'éditions.
+        let n = if texte.len() > 40_000 { 25 } else { 120 };
+        oracle(nom, texte, 0x9E37_79B9_7F4A_7C15 ^ i as u64, n);
+    }
+}
+
+#[test]
+fn incremental_identique_sur_des_constructions_fragiles() {
+    let docs = [
+        "",
+        "x",
+        "---\ntitre: a\n---\n# T\n\ntexte\n",
+        "---\na: 1\n",
+        "p\n\n```js\ncode\n```\n\nq\n\n```\nouvert\n\n# plus loin\n",
+        "- a\n- b\n\n  suite\n- c\n\n1. un\n2. deux\n\n> c\n> d\n\nfin\n",
+        "| a | b |\n| --- | --- |\n| 1 | 2 |\n\npara\n| x |\n| - |\n",
+        "titre\n===\n\nautre\n---\n\n$$\nx\n$$\n\n    code\n\n    code\n\nfin",
+        "<div>\nhtml\n</div>\n\n<!-- c\n-->\n\n[r]: /u \"t\"\n\n- [ ] t\n- [x] u\n",
+        "é😀\n\n- é\n  😀\n\n> 😀 | é |\n> | - |\n",
+    ];
+    for (i, d) in docs.iter().enumerate() {
+        oracle(
+            &format!("fragile {i}"),
+            d,
+            0xD1B5_4A32_D192_ED03 ^ i as u64,
+            400,
+        );
+    }
+}
+
+#[test]
+fn incremental_identique_sur_dix_mille_lignes() {
+    let doc = dix_mille_lignes();
+    oracle("dix mille lignes", &doc, 0x1234_5678, 6);
+}
+
+#[test]
+fn incremental_changement_incoherent_retombe_sur_l_analyse_complete() {
+    let a = syntaxe::analyser("# a\n\nb\n");
+    let faux = Changement {
+        de: 3,
+        fin_ancien: 99,
+        fin_nouveau: 1,
+    };
+    let b = a.reanalyser("# a\n", faux);
+    assert_eq!(b, syntaxe::analyser("# a\n"));
+}
+
+#[test]
+fn changement_entre_deux_textes() {
+    let c = Changement::entre("abc\ndef", "abXc\ndef");
+    assert_eq!((c.de, c.fin_ancien, c.fin_nouveau), (2, 2, 3));
+    let c = Changement::entre("aéb", "ab");
+    assert_eq!((c.de, c.fin_ancien, c.fin_nouveau), (1, 3, 1));
+    let c = Changement::entre("aaa", "aa");
+    assert_eq!(c.fin_ancien - c.de, 1);
+}
+
+/// Temps d'une réanalyse incrémentale après une frappe, sur 10 000 lignes.
+/// `cargo test -p fragment-markdown --release --test syntaxe -- --ignored --nocapture mesure_incremental`
+#[test]
+#[ignore = "mesure, à lancer en --release"]
+fn mesure_incremental_dix_mille_lignes() {
+    let mut t = dix_mille_lignes();
+    let mut arbre = syntaxe::analyser(&t);
+    let mut h = Hasard(0xABCD_EF01);
+    let mut temps = Vec::new();
+    // Une frappe = un caractère inséré, au milieu (comme ADR-010) puis n'importe où.
+    for k in 0..200 {
+        let mut p = if k < 50 {
+            t.len() / 2 + k
+        } else {
+            h.sous(t.len())
+        };
+        while !t.is_char_boundary(p) {
+            p -= 1;
+        }
+        let car = ["x", " ", "\n", "|", "`"][h.sous(5)];
+        t.insert_str(p, car);
+        let t0 = std::time::Instant::now();
+        arbre = arbre.reanalyser(&t, Changement::remplacement(p, p, car));
+        temps.push(t0.elapsed());
+    }
+    assert_eq!(arbre, syntaxe::analyser(&t));
+    temps.sort();
+    println!(
+        "{} octets, {} nœuds : réanalyse après une frappe min {:?} / médiane {:?} / max {:?}",
+        t.len(),
+        arbre.noeuds().len(),
+        temps[0],
+        temps[temps.len() / 2],
+        temps[temps.len() - 1]
+    );
 }
 
 /// Écrit le relevé de l'arbre de chaque fichier de `RELEVE_MD` (chemins séparés par `;`) dans

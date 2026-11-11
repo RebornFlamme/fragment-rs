@@ -14,6 +14,7 @@
 //!   l'analyse en ligne restent celles du document.
 
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -460,10 +461,44 @@ struct Analyse<'a> {
     fin_ligne_abs: usize,
     au_bout: bool,
     pile: Vec<Composite>,
+    /// Borne (exclue) de tout ce que l'analyse a LU du document jusqu'ici : la fin de la dernière
+    /// ligne lue, plus son saut de ligne (ou la fin du document, qui est aussi une lecture).
+    /// ★ Sert à l'incrémental : un repère dont `lu` précède la modification ne dépend pas d'elle.
+    lu: Cell<usize>,
+}
+
+/// Un point de reprise de l'analyse (incrémental, `incremental.rs`) : au début d'un pas, seule la
+/// racine `Document` est ouverte et la ligne en cours commence en `ligne`. De là, la suite de
+/// l'analyse ne dépend QUE de `doc[ligne..]` (aucune lecture en arrière, aucun état hérité).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Repere {
+    /// Début (octets) de la ligne en cours.
+    pub ligne: usize,
+    /// Nombre d'enfants de `Document` déjà produits par cette analyse.
+    pub enfants: usize,
+    /// `Analyse::lu` à ce moment.
+    pub lu: usize,
+}
+
+/// Comment s'est terminée une analyse partielle.
+pub(crate) enum Fin {
+    /// Au bout du document : la fin (octets) de la racine `Document`.
+    Document(usize),
+    /// Arrêtée au dernier repère, que `arret` a accepté.
+    Arret,
+}
+
+/// Le produit de [`analyser_depuis`].
+pub(crate) struct Resultat {
+    /// Les enfants de `Document` produits depuis la reprise.
+    pub enfants: Vec<Elt>,
+    pub reperes: Vec<Repere>,
+    pub fin: Fin,
 }
 
 impl<'a> Analyse<'a> {
-    fn new(doc: &'a str) -> Self {
+    /// Une analyse qui reprend au début de ligne `ligne`, racine seule ouverte, avec `lu` déjà lu.
+    fn depuis(doc: &'a str, ligne: usize, lu: usize) -> Self {
         let mut a = Analyse {
             doc,
             ligne: Ligne {
@@ -476,7 +511,7 @@ impl<'a> Analyse<'a> {
                 indent: 0,
                 suivant: -1,
             },
-            debut_ligne: 0,
+            debut_ligne: ligne,
             fin_ligne_abs: 0,
             au_bout: false,
             pile: vec![Composite {
@@ -486,6 +521,7 @@ impl<'a> Analyse<'a> {
                 end: 0,
                 enfants: Vec::new(),
             }],
+            lu: Cell::new(lu),
         };
         a.lire_ligne();
         a
@@ -512,12 +548,16 @@ impl<'a> Analyse<'a> {
         }
     }
 
+    /// ★ La SEULE lecture du document : tient `lu` à jour.
     fn texte_ligne(&self, start: usize) -> &'a str {
-        if start >= self.doc.len() {
-            return "";
-        }
-        let reste = &self.doc[start..];
-        reste.find('\n').map_or(reste, |i| &reste[..i])
+        let t = if start >= self.doc.len() {
+            ""
+        } else {
+            let reste = &self.doc[start..];
+            reste.find('\n').map_or(reste, |i| &reste[..i])
+        };
+        self.lu.set(self.lu.get().max(start + t.len() + 1));
+        t
     }
 
     fn ligne_suivante_brute(&self) -> &'a str {
@@ -1270,12 +1310,43 @@ impl<'a> Analyse<'a> {
     }
 }
 
-/// Analyse un document entier : la racine `Document`, positions en octets.
-pub(crate) fn analyser(doc: &str) -> Elt {
-    let mut a = Analyse::new(doc);
+/// Analyse `doc` à partir du début de ligne `ligne` (0, ou un repère d'une analyse précédente dont
+/// `lu` est repris), en relevant un [`Repere`] à chaque pas où seule la racine est ouverte. Après
+/// chaque repère, `arret(ligne)` peut arrêter l'analyse (la suite est connue : reprise de l'ancien
+/// arbre).
+///
+/// ★ Les repères de « bout de document » (`au_bout`) ne sont pas relevés : il n'y a plus rien à
+///   reprendre.
+pub(crate) fn analyser_depuis(
+    doc: &str,
+    ligne: usize,
+    lu: usize,
+    mut arret: impl FnMut(usize) -> bool,
+) -> Resultat {
+    let mut a = Analyse::depuis(doc, ligne, lu);
+    let mut reperes = Vec::new();
     loop {
-        if let Some(arbre) = a.avancer() {
-            return arbre;
+        if a.pile.len() == 1 && !a.au_bout && a.ligne.marqueurs.is_empty() {
+            reperes.push(Repere {
+                ligne: a.debut_ligne,
+                enfants: a.pile[0].enfants.len(),
+                lu: a.lu.get(),
+            });
+            if arret(a.debut_ligne) {
+                let enfants = a.pile.pop().map(|d| d.enfants).unwrap_or_default();
+                return Resultat {
+                    enfants,
+                    reperes,
+                    fin: Fin::Arret,
+                };
+            }
+        }
+        if let Some(racine) = a.avancer() {
+            return Resultat {
+                enfants: racine.enfants,
+                reperes,
+                fin: Fin::Document(racine.to),
+            };
         }
     }
 }
