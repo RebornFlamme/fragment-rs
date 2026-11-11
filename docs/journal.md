@@ -418,3 +418,11 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - ★ Le job clippy (Ubuntu) échoue partout depuis 14:00 UTC : le runner ne résout plus archive/security.ubuntu.com à l'étape apt. #54, #57, #58 et #59 sont vertes sur les 6 autres jobs.
   - Correctif du chef, PR #61 : clippy passe sous windows-latest (sans apt), et les lints Windows du spike S2 (`fragment-html/tests/spike_s2/scenario.rs`, jamais vu par clippy sous Linux) sont corrigés.
   - Pas de 5e lancement : au rythme actuel, la fenêtre 5 h atteindrait 90 % avant 17:30. Actifs : shell3, alpha2, listes, decorations.
+- 11/11 15:30 UTC : disque C: plein (0 Mo). J'ai supprimé les dossiers cible de 21 tâches fermées : 86,6 Go libres. ★ Après chaque fusion, retirer aussi le dossier cible de la tâche.
+- #61 : sous Windows, clippy voit pour la première fois le code `cfg(windows)` des spikes S1b, S2 et S3. Lints corrigés par des `allow` ciblés et commentés, ou par `--fix`.
+- fr-t1.5 (shell3) :
+  - réglages passés de 4 850 à 48/92 px ;
+  - exception nommée « trait de poignée » accordée : bords du trait seulement, delta 1, en clair, cliquet et contre-épreuve. Environ 4 000 px, même famille que 221/222, l'arrondi de Skia sur les bords fractionnaires n'étant pas constant ;
+  - jeton `fragment-theme` ajouté pour le littéral CSS #8f8e89 (flèche de liste).
+  - À remonter avec T1.
+- Un `arbre.rs` non suivi traîne à la racine du dépôt principal, d'origine inconnue. Je n'y touche pas.
