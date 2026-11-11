@@ -18,14 +18,14 @@ use fragment_core::{
     prepare_fuzzy_search,
 };
 use gpui_kit::{
-    AppContext as _, Context, FocusHandle, FontWeight, HighlightStyle, Hsla,
+    AppContext as _, Context, FocusHandle, FontFallbacks, FontWeight, HighlightStyle, Hsla,
     InteractiveElement as _, IntoElement, KeyDownEvent, Modifiers, MouseButton, MouseDownEvent,
     MouseMoveEvent, ParentElement as _, Render, ScrollHandle, StatefulInteractiveElement as _,
-    Styled as _, StyledText, Window, div, relative, svg,
+    Styled, StyledText, Window, div, relative, svg,
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::ombrer;
+use crate::flottant::{arrondir, ombrer};
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
@@ -551,12 +551,11 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .gap(u(cx, t.forme.size_2_3));
             for a in &ligne.aux {
                 aux = match a {
-                    Auxiliaire::Raccourci(texte) => aux.child(
+                    Auxiliaire::Raccourci(texte) => aux.child(arrondir(
                         div()
                             .px(u(cx, t.forme.size_2_3))
                             .py(u(cx, 1.0))
                             .line_height(interligne_puce)
-                            .rounded(u(cx, t.forme.radius_s))
                             .bg(couleur(fond_puce))
                             .border(bordure)
                             .border_color(contour)
@@ -564,7 +563,10 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                             .text_size(u(cx, t.typo.font_ui_smaller))
                             .whitespace_nowrap()
                             .child(texte.clone()),
-                    ),
+                        cx,
+                        u(cx, t.forme.radius_s),
+                        bordure,
+                    )),
                     Auxiliaire::Epingle => aux.child(
                         div().flex().text_color(attenue).child(
                             svg()
@@ -587,7 +589,13 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .rounded(u(cx, t.forme.radius_sm))
                 .text_color(normal);
             if selection == Some(i) {
-                rangee = rangee.bg(couleur(fond_rangee));
+                // Le fond sélectionné est arrondi : ses coins sont déclarés (ADR-009, bord d'arrondi).
+                rangee = arrondir(
+                    rangee.bg(couleur(fond_rangee)),
+                    cx,
+                    u(cx, t.forme.radius_sm),
+                    u(cx, 0.0),
+                );
             }
             // mousemove et non « entrée » : le survol ne vole pas la sélection quand la liste
             // défile sous une souris immobile.
@@ -639,12 +647,12 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                     .flex_row()
                     .items_center()
                     .gap(u(cx, t.forme.size_2_3))
-                    .child(
+                    .child(repli_chromium(
                         div()
                             .font_weight(FontWeight::SEMIBOLD)
                             .text_color(normal)
                             .child(ins.commande.clone()),
-                    )
+                    ))
                     .child(div().child(ins.but.clone())),
             );
         }
@@ -675,6 +683,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             boite,
             cx,
             &t.palette.shadow_l,
+            "--shadow-l",
             u(cx, t.forme.radius_l),
             bordure,
         );
@@ -683,6 +692,20 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
         }
         boite
     }
+}
+
+/// ★ Les polices de repli de Chromium sous Windows pour les touches de la légende (`↑↓`, `↵`), absentes
+/// de DM Sans. La pile de Fragment (`'DM Sans', system-ui, …, 'Segoe UI'`) donne `↑↓` à Segoe UI
+/// (`system-ui`) ; `↵` (U+21B5), absent de Segoe UI, tombe sur le repli système de Chromium, Cambria
+/// Math (vérifié sur la référence : flèche de 7 lignes posée 1 px au-dessus de la ligne de base, la
+/// forme de Cambria, et non celle de Segoe UI Symbol que choisit le repli de DirectWrite appelé par
+/// GPUI). Segoe UI vient en premier pour que `↑↓` y reste.
+fn repli_chromium<E: Styled>(mut e: E) -> E {
+    e.text_style().font_fallbacks = Some(FontFallbacks::from_fonts(vec![
+        "Segoe UI".to_owned(),
+        "Cambria Math".to_owned(),
+    ]));
+    e
 }
 
 /// Enregistre les commandes de scène `pixels:suggest` : aucune, la palette porte les siennes.

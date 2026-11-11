@@ -22,11 +22,13 @@ mod boites;
 thread_local! {
     /// Les surfaces ombrées de la dernière capture, déclarées par la mise en page pendant SA peinture.
     static OMBRES: RefCell<Vec<boites::OmbreDeclaree>> = const { RefCell::new(Vec::new()) };
+    /// Les boîtes arrondies de la dernière capture, déclarées de même.
+    static ARRONDIS: RefCell<Vec<boites::ArrondiDeclare>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
 ///
-/// ★ Le registre des ombres de `fragment-ui` est vidé juste avant CETTE peinture et relu juste
+/// ★ Le registre des ombres et des arrondis de `fragment-ui` est vidé juste avant CETTE peinture et relu juste
 /// après, dans le même `update` : les autres fenêtres (jamais fermées) peuvent repeindre ensuite
 /// sans y ajouter leurs surfaces.
 pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<RgbaImage> {
@@ -36,6 +38,11 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
             window.draw(cx).clear(cx);
             let ombres = flottant::ombres_peintes().iter().map(declarer).collect();
             OMBRES.with(|o| *o.borrow_mut() = ombres);
+            let arrondis = flottant::arrondis_peints()
+                .iter()
+                .map(declarer_arrondi)
+                .collect();
+            ARRONDIS.with(|a| *a.borrow_mut() = arrondis);
             window.render_to_image()
         })
     })?
@@ -59,6 +66,19 @@ fn declarer(o: &flottant::OmbrePeinte) -> boites::OmbreDeclaree {
                 etendue: f64::from(c.etendue),
             })
             .collect(),
+        jeton: o.jeton.to_owned(),
+    }
+}
+
+/// Une boîte arrondie de `fragment-ui` dans le format du fichier de déclaration.
+fn declarer_arrondi(a: &flottant::ArrondiPeint) -> boites::ArrondiDeclare {
+    boites::ArrondiDeclare {
+        x: f64::from(a.x),
+        y: f64::from(a.y),
+        largeur: f64::from(a.largeur),
+        hauteur: f64::from(a.hauteur),
+        rayon: f64::from(a.rayon),
+        bordure: f64::from(a.bordure),
     }
 }
 
@@ -129,18 +149,20 @@ pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyh
     image.save(&chemin)?;
     let boites = boites::detecter(image);
     let ombres = OMBRES.with(|o| o.borrow().clone());
+    let arrondis = ARRONDIS.with(|a| a.borrow().clone());
     std::fs::write(
         dossier.join(format!("{nom}-{theme}.boites.json")),
-        boites::serialiser_tout(&boites, &ombres),
+        boites::serialiser_tout(&boites, &ombres, &arrondis),
     )?;
     println!(
-        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes, {} surfaces ombrées)",
+        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes, {} surfaces ombrées, {} boîtes arrondies)",
         chemin.display(),
         image.width(),
         image.height(),
         compter_couleurs(image),
         boites.len(),
-        ombres.len()
+        ombres.len(),
+        arrondis.len()
     );
     Ok(())
 }

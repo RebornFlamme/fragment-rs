@@ -446,6 +446,7 @@ pub fn couche(cx: &App) -> AnyElement {
         bulle,
         cx,
         &c.menu_shadow,
+        "--menu-shadow",
         u(cx, f.radius_sm),
         u(cx, f.border_width),
     );

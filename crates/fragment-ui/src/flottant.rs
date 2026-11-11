@@ -66,16 +66,35 @@ pub struct OmbrePeinte {
     pub hauteur: f32,
     pub rayon: f32,
     pub couches: Vec<CoucheOmbre>,
+    /// Le jeton CSS de l'ombre (`--menu-shadow`, `--shadow-l`…) : seul `--shadow-l` porte une
+    /// exception nommée (ADR-009, amendement de 11:15, point b).
+    pub jeton: &'static str,
+}
+
+/// Une boîte arrondie telle que la mise en page l'a posée, en pixels physiques : sa boîte de
+/// bordure, son rayon de coin et sa largeur de bordure (ADR-009, catégorie bord d'arrondi). C'est la
+/// DÉCLARATION du candidat : l'arc théorique s'en calcule, jamais de l'image.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArrondiPeint {
+    pub x: f32,
+    pub y: f32,
+    pub largeur: f32,
+    pub hauteur: f32,
+    pub rayon: f32,
+    pub bordure: f32,
 }
 
 thread_local! {
     /// Les surfaces ombrées des images peintes depuis le dernier [`vider_ombres`].
     static OMBRES_PEINTES: RefCell<Vec<OmbrePeinte>> = const { RefCell::new(Vec::new()) };
+    /// Les boîtes arrondies des images peintes depuis le dernier [`vider_ombres`].
+    static ARRONDIS_PEINTS: RefCell<Vec<ArrondiPeint>> = const { RefCell::new(Vec::new()) };
 }
 
-/// Oublie les ombres déclarées : à appeler juste avant de peindre l'image à capturer.
+/// Oublie les ombres et les arrondis déclarés : à appeler juste avant de peindre l'image à capturer.
 pub fn vider_ombres() {
     OMBRES_PEINTES.with(|o| o.borrow_mut().clear());
+    ARRONDIS_PEINTS.with(|a| a.borrow_mut().clear());
 }
 
 /// Les ombres déclarées depuis le dernier [`vider_ombres`], dans l'ordre de peinture.
@@ -83,9 +102,62 @@ pub fn ombres_peintes() -> Vec<OmbrePeinte> {
     OMBRES_PEINTES.with(|o| o.borrow().clone())
 }
 
-/// Pose sur `e` les ombres du jeton `liste` ET les déclare (registre lu par `fragment-pixels`) :
-/// une seule source pour ce qui est peint et ce qui est déclaré. `rayon` est celui de `.rounded`,
-/// `bordure` la largeur de bordure de `e`.
+/// Les boîtes arrondies déclarées depuis le dernier [`vider_ombres`], dans l'ordre de peinture.
+pub fn arrondis_peints() -> Vec<ArrondiPeint> {
+    ARRONDIS_PEINTS.with(|a| a.borrow().clone())
+}
+
+/// Un enfant invisible qui, au prépeint, lit la boîte de bordure de son parent (`bounds` est la
+/// boîte de rembourrage : on la regonfle de `bordure`) et la passe à `declarer`, en pixels physiques
+/// (x, y, largeur, hauteur) avec le facteur d'échelle.
+fn declaration(
+    cx: &App,
+    bordure: Pixels,
+    declarer: impl Fn([f32; 4], f32) + 'static,
+) -> impl IntoElement {
+    canvas(
+        move |bounds: Bounds<Pixels>, window: &mut Window, _: &mut App| {
+            let k = window.scale_factor();
+            let b = f32::from(bordure);
+            declarer(
+                [
+                    (f32::from(bounds.origin.x) - b) * k,
+                    (f32::from(bounds.origin.y) - b) * k,
+                    (f32::from(bounds.size.width) + 2.0 * b) * k,
+                    (f32::from(bounds.size.height) + 2.0 * b) * k,
+                ],
+                k,
+            );
+        },
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top(u(cx, 0.0))
+    .left(u(cx, 0.0))
+    .size_full()
+}
+
+/// Arrondit `e` de `rayon` ET déclare la boîte arrondie (registre lu par `fragment-pixels`, catégorie
+/// bord d'arrondi d'ADR-009) : une seule source pour ce qui est peint et ce qui est déclaré.
+/// `bordure` est la largeur de bordure de `e` (0 sans bordure).
+pub fn arrondir<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels, bordure: Pixels) -> E {
+    e.rounded(rayon)
+        .child(declaration(cx, bordure, move |[x, y, l, h], k| {
+            let arrondi = ArrondiPeint {
+                x,
+                y,
+                largeur: l,
+                hauteur: h,
+                rayon: f32::from(rayon) * k,
+                bordure: f32::from(bordure) * k,
+            };
+            ARRONDIS_PEINTS.with(|a| a.borrow_mut().push(arrondi));
+        }))
+}
+
+/// Pose sur `e` les ombres du jeton `liste` (de nom CSS `jeton`), l'arrondi `rayon`, ET les déclare
+/// (registre lu par `fragment-pixels`) : une seule source pour ce qui est peint et ce qui est
+/// déclaré. `bordure` est la largeur de bordure de `e`.
 ///
 /// ★ Un enfant `absolute` + `size_full` a la TAILLE de la boîte de rembourrage du parent (taffy retire
 /// la bordure de la zone des enfants positionnés), mais sans `top`/`left` il garde sa position
@@ -95,41 +167,33 @@ pub fn ombrer<E: Styled + ParentElement>(
     e: E,
     cx: &App,
     liste: &[Ombre],
+    jeton: &'static str,
     rayon: Pixels,
     bordure: Pixels,
 ) -> E {
     let peintes = ombres(cx, liste);
     let declarees = peintes.clone();
-    e.shadow(peintes).child(
-        canvas(
-            move |bounds: Bounds<Pixels>, window: &mut Window, _: &mut App| {
-                let k = window.scale_factor();
-                let b = f32::from(bordure);
-                let ombre = OmbrePeinte {
-                    x: (f32::from(bounds.origin.x) - b) * k,
-                    y: (f32::from(bounds.origin.y) - b) * k,
-                    largeur: (f32::from(bounds.size.width) + 2.0 * b) * k,
-                    hauteur: (f32::from(bounds.size.height) + 2.0 * b) * k,
-                    rayon: f32::from(rayon) * k,
-                    couches: declarees
-                        .iter()
-                        .map(|o| CoucheOmbre {
-                            decalage_x: f32::from(o.offset.x) * k,
-                            decalage_y: f32::from(o.offset.y) * k,
-                            sigma: f32::from(o.blur_radius) * k,
-                            etendue: f32::from(o.spread_radius) * k,
-                        })
-                        .collect(),
-                };
-                OMBRES_PEINTES.with(|o| o.borrow_mut().push(ombre));
-            },
-            |_, (), _, _| {},
-        )
-        .absolute()
-        .top(u(cx, 0.0))
-        .left(u(cx, 0.0))
-        .size_full(),
-    )
+    let e = arrondir(e.shadow(peintes), cx, rayon, bordure);
+    e.child(declaration(cx, bordure, move |[x, y, l, h], k| {
+        let ombre = OmbrePeinte {
+            x,
+            y,
+            largeur: l,
+            hauteur: h,
+            rayon: f32::from(rayon) * k,
+            couches: declarees
+                .iter()
+                .map(|o| CoucheOmbre {
+                    decalage_x: f32::from(o.offset.x) * k,
+                    decalage_y: f32::from(o.offset.y) * k,
+                    sigma: f32::from(o.blur_radius) * k,
+                    etendue: f32::from(o.spread_radius) * k,
+                })
+                .collect(),
+            jeton,
+        };
+        OMBRES_PEINTES.with(|o| o.borrow_mut().push(ombre));
+    }))
 }
 
 /// Une bordure de `largeur` sur les quatre côtés (GPUI n'a que des largeurs fixes : `border_1`

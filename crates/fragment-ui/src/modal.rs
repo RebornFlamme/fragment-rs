@@ -367,6 +367,7 @@ impl Render for Modale {
             boite,
             cx,
             &t.palette.shadow_l,
+            "--shadow-l",
             u(cx, t.forme.radius_l),
             u(cx, t.forme.border_width),
         );
