@@ -78,21 +78,9 @@ pub const EXCEPTIONS: &[Exception] = &[
         "ombre des notices",
         "--shadow-s",
     ),
-    // Arcs clairs : déplacement de 0,16 à 0,25 px (contraste de bordure de 7 niveaux) ; borne 0,15.
-    arcs(
-        "t1-infobulle-light.png",
-        "arcs de l'infobulle",
-        "--menu-shadow",
-    ),
-    arcs("t1-menu-light.png", "arcs du menu", "--menu-shadow"),
-    arcs("t1-notice-light.png", "arcs de la notice", "--shadow-s"),
-    arcs(
-        "t1-notice-empilees-light.png",
-        "arcs des notices",
-        "--shadow-s",
-    ),
-    // Palette et modale claires : arc de GPUI 0,2 px plus à l'extérieur, 60 px de delta 7 à 33 sur
-    // une bordure de 92 niveaux.
+    // Palette et modale claires (bordure opaque, bord unique de fr-p4.1) : 20 à 22 px de delta 7 à 8
+    // à la jonction de l'arc et du côté droit, l'anticrénelage propre à Skia (mire de S8 : 8 au pire,
+    // ADR-013). Les arcs du menu, des notices et de l'infobulle ne sont plus exceptés.
     arcs("t1-modale-light.png", "arcs de la modale", "--shadow-l"),
     arcs("t1-palette-light.png", "arcs de la palette", "--shadow-l"),
     arcs(
@@ -193,14 +181,27 @@ mod tests {
         };
         let liste = du_png("t1-infobulle-light.png");
         assert_eq!(pour_ombre(&liste, &o), Some("ombre de l'infobulle"));
+        // Ses arcs ne sont plus exceptés (fr-p4.1, bord unique).
+        assert_eq!(pour_arrondi(&liste, &a, std::slice::from_ref(&o)), None);
+        let modale = OmbreDeclaree {
+            jeton: "--shadow-l".to_owned(),
+            ..o.clone()
+        };
+        let claire = du_png("t1-modale-light.png");
         assert_eq!(
-            pour_arrondi(&liste, &a, std::slice::from_ref(&o)),
-            Some("arcs de l'infobulle")
+            pour_arrondi(&claire, &a, std::slice::from_ref(&modale)),
+            Some("arcs de la modale")
         );
-        assert_eq!(pour_arrondi(&liste, &autre, std::slice::from_ref(&o)), None);
-        // Le thème sombre de l'infobulle n'excepte que l'ombre, pas les arcs.
-        let sombre = du_png("t1-infobulle-dark.png");
-        assert_eq!(pour_arrondi(&sombre, &a, std::slice::from_ref(&o)), None);
+        assert_eq!(
+            pour_arrondi(&claire, &autre, std::slice::from_ref(&modale)),
+            None
+        );
+        // Le thème sombre de la modale n'excepte rien.
+        let sombre = du_png("t1-modale-dark.png");
+        assert_eq!(
+            pour_arrondi(&sombre, &a, std::slice::from_ref(&modale)),
+            None
+        );
         // Une scène sans exception n'en a aucune.
         assert!(du_png("t1-menu-dark.png").is_empty());
         let autre_jeton = OmbreDeclaree {

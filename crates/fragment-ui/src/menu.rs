@@ -23,8 +23,9 @@ use gpui_kit::{
 use serde_json::Value;
 
 use crate::echelle::{calees, moitie, u};
-use crate::flottant::{bordure, bordure_translucide, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{ecouter_args, nombre, ombrer, texte};
 use crate::icones;
+use crate::rendu::melange::{aplat_exact, bord_unique};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -623,24 +624,28 @@ fn rendre_niveau(
         .flex_col()
         .min_w(u(cx, largeur_min))
         .p(u(cx, f.size_4_1))
-        .rounded(u(cx, f.radius_m))
-        .bg(couleur(c.menu_bg))
         .text_color(couleur(c.text_normal))
-        .on_mouse_down_out(appui_exterieur)
-        .child(
-            canvas(
-                move |bounds, _, _| enregistrer_niveau(niveau, bounds),
-                |_, (), _, _| {},
-            )
-            .absolute()
-            .top(u(cx, 0.0))
-            .left(u(cx, 0.0))
-            .size_full(),
+        .on_mouse_down_out(appui_exterieur);
+    // Un seul anticrénelage au bord, bordure translucide en aplat exact (`rendu::melange`).
+    let boite = bord_unique(
+        boite,
+        cx,
+        (f.radius_m, f.border_width),
+        aplat_exact(c.background_modifier_border, c.opacites.bordure, c.menu_bg),
+        c.menu_bg,
+        true,
+    )
+    .child(
+        canvas(
+            move |bounds, _, _| enregistrer_niveau(niveau, bounds),
+            |_, (), _, _| {},
         )
-        .children(lignes);
-    // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-    let boite = bordure(boite, u(cx, f.border_width))
-        .border_color(couleur(bordure_translucide(c, c.menu_bg)));
+        .absolute()
+        .top(u(cx, 0.0))
+        .left(u(cx, 0.0))
+        .size_full(),
+    )
+    .children(lignes);
     let boite = ombrer(
         boite,
         cx,

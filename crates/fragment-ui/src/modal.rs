@@ -25,9 +25,10 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::ombrer;
 use crate::icones;
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
+use crate::rendu::melange::bord_unique;
+use crate::rendu::ombre::{ombrer_au_calque, voile};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -250,7 +251,8 @@ impl Render for CoucheModale {
                     .top_0()
                     .left_0()
                     .size_full()
-                    .bg(couleur(theme.palette.background_modifier_cover))
+                    // Le voile du calque : il peint aussi l'ombre de la boîte (`rendu::ombre`).
+                    .child(voile(theme.palette.background_modifier_cover))
                     .on_mouse_down(MouseButton::Left, move |_, window, _| {
                         fermeture.demander();
                         window.refresh();
@@ -351,11 +353,7 @@ impl Render for Modale {
             )
             .py(u(cx, t.forme.size_4_5))
             .px(u(cx, t.forme.size_4_6))
-            .bg(couleur(t.palette.workspace_bg))
             .text_color(couleur(t.palette.text_normal))
-            .border(u(cx, t.forme.border_width))
-            .border_color(couleur(t.palette.tab_outline_color))
-            .rounded(u(cx, t.forme.radius_l))
             .font_family(FAMILLE_INTERFACE)
             .font_features(caracteristiques())
             .text_size(u(cx, t.typo.font_ui_normal))
@@ -363,13 +361,23 @@ impl Render for Modale {
             .overflow_hidden()
             // La boîte avale les clics : le voile derrière est le seul à fermer.
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation());
-        boite = ombrer(
+        // Un seul anticrénelage au bord (bordure opaque, fond en retrait : `rendu::melange`).
+        boite = bord_unique(
+            boite,
+            cx,
+            (t.forme.radius_l, t.forme.border_width),
+            t.palette.tab_outline_color,
+            t.palette.workspace_bg,
+            false,
+        );
+        boite = ombrer_au_calque(
             boite,
             cx,
             &t.palette.shadow_l,
             "--shadow-l",
             u(cx, t.forme.radius_l),
             u(cx, t.forme.border_width),
+            t.palette.background_modifier_cover,
         );
         // Le bouton de fermeture : 24 × 24 à 10 px du coin, icône de 16 px.
         boite = boite.child(

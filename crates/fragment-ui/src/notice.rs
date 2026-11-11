@@ -18,8 +18,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::{bordure, bordure_translucide, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::rendu::melange::{aplat_exact, bord_unique};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La durée par défaut d'une notice (millisecondes), comme Obsidian.
@@ -212,15 +213,23 @@ pub fn couche(cx: &App) -> AnyElement {
                 // carte garde sa hauteur, le texte remonte.
                 .pt(u(cx, f.size_2_5 - 1.0))
                 .pb(u(cx, f.size_2_5 + 1.0))
-                .rounded(u(cx, f.radius_m))
-                .bg(couleur(c.background_secondary_alt))
                 .text_color(couleur(c.text_normal))
                 .cursor_pointer()
                 .on_click(move |_: &ClickEvent, _: &mut Window, app: &mut App| {
                     Notice { id }.hide();
                     app.refresh_windows();
-                })
-                .child(e.message);
+                });
+            // Un seul anticrénelage au bord, bordure translucide en aplat exact (`rendu::melange`).
+            let fond = c.background_secondary_alt;
+            let carte = bord_unique(
+                carte,
+                cx,
+                (f.radius_m, f.border_width),
+                aplat_exact(c.background_modifier_border, c.opacites.bordure, fond),
+                fond,
+                true,
+            )
+            .child(e.message);
             let carte = if tient {
                 carte.whitespace_nowrap().w(largeur_ajustee(
                     cx,
@@ -236,9 +245,7 @@ pub fn couche(cx: &App) -> AnyElement {
                 Some(c) => carte.h(c[0]),
                 None => carte,
             };
-            // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-            let carte = bordure(carte, u(cx, f.border_width))
-                .border_color(couleur(bordure_translucide(c, c.background_secondary_alt)));
+
             let carte = ombrer(
                 carte,
                 cx,

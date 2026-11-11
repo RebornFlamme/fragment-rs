@@ -17,8 +17,9 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{bordure, bordure_translucide, chaine, ecouter_args, nombre, ombrer, texte};
+use crate::flottant::{chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::rendu::melange::{aplat_exact, bord_unique};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Délai avant l'apparition (millisecondes), si la cible n'en fixe pas.
@@ -430,19 +431,24 @@ pub fn couche(cx: &App) -> AnyElement {
         .max_w(u(cx, largeur))
         .px(u(cx, f.size_4_2))
         .py(u(cx, f.size_4_1))
-        .rounded(u(cx, f.radius_sm))
-        .bg(couleur(c.menu_bg))
         .text_color(couleur(c.text_normal))
-        .whitespace_nowrap()
-        .child(message);
+        .whitespace_nowrap();
+    // Un seul anticrénelage au bord, bordure translucide en aplat exact (`rendu::melange`).
+    let bulle = bord_unique(
+        bulle,
+        cx,
+        (f.radius_sm, f.border_width),
+        aplat_exact(c.background_modifier_border, c.opacites.bordure, c.menu_bg),
+        c.menu_bg,
+        true,
+    )
+    .child(message);
     let bulle = if tient {
         bulle.w(largeur_ajustee(cx, texte_exact, ajout))
     } else {
         bulle.overflow_hidden().text_ellipsis()
     };
-    // Bordure translucide calée sur le mélange de Chromium (voir `bordure_translucide`).
-    let bulle = bordure(bulle, u(cx, f.border_width))
-        .border_color(couleur(bordure_translucide(c, c.menu_bg)));
+
     let bulle = ombrer(
         bulle,
         cx,

@@ -13,6 +13,7 @@ pub mod echelle;
 pub mod flottant;
 pub mod icones;
 pub mod polices;
+pub mod rendu;
 pub mod scene;
 pub mod theme_global;
 
