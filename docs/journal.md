@@ -252,3 +252,12 @@ Battement : `CronCreate`, toutes les heures à la minute 23.
 1. Au compte rendu du planificateur : revue de la PR (cohérence des fichiers possédés, dépendances), fusion. Puis lancer, à chaque place libre, les tâches `bd ready` indépendantes de T1, dans l'ordre qu'il donne.
 2. Aux autres comptes rendus : revue habituelle.
 3. Puis fr-t1-reglages, fr-t1-splits (après onglets), et fr-p3-gpui-kit-0.9 après le binaire.
+
+## Vague 7 (largeur et police mono fusionnées) — 11/11/2026 10:00 UTC
+Tâches fermées :
+- fr-nj9 (#32) : ADR-005 corrigée. Fragment n'embarque pas JetBrains Mono : `--font-monospace` est une pile système, d'où Consolas.
+- fr-t1.3 (#33, CI verte, audit à 0) : la cause est le crénage absent (DirectWrite sans `kern`) plus l'arrondi supérieur de la largeur d'une feuille de texte par GPUI. Corrigée sans ADR ni fork. Règle écrite dans `docs/constantes-rendu.md`.
+Le résidu de fr-t1.3 passe à fr-t1.1 : un décalage vertical d'1 px sur les notices à deux lignes, et les glyphes de repli.
+Écart de périmètre accepté : #33 a touché `flottant`, `notice`, `tooltip`, `modal` et `suggest`, des fichiers de fr-t1.1 (petites modifications). fr-t1.1, onglets et reglages ont été prévenus et doivent se rebaser.
+fr-t2 ne dépend plus de fr-t1.3. En cours : onglets, fr-t1.1 (Opus), reglages, planificateur. Une place est libre, mais rien n'est prêt hors T1 avant la PR du planificateur.
+**Prochaine action exacte.** Fusionner la PR du planificateur, puis remplir les places avec ses tâches indépendantes de T1.

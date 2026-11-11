@@ -2012,3 +2012,12 @@ Chromium fait l'inverse du premier temps : il cumule en fractions exactes (1/64 
 **Règle** : ne jamais écrire une longueur fractionnaire en comptant sur GPUI. Pour une pile de boîtes de hauteur fractionnaire, calculer les arêtes EXACTES (cumul en `f32` depuis l'origine exacte de la pile), les arrondir comme Chromium, et donner à GPUI les hauteurs ENTIÈRES qui en résultent : `echelle::calees(cx, origine, &hauteurs)`. Le cumul reste exact, seul l'affichage est arrondi. Exemple : le menu (`menu.rs`). Pour une pile dont l'origine est elle-même fractionnaire (sous-menu), transmettre l'origine exacte du parent.
 - Limites : un pixel logique = un pixel écran (dpr 1, celui des scènes) ; le texte reste centré dans la boîte entière, alors que Chromium le pose à l'arête exacte puis arrondit la ligne de base : un décalage d'un pixel du texte est possible une ligne sur deux (à vérifier dans les scènes).
 - Les largeurs fractionnaires (rare) se traitent de même, par le cumul horizontal.
+
+## Largeur du texte : crénage et arrondi (fr-t1.3, #33)
+★ Deux causes cumulées faisaient le texte de GPUI environ 1 % plus large que celui de Chromium :
+- **Crénage absent.** GPUI passe à DirectWrite une typographie (`liga`, `clig`, `calt`) qui n'inclut pas `kern`. Les polices sont pourtant identiques des deux côtés.
+- **Arrondi supérieur.** GPUI arrondit au pixel supérieur (`.ceil()`) la largeur d'une feuille de texte, alors que Chromium garde la fraction et n'arrondit que les arêtes.
+
+Règle pour TOUT texte de `fragment-ui` :
+- `polices::famille_interface(e)`, ou bien `.font_family(FAMILLE_INTERFACE).font_features(polices::caracteristiques())` ;
+- quand une boîte se dimensionne sur son texte : `polices::largeur_texte` puis `largeur_ajustee`, jamais la largeur intrinsèque de GPUI.
