@@ -1,0 +1,11 @@
+# Parité de fr-t4-laterale-ui (fragment-ui). Schéma `parite.d` : un fichier par tâche. Sources e2e
+# (Playwright) : pdf-toolbar tests 7 à 12 et pdf-nettete test 3. PdfSidebar.ts n'a pas de test
+# unitaire. Le modèle (mode, largeur, virtualisation, arbre) est déjà porté par fr-t4-laterale-modele.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfSidebar.ts (charger, vider, peindreVignette, libererVignette, setPageCourante, montrerVignette, construireToc, construireEntree, reveler, construirePoignee), pdf-view.css (.pdf-sidebar-*, .pdf-thumbnail*, .pdf-outline-*)"
+rs = "crates/fragment-ui/src/pdf_laterale/{mod,vue,rendu}.rs, crates/fragment-ui/tests/pdf_laterale.rs"
+cas_source = 7
+cas_portes = 7
+cas_ajoutes = 3
+notes = "Portés : pdf-toolbar 7 (Page width suit la zone, barre ouverte), 8 (vignettes peintes, cliquables, page active, vignette active défilée en vue), 9 (table : arbre, repli, clic, page à droite), 10 (Reveal), 11 (toggle, plafond de la moitié de la vue à 600 px, vignettes sans déformation), 12 (message sans table) et pdf-nettete 3 (vignettes pixel pour pixel, sous pdfium, facteur de fenêtre 1,5 et zoom de l'app). Ajoutés : poignée (bornes 120 et 480, aucun repeint pendant le geste, repeint au relâchement), virtualisation (rien barre fermée, libération hors zone), page au format différent. Écarts : (1) pas de barre de défilement de 6 px (GPUI n'en dessine pas ici) ; (2) le survol/actif des vignettes est pré-composé sur le fond de la barre ; (3) la poignée n'ajoute pas la classe is-grabbing au corps (curseur col-resize sur la poignée seule) ; (4) pas d'infobulle title sur les titres de la table ; (5) le modèle borne le défilement des vignettes à 0 seulement : la vue borne le haut par la hauteur du contenu. Ajout à tree_item (fr-t2-tree-item) : Ligne::flair (numéro de page à droite) et Ligne::sur_chevron (clic sur la gouttière)."
