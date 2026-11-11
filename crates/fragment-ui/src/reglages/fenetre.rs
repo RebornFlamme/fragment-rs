@@ -18,7 +18,7 @@ use fragment_core::{
     SettingControl, SettingDefinition, SettingDefinitionControl, SettingDefinitionItem,
     SettingDropdownControl, SettingSliderControl,
 };
-use fragment_theme::{Couleur, Theme};
+use fragment_theme::{Aplat, Couleur, Theme};
 use gpui_kit::{
     AbsoluteLength, AnyElement, Bounds, ClickEvent, Context, FontWeight, InteractiveElement as _,
     IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _,
@@ -190,7 +190,7 @@ impl FenetreReglages {
             for i in idx {
                 let o = &self.onglets[i];
                 let actif = i == self.actif;
-                let survol = couleur(c.background_modifier_hover);
+                let survol = couleur(c.aplat(Aplat::Survol, c.background_secondary));
                 let encre = couleur(if actif { c.text_normal } else { c.text_muted });
                 let mut item = div()
                     .id(("onglet", i))
@@ -203,7 +203,7 @@ impl FenetreReglages {
                     .cursor_pointer()
                     .text_color(encre);
                 item = if actif {
-                    item.bg(couleur(c.background_modifier_active_hover))
+                    item.bg(couleur(c.aplat(Aplat::SurvolActif, c.background_secondary)))
                 } else {
                     item.hover(move |s| s.bg(survol))
                 };

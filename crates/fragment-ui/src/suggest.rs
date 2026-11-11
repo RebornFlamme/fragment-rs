@@ -30,6 +30,7 @@ use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::theme_global::{couleur, theme_ou_defaut};
+use fragment_theme::Aplat;
 
 // ── Les données d'une ligne ───────────────────────────────────────────────────
 
@@ -523,11 +524,11 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             // mélange en flottants et tombe un niveau à côté de Chromium sur les captures.
             let fond_boite = t.palette.workspace_bg;
             let fond_rangee = if selection == Some(i) {
-                t.palette.background_modifier_active_hover.sur(fond_boite)
+                t.palette.aplat(Aplat::SurvolActif, fond_boite)
             } else {
                 fond_boite
             };
-            let fond_puce = t.palette.background_modifier_hover.sur(fond_rangee);
+            let fond_puce = t.palette.aplat(Aplat::Survol, fond_rangee);
             // ★ La puce mesure 11 × 1,5 + 2 × (1 + 1) = 20,5 px, centrée dans la ligne de 21 px du
             // titre : Chromium la pose à 0,25 px du haut et arrondit chaque arête (7,25 → 7,
             // 27,75 → 28), soit 21 px peints. GPUI arrondit l'interligne de 16,5 à 16 et peint 20 px.

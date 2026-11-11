@@ -8,9 +8,9 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 800 | 767 | 101 | 33 | 95.9 % |
+| 850 | 806 | 152 | 44 | 94.8 % |
 
-**PORTE ATTEINTE** : 95.9 % des cas source portés.
+**PORTE ATTEINTE** : 94.8 % des cas source portés.
 
 - Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
@@ -110,6 +110,7 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
 |---|---|---|---|---|---|
 | client_pur | app/src/cli/clientPur.ts | 16 | 16 | 0 | — |
+| coffres | app/src/electron/vaults.ts + main.ts (canaux vaults:) + shared/vaultManagerRoute.ts + ui/vault-manager/VaultManager.ts + ui/core/VaultSwitcher.ts | 7 | 7 | 0 | — |
 | hote | app/src/ui/core/cli/types.ts, CliHost.ts, external/types.ts, ui/core/app.ts (InstanceInfo) | 0 | 0 | 0 | — |
 | instance_index | app/src/shared/cli/instanceIndex.ts | 2 | 1 | 0 | 1 — sonderTuyau — vivant quand on écoute, mort sinon : ouvre un vrai tuyau nommé / socket (net) : c'est le transport, hors du modèle pur ; la sonde est injectée (trait SondeInstances) et testée avec une sonde fausse dans le test porté d'instances_vivantes |
 | pipe | app/src/shared/cli/pipe.ts | 3 | 3 | 0 | — |
@@ -121,7 +122,7 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-cli | 59 | 55 | 0 | 4 | 93.2 % |
+| fragment-cli | 66 | 62 | 0 | 4 | 93.9 % |
 
 ## fragment-core
 
@@ -164,10 +165,26 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | crates/fragment-core/src/platform.rs | app/src/ui/core/Platform.ts | 0 | 0 | 1 | — |
 | crates/fragment-core/src/debounce.rs | app/src/ui/core/debounce.ts | 0 | 0 | 5 | — |
 | crates/fragment-core/tests/contrats.rs | (contrat) docs/contrats.md table 1 | 0 | 0 | 2 | — |
+| crates/fragment-core/tests/workspace_arbre.rs | app/e2e/workspace-structure.spec.ts | 3 | 3 | 0 | — |
+| crates/fragment-core/tests/workspace_arbre.rs | app/e2e/resize-gesture.spec.ts | 6 | 5 | 0 | 1 — contre-épreuve : sans le CSS du gel, le côté qui rétrécit reflue aussi : Teste la feuille de style qui applique la boîte figée (workspace.css) ; le cœur ne fait que calculer les boîtes. À porter avec le rendu (fragment-ui, fr-t1-splits). |
+| crates/fragment-core/src/workspace/arbre.rs | app/src/ui/core/workspace/WorkspaceItem.ts + WorkspaceSplit.ts | 0 | 0 | 13 | — |
+| crates/fragment-core/src/workspace/pile.rs | app/src/ui/core/workspace/WorkspaceTabs.ts | 0 | 0 | 11 | — |
+| crates/fragment-core/src/workspace/redimension.rs | app/src/ui/core/workspace/resizeGesture.ts | 0 | 0 | 4 | — |
+| crates/fragment-core/tests/workspace_espace.rs | app/e2e/activeleaf-tracking.spec.ts | 4 | 4 | 0 | — |
+| crates/fragment-core/tests/workspace_espace.rs | app/e2e/boot-scope.spec.ts | 2 | 2 | 0 | — |
+| crates/fragment-core/tests/workspace_espace.rs | app/e2e/workspace-layout.spec.ts | 5 | 5 | 0 | — |
+| crates/fragment-core/src/workspace/commandes.rs + tests/workspace_espace.rs | app/src/ui/coreCommands/WorkspaceCommandsPlugin.ts (+ .test.ts) | 5 | 3 | 1 | 2 — 2 cas « next-tab — LE BUG (logique expédiée) » : ils reproduisent l'ANCIENNE logique, pas le code : portés dans fragment-plugins ; dans le cœur, la dérive est impossible (montrer un onglet de la pile de l'active l'active) ; workspace:open (CLI), marge de lecture (marginMode.ts) : validation de workspace:open dans fragment-plugins, attente du défilement = rendu ; la marge est un autre module |
+| crates/fragment-core/src/workspace/commandes.rs | app/src/ui/coreCommands/AppCommandsPlugin.ts (hors zoom) | 0 | 0 | 2 | — |
+| crates/fragment-core/src/workspace/espace.rs + feuille.rs + restauration.rs | app/src/ui/core/workspace/Workspace.ts + WorkspaceLeaf.ts | 0 | 0 | 5 | — |
+| crates/fragment-core/src/workspace/vue.rs + feuille.rs | app/src/ui/core/workspace/View.ts + ItemView.ts (modèle) + EmptyView.ts + DeferredView.ts | 0 | 0 | 6 | — |
+| crates/fragment-core/src/app.rs | app/src/ui/core/app.ts | 0 | 0 | 0 | — |
+| crates/fragment-core/src/config.rs + apparence.rs | app/src/ui/core/settings/ConfigStore.ts + config.ts (AppearanceConfig, applyAppearance) + sync.ts | 0 | 0 | 4 | — |
+| crates/fragment-core/tests/apparence.rs + crates/fragment-core/src/commandes_zoom.rs + crates/fragment-ui/tests/reglages.rs | app/e2e/app-zoom.spec.ts + app/src/ui/coreCommands/AppCommandsPlugin.ts (zoom-in, zoom-out, reset-zoom) | 13 | 8 | 0 | 5 — le menu Electron n'a plus de zoom actif (neutraliserZoomDuMenu) : propre à Electron : GPUI n'a pas de menu d'application à neutraliser ; Ctrl+molette sur une note ne zoome pas : Chromium zoomerait de lui-même ; GPUI n'a aucun zoom par molette. Aucune garde à tester (le geste n'est lié à rien) ; capture : le rectangle en px CSS est converti selon le zoom (devicePixelRatio) : contrat WindowHost::capture, dont l'implémentation GPUI est dans fr-t1-binaire ; pas de devicePixelRatio ici (u() met les longueurs à l'échelle, pas la capture) ; PDF : Ctrl+= reste le zoom du PDF ; PDF : canvas repeints à la nouvelle densité : la vue PDF est de la phase 5 (portée de vue avant la racine : à rejouer avec elle) ; la repeinte des canvas est un souci de Chromium ; boot : `window.outerWidth / window.innerWidth > 1.3` (toute l'interface a rétréci) : mesure du DOM ; la mise à l'échelle de toute l'interface par u() est vérifiée par les scènes pixels t1-zoom-150 et t1-zoom-80 |
+| crates/fragment-ui/src/reglages/{mod,fenetre,curseur}.rs | app/src/ui/settings/SettingsWindow.ts + core/settings/{Setting,SettingTab,SettingPage,SettingManager}.ts + settings.css (Appearance) | 0 | 0 | 5 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-core | 223 | 209 | 47 | 14 | 93.7 % |
+| fragment-core | 261 | 239 | 98 | 22 | 91.6 % |
 
 ## fragment-layers
 
@@ -262,9 +279,11 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
 |---|---|---|---|---|---|
 | manager | app/src/ui/theme/api.ts | 0 | 0 | 0 | — |
+| pas_de_litteral | app/src/ui/theme-tokens.test.ts | 5 | 2 | 0 | 3 — aucune forme de l'échelle en dur hors de index.css : scrute des CSS ; côté Rust, `u()` d'echelle.rs et le contrôle de revue ; le détecteur attrape ce qu'il doit (contre-épreuve) [forme] : même raison : porte sur du CSS ; la coloration syntaxique lit les jetons --code-* : CodeMirror, T3 |
+| theme | app/src/ui/index.css | 0 | 0 | 0 | — |
 | theme_model | app/src/ui/theme/themeModel.ts | 4 | 4 | 0 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-theme | 4 | 4 | 0 | 0 | 100.0 % |
+| fragment-theme | 9 | 6 | 0 | 3 | 66.7 % |
 

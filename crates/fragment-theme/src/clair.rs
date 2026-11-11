@@ -2,7 +2,7 @@
 //! (relevé de `index.css`, classe `.theme-light` et `body`). Alias, `calc()` et `color-mix` sont résolus ici.
 
 use crate::couleur::{Couleur, Ombre};
-use crate::theme::Palette;
+use crate::theme::{Opacites, Palette};
 
 /// La palette du thème clair.
 #[allow(clippy::too_many_lines)]
@@ -165,5 +165,11 @@ pub fn palette() -> Palette {
         avatar_bg_c,
         avatar_fg_l,
         avatar_fg_c,
+        opacites: Opacites {
+            bordure: 10.0,
+            bordure_survol: 20.0,
+            survol: 5.0,
+            survol_actif: 10.0,
+        },
     }
 }

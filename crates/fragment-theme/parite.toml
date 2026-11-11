@@ -2,6 +2,7 @@
 # `source` = cas de test (it/test) dans le .test.ts d'origine ;
 # `portes` = cas portés en #[test] ; `non_portes` = ce qui reste, avec sa raison.
 # Les tests AJOUTÉS par le port (absents du TS) ne sont pas comptés ici.
+# fr-t1.4 : 4 tests d'aplats (32 paires jeton-fond, `Palette::aplat`) sont ajoutés, hors décompte.
 
 [theme_model]
 ts = "app/src/ui/theme/themeModel.ts"
@@ -32,9 +33,9 @@ tests_ts = "app/src/ui/theme-tokens.test.ts"
 source = 5
 portes = 2
 non_portes = [
-  "aucune forme de l'échelle en dur hors de index.css : scrute des CSS (côté Rust, `u()` d'echelle.rs, contrôle de revue)",
-  "le détecteur attrape ce qu'il doit (contre-épreuve) [forme] : même raison",
-  "la coloration syntaxique lit les jetons --code-* : CodeMirror, T3",
+  { cas = "aucune forme de l'échelle en dur hors de index.css", raison = "scrute des CSS ; côté Rust, `u()` d'echelle.rs et le contrôle de revue" },
+  { cas = "le détecteur attrape ce qu'il doit (contre-épreuve) [forme]", raison = "même raison : porte sur du CSS" },
+  { cas = "la coloration syntaxique lit les jetons --code-*", raison = "CodeMirror, T3" },
 ]
 
 # `struct Theme` : valeurs de `app/src/ui/index.css` (jetons :root, body, .theme-dark, .theme-light).

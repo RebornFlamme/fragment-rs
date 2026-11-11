@@ -96,7 +96,7 @@ Mesure sur l'artefact CI (run 42873546813), boîte et ombre comprises :
   glyphes de repli, dessinés différemment.
 - **Ombre** `--shadow-l` : écart de 1 à 2 niveaux sur ~108 000 pixels hors de la boîte (flou de GPUI contre Chromium).
 - **Ligne sélectionnée** : le fond `background-modifier-active-hover` donne (41, 41, 43) côté candidat contre
-  (40, 41, 43) côté Fragment, sur 688 × 35 px : arrondi de composition, malgré la composition à l'octet (`Couleur::sur`).
+  (40, 41, 43) côté Fragment, sur 688 × 35 px. ★ Corrigé par fr-t1.4 : Chromium prémultiplie la teinte par le pourcentage exact et atténue le fond par l'octet d'opacité (`Couleur::sur_chromium`, `Palette::aplat`).
 - **Icône de fermeture** de la modale : trait de 2 px dans notre jeu Lucide, plus fin (1,5 px) dans la référence.
 - Dettes de fonctionnement : champ de saisie minimal (pas de curseur déplaçable, sélection ni collage) ; `localeCompare`
   approché (sans casse ni accents) pour l'ordre alphabétique à requête vide.

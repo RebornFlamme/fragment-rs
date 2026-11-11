@@ -22,7 +22,7 @@ pub enum Mode {
 
 /// Déclare une famille de jetons et la liste de ses noms CSS (sans le préfixe `--`).
 macro_rules! jetons {
-    ($(#[$meta:meta])* $nom:ident { $($champ:ident : $type:ty,)* }) => {
+    ($(#[$meta:meta])* $nom:ident { $($champ:ident : $type:ty,)* } $(hors_jeton { $($hc:ident : $ht:ty,)* })?) => {
         $(#[$meta])*
         #[derive(Debug, Clone, PartialEq)]
         pub struct $nom {
@@ -30,6 +30,10 @@ macro_rules! jetons {
                 #[allow(missing_docs)]
                 pub $champ: $type,
             )*
+            $($(
+                #[allow(missing_docs)]
+                pub $hc: $ht,
+            )*)?
         }
 
         impl $nom {
@@ -37,6 +41,56 @@ macro_rules! jetons {
             pub const CHAMPS: &'static [&'static str] = &[$(stringify!($champ)),*];
         }
     };
+}
+
+/// Les opacités exactes, en pourcents CSS, des jetons translucides (`color-mix(… N%, transparent)`).
+///
+/// ★ La couleur d'un jeton n'en garde que l'octet d'opacité (`26` pour 10 %) ; or Chromium compose
+/// avec le pourcentage exact (voir [`Couleur::sur_chromium`]). On le garde donc à part.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Opacites {
+    /// `--background-modifier-border`.
+    pub bordure: f32,
+    /// `--background-modifier-border-hover`.
+    pub bordure_survol: f32,
+    /// `--background-modifier-hover`.
+    pub survol: f32,
+    /// `--background-modifier-active-hover` (ligne sélectionnée, survol de menu).
+    pub survol_actif: f32,
+}
+
+/// Un jeton translucide qu'on peut pré-composer sur un fond connu (`Palette::aplat`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Aplat {
+    /// `--background-modifier-border`.
+    Bordure,
+    /// `--background-modifier-border-hover`.
+    BordureSurvol,
+    /// `--background-modifier-hover`.
+    Survol,
+    /// `--background-modifier-active-hover`.
+    SurvolActif,
+}
+
+impl Palette {
+    /// Le jeton translucide `jeton` posé sur `fond` (opaque), en couleur OPAQUE pré-composée comme
+    /// Chromium (ADR-009 c). À utiliser dès que le fond est connu : GPUI mélange les translucides
+    /// en flottants et tombe un niveau à côté.
+    pub fn aplat(&self, jeton: Aplat, fond: Couleur) -> Couleur {
+        let (teinte, pourcent) = match jeton {
+            Aplat::Bordure => (self.background_modifier_border, self.opacites.bordure),
+            Aplat::BordureSurvol => (
+                self.background_modifier_border_hover,
+                self.opacites.bordure_survol,
+            ),
+            Aplat::Survol => (self.background_modifier_hover, self.opacites.survol),
+            Aplat::SurvolActif => (
+                self.background_modifier_active_hover,
+                self.opacites.survol_actif,
+            ),
+        };
+        teinte.sur_chromium(pourcent, fond)
+    }
 }
 
 jetons! {
@@ -107,6 +161,9 @@ jetons! {
         avatar_bg_c: f32,
         avatar_fg_l: f32,
         avatar_fg_c: f32,
+    }
+    hors_jeton {
+        opacites: Opacites,
     }
 }
 
