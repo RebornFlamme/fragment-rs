@@ -17,6 +17,7 @@
 pub mod actions;
 pub mod mesures;
 pub mod pile;
+pub mod titre;
 
 use std::cell::RefCell;
 use std::rc::Rc;

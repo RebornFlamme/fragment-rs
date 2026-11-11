@@ -417,12 +417,47 @@ pub(crate) struct Fonds {
     pub epaisseur: f64,
     /// Le bord droit EXACT (avant calage, px logiques) de chaque barre de [`Self::barres`].
     pub droites_exactes: Vec<Option<f64>>,
+    /// Les traits de repos PEINTS des poignées ([`trait_peint`]) et leur sens (`true` : vertical),
+    /// teinte [`Self::trait_bas`] : au croisement de deux poignées, chacune se mélange sur l'autre.
+    pub traits: Vec<(Cadre, bool)>,
     pub zoom: f64,
 }
 
 impl Fonds {
-    /// Le fond au point (x, y), px logiques.
-    fn en(&self, x: f64, y: f64) -> fragment_theme::Couleur {
+    /// Le fond au point (x, y), px logiques, sous un trait de sens `vertical` : les traits de
+    /// l'AUTRE sens qui couvrent ce pixel y sont mélangés (ceux du même sens ne se croisent pas).
+    fn en(&self, x: f64, y: f64, vertical: bool) -> fragment_theme::Couleur {
+        let mut f = self.en_dessous(x, y);
+        for (t, v) in &self.traits {
+            if *v == vertical {
+                continue;
+            }
+            let (le_long, travers, debut, fin) = if *v {
+                (y >= t.y && y < t.bas(), x, t.x, t.droite())
+            } else {
+                (x >= t.x && x < t.droite(), y, t.y, t.bas())
+            };
+            if !le_long {
+                continue;
+            }
+            let cellule = geometrie::couverture(debut, fin, self.zoom)
+                .into_iter()
+                .find(|c| travers >= c.debut && travers < c.debut + c.longueur);
+            if let Some(c) = cellule {
+                let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, c.part);
+                f = fragment_theme::Couleur::octets(
+                    m(self.trait_bas.r, f.r),
+                    m(self.trait_bas.g, f.g),
+                    m(self.trait_bas.b, f.b),
+                    255,
+                );
+            }
+        }
+        f
+    }
+
+    /// Le fond au point (x, y) sans les traits des poignées : barres d'onglets ou pane.
+    fn en_dessous(&self, x: f64, y: f64) -> fragment_theme::Couleur {
         for (i, b) in self.barres.iter().enumerate() {
             if x >= b.x && x < b.droite() && y >= b.y && y < b.bas() {
                 if y < b.bas() - self.epaisseur {
@@ -475,10 +510,46 @@ impl Fonds {
                 bornes.extend(debuts.into_iter().filter(|v| *v > de && *v < a));
             }
         }
+        // Les cellules des traits de l'autre sens qui croisent celui-ci.
+        for (t, v) in &self.traits {
+            if *v == vertical {
+                continue;
+            }
+            let (dans, debut, fin) = if vertical {
+                (croise >= t.x && croise < t.droite(), t.y, t.bas())
+            } else {
+                (croise >= t.y && croise < t.bas(), t.x, t.droite())
+            };
+            if dans {
+                for c in geometrie::couverture(debut, fin, self.zoom) {
+                    bornes.extend(
+                        [c.debut, c.debut + c.longueur]
+                            .into_iter()
+                            .filter(|v| *v > de && *v < a),
+                    );
+                }
+            }
+        }
         bornes.sort_by(f64::total_cmp);
         bornes.dedup();
         bornes.windows(2).map(|w| (w[0], w[1])).collect()
     }
+}
+
+/// Le zoom courant de l'interface.
+fn zoom_courant(cx: &App) -> f64 {
+    f64::from(Echelle::courante(cx).zoom())
+}
+
+/// L'abscisse (px logiques) où commence le contour de la barre d'onglets d'une pile de cadre
+/// exact `exact` : son bord gauche ARRONDI au pixel physique, la largeur restant exacte.
+///
+/// ★ Le contour (ligne de base comprise) est un SVG : Chromium cale au pixel le décalage de
+/// peinture d'une racine SVG, pas sa largeur. Sondé sur Fragment (`t1-split-proportions`) : pile à
+/// 347,5 de 621 px, ligne de base pleine jusqu'au pixel 968 (contour de 348 à 969) ; pile à 36 de
+/// 310,5 px, ligne arrêtée à 346,5.
+pub(crate) fn origine_du_contour(exact: Cadre, zoom: f64) -> f64 {
+    geometrie::arrondi(exact.x, zoom)
 }
 
 /// Le trait d'une poignée élargi à `epaisseur` autour du même centre.
@@ -500,13 +571,19 @@ pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
 /// la moitié de son épaisseur. Sondé sur Fragment (`t1-split-proportions`) : poignée posée à 199,75,
 /// trait peint de 199,5 à 200,5 et non de 199,75 à 200,75 ; à 346,5 (centre 347, entier) rien ne
 /// bouge.
+///
+/// ★ Le même calage vaut pour l'AUTRE axe : le bord de départ du trait est arrondi, sa longueur reste
+/// exacte. Sondé sur `t1-split-proportions` : poignée horizontale de 347,5 à 968,5, trait peint de
+/// 348 à 969 (le pixel 968, sous la poignée verticale suivante, porte les deux traits).
 pub(crate) fn trait_peint(t: Cadre, vertical: bool, epaisseur: f64, zoom: f64) -> Cadre {
     if vertical {
         let c = geometrie::arrondi(t.x + t.largeur / 2.0, zoom);
-        Cadre::new(c - epaisseur / 2.0, t.y, epaisseur, t.hauteur)
+        let y = geometrie::arrondi(t.y, zoom);
+        Cadre::new(c - epaisseur / 2.0, y, epaisseur, t.hauteur)
     } else {
         let c = geometrie::arrondi(t.y + t.hauteur / 2.0, zoom);
-        Cadre::new(t.x, c - epaisseur / 2.0, t.largeur, epaisseur)
+        let x = geometrie::arrondi(t.x, zoom);
+        Cadre::new(x, c - epaisseur / 2.0, t.largeur, epaisseur)
     }
 }
 
@@ -542,7 +619,7 @@ fn quads_du_trait_opaque(
                 } else {
                     ((t0 + t1) / 2.0, milieu)
                 };
-                let f = fonds.en(x, y);
+                let f = fonds.en(x, y, vertical);
                 let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, c.part);
                 fragment_theme::Couleur::octets(
                     m(teinte.r, f.r),
@@ -824,8 +901,10 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         .iter()
         .filter_map(|&p| {
             disposition.barre(p, f64::from(f.header_height)).map(|b| {
-                // Le bord droit exact : le trait bas de la barre s'y arrête.
-                let exacte = disposition.cadre_exact(p).map(|e| e.droite());
+                // Le bord droit du contour : le trait bas de la barre s'y arrête.
+                let exacte = disposition
+                    .cadre_exact(p)
+                    .map(|e| origine_du_contour(e, zoom_courant(cx)) + e.largeur);
                 (b, exacte)
             })
         })
@@ -838,6 +917,18 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         trait_bas: t.palette.tab_outline_color,
         pane: t.palette.workspace_bg,
         epaisseur: f64::from(f.border_width),
+        traits: disposition
+            .poignees
+            .iter()
+            .map(|p| {
+                let vertical = p.direction == SplitDirection::Vertical;
+                let zoom = zoom_courant(cx);
+                (
+                    trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+                    vertical,
+                )
+            })
+            .collect(),
     };
     for (rang, p) in disposition.poignees.iter().enumerate() {
         let active = matches!(geste, Some(Geste::Split { poignee, .. }) if poignee == *p);
@@ -875,5 +966,38 @@ mod tests {
         // Poignée de split-horizontal à 399,5 : idem.
         let m = Cadre::new(36.0, 399.5, 1244.0, 1.0);
         assert_eq!(trait_peint(m, false, 1.0, 1.0).y, 399.5);
+        // Le départ du trait est calé, sa longueur reste exacte : 347,5 + 621 → 348 à 969.
+        let peint = trait_peint(h, false, 1.0, 1.0);
+        assert_eq!((peint.x, peint.droite()), (348.0, 969.0));
+    }
+
+    fn fonds_de_test(traits: Vec<(Cadre, bool)>) -> Fonds {
+        let gris = |v| fragment_theme::Couleur::octets(v, v, v, 255);
+        Fonds {
+            barres: Vec::new(),
+            barre: gris(14),
+            trait_bas: gris(52),
+            pane: gris(20),
+            epaisseur: 1.0,
+            droites_exactes: Vec::new(),
+            traits,
+            zoom: 1.0,
+        }
+    }
+
+    #[test]
+    fn le_croisement_de_deux_traits_porte_les_deux() {
+        // t1-split-proportions (968,199) : le trait horizontal (348 à 969, lignes 199,5 à 200,5)
+        // passe sous le bord du trait vertical ; Chromium y lit 44 = 52 sur (52 sur 20 à ½) à ½.
+        let horizontal = Cadre::new(348.0, 199.5, 621.0, 1.0);
+        let fonds = fonds_de_test(vec![(horizontal, false)]);
+        assert_eq!(fonds.en(968.5, 199.5, true).r, 36);
+        // Le trait lui-même ne compte pas pour son propre fond (même sens).
+        assert_eq!(fonds.en(968.5, 199.5, false).r, 20);
+        // Hors du trait : le fond du pane.
+        assert_eq!(fonds.en(968.5, 197.5, true).r, 20);
+        // Les tronçons du trait vertical se coupent aux lignes du trait horizontal.
+        let t = fonds.troncons(true, 968.5, 0.0, 800.0);
+        assert!(t.contains(&(199.0, 200.0)) && t.contains(&(200.0, 201.0)));
     }
 }

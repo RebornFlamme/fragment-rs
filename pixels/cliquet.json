@@ -568,6 +568,38 @@
         "glissement": 0.0208
       }
     },
+    "t1-reglages-appearance-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 8.1633,
+      "delta_max": 144,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.7699
+    },
+    "t1-reglages-appearance-light.png": {
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 15.6463,
+      "delta_max": 146,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.1451
+    },
+    "t1-reglages-zoom-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 8.1633,
+      "delta_max": 144,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.7645
+    },
+    "t1-reglages-zoom-light.png": {
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 15.6463,
+      "delta_max": 146,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.1448
+    },
     "t1-split-horizontal-dark.png": {
       "arrondi_delta_max": 5,
       "arrondi_pourcent": 17.6692,

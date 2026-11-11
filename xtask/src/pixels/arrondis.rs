@@ -92,11 +92,23 @@ pub fn arcs(a: &ArrondiDeclare) -> Vec<Arc> {
 }
 
 /// Le centre du pixel (x, y) est dans la bande de l'arc.
+///
+/// ★ Un pixel dont la CELLULE chevauche le quart de disque (centre à moins d'un
+/// demi-pixel hors du quadrant, quand le centre de l'arc est fractionnaire) en
+/// fait partie : Skia l'anticrénèle comme le reste de l'arc (décision du chef,
+/// fr-t1.5 [C]). Sa distance se prend au prolongement du côté (coordonnée
+/// ramenée au bord du quadrant). Un pixel entièrement hors du quadrant reste strict.
 pub fn dans_bande(arc: &Arc, x: u32, y: u32) -> bool {
     let (px, py) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
-    let (dx, dy) = (px - arc.cx, py - arc.cy);
-    if dx * arc.sx < 0.0 || dy * arc.sy < 0.0 {
+    let (mut dx, mut dy) = (px - arc.cx, py - arc.cy);
+    if dx * arc.sx <= -0.5 || dy * arc.sy <= -0.5 {
         return false;
+    }
+    if dx * arc.sx < 0.0 {
+        dx = 0.0;
+    }
+    if dy * arc.sy < 0.0 {
+        dy = 0.0;
     }
     ((dx * dx + dy * dy).sqrt() - arc.rayon).abs() <= BANDE
 }
@@ -423,6 +435,26 @@ pub(super) mod tests {
         // Le côté gauche, après le point de tangence (y > 28) : hors bande.
         assert!(!dans_bande(&arc, 20, 30));
         assert!(dans_bande(&arc, 20, 27));
+    }
+
+    #[test]
+    fn le_pixel_qui_chevauche_le_quadrant_d_un_centre_fractionnaire_est_dans_la_bande() {
+        // Coin haut gauche, centre à (863,4 ; 6,4), rayon 6 : le pixel (863, 0) a son
+        // centre 0,1 px hors du quadrant mais sa cellule le chevauche (cas (863,4) de
+        // t1-pile-active-inactive).
+        let arc = Arc {
+            cx: 863.4,
+            cy: 6.4,
+            rayon: 6.0,
+            sx: -1.0,
+            sy: -1.0,
+            interieur: false,
+        };
+        assert!(dans_bande(&arc, 863, 0));
+        // Contre-épreuve : le pixel suivant est entièrement hors du quadrant, strict.
+        assert!(!dans_bande(&arc, 864, 0));
+        // Chevauchant le quadrant mais loin de l'arc (intérieur) : strict.
+        assert!(!dans_bande(&arc, 863, 4));
     }
 
     #[test]

@@ -575,6 +575,7 @@ fn entete_d_onglet(
     est_dernier: bool,
     suivant_actif: bool,
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
+    decalage: f32,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -583,14 +584,9 @@ fn entete_d_onglet(
     // ★ Chromium pose le titre au bord gauche EXACT de la pile (sous-pixel ; seuls les fonds sont
     //   calés) : le titre du 2e pane de `t1-split-vertical` sort chez nous à +0,6 px (moitié gauche).
     //   Un `relative().left(−0,5)` n'y change RIEN (CI d4a5542, mesures identiques) : GPUI cale la
-    //   mise en page au pixel. Il faudra décaler le texte à la peinture.
-    let titre = div()
-        .flex_1()
-        .min_w(u(cx, 0.0))
-        .overflow_hidden()
-        .whitespace_nowrap()
-        .text_ellipsis()
-        .child(ligne.titre.clone());
+    //   mise en page au pixel : le texte est décalé à la peinture, et tronqué comme Chromium
+    //   ([`super::titre`]).
+    let titre = super::titre::titre(ligne.titre.clone().into(), decalage, cx);
     let leaf = ligne.leaf;
     let index = ligne.index;
     let rang = leaf.index() as usize;
@@ -779,6 +775,7 @@ fn barre(
                 i + 1 == n,
                 suivant_actif,
                 Some(mesure.clone()),
+                decalage,
                 cx,
             )
         })
@@ -930,8 +927,10 @@ fn barre(
                         bornes,
                         mesure.get(),
                         exacts,
-                        // Repère de la barre (son bord gauche calé) : décalage plus largeur exacte.
-                        largeur_exacte.map(|e| (decalage + e) * zoom),
+                        // Repère de la barre (son bord gauche calé) : le contour est un SVG, que
+                        // Chromium pose au bord gauche CALÉ (`splits::origine_du_contour`) ; sa
+                        // largeur reste exacte.
+                        largeur_exacte.map(|e| e * zoom),
                         couleurs,
                         (
                             f32::from(rayon_haut),
