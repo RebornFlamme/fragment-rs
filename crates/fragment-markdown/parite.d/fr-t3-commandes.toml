@@ -1,0 +1,36 @@
+# Parité de fr-t3-commandes (fragment-markdown). Schéma `parite.d` : un fichier par tâche, fusionné
+# par `cargo xtask parite`. Ces modules n'ont pas de test unitaire côté TS : leurs cas sont des
+# scénarios e2e (editor-hell, paste-image, markdown-table) rejoués sur le MODÈLE avec un éditeur
+# de test à historique d'annulation (crates/fragment-markdown/tests/commandes.rs).
+
+[[module]]
+ts = "app/src/ui/views/markdown/EditorCommandsPlugin.ts (table ACTIONS, appliquerTransformation, appliquerCommandeEditeur, collerTexteBrut, toutSelectionner)"
+rs = "crates/fragment-markdown/src/commandes/actions.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 10
+notes = "Table des 29 commandes editor:* (ids, noms, raccourcis, répétition), une transaction par commande, enregistrement auprès du CommandManager (convention : EditorContext.editor = Rc<dyn Editor>). Hors module, branchés par fr-t3-vue : editor:paste-plain (presse-papiers), save-file, follow-link (lien_sous_le_curseur en est la partie pure)."
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (remplirMenuEditeur, wireContextMenu : sections)"
+rs = "crates/fragment-markdown/src/commandes/menu.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 11
+notes = "Cas editor-hell portés : Format puis undo complet, Paragraph puis undo, menu Insert sur ligne vide (Horizontal rule, Callout gardent une ligne vide). 'Cliquable' = la ligne suivante reste une ligne à elle (le clic réel est de la présentation). Ajoutés : entrées, sections, grisés selon sélection vide / lecture seule / éditeur imbriqué, New base."
+
+[[module]]
+ts = "app/src/ui/views/markdown/table/tableField.ts (separerDuTableau, saisieSousTableau)"
+rs = "crates/fragment-markdown/src/commandes/insertion.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 2
+notes = "Cas editor-hell 'taper juste sous des Properties / un tableau final'. tableRangeAt lit l'arbre de syntaxe (fr-t3-syntaxe), pas CodeMirror."
+
+[[module]]
+ts = "app/src/ui/views/markdown/pasteImage.ts ; app/src/ui/core/vault/attachments.ts (usage) ; e2e paste-image.spec.ts, markdown-table.spec.ts"
+rs = "crates/fragment-markdown/src/coller_image/mod.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 12
+notes = "Cas e2e portés : image à la racine, sous-dossier, image dans une cellule. Ajoutés : une règle par test (horodatage, numéro dans la même seconde, extension MIME, dossier selon attachmentLocation/attachmentFolder, lien nom ou chemin complet, sources files/items, sous un tableau, erreur du coffre). Le coffre est le trait CoffreImages (LinkVault + écriture)."
