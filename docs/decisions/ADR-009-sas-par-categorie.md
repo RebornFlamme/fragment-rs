@@ -76,3 +76,26 @@ Constantes dans `xtask/src/pixels/ombres.rs`, mesures sur le run CI 42997199734.
 - **Calage** : ce qui passe en vrai a un étalement ≤ 0,07 px (menu sombre +0,02, barres d'outils +0,06, notice sombre +0,02). Sur la référence du menu sombre (`contre_epreuve` dans `ombres.rs`), un décalage de ±1 px donne un glissement de ±20 % ou plus, et un flou CSS de ±1 px un étalement de −0,10 à +0,15 px : tout cela échoue.
 - **Cliquet** : `ombre_delta_max` et `ombre_pourcent` (part de pixels tolérés dans l'aire des halos) par PNG, dans `pixels/cliquet.json`.
 - **Ce qui ne passe pas** (détail dans `docs/parite-pixels.md`) : `--shadow-l` (étalement +1,4 à +1,7 px en sombre, −0,6 px en clair, quelques pixels de delta 3 à 4), le menu clair (−0,19 px), l'infobulle (+0,23 px). Le signe change avec le thème, ce qui désigne le mélange (gamma) et non la géométrie : c'est pour la phase 4. Les coins arrondis (delta 1 à 6 sur 2 à 12 pixels par surface) restent stricts et font échouer seuls trois PNG de barre d'outils.
+
+## Amendement du 11/11/2026, 11:15 UTC (orchestrateur) : arrondis, --shadow-l, aplats translucides
+
+**Garde-fous d'ombre de fr-t1.1 (#35) : APPROUVÉS.** Étalement ≤ 0,08 px, glissement entre côtés opposés ≤ 10 %, encre ±20 %. Ils resserrent la règle de l'amendement précédent.
+
+**a. Bords d'arrondi : catégorie accordée, en dette de phase 4.** L'anticrénelage d'une courbe est le même phénomène que pour les glyphes ; ce n'est pas de la géométrie.
+- Ne couvre que les pixels à ≤ 1 px de l'arc THÉORIQUE, calculé depuis la mise en page (boîte et rayon) déclarée par le candidat, jamais déduit de l'image.
+- Delta ≤ 6, en cliquet.
+- Contre-épreuve : un rayon changé d'1 px ou une boîte décalée d'1 px font échouer.
+- Le reste du bord et l'intérieur restent stricts.
+
+**b. `--shadow-l` : exception NOMMÉE, pas tolérance générale.** L'étalement mesuré (+1,5 px en sombre, −0,6 px en clair, signe inversé selon le thème) vient du mélange alpha (espace linéaire contre sRGB).
+- Les valeurs mesurées font cliquet, par thème.
+- Les garde-fous du point précédent restent valables pour toutes les autres ombres.
+- Tâche de phase 4 « mélange alpha GPUI contre Chromium », bloquante pour la fin de la phase 4.
+
+**c. Aplats translucides : aucune tolérance (une couleur est stricte).**
+- Correction à la source : pour un aplat dont le fond est connu, `fragment-theme` pré-compose le jeton translucide en couleur opaque, par le calcul de Chromium (sRGB, 8 bits).
+- Vaut une fois pour tous les jetons translucides posés sur un fond connu : survol, sélection, modifier.
+
+Dettes que l'orchestrateur listera à l'utilisateur à la livraison : texte, icônes, ombre, `--shadow-l`, bords d'arrondi.
+
+**Prévu pour T4 (en attente du chiffrage de S7)** : une catégorie « raster de page PDF » limitée à la surface de la page rendue. Le chrome du PDF reste strict : barre, vignettes, marges, position des pages, surlignages, sélection.

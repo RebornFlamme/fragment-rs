@@ -285,3 +285,16 @@ Chevauchements acceptés, à rebaser : `fragment-core/src/lib.rs` (vault et regl
   - Dettes de réglages passées à fr-t1-binaire.
   - Lancées : fr-t2-coffres (Sonnet) et fr-t3-maths S5 (Opus). Actifs : splits, socle, vault, coffres, maths.
   - Envoyé à l'orchestrateur : approbation des garde-fous d'ombre, catégorie « bord d'arrondi », mélange alpha de --shadow-l, icône de marque, pdfium (pour info). fr-t1.1 attend sa réponse et bloque fr-t1-binaire.
+
+## Décision de l'orchestrateur, flottantes, icône, PDF — 11/11/2026 11:15 UTC
+Inscrite dans ADR-009 (amendement daté) :
+- garde-fous d'ombre approuvés ;
+- catégorie « bord d'arrondi » accordée en dette de phase 4 (arc théorique à 1 px, delta ≤ 6, cliquet, contre-épreuve) ;
+- exception nommée pour `--shadow-l`, avec la tâche de phase 4 `fr-p4.1` (mélange alpha), qui bloque la fin de la phase 4 ;
+- PAS de tolérance pour les aplats translucides : nouvelle tâche `fr-t1.4`, pré-composition dans fragment-theme.
+Dépendances posées : fr-t1.1 ← fr-t1.4 ; fr-t11-cascade ← fr-t1.4 (mêmes fichiers de fragment-theme).
+Icône de marque : seulement les fichiers exportés, dans `assets/brand/` avec un NOTICE et une exclusion nommée de l'audit. Noté sur `fr-t11-identite`.
+PDF : projet de catégorie « raster de page » à préparer dans S7, chrome strict. Noté sur `fr-t4-raster`.
+**Prochaine action exacte.** Places libres, dans l'ordre :
+1. fr-t1.4 (chemin critique du binaire), puis fr-t1.1 (Sonnet suffit, consignes au bead) ;
+2. puis la liste du planificateur : fr-t3-html, `fr-t3-syntaxe` (Opus, après socle), `fr-t4-pdfium`, etc.
