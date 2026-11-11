@@ -1,0 +1,38 @@
+[package]
+name = "spike-maths"
+description = "Spike S5 (JETABLE) : rendu des maths au plus près de MathJax, trois voies mesurées contre Fragment."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+default = ["voie-a", "voie-b", "voie-c"]
+# (A) MathJax 3.2.1 (Apache-2.0) exécuté dans QuickJS → SVG → resvg.
+voie-a = ["dep:rquickjs"]
+# Variante de A : le JIT de QuickJS (cranelift), pour le temps de rendu.
+voie-a-jit = ["voie-a", "dep:rquickjs-jit"]
+# (B) moteur TeX en pur Rust (latex-rust, polices STIX Two Math et New Computer Modern Math).
+voie-b = ["dep:latex-rust"]
+# (C) typst (math de typst, police New Computer Modern Math) → SVG → resvg.
+voie-c = ["dep:typst", "dep:typst-layout", "dep:typst-svg", "dep:typst-assets"]
+
+[dependencies]
+# Rastérisation des SVG : déjà au lock (par gpui), même version.
+resvg = "0.45"
+serde = { workspace = true }
+serde_json = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+# ★ QuickJS de longbridge (déjà au lock par gpui-shell) : le nom de bibliothèque reste `rquickjs`.
+rquickjs = { package = "quickjs-jit", version = "=0.14.1", optional = true }
+rquickjs-jit = { package = "quickjs-jit-runtime", version = "=0.14.1", features = ["compiler"], optional = true }
+latex-rust = { version = "=3.0.3", optional = true }
+typst = { version = "=0.15.1", optional = true }
+typst-layout = { version = "=0.15.1", optional = true }
+typst-svg = { version = "=0.15.1", optional = true }
+typst-assets = { version = "=0.15.1", features = ["fonts"], optional = true }
+
+[lints]
+workspace = true
