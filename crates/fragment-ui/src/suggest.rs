@@ -24,7 +24,7 @@ use gpui_kit::{
     Styled as _, StyledText, Window, div, relative, svg,
 };
 
-use crate::echelle::u;
+use crate::echelle::{calees, u};
 use crate::flottant::ombrer;
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
@@ -528,6 +528,20 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 fond_boite
             };
             let fond_puce = t.palette.background_modifier_hover.sur(fond_rangee);
+            // ★ La puce mesure 11 × 1,5 + 2 × (1 + 1) = 20,5 px, centrée dans la ligne de 21 px du
+            // titre : Chromium la pose à 0,25 px du haut et arrondit chaque arête (7,25 → 7,
+            // 27,75 → 28), soit 21 px peints. GPUI arrondit l'interligne de 16,5 à 16 et peint 20 px.
+            // On lui donne la hauteur calée (21) moins rembourrage et bordure : 17 px d'interligne ;
+            // le texte retombe au même endroit (demi-interligne 8,5 depuis 161 contre 8,25 depuis
+            // 161,25).
+            let cadre_puce = 2.0 * (1.0 + t.forme.border_width);
+            let haut_puce = t.typo.font_ui_smaller * t.typo.line_height_normal + cadre_puce;
+            let ligne_titre = t.typo.font_ui_normal * t.typo.line_height_normal;
+            let origine_puce = (ligne_titre - haut_puce).max(0.0) / 2.0;
+            let interligne_puce = calees(cx, origine_puce, &[haut_puce])
+                .first()
+                .map_or(u(cx, haut_puce), |h| *h)
+                - u(cx, cadre_puce);
             let mut aux = div()
                 .flex()
                 .flex_row()
@@ -540,6 +554,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                         div()
                             .px(u(cx, t.forme.size_2_3))
                             .py(u(cx, 1.0))
+                            .line_height(interligne_puce)
                             .rounded(u(cx, t.forme.radius_s))
                             .bg(couleur(fond_puce))
                             .border(bordure)

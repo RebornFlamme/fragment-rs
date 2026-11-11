@@ -87,8 +87,10 @@ pub fn ombres_peintes() -> Vec<OmbrePeinte> {
 /// une seule source pour ce qui est peint et ce qui est déclaré. `rayon` est celui de `.rounded`,
 /// `bordure` la largeur de bordure de `e`.
 ///
-/// ★ Un enfant `absolute` + `size_full` reçoit la boîte de REMBOURRAGE du parent (taffy retire la
-/// bordure de la zone des enfants positionnés) : la déclaration la regonfle de `bordure`.
+/// ★ Un enfant `absolute` + `size_full` a la TAILLE de la boîte de rembourrage du parent (taffy retire
+/// la bordure de la zone des enfants positionnés), mais sans `top`/`left` il garde sa position
+/// STATIQUE, au coin de la boîte de contenu (constaté en CI : menu déclaré 4 px trop bas et trop à
+/// droite, son rembourrage). D'où `top(0)`/`left(0)` ; la déclaration regonfle ensuite de `bordure`.
 pub fn ombrer<E: Styled + ParentElement>(
     e: E,
     cx: &App,
@@ -124,6 +126,8 @@ pub fn ombrer<E: Styled + ParentElement>(
             |_, (), _, _| {},
         )
         .absolute()
+        .top(u(cx, 0.0))
+        .left(u(cx, 0.0))
         .size_full(),
     )
 }

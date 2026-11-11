@@ -632,6 +632,8 @@ fn rendre_niveau(
                 |_, (), _, _| {},
             )
             .absolute()
+            .top(u(cx, 0.0))
+            .left(u(cx, 0.0))
             .size_full(),
         )
         .children(lignes);
