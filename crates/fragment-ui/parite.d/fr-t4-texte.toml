@@ -1,0 +1,12 @@
+# Parité de fr-t4-texte (fragment-ui). Schéma `parite.d` : un fichier par tâche. Source e2e : pdf-layers
+# (tests 2 à 5 du plan T4 : surface et plan, texte sélectionnable, sélection en offsets et rects, pointeur
+# capté si un outil est armé) et pdf-find (lien interne). PdfEditor.ts n'a de test unitaire que pour
+# l'espace de positions et indexerTexte, déjà portés dans fragment-pdf (pdf_editor.rs).
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfEditor.ts (coordsAtPos, posAtCoords, lignes, getSelection, coordsForRange, viewportRange, renderedRanges, cache des glyphes), PdfView.ts (batirTexte, batirLiens, clic des liens externes), pdf-view.css (.pdf-text-layer ::selection, .linkAnnotation)"
+rs = "crates/fragment-ui/src/pdf_texte/{mod,modele,surface,source,vue}.rs, crates/fragment-ui/tests/pdf_texte.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 15
+notes = "Portés (tests/pdf_texte.rs, vrai pdfium) : pdf-layers « surface et plan », « texte sélectionnable », « sélection en offsets et rects », « pointeur capté seulement si un outil est armé » ; pdf-find « un lien interne mène à sa page ». Ajoutés : 3 tests de vue (coordonnées aller-retour à 4 échelles avec facteur 1,5 et zoom d'app 0,85, lien externe vers le navigateur du système, page libérée : texte perdu, glyphes gardés) et 12 tests unitaires (modèle de page : UTF-16 hors BMP, caret, caret le plus proche, rangées, liens, scan ; surface : positions, page la plus proche entre deux pages, coin de page). Écarts : pas de DOM — le caractère sous le point et les rangées se calculent sur les boîtes « larges » de pdfium (une rangée par ligne, plus un rect par span) ; la couche n'est pas masquée pendant un pinch (les glyphes sont en unités de page, justes à toute échelle) ; le texte est lu par un fil dédié avec son propre Document (feature thread_safe) ; un outil armé reçoit ses gestes en événements PointeurPdf (contrat pour T5) au lieu d'un pointer-events CSS."
