@@ -8,16 +8,16 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 850 | 806 | 152 | 44 | 94.8 % |
+| 897 | 839 | 290 | 58 | 93.5 % |
 
-**PORTE ATTEINTE** : 94.8 % des cas source portés.
+**PORTE ATTEINTE** : 93.5 % des cas source portés.
 
 - Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
 
 ## Crates sans modules portés
 
-fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
+fragment-html (pas de `parite.toml`).
 
 ## fragment-agent
 
@@ -64,6 +64,18 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
 | fragment-annotation | 44 | 40 | 0 | 4 | 90.9 % |
+
+## fragment-app
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| crates/fragment-app/src/boot.rs | app/src/ui/seedCore.ts | 0 | 0 | 2 | — |
+| crates/fragment-app/src/boot.rs, crates/fragment-app/src/lib.rs | app/src/ui/bootApp.tsx | 0 | 0 | 0 | — |
+| crates/fragment-app/src/hote_fenetre.rs | app/src/ui/windowHost.ts | 0 | 0 | 0 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-app | 0 | 0 | 2 | 0 | 100.0 % |
 
 ## fragment-artefacts
 
@@ -181,10 +193,15 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | crates/fragment-core/src/config.rs + apparence.rs | app/src/ui/core/settings/ConfigStore.ts + config.ts (AppearanceConfig, applyAppearance) + sync.ts | 0 | 0 | 4 | — |
 | crates/fragment-core/tests/apparence.rs + crates/fragment-core/src/commandes_zoom.rs + crates/fragment-ui/tests/reglages.rs | app/e2e/app-zoom.spec.ts + app/src/ui/coreCommands/AppCommandsPlugin.ts (zoom-in, zoom-out, reset-zoom) | 13 | 8 | 0 | 5 — le menu Electron n'a plus de zoom actif (neutraliserZoomDuMenu) : propre à Electron : GPUI n'a pas de menu d'application à neutraliser ; Ctrl+molette sur une note ne zoome pas : Chromium zoomerait de lui-même ; GPUI n'a aucun zoom par molette. Aucune garde à tester (le geste n'est lié à rien) ; capture : le rectangle en px CSS est converti selon le zoom (devicePixelRatio) : contrat WindowHost::capture, dont l'implémentation GPUI est dans fr-t1-binaire ; pas de devicePixelRatio ici (u() met les longueurs à l'échelle, pas la capture) ; PDF : Ctrl+= reste le zoom du PDF ; PDF : canvas repeints à la nouvelle densité : la vue PDF est de la phase 5 (portée de vue avant la racine : à rejouer avec elle) ; la repeinte des canvas est un souci de Chromium ; boot : `window.outerWidth / window.innerWidth > 1.3` (toute l'interface a rétréci) : mesure du DOM ; la mise à l'échelle de toute l'interface par u() est vérifiée par les scènes pixels t1-zoom-150 et t1-zoom-80 |
 | crates/fragment-ui/src/reglages/{mod,fenetre,curseur}.rs | app/src/ui/settings/SettingsWindow.ts + core/settings/{Setting,SettingTab,SettingPage,SettingManager}.ts + settings.css (Appearance) | 0 | 0 | 5 | — |
+| crates/fragment-core/src/vault/coffre.rs | app/src/ui/core/vault/vault.ts | 0 | 0 | 95 | — |
+| crates/fragment-core/src/vault/fichier.rs | app/src/ui/core/vault/TAbstractFile.ts, TFile.ts, TFolder.ts | 0 | 0 | 4 | — |
+| crates/fragment-core/src/vault/adaptateur.rs, memoire.rs | app/src/ui/core/vault/DataAdapter.ts | 0 | 0 | 0 | — |
+| crates/fragment-core/src/vault/fournisseur.rs | app/src/ui/core/documents/vaultProvider.ts | 0 | 0 | 23 | — |
+| crates/fragment-core/src/vault/coffre.rs | app/src/ui/core/links/resolveLink.ts (sur un vrai Vault) | 0 | 0 | 7 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-core | 261 | 239 | 98 | 22 | 91.6 % |
+| fragment-core | 261 | 239 | 227 | 22 | 91.6 % |
 
 ## fragment-layers
 
@@ -286,4 +303,26 @@ fragment-app, fragment-html, fragment-ui (pas de `parite.toml`).
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
 | fragment-theme | 9 | 6 | 0 | 3 | 66.7 % |
+
+## fragment-ui
+
+| Module | Fichier TS | Cas source | Portés | Ajoutés | Non portés (raison) |
+|---|---|---|---|---|---|
+| crates/fragment-ui/tests/splits.rs | app/e2e/workspace-structure.spec.ts | 3 | 3 | 0 | — |
+| crates/fragment-app/tests/boot.rs, crates/fragment-ui/tests/onglets.rs | app/e2e/workspace-layout.spec.ts | 5 | 4 | 0 | 1 — §8.4 — seules les feuilles visibles sont matérialisées ; un clic charge la suivante : Sans vue réelle (T1 n'a que la vue vide), la matérialisation ne se voit pas ; repris par T2/T3 avec la vue Markdown. Le cœur la teste (restauration.rs). |
+| crates/fragment-ui/tests/onglets.rs, crates/fragment-app/tests/boot.rs | app/e2e/activeleaf-tracking.spec.ts | 4 | 4 | 0 | — |
+| crates/fragment-app/tests/boot.rs | app/e2e/boot-scope.spec.ts | 2 | 2 | 0 | — |
+| crates/fragment-ui/tests/splits.rs | app/e2e/tab-drag-split.spec.ts | 1 | 1 | 0 | — |
+| crates/fragment-app/tests/boot.rs, crates/fragment-app/tests/clavier.rs, crates/fragment-ui/tests/reglages.rs | app/e2e/app-zoom.spec.ts | 11 | 6 | 2 | 5 — le menu Electron n’a plus de zoom actif : Pas de menu Electron : GPUI n'a pas de rôle de menu zoomIn/zoomOut (n.a.). ; Ctrl+molette sur une note ne zoome pas : Aucune liaison Ctrl+molette dans GPUI ni dans le pont ; à tester avec la vue Markdown (T3). ; capture : le rectangle en px CSS est converti selon le zoom : WindowHost::capture n'existe que sous la feature de test de GPUI (lecteur de scènes) ; dette notée dans fragment-app. ; PDF : Ctrl+= reste le zoom du PDF, l’app ne bouge pas : Vue PDF : T4 (le mécanisme, une portée de vue qui consomme Ctrl+=, est testé par la_portee_de_la_vue_passe_avant_la_racine). ; PDF : après un zoom de l’app, les canvas sont repeints à la nouvelle densité : Vue PDF : T4. |
+| crates/fragment-app/tests/clavier.rs | app/e2e/hotkeys.spec.ts | 5 | 4 | 2 | 1 — ★ éditer hotkeys.json à la main prend effet SANS redémarrage : Exige le watcher du dossier (notify, T2). |
+| crates/fragment-ui/tests/palette.rs | app/e2e/command-palette.spec.ts | 6 | 3 | 0 | 3 — Mod+P ouvre, on tape, ↓ ↑ naviguent, ↵ exécute, la palette se ferme : Le parcours au clavier est rejoué par les scènes t1-palette* (fr-t1.1) ; pas de banc headless avec la couche modale et le pont clavier ensemble. ; une commande dont checkCallback lève est masquée, la palette survit : Une fermeture Rust ne « lève » pas : le cas devient une panique absorbée par CommandManager, testé dans le cœur. ; le préfixe du plugin est rendu à part, et le raccourci en <kbd> : Jugé au pixel (t1-palette), pas par le DOM. |
+| crates/fragment-ui/tests/splits.rs | app/e2e/resize-gesture.spec.ts | 6 | 4 | 0 | 2 — dock vers l'intérieur (cas du dock) : Repris par la scène t1-docks-ouverts et les tests de poignée de dock ; nom e2e non repris tel quel (fr-t1-splits). ; contre-épreuve : sans le CSS du gel, le côté qui rétrécit reflue aussi : Retire un CSS : sans objet dans GPUI (fr-t1-splits). |
+| crates/fragment-ui/tests/splits.rs | app/e2e/tab-drop-frame-space.spec.ts | 2 | 2 | 0 | — |
+|  | app/e2e/right-dock.spec.ts | 1 | 0 | 0 | 1 — panneau droit : toggle topbar + reveal + topbar intacte : « reveal » ouvre une vue d'outil (chat, T7) ; le basculement seul est couvert par les tests de splits et la scène t1-docks-ouverts. |
+|  | app/e2e/view-header-nav.spec.ts | 1 | 0 | 0 | 1 — ← → naviguent dans l’historique de l’onglet, le titre reste centré : Il faut des documents (T2) ; l'état grisé est la scène t1-entete-vue (T1.md §5). |
+| crates/fragment-ui/src/clavier/mod.rs | app/src/ui/core/keymap/Keymap.ts (écoute keydown de la fenêtre) | 0 | 0 | 3 | — |
+
+| Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
+|---|---|---|---|---|---|
+| fragment-ui | 47 | 33 | 7 | 14 | 70.2 % |
 

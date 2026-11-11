@@ -11,7 +11,8 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use fragment_app::boot::{self, Noyau, Options};
-use fragment_core::{App as _, Keymap, Modifier, Scope, WindowHost};
+use fragment_app::stockage::{RaccourcisMemoire, Stockages};
+use fragment_core::{App as _, HotkeyStore as _, Keymap, Modifier, Scope, WindowHost};
 use fragment_ui::clavier;
 use fragment_ui::echelle::Echelle;
 use gpui_kit::{
@@ -41,7 +42,14 @@ impl Render for Champ {
 }
 
 fn banc(cx: &mut TestAppContext) -> (Rc<Noyau>, Entity<Champ>, &mut VisualTestContext) {
-    let noyau = Rc::new(boot::demarrer(&Options::memoire("0.0.0")));
+    banc_sur(cx, Options::memoire("0.0.0"))
+}
+
+fn banc_sur(
+    cx: &mut TestAppContext,
+    options: Options,
+) -> (Rc<Noyau>, Entity<Champ>, &mut VisualTestContext) {
+    let noyau = Rc::new(boot::demarrer(&options));
     let (n, keymap) = (noyau.clone(), noyau.app.keymap().clone());
     let (champ, vcx) = cx.add_window_view(move |window, cx| {
         let hote = n.hote.clone();
@@ -115,7 +123,7 @@ fn une_frappe_non_reconnue_atteint_le_champ() {
 }
 
 #[test]
-fn echap_ferme_la_portee_du_sommet_et_ne_descend_pas() {
+fn un_menu_ouvert_masque_les_raccourcis_globaux_et_echap_le_ferme() {
     let mut cx = TestAppContext::single();
     let (n, champ, vcx) = banc(&mut cx);
     let ferme = Rc::new(Cell::new(false));
@@ -157,10 +165,28 @@ fn la_portee_de_la_vue_passe_avant_la_racine() {
 }
 
 #[test]
-fn mod_virgule_demande_les_reglages() {
+fn un_raccourci_par_defaut_atteint_sa_commande_et_consomme_la_frappe() {
     let mut cx = TestAppContext::single();
-    let (n, _champ, vcx) = banc(&mut cx);
+    let (n, champ, vcx) = banc(&mut cx);
+    // Mod+, : `settings:open-settings`.
     vcx.simulate_keystrokes("ctrl-,");
     assert!(n.reglages_demandes.get());
-    assert_eq!(boot::COMMANDE_REGLAGES, "settings:open-settings");
+    assert_eq!(recu(&champ, vcx), "");
+}
+
+#[test]
+fn hotkeys_json_present_au_demarrage_remplace_le_defaut() {
+    let mut cx = TestAppContext::single();
+    let raccourcis = RaccourcisMemoire::default();
+    raccourcis
+        .write(r#"{"app:zoom-in": [{"modifiers": ["Mod"], "key": "K"}]}"#)
+        .unwrap();
+    let mut s = Stockages::memoire();
+    s.raccourcis = Rc::new(raccourcis);
+    let (n, champ, vcx) = banc_sur(&mut cx, Options::avec(s, "0.0.0"));
+    vcx.simulate_keystrokes("ctrl-=");
+    assert_eq!(n.hote.get_zoom().unwrap(), 1.0, "le défaut est remplacé");
+    assert_eq!(recu(&champ, vcx), "=");
+    vcx.simulate_keystrokes("ctrl-k");
+    assert_eq!(n.hote.get_zoom().unwrap(), 1.1);
 }

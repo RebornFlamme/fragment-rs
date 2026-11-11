@@ -1,0 +1,41 @@
+# Parité de fragment-app (fr-t1-binaire) : le démarrage et l'assemblage. Ces fichiers TS n'ont pas de
+# `.test.ts` ; leurs comportements sont jugés par les specs e2e (comptées dans
+# crates/fragment-ui/parite.toml, pour ne pas les compter deux fois) et par les tests ajoutés ici.
+
+[crate]
+name = "fragment-app"
+tache = "fr-t1-binaire"
+reference = "RebornFlamme/Fragment (bootApp.tsx, seedCore.ts, windowHost.ts)"
+
+[[module]]
+ts = "app/src/ui/seedCore.ts"
+rs = "crates/fragment-app/src/boot.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "Ordre complet de seedCore (ORDRE_SEED_CORE) ; T1 charge command-palette, workspace, app, settings, par Plugins::register_internal_plugin. Ajoutés : les_plugins_coeur_se_chargent_dans_l_ordre_de_seed_core, decharger_un_plugin_coeur_retire_ses_commandes. Ruban : square-pen et sparkles posés avant leur plugin (T2, T7) pour la forme de la fenêtre, inertes."
+
+[[module]]
+ts = "app/src/ui/bootApp.tsx"
+rs = "crates/fragment-app/src/boot.rs, crates/fragment-app/src/lib.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "Séquence : App, seed, apparence chargée et appliquée, raccourcis relus, plugins (hôte), layout. Sans coffre (T2) ; sans écran de démarrage (BootProgress : le boot de T1 est synchrone et sans disque lent, il n'y a pas d'étape à nommer)."
+[[module.non_portes]]
+quoi = "BootProgress (boot-progress.spec.ts : rideau levé, trace d'échec)"
+raison = "Le boot de T1 ne lit pas de coffre : aucune étape longue. Arrive avec le chargement du coffre (T2)."
+[[module.non_portes]]
+quoi = "VaultSwitcher (pied du dock gauche)"
+raison = "T2 (coffres) ; visible dans les références des docks ouverts (écart chiffré dans docs/parite-pixels.md)."
+
+[[module]]
+ts = "app/src/ui/windowHost.ts"
+rs = "crates/fragment-app/src/hote_fenetre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "set_zoom/get_zoom → Echelle au point de synchronisation (après la frappe, au tic, avant l'image du lecteur)."
+[[module.non_portes]]
+quoi = "capture(rect)"
+raison = "GPUI ne rend une fenêtre en image que sous sa feature de test (`render_to_image`) : disponible au lecteur de scènes seulement ; dette (bead à ouvrir si un plugin en a besoin avant T8)."
