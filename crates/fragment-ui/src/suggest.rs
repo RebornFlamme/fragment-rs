@@ -29,6 +29,7 @@ use crate::flottant::{arrondir, ombrer};
 use crate::icones;
 use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
+use crate::rendu::melange::bord_unique;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -719,7 +720,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             );
         }
 
-        let mut boite = div()
+        let boite = div()
             .id("prompt")
             .track_focus(&self.focus)
             .on_key_down(cx.listener(|this, ev: &KeyDownEvent, _, cx| this.sur_touche(ev, cx)))
@@ -728,19 +729,24 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             .flex_col()
             .w(largeur_boite(window, cx, 700.0, 2.0 * t.forme.border_width))
             .max_h(hauteur_max + u(cx, 2.0 * t.forme.border_width))
-            .bg(couleur(t.palette.workspace_bg))
             .text_color(normal)
-            .border(bordure)
-            .border_color(contour)
-            .rounded(u(cx, t.forme.radius_l))
             .font_family(FAMILLE_INTERFACE)
             .font_features(caracteristiques())
             .text_size(u(cx, t.typo.font_ui_normal))
             .line_height(relative(t.typo.line_height_normal))
             .overflow_hidden()
-            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-            .child(entree)
-            .child(resultats);
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation());
+        // Un seul anticrénelage au bord (bordure opaque, fond en retrait : `rendu::melange`).
+        let mut boite = bord_unique(
+            boite,
+            cx,
+            (t.forme.radius_l, t.forme.border_width),
+            t.palette.tab_outline_color,
+            t.palette.workspace_bg,
+            false,
+        )
+        .child(entree)
+        .child(resultats);
         boite = ombrer(
             boite,
             cx,
