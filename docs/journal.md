@@ -328,3 +328,12 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
   - la garde d'arc à 0,15 px ;
   - l'origine d'encre décalée d'1 px sur 14 PNG (calage des fûts) ; je recommande de la mesurer au barycentre du trait ;
   - l'extension de l'exception `--shadow-l` aux résidus de mélange alpha.
+
+## Décision de l'orchestrateur, origine d'encre et résidus — 11/11/2026 12:00 UTC
+Inscrite dans ADR-009 (amendement daté, d3c43ea) :
+- garde d'arc approuvée ;
+- origine d'encre au barycentre (±0,5 px, par passage puis par moitié), boîte ±1 px gardée ;
+- exceptions NOMMÉES temporaires pour la livraison de T1, en cliquet.
+- ★ En contrepartie, fr-p4.1 (mélange alpha) est lancée tout de suite, sans attendre la phase 4. Son critère de fin : toutes ces exceptions retirées, cliquets à 0.
+Lancée : fr-t1.1, étape 3 (Opus), avec une fenêtre 5 h à 77 %. fr-p4.1 est programmée juste après le reset de 12:30 UTC (réveil ponctuel à 12:37 UTC). Elle travaille d'abord sur une mire ; elle ne touche les fichiers de fr-t1.1 qu'après leur fusion.
+À livrer à l'orchestrateur dès que #48 est verte avec ses scènes : le lien de l'artefact Windows, avec la liste des dettes ouvertes et leurs cliquets.
