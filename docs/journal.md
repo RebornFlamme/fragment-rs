@@ -316,3 +316,7 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
   - Décision du chef : le PORT de `@lezer/markdown` 1.7.2 (MIT, notice gardée) est accepté comme troisième voie, à justifier dans ADR-010. Mesures : tree-sitter-md 70,6 % des nœuds Lezer, pulldown-cmark 59,4 %, les deux ignorant les extensions de Fragment.
   - Lancées : reprise de syntaxe (Opus) et fr-t4-vue-modele (Sonnet). Actifs : maths, flottantes, binaire, syntaxe2, vuepdf.
   - ★ Pause à 90 % de la fenêtre 5 h. Reset à 12:30 UTC.
+- 11/11 11:25 UTC, fenêtre 5 h à 71 % (reset à 12:30), semaine à 24 % : fusionnée #47 (fr-t4-vue-modele : 12/12 cas, 32 tests).
+  - Aucun lancement avant le reset : au rythme actuel, la fenêtre atteindrait 90 % avant 12:30.
+  - PR ouvertes, en attente du compte rendu de leur équipier : #48 (binaire), #46 (fr-t1.1), #45 (maths S5), #44 (syntaxe, brouillon).
+  - Contexte du chef : 303k tokens. Clear prévu dès que ces quatre équipiers auront rendu compte. Procédure de §10 revenue à l'ancienne, puisque le réveil d'après-clear n'a pas survécu le 10/11.
