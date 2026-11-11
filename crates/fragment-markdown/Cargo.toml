@@ -23,5 +23,9 @@ regex = "1"
 [target.'cfg(windows)'.dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support", "tree-sitter-markdown"] }
 
+# Les tests de `decorations` vérifient que chaque nom de jeton existe dans le thème.
+[dev-dependencies]
+fragment-theme = { path = "../fragment-theme" }
+
 [lints]
 workspace = true
