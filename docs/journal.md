@@ -232,3 +232,23 @@ Décisions du chef : fusion acceptée, l'outil ne relâche rien hors boîte. `pr
 - **Boîtes déduites** : confirmées pour T1. Nouveau bead `fr-p3.1`, export exact par fragment-ui. ★ Il bloque la FIN de T3 : à la création de l'épic fr-t3, faire `bd dep add fr-t3 fr-p3.1` (et `fr-p3-gpui-kit-0.9`), et le lancer tôt dans T3.
 - `program.md` §5 est aligné par l'orchestrateur ; commité ici.
 **Prochaine action exacte.** fr-t1.1 en équipier local, quand un des deux équipiers en cours aura rendu compte. Sinon le 12/11, la part du jour étant engagée (onglets ≈ 3,5 et largeur ≈ 2 sur 8). Fichiers disjoints d'onglets et de largeur ; vérifier qu'onglets n'a pas modifié `flottant.rs` ni `menu.rs`. Sinon, aux comptes rendus : revue habituelle, puis fr-t1-reglages.
+
+## Vague 7 (accélération) — 11/11/2026 09:40 UTC — usage 5h 12 % / semaine 17 %
+**Décision de l'utilisateur, relayée par l'orchestrateur** (program.md §2 et CLAUDE.md, commités en e6d3aa3) :
+- part fixe et plafond par jour SUPPRIMÉS ;
+- cible ≥ 90 % d'hebdo au reset du 13/11 18:00 UTC, arrêt à 97 % ;
+- seule garde : la fenêtre 5 h (lancer ≤ 80 %, pause à 90 %) ;
+- jusqu'à 5 équipiers, Opus permis sur les tâches dures, battement de 1 h.
+Rythme cible : (97 − 17) ÷ 56 h ≈ 1,4 point par heure.
+Équipiers actifs (5), tous en worktrees frères avec chacun son `CARGO_TARGET_DIR` (`C:/dev/fragment-rs-target-<nom>`) :
+- fr-t1-onglets (Sonnet), `../fragment-rs-onglets` ;
+- fr-t1.3, largeur du texte (Sonnet), `../fragment-rs-largeur` ;
+- fr-t1.1, ombre puis scènes flottantes et palette à T1 (Opus), `../fragment-rs-flottantes` ; ancienne branche distante supprimée, branche neuve ;
+- fr-nj9, police mono (Sonnet), `../fragment-rs-mono` ; ne touche pas `polices.rs` (fr-t1.3) ;
+- planificateur T2, T3, T4, T11 (Opus), `../fragment-rs-plan`, branche `task/fr-plan-t2-t11` : `docs/tranches/T{2,3,4,11}.md`, épics et tâches seedées dans Beads, avec `fr-t2 ← fr-t1.3`, `fr-t3 ← fr-p3.1` et `fr-t3 ← fr-p3-gpui-kit-0.9`.
+Décisions du chef : fr-p3-gpui-kit-0.9 est REPORTÉE après fr-t1-binaire. La montée touche `Cargo.lock` et tout `fragment-ui` pendant que trois tâches T1 y écrivent, et T1.md (risque 7) garde T1 sur 0.8.1. Elle gênerait donc T1, la condition posée par l'orchestrateur. Elle bloque la fin de T3, pas son début.
+Battement : `CronCreate`, toutes les heures à la minute 23.
+**Prochaine action exacte.**
+1. Au compte rendu du planificateur : revue de la PR (cohérence des fichiers possédés, dépendances), fusion. Puis lancer, à chaque place libre, les tâches `bd ready` indépendantes de T1, dans l'ordre qu'il donne.
+2. Aux autres comptes rendus : revue habituelle.
+3. Puis fr-t1-reglages, fr-t1-splits (après onglets), et fr-p3-gpui-kit-0.9 après le binaire.
