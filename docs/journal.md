@@ -384,3 +384,45 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - Lancées (Sonnet) : fr-t4-recherche-modele, fr-t4-laterale-modele, fr-t2-fs. Actifs : shell, alpha, recherche, laterale, fs.
 - Battement 11/11 13:33 UTC : fenêtre 5 h à 26 % (reset 17:30), semaine à 30 %. Rythme cible (97 − 30) ÷ 52,5 h ≈ 1,3 point par heure ; réel depuis 12:40 ≈ 4,5, en avance. PR #53, #54, #55 en CI ; #49 (fr-t1.5) en brouillon, équipier à 370k tokens prié de conclure et de passer la main. Cinq équipiers actifs, aucun lancement.
 - 11/11 13:45 UTC : fr-t1.5, premier équipier arrêté à 375k tokens (PR #49 brouillon, 0/42 PNG ; zone de dépôt claire 472 133 → 1 386 px, split-vertical 2 120 → 511, réglages 11 000 → 4 850). Bloquant commun aux 42 PNG : `boites.rs` prend le texte « Fragment 0.0.0 » pour un trait droit. Décisions du chef : `boites.rs` passe à fr-t1.5 (trait droit = couleur uniforme, resserrement avec contre-épreuve), extension d'`arrondir` à un arc par coin, trait de l'onglet actif (221/220) et proportions (199,5/199,75) en strict, `t1-boutons-fenetre` rejoué par resize puis référence recapturée. fr-p4.1 prévenu. Reprise par un équipier Opus neuf (shell2).
+- 11/11 13:55 UTC : fusionnée #53 (fr-t4-laterale-modele : 6/6 cas de pdf-toolbar 7 à 12, 15 ajoutés ; le cas 7 « Page width » compté deux fois, avec vue_modele). Lancée : fr-t2-fileview (Sonnet). Actifs : shell2, alpha, recherche, fs, fileview.
+- 11/11 14:05 UTC : fusionnée #55 (fr-t4-recherche-modele : 4/5 cas de pdf-find, 21 ajoutés ; dépendances notées : regex, unicode-normalization, unicode-segmentation, déjà au lock, MIT/Apache). Lancée : fr-t3.1 (Opus, incrémental). fr-t11-cascade différée : elle touche sombre.rs/clair.rs de fragment-theme, que fr-p4.1 peut toucher. Actifs : shell2, alpha, fs, fileview, incremental.
+- 11/11 14:30 UTC, fenêtre 5 h à 36 %, semaine à 31 % : fr-p4.1, premier équipier arrêté à 309k tokens. PR #56 en brouillon (pixels rouge), S8 et ADR-013 proposés.
+  - ★ Cause : PAS linéaire contre sRGB, les deux mélangent en sRGB encodé. Il y en a quatre :
+    - (a) Chromium compose le conteneur fixed de la modale dans un calque RGBA8 prémultiplié, ce qui reproduit `--shadow-l` à 100 % en simulation ;
+    - (b) le flou GPU de Skia s'écarte jusqu'à 4/255 : hors d'atteinte au bit près, 0,11 à 0,20 px restants ;
+    - (c) GPUI anticrénèle deux fois le bord extérieur, fond puis bordure ;
+    - (d) `opacite_exacte` corrige les côtés mais dégrade les arcs clairs.
+  - Reprise (Opus, alpha2), dans l'ordre : (c) et (d) ensemble par un fond en retrait, puis (a) en ombre calculée sur le CPU avec le calque émulé.
+  - (b) est une dette à remonter à l'orchestrateur (divergence §8) avec la livraison de T1.
+  - PR #54 (fr-t2-fs) bonne pour fusion, renvoyée au rebase (conflit lock et parité).
+  - Actifs : shell2, alpha2, fs (rebase), fileview, incremental.
+- 11/11 14:40 UTC : décision du chef sur fr-t1.5, contour de l'onglet actif. Côtés et ligne de base : colonnes pré-composées, strict (221/222 = arrondi au plus proche de GPUI contre floor de Skia). Arcs r5/r4 et raccords : delta 9 à 17, au-delà de la catégorie arrondi (≤ 6). Cause : MSAA 4x asymétrique de GPUI, et environ 40 % d'encre en plus aux raccords chez Chromium ; une couverture exacte laisse encore un delta de 10. Ils passent en exception NOMMÉE temporaire « contour d'onglet actif », limitée au halo de chaque arc, en cliquet, avec contre-épreuve, rattachée à fr-p4.1. À remonter à l'orchestrateur avec la livraison de T1.
+- Battement 11/11 14:32 UTC : fenêtre 5 h à 46 % (reset 17:30), semaine à 32 %. Rythme cible (97 − 32) ÷ 51,5 h ≈ 1,3 point par heure ; réel depuis 12:40 ≈ 3,2, en avance. #54 et #57 vertes sauf clippy (panne DNS apt du runner Linux, relancé). #58 (fr-t3.1) en CI ; #49 et #56 en brouillon. Lancée : fr-t3-metadata (Sonnet). Actifs : shell2, alpha2, incremental, listes, metadata.
+- 11/11 14:45 UTC : fr-t1.5, deuxième équipier arrêté à 345k tokens (commits bc848b2 et 57ec4f9). Toujours 0/42 PNG, mais seulement 1 px hors boîte en sombre et 23 en clair sur la plupart des scènes d'onglets. Faits : boîtes de texte, arcs coin par coin, côtés du contour en strict, cause du 199,5 (Chromium arrondit la position du trait avant la transformation), `t1-boutons-fenetre` recapturée.
+  - Décisions du chef :
+    - (a) le pixel de l'arc intérieur du coin de la barre d'état (1180,782), delta 9 à 11, entre dans l'exception nommée sous un élément « coin de la barre d'état », aux mêmes conditions ;
+    - (b) le passage 221 → 222 au milieu du côté de l'onglet en clair est un artefact de Skia sur le MÊME chemin que le contour (updateTabOutline). Il est couvert par l'exception « contour d'onglet actif » pour les côtés, au delta 1 SEULEMENT, en cliquet.
+  - Reprise par un troisième équipier Opus (shell3) : réglages, zoom-80/150, entete-vue, glisser-zone.
+- 11/11 14:55 UTC : fr-p4.1 (PR #56, run 43040649423), échange de cliquets accepté par le chef, sous conditions.
+  - Gains :
+    - étalement de `--shadow-l` : de +1,60 à +0,09 px pour la modale sombre, de +1,42 à 0 pour la palette sombre ;
+    - arcs clairs du menu, des notices et de l'infobulle : de 0,23–0,35 à 0,07–0,11 px, 5 exceptions retirées ;
+    - modale et palette claires : déplacement des arcs de 0,20 à 0,02 px, delta max de 33 à 8.
+  - Hausses, sur la modale et les palettes claires seulement : delta d'ombre de 1 à 2 (garde-fou tenu) ; glissement de `--shadow-l` de 0,024 à 0,071 ; pixels non identiques des bandes d'arrondi de 20–25 % à 35–46 % (anticrénelage à 1 niveau).
+  - Conditions : partout ailleurs, cliquet en baisse seulement (preuve dans la PR) ; garde-fous d'ADR-009 intacts ; section datée dans ADR-013.
+  - À REMONTER à l'orchestrateur avec la livraison de T1 (un seuil relâché, §5). Repli en cas de refus : GPUI pour ces quatre PNG.
+- 11/11 14:55 UTC : fr-t1.5, accepté environ 12 lignes dans `sas.rs` (masque `cote_nomme`, delta ≤ 1) et `flottant::arrondir_coins`, en ajout seul ; alpha2 prévenu.
+- 11/11 15:10 UTC, fenêtre 5 h à 56 % (reset 17:30), semaine à 34 % :
+  - #58 (fr-t3.1) livrée : 0,69 ms par frappe en médiane (max 1,52) contre 34 à 37 ms, oracle identique à l'analyse complète. La coloration des blocs de code et des maths est confiée au nouveau bead fr-t3.2.
+  - #59 (fr-t3-metadata) livrée : 16 tests.
+  - ★ Le job clippy (Ubuntu) échoue partout depuis 14:00 UTC : le runner ne résout plus archive/security.ubuntu.com à l'étape apt. #54, #57, #58 et #59 sont vertes sur les 6 autres jobs.
+  - Correctif du chef, PR #61 : clippy passe sous windows-latest (sans apt), et les lints Windows du spike S2 (`fragment-html/tests/spike_s2/scenario.rs`, jamais vu par clippy sous Linux) sont corrigés.
+  - Pas de 5e lancement : au rythme actuel, la fenêtre 5 h atteindrait 90 % avant 17:30. Actifs : shell3, alpha2, listes, decorations.
+- 11/11 15:30 UTC : disque C: plein (0 Mo). J'ai supprimé les dossiers cible de 21 tâches fermées : 86,6 Go libres. ★ Après chaque fusion, retirer aussi le dossier cible de la tâche.
+- #61 : sous Windows, clippy voit pour la première fois le code `cfg(windows)` des spikes S1b, S2 et S3. Lints corrigés par des `allow` ciblés et commentés, ou par `--fix`.
+- fr-t1.5 (shell3) :
+  - réglages passés de 4 850 à 48/92 px ;
+  - exception nommée « trait de poignée » accordée : bords du trait seulement, delta 1, en clair, cliquet et contre-épreuve. Environ 4 000 px, même famille que 221/222, l'arrondi de Skia sur les bords fractionnaires n'étant pas constant ;
+  - jeton `fragment-theme` ajouté pour le littéral CSS #8f8e89 (flèche de liste).
+  - À remonter avec T1.
+- Un `arbre.rs` non suivi traîne à la racine du dépôt principal, d'origine inconnue. Je n'y touche pas.
