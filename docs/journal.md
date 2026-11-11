@@ -261,3 +261,8 @@ Le résidu de fr-t1.3 passe à fr-t1.1 : un décalage vertical d'1 px sur les no
 Écart de périmètre accepté : #33 a touché `flottant`, `notice`, `tooltip`, `modal` et `suggest`, des fichiers de fr-t1.1 (petites modifications). fr-t1.1, onglets et reglages ont été prévenus et doivent se rebaser.
 fr-t2 ne dépend plus de fr-t1.3. En cours : onglets, fr-t1.1 (Opus), reglages, planificateur. Une place est libre, mais rien n'est prêt hors T1 avant la PR du planificateur.
 **Prochaine action exacte.** Fusionner la PR du planificateur, puis remplir les places avec ses tâches indépendantes de T1.
+- Battement 11/11 09:40 UTC : fenêtre 5 h à 29 %, semaine à 19 %. Rythme réel depuis 08:20 : environ 2,3 points par heure, pour une cible de 1,4 : en avance. PR #34 (onglets) ouverte, CI en cours. Le planificateur seede T2 à T4 : rien n'est lancé avant sa PR, pour que les dépendances soient posées.
+- 11/11 10:00 UTC : fr-t1-onglets fusionnée (#34). CI verte, audit à 0 refait après le rebase. 7 scènes, 14 références, 13 tests headless ; 416k tokens, plus que la limite du brief.
+  - Dettes passées à fr-t1-binaire : `brancher_scene`, rognage des scènes d'onglets, activation par le focus, contour de l'onglet actif à comparer à Skia, fichiers de parité.
+  - Chasse « New Tab » à 12 px : 47,11 px dans GPUI contre 47 px d'encre dans Chromium (risque 3 levé).
+  - fr-t1-splits lancée (Opus), worktree `../fragment-rs-splits`.
