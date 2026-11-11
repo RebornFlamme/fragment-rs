@@ -121,6 +121,7 @@ pub struct Shared {
     pub tree_bytes: Cell<u64>,
     pub host_calls: Cell<u64>,
     config: String,
+    #[allow(clippy::type_complexity)]
     runner: RefCell<Option<Rc<dyn Fn(&str)>>>,
     pub events: RefCell<Vec<String>>,
 }
@@ -634,6 +635,7 @@ impl PluginInstance {
         let runtime = self.runtime.clone();
         let shared = self.shared.clone();
         let capabilities = self.capabilities.clone();
+        #[allow(clippy::type_complexity)]
         let result: Rc<RefCell<Option<Result<Entity<ScriptView>, String>>>> = Rc::default();
         let slot = result.clone();
 
