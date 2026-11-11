@@ -8,16 +8,16 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 897 | 839 | 290 | 58 | 93.5 % |
+| 922 | 864 | 414 | 58 | 93.7 % |
 
-**PORTE ATTEINTE** : 93.5 % des cas source portés.
+**PORTE ATTEINTE** : 93.7 % des cas source portés.
 
 - Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
 
 ## Crates sans modules portés
 
-fragment-html (pas de `parite.toml`).
+fragment-html, spike-maths (pas de `parite.toml`).
 
 ## fragment-agent
 
@@ -228,10 +228,17 @@ fragment-html (pas de `parite.toml`).
 | readme_markdown | settings/readmeMarkdown.ts | 4 | 4 | 0 | — |
 | sanitize_html | views/markdown/sanitizeHtml.ts | 5 | 5 | 0 | — |
 | table_model | views/markdown/table/tableModel.ts | 18 | 18 | 0 | — |
+| crates/fragment-markdown/src/commandes/actions.rs | app/src/ui/views/markdown/EditorCommandsPlugin.ts (table ACTIONS, appliquerTransformation, appliquerCommandeEditeur, collerTexteBrut, toutSelectionner) | 0 | 0 | 10 | — |
+| crates/fragment-markdown/src/commandes/menu.rs | app/src/ui/views/markdown/MarkdownView.ts (remplirMenuEditeur, wireContextMenu : sections) | 3 | 3 | 11 | — |
+| crates/fragment-markdown/src/commandes/insertion.rs | app/src/ui/views/markdown/table/tableField.ts (separerDuTableau, saisieSousTableau) | 1 | 1 | 2 | — |
+| crates/fragment-markdown/src/coller_image/mod.rs | app/src/ui/views/markdown/pasteImage.ts ; app/src/ui/core/vault/attachments.ts (usage) ; e2e paste-image.spec.ts, markdown-table.spec.ts | 3 | 3 | 12 | — |
+| crates/fragment-markdown/src/syntaxe/analyse_blocs.rs, en_ligne.rs, genre.rs | app/src/ui/views/markdown/language.ts (markdownExtensions : GFM, Subscript, Superscript, WikiLink, Highlight, InlineMath, BlockMath, MathHighlight) sur @lezer/markdown 1.7.2 | 0 | 0 | 28 | — |
+| crates/fragment-markdown/src/syntaxe/arbre.rs | (ajout) arbre à plat et positions UTF-16 (ADR-004) | 0 | 0 | 5 | — |
+| crates/fragment-markdown/src/syntaxe/modele_rangees.rs | (ajout) types partagés par fr-t3-decorations et fr-t3-blocs-modele (contrat set_row_model, ADR-006) | 0 | 0 | 4 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-markdown | 88 | 88 | 0 | 0 | 100.0 % |
+| fragment-markdown | 95 | 95 | 72 | 0 | 100.0 % |
 
 ## fragment-pdf
 
@@ -242,10 +249,13 @@ fragment-html (pas de `parite.toml`).
 | pdf_geometry | app/src/ui/views/pdf/pdfGeometry.ts | 7 | 7 | 0 | — |
 | pdf_outline | app/src/ui/views/pdf/pdfOutline.ts | 3 | 3 | 0 | — |
 | pdf_zoom | app/src/ui/views/pdf/pdfZoom.ts | 7 | 7 | 0 | — |
+| crates/fragment-pdf/src/laterale/*.rs | app/src/ui/views/pdf/PdfSidebar.ts (modes, vignettes virtualisées, arbre de la table, reveler, poignée), section barre latérale de pdf-view.css | 6 | 6 | 15 | — |
+| crates/fragment-pdf/src/document/mod.rs | app/src/ui/views/pdf/PdfView.ts (chargement, pages, couche texte, liens), pdfOutline.ts (resoudreOutline, resoudreDestination) | 0 | 0 | 11 | — |
+| crates/fragment-pdf/src/vue_modele/*.rs | app/src/ui/views/pdf/PdfView.ts (appliquerEchelle, modes, ResizeObserver, IntersectionObserver, majPage, champ de page, repeindre, finDeGeste, zoomerMolette, lirePosition, allerAPosition, getEphemeralState), devicePixels.ts | 12 | 12 | 20 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-pdf | 33 | 33 | 0 | 0 | 100.0 % |
+| fragment-pdf | 51 | 51 | 46 | 0 | 100.0 % |
 
 ## fragment-plugins
 
@@ -321,8 +331,9 @@ fragment-html (pas de `parite.toml`).
 |  | app/e2e/right-dock.spec.ts | 1 | 0 | 0 | 1 — panneau droit : toggle topbar + reveal + topbar intacte : « reveal » ouvre une vue d'outil (chat, T7) ; le basculement seul est couvert par les tests de splits et la scène t1-docks-ouverts. |
 |  | app/e2e/view-header-nav.spec.ts | 1 | 0 | 0 | 1 — ← → naviguent dans l’historique de l’onglet, le titre reste centré : Il faut des documents (T2) ; l'état grisé est la scène t1-entete-vue (T1.md §5). |
 | crates/fragment-ui/src/clavier/mod.rs | app/src/ui/core/keymap/Keymap.ts (écoute keydown de la fenêtre) | 0 | 0 | 3 | — |
+| crates/fragment-ui/tests/spike_s6.rs, crates/fragment-ui/tests/spike_s6/smil.rs | (ajout) spike S6 : rendu natif de gpui-kit, SVG et SMIL contre Chromium, politique d'assainissement | 0 | 0 | 6 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-ui | 47 | 33 | 7 | 14 | 70.2 % |
+| fragment-ui | 47 | 33 | 13 | 14 | 70.2 % |
 
