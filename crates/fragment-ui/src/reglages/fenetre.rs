@@ -1084,15 +1084,18 @@ impl FenetreReglages {
                     .rounded(u(cx, f.radius_xxs))
                     .bg(couleur(p.tab_outline_color)),
             )
-            .child(
+            // Le pouce : un disque, arrondi DÉCLARÉ (bord d'arrondi d'ADR-009).
+            .child(arrondir(
                 div()
                     .absolute()
                     .top(ecart_cale(cx, y, y_pouce))
                     .left(u(cx, centre - DIAMETRE_POUCE / 2.0))
                     .size(u(cx, DIAMETRE_POUCE))
-                    .rounded_full()
                     .bg(couleur(p.color_accent)),
-            )
+                cx,
+                u(cx, DIAMETRE_POUCE / 2.0),
+                u(cx, 0.0),
+            ))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, ev: &MouseDownEvent, _, cx| {

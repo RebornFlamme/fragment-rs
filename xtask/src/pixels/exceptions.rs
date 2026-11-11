@@ -203,6 +203,7 @@ pub const EXCEPTIONS: &[Exception] = &[
     // famille que le 221/222 du côté de l'onglet. Delta 1 seulement, cellules de bord seulement.
     poignee("t1-boutons-fenetre-light.png"),
     poignee("t1-glisser-depot-light.png"),
+    poignee("t1-pile-active-inactive-light.png"),
     poignee("t1-poignee-survol-light.png"),
     poignee("t1-split-horizontal-light.png"),
     poignee("t1-split-proportions-light.png"),
