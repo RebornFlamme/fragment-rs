@@ -1,0 +1,13 @@
+{
+  "scene": "t1-reglages-appearance",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "settings_window": {"width":1000,"height":700,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault",
+  "actions": [
+    {"type":"click","target":"settings","x":118,"y":233},
+    {"type":"hover","target":"settings","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
