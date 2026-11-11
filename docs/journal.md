@@ -439,3 +439,36 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - Bordures à anticrénelage unique ; ombre `--shadow-l` calculée sur le CPU dans le calque émulé (0,33 s par géométrie en debug, puis cache ; release à mesurer) ; 5 exceptions d'arcs retirées ; `image` devient dépendance de fragment-ui.
   - Dettes (b) dans ADR-013. À fusionner AVANT #49.
 - Battement 11/11 16:32 UTC : fenêtre 5 h à 76 % (reset 17:30), semaine à 36 %. Rythme cible (97 − 36) ÷ 49,5 h ≈ 1,2 point par heure ; en avance. Fusionnée #56 (fr-p4.1, étape 1 : audit à 0 ; diff du cliquet relu, conforme à l'échange accordé). fr-p4.1 reste OUVERTE pour ses dettes. main verte. Un seul actif : shell3 (fr-t1.5, #49, prévenu de rebaser). Le clear du chef attend son compte rendu, sinon il le tuerait (comme fr-t1.1 au clear précédent).
+
+## Vague 9 (fin, avant clear du chef) — 11/11/2026 16:45 UTC — usage 5h ≈ 78 % (reset 17:30) / semaine 36 %
+Fusionnées dans la vague : #50, #51, #52, #53, #54, #55, #56, #57, #58, #59, #60, #61 et #62.
+- Beads fermés : fr-t1.1, fr-t3-commandes, fr-t3-html, fr-t4-laterale-modele, fr-t2-fs, fr-t4-recherche-modele, fr-t2-fileview, fr-t3.1, fr-t3-metadata, fr-t3-listes et fr-t3-decorations.
+- Ouverts : fr-p4.1 (dettes, voir ses notes) et fr-t1.5.
+- Nouveau bead : fr-t3.2 (parseMixed, stexMath).
+
+fr-t1.5 : troisième équipier arrêté à 274k tokens. PR #49 en brouillon, branche rebasée sur main après #56 et poussée (02015c2), pas encore vue en CI.
+- Au run 43053240704 (avant rebase) : 21 PNG à 0 px hors boîtes, encore rouges faute de base de cliquet. Réglages passés de 4 850 à 16-24 px ; zoom-80 sombre de 2 525 à 4.
+- Reste :
+  - (d) valeurs du cliquet après un run vert ;
+  - lignes de base en cellule partielle (657,35) et (346,35) (`pile.rs`, splits) ;
+  - `t1-boutons-fenetre` (1183,15) ;
+  - titres d'onglets inactifs du 2e pane (barycentre à +0,6) ;
+  - zoom-150 (156/707 px) et zoom-80 clair (162 px).
+- Un `cargo fmt --all` d'un sous-agent a pu toucher des fichiers hors liste : vérifier le diff de #49.
+
+Équipiers actifs : AUCUN. Worktrees hors `main` : `../fragment-rs-shell` (task/fr-t1.5) et `C:/dev/fragment-rs-mesure-t15` (détaché, mesures de fr-t1.5).
+
+À remonter à l'orchestrateur avec la livraison de T1, en un seul message :
+- dette des maths (ADR-011) ;
+- §4 à corriger (`rex`, `typst-math`) ;
+- pertes de S6 (ADR-012 : iframe en carte-lien, CSS animé et `<style>` non joués, SMIL partiel, anticrénelage SVG, CSS hors sous-ensemble) ;
+- ADR-013 : forme du flou de Skia, plus l'échange de cliquets daté sur la modale et les palettes claires ;
+- exceptions nommées de fr-t1.5 : contour d'onglet actif, côtés au delta 1, coin de la barre d'état, trait de poignée.
+
+**Prochaine action exacte** (après le reset de 17:30 UTC) :
+1. Relancer fr-t1.5 (Opus, quatrième équipier) dans `../fragment-rs-shell`, `CARGO_TARGET_DIR=C:/dev/fragment-rs-target-shell`. Brief : lire d'abord les notes du bead ; les décisions déjà prises y sont, aucune nouvelle tolérance sans le chef ; arrêt à 250k tokens.
+2. Places restantes (5 au plus), selon `bd ready` : fr-t11-cascade (fragment-theme ; fr-t1.5 n'y ajoute que deux constantes en fin de theme.rs, à prévenir), fr-t3-blocs-modele, fr-t4-barre, fr-t4-pages, fr-t2-tree-item, fr-t3.2, fr-t3-scenes-a (une scène à la fois, verrou de capture).
+3. ★ Après chaque fusion : retirer le worktree ET `C:/dev/fragment-rs-target-<tâche>` (le disque était plein le 11/11).
+4. Livraison de T1 quand #49 est fusionnée et fr-t1-binaire fermée : lien de l'artefact `build.yml` de main, plus les points ci-dessus.
+**Part et rythme** : cible (97 − 36) ÷ 49 h ≈ 1,25 point par heure ; réel ≈ 2,5, en avance.
+**Clear** : contexte du chef à 300k. Battement annulé, orchestrateur prévenu, puis clear_session("self").
