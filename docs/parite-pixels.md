@@ -29,7 +29,7 @@ Comparer avec `git status` / `git diff --stat pixels/reference`. Un écart est �
 (fixture ou décor réécrits, mise à jour de Fragment : le commit de PROVENANCE.txt le montre).
 
 ## Dettes de parité : surfaces flottantes T1 (fr-t1.1)
-Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-horizontale,toolbar-sections}`, toujours en `"depuis": "T2"`.
+Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-sections}` en `"depuis": "T2"` ; `t1-toolbar-horizontale` à T1.
 Mesures CI du 10/11, de 0,12 % à 1,07 % de pixels différents (contre 0,5 à 4,3 % avant) ; la mise en page est
 désormais au pixel (arêtes du menu, séparateurs, bordures, hauteur de carte identiques).
 
@@ -54,6 +54,22 @@ garder le job vert. Ce qui échoue encore, par cause :
 
 Corrigé ici : la puce `kbd` de la palette, 20 px au lieu de 21 (interligne de 16,5 arrondi par GPUI), calée par
 `echelle::calees` ; le rectangle d'enregistrement des niveaux de menu (position statique d'un enfant absolu, 4 px de trop).
+
+**État au 11/11, après la reprise (#46, run CI 43011857108)** : catégorie bord d'arrondi et exception `--shadow-l` en place
+(chiffres dans ADR-009). 3 PNG sur 20 passent : `t1-toolbar-horizontale-{dark,light}` (scène repassée à T1) et
+`t1-notice-dark` (cliquet posé, scène en T2 faute du clair). Corrigé : notices empilées calées comme Chromium (carte à deux
+lignes de 55 px, 3e carte à 126 : 0 pixel hors tolérance en sombre), `↵` dessiné avec Cambria Math (repli de Chromium ;
+forme 0 % au lieu de 67 à 80 %), légende de la palette calée (écart ramené de +2/+3 px à −1/−2 px), aplats de fr-t1.4
+(ligne sélectionnée : 17 000 px hors tolérance à 0). Reste, par cause :
+- **Origine d'encre à 1 px (14 PNG)** : seuil de 10 % de couverture. GPUI cale le fût sur la grille (1,0 px net, couverture
+  1,0) quand Chromium l'étale (0,27 / 0,87 / 0,27, même centre) : la colonne de bord passe sous 10 % d'un seul côté. Ce n'est
+  pas un décalage ; c'est le garde-fou qui le lit ainsi. À trancher par l'orchestrateur (seuil, ou origine au barycentre).
+- **Ombres hors exception** : infobulle +0,22 à +0,24 px (petite boîte, 4 échantillons du shader), menu clair −0,19, notice
+  claire −0,16 (étalement, borne 0,08). Rasterizeur, phase 4.
+- **Coins clairs** : déplacement d'arc 0,20 à 0,25 px (borne 0,15) ; palette et modale claires : 60 px de delta > 6.
+- **Légende de la palette** : `↵` en gras synthétique chez Chromium (1 px d'avance et d'épaisseur en plus), absent de GPUI ;
+  `exécuter` à −2 px, `esc`/`fermer` à −1 px.
+- **Titre de la modale** et champ de la palette : origine à +1 px en y (interligne).
 
 **Corrigé (fr-t1.1)**
 - Lignes de menu de 29,5 px : GPUI arrondit les longueurs écrites AVANT la mise en page ; `echelle::calees` leur

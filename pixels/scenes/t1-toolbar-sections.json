@@ -1,5 +1,6 @@
 {
   "scene": "t1-toolbar-sections",
+  "depuis": "T2",
   "vue": "flottantes",
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
