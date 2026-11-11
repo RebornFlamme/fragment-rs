@@ -1,0 +1,11 @@
+# Parité de fr-t4-laterale-modele (fragment-pdf). Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. Tests e2e (Playwright) de Fragment traduits en tests du MODÈLE pur
+# (crates/fragment-pdf/tests/laterale.rs), même nom en snake_case.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfSidebar.ts (modes, vignettes virtualisées, arbre de la table, reveler, poignée), section barre latérale de pdf-view.css"
+rs = "crates/fragment-pdf/src/laterale/*.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 15
+notes = "Specs e2e pdf-toolbar (tests 7 à 12) traduites en modèle : barre sans DOM, mesures et peinture viennent de la vue (fr-t4-laterale-ui). Le test 7 (Page width) est porté pour sa part barre (zone utile) ; sa part zoom l'est déjà dans vue_modele.rs. Non portés (hors modèle) : peinture réelle des canvas, DevTools et redimensionnement de la fenêtre Electron (remplacés par le plafond de la moitié de la vue), scrollIntoView. Ajoutés : virtualisation et libération, défilement minimal, bornes de largeur, poignée (repeint au relâchement), format de page différent, chevron vs clic, entrée sans page, haut visé, reveler sans entrée, rechargement, état éphémère."
