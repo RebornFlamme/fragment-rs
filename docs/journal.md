@@ -382,3 +382,4 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - Dettes de #50 pour fr-p4.1 (prévenu) : cliquet `exceptions_t1` (ombres et arcs en clair) et le contournement `flottant::bordure_translucide` (GPUI arrondit l'opacité à l'octet). fr-t1.5 prévenue de rebaser.
   - `clippy --all-targets` de fragment-markdown échouerait sur `tests/spike_s1b.rs` d'après l'équipier de #51 (la CI passe) : à vérifier.
   - Lancées (Sonnet) : fr-t4-recherche-modele, fr-t4-laterale-modele, fr-t2-fs. Actifs : shell, alpha, recherche, laterale, fs.
+- Battement 11/11 13:33 UTC : fenêtre 5 h à 26 % (reset 17:30), semaine à 30 %. Rythme cible (97 − 30) ÷ 52,5 h ≈ 1,3 point par heure ; réel depuis 12:40 ≈ 4,5, en avance. PR #53, #54, #55 en CI ; #49 (fr-t1.5) en brouillon, équipier à 370k tokens prié de conclure et de passer la main. Cinq équipiers actifs, aucun lancement.
