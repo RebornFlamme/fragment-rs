@@ -70,6 +70,20 @@ const fn contour(png: &'static str) -> Exception {
     }
 }
 
+/// L'élément de l'arc du coin haut gauche de la barre d'état (quad GPUI de rayon `--radius-sm`,
+/// bordure haut et gauche), déclaré sans ombre par `fragment_ui::shell::barre_etat` : son nom EST la
+/// clé du cliquet.
+pub const COIN_BARRE_ETAT: &str = "coin de la barre d'état";
+
+const fn coin_barre(png: &'static str) -> Exception {
+    Exception {
+        png,
+        element: COIN_BARRE_ETAT,
+        jeton: "--tab-outline-color",
+        nature: Nature::Arcs,
+    }
+}
+
 /// La liste, À RETIRER PAR `fr-p4.1`. Valeurs mesurées : `pixels/cliquet.json`, `exceptions_t1`.
 pub const EXCEPTIONS: &[Exception] = &[
     // Ombres : étalement de +0,22 à +0,24 px (infobulle, petite boîte : 4 échantillons du shader),
@@ -148,6 +162,28 @@ pub const EXCEPTIONS: &[Exception] = &[
     contour("t1-zoom-150-light.png"),
     contour("t1-zoom-80-dark.png"),
     contour("t1-zoom-80-light.png"),
+    // Coin haut gauche de la barre d'état (décision du chef, fr-t1.5) : la diagonale de l'arc
+    // INTÉRIEUR du quad GPUI (r = --radius-sm, bordure 1) a 1 px de delta 9 à 11 en sombre, dans
+    // la bande de l'arc ; même cause (mélange alpha). Seule la bande de l'arc déclaré est levée.
+    coin_barre("t1-activation-fermeture-dark.png"),
+    coin_barre("t1-boutons-fenetre-dark.png"),
+    coin_barre("t1-dock-replie-dark.png"),
+    coin_barre("t1-docks-ouverts-dark.png"),
+    coin_barre("t1-entete-vue-dark.png"),
+    coin_barre("t1-fenetre-vide-dark.png"),
+    coin_barre("t1-glisser-depot-dark.png"),
+    coin_barre("t1-glisser-zone-dark.png"),
+    coin_barre("t1-menu-onglet-dark.png"),
+    coin_barre("t1-onglet-epingle-dark.png"),
+    coin_barre("t1-onglet-survol-dark.png"),
+    coin_barre("t1-onglets-dark.png"),
+    coin_barre("t1-pile-active-inactive-dark.png"),
+    coin_barre("t1-poignee-survol-dark.png"),
+    coin_barre("t1-split-horizontal-dark.png"),
+    coin_barre("t1-split-proportions-dark.png"),
+    coin_barre("t1-split-vertical-dark.png"),
+    coin_barre("t1-zoom-150-dark.png"),
+    coin_barre("t1-zoom-80-dark.png"),
 ];
 
 /// Les exceptions du PNG `png`.
@@ -196,9 +232,113 @@ pub fn pour_arrondi(
         .map(|e| e.element)
 }
 
+/// Le delta levé sur les CÔTÉS du contour de l'onglet actif (décision du chef, fr-t1.5) : en clair,
+/// Chromium passe lui-même de 221 à 222 au milieu du côté (artefact de Skia sur le chemin
+/// `updateTabOutline`) ; nos quads pré-composés restent à 221. Delta 1 SEULEMENT, en cliquet.
+pub const DELTA_COTES: u8 = 1;
+
+/// Les pixels des deux côtés droits du contour de l'onglet actif, déduits de la DÉCLARATION de son
+/// haut (boîte de bordure aux deux coins hauts, `element` = [`CONTOUR_ONGLET`]) : les colonnes que
+/// coupe le trait de gauche et celui de droite, des bas des arcs hauts (`y + r`) au bas de la boîte
+/// (`y + h`, les pieds ont leur propre rayon et leur bande passe avant). Vide pour toute autre
+/// déclaration.
+pub fn pixels_cotes(a: &ArrondiDeclare, largeur: u32, hauteur: u32) -> Vec<(u32, u32)> {
+    if a.element != CONTOUR_ONGLET || a.coins != [true, true, false, false] || a.bordure <= 0.0 {
+        return Vec::new();
+    }
+    let colonnes = |x0: f64| {
+        let (a0, a1) = (x0.floor().max(0.0), (x0 + a.bordure).ceil());
+        (a0 as u32)..(a1.max(a0) as u32).min(largeur)
+    };
+    let (y0, y1) = (
+        (a.y + a.rayon).ceil().max(0.0) as u32,
+        ((a.y + a.hauteur).floor().max(0.0) as u32).min(hauteur),
+    );
+    let mut v = Vec::new();
+    for x0 in [a.x, a.x + a.largeur - a.bordure] {
+        for x in colonnes(x0) {
+            v.extend((y0..y1).map(|y| (x, y)));
+        }
+    }
+    v
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn les_cotes_du_contour_sont_ses_colonnes_entre_les_arcs() {
+        let haut = ArrondiDeclare {
+            x: 35.5,
+            y: 5.5,
+            largeur: 101.0,
+            hauteur: 26.0,
+            rayon: 6.5,
+            bordure: 1.0,
+            coins: [true, true, false, false],
+            element: CONTOUR_ONGLET.to_owned(),
+        };
+        let p = pixels_cotes(&haut, 400, 40);
+        // Deux colonnes par côté (trait à cheval sur deux pixels), lignes 12 à 30.
+        assert!(p.contains(&(35, 12)) && p.contains(&(36, 30)));
+        assert!(p.contains(&(135, 12)) && p.contains(&(136, 30)));
+        assert!(!p.contains(&(37, 15)) && !p.contains(&(35, 11)) && !p.contains(&(35, 31)));
+        assert_eq!(p.len(), 4 * 19);
+        // Un pied, un arc anonyme ou d'un autre élément n'a pas de côté.
+        let pied = ArrondiDeclare {
+            coins: [false, false, false, true],
+            ..haut.clone()
+        };
+        assert!(pixels_cotes(&pied, 400, 40).is_empty());
+        let anonyme = ArrondiDeclare {
+            element: String::new(),
+            ..haut
+        };
+        assert!(pixels_cotes(&anonyme, 400, 40).is_empty());
+    }
+
+    /// Contre-épreuve des côtés : delta 1 levé (et compté), delta 2 ou trait décalé d'1 px échouent.
+    #[test]
+    fn un_cote_du_contour_a_delta_deux_echoue() {
+        let haut = ArrondiDeclare {
+            x: 9.5,
+            y: 1.5,
+            largeur: 21.0,
+            hauteur: 30.0,
+            rayon: 4.5,
+            bordure: 1.0,
+            coins: [true, true, false, false],
+            element: CONTOUR_ONGLET.to_owned(),
+        };
+        let peindre = |colonne: u32, v: u8| {
+            let mut img = image::RgbaImage::from_pixel(40, 40, image::Rgba([232, 232, 232, 255]));
+            for y in 10..20 {
+                img.put_pixel(colonne, y, image::Rgba([v, v, v, 255]));
+            }
+            img
+        };
+        let reference = peindre(10, 221);
+        let nommees = du_png("t1-onglets-light.png");
+        let juger = |c: &image::RgbaImage| {
+            crate::pixels::sas::comparer_tout(
+                &reference,
+                c,
+                &[],
+                &[],
+                std::slice::from_ref(&haut),
+                &nommees,
+            )
+            .unwrap()
+            .differents_hors
+        };
+        assert_eq!(juger(&peindre(10, 222)), 0);
+        assert!(juger(&peindre(10, 223)) > 0, "delta 2");
+        assert!(
+            juger(&peindre(11, 221)) > 0,
+            "côté décalé d'1 px hors des colonnes"
+        );
+    }
 
     #[test]
     fn chaque_exception_nomme_un_png_de_t1_et_un_element() {
@@ -206,10 +346,15 @@ mod tests {
             assert!(e.png.starts_with("t1-") && e.png.ends_with(".png"), "{e:?}");
             assert!(!e.element.is_empty() && e.jeton.starts_with("--"), "{e:?}");
         }
-        // Pas de doublon (png, nature) : un élément par nature et par PNG.
+        // Pas de doublon (png, élément) ; deux arcs nommés d'un même PNG sont des éléments distincts
+        // (contour d'onglet et coin de la barre d'état), une seule ombre par PNG.
         for (i, a) in EXCEPTIONS.iter().enumerate() {
             for b in &EXCEPTIONS[i + 1..] {
-                assert!(!(a.png == b.png && a.nature == b.nature), "{a:?} {b:?}");
+                assert!(!(a.png == b.png && a.element == b.element), "{a:?} {b:?}");
+                assert!(
+                    !(a.png == b.png && a.nature == Nature::Ombre && b.nature == Nature::Ombre),
+                    "{a:?} {b:?}"
+                );
             }
         }
     }
@@ -350,6 +495,101 @@ mod tests {
             juger(&coin_de_contour(cx, cy + 1.0, r, 0.0)) > 0,
             "centre + 1 en y"
         );
+    }
+
+    /// Le coin haut gauche de la barre d'état : une boîte d'origine (`x0`, `y0`), bordée de 1 px en
+    /// haut et à gauche, de rayon extérieur `r` (intérieur `r − 1`), sur-échantillonnée 16 × 16 ;
+    /// `biais` comme pour [`coin_de_contour`].
+    fn coin_de_barre(x0: f64, y0: f64, r: f64, biais: f64) -> image::RgbaImage {
+        let dans_arrondi = |x: f64, y: f64, ox: f64, oy: f64, r: f64| {
+            if x < ox || y < oy {
+                return false;
+            }
+            let (cx, cy) = (ox + r, oy + r);
+            x >= cx || y >= cy || (x - cx).hypot(y - cy) <= r
+        };
+        let mut img = image::RgbaImage::new(40, 40);
+        const N: u32 = 16;
+        for (x, y, p) in img.enumerate_pixels_mut() {
+            let (mut bord, mut fond) = (0u32, 0u32);
+            for i in 0..N {
+                for j in 0..N {
+                    let sx = f64::from(x) + (f64::from(i) + 0.5) / f64::from(N);
+                    let sy = f64::from(y) + (f64::from(j) + 0.5) / f64::from(N);
+                    if dans_arrondi(sx, sy, x0 + 1.0, y0 + 1.0, r - 1.0) {
+                        fond += 1;
+                    } else if dans_arrondi(sx, sy, x0, y0, r) {
+                        bord += 1;
+                    }
+                }
+            }
+            let biaiser = |c: f64| {
+                if c > 0.0 && c < 1.0 {
+                    (c + biais * (c - 0.5) * (1.0 - (2.0 * c - 1.0).abs())).clamp(0.0, 1.0)
+                } else {
+                    c
+                }
+            };
+            let total = f64::from(N * N);
+            let (b, f) = (biaiser(f64::from(bord) / total), f64::from(fond) / total);
+            let v = (14.0 + b * 38.0 + f * 16.0).round().min(255.0) as u8;
+            *p = image::Rgba([v, v, v, 255]);
+        }
+        img
+    }
+
+    /// Contre-épreuve de l'exception du coin de la barre d'état : un autre anticrénelage du même
+    /// arc est levé, un rayon ou une boîte décalés d'1 px échouent.
+    #[test]
+    fn le_coin_de_la_barre_d_etat_decale_d_un_pixel_echoue() {
+        let (x0, y0, r) = (10.0, 10.0, 6.0);
+        let declare = ArrondiDeclare {
+            x: x0,
+            y: y0,
+            largeur: 30.0,
+            hauteur: 30.0,
+            rayon: r,
+            bordure: 1.0,
+            coins: [true, false, false, false],
+            element: COIN_BARRE_ETAT.to_owned(),
+        };
+        let nommees = du_png("t1-onglets-dark.png");
+        let reference = coin_de_barre(x0, y0, r, 0.0);
+        let juger = |candidat: &image::RgbaImage| {
+            crate::pixels::sas::comparer_tout(
+                &reference,
+                candidat,
+                &[],
+                &[],
+                std::slice::from_ref(&declare),
+                &nommees,
+            )
+            .unwrap()
+            .differents_hors
+        };
+        assert_eq!(juger(&coin_de_barre(x0, y0, r, 0.8)), 0);
+        assert!(juger(&coin_de_barre(x0, y0, r + 1.0, 0.0)) > 0, "rayon + 1");
+        assert!(
+            juger(&coin_de_barre(x0 + 1.0, y0, r, 0.0)) > 0,
+            "boîte + 1 en x"
+        );
+        assert!(
+            juger(&coin_de_barre(x0, y0 + 1.0, r, 0.0)) > 0,
+            "boîte + 1 en y"
+        );
+        // Sans nom, le même coin reste dans la seule catégorie bord d'arrondi (delta ≤ 6).
+        assert_eq!(
+            pour_arrondi(
+                &nommees,
+                &ArrondiDeclare {
+                    element: String::new(),
+                    ..declare.clone()
+                },
+                &[]
+            ),
+            None
+        );
+        assert_eq!(pour_arrondi(&nommees, &declare, &[]), Some(COIN_BARRE_ETAT));
     }
 
     #[test]

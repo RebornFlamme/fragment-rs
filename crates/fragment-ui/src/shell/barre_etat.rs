@@ -15,7 +15,7 @@ use gpui_kit::{
 };
 
 use crate::echelle::u;
-use crate::flottant::{arrondir, texte};
+use crate::flottant::{arrondir_coins, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
@@ -72,12 +72,20 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
         .border_color(couleur(c.tab_outline_color))
         .text_color(couleur(c.text_muted))
         .children(items);
-    // Le coin haut-gauche, déclaré (catégorie bord d'arrondi d'ADR-009). ★ La déclaration de
-    // `arrondir` vaut pour les quatre coins : les trois autres, carrés, sont remis à zéro ensuite ;
-    // leurs bandes déclarées tombent hors de l'image (droite, bas) ou sur un coin sans écart.
-    arrondir(barre, cx, u(cx, f.radius_sm), trait_)
-        .rounded_tr(u(cx, 0.0))
-        .rounded_bl(u(cx, 0.0))
-        .rounded_br(u(cx, 0.0))
-        .into_any_element()
+    // Le coin haut-gauche, seul arrondi et seul déclaré (catégorie bord d'arrondi d'ADR-009), sous
+    // l'exception nommée « coin de la barre d'état » (arc intérieur du quad GPUI, delta 9 à 11 en
+    // sombre : mélange alpha, à retirer par fr-p4.1).
+    arrondir_coins(
+        barre,
+        cx,
+        u(cx, f.radius_sm),
+        trait_,
+        [true, false, false, false],
+        ELEMENT_COIN,
+    )
+    .into_any_element()
 }
+
+/// L'élément de l'exception nommée du coin (clé du cliquet, `xtask/src/pixels/exceptions.rs`,
+/// `COIN_BARRE_ETAT`).
+pub const ELEMENT_COIN: &str = "coin de la barre d'état";

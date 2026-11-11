@@ -646,6 +646,17 @@ pub fn comparer_tout(
             }
         }
     }
+    // Les côtés du contour de l'onglet actif, au delta ≤ 1 seulement (`exceptions::DELTA_COTES`).
+    let mut cote_nomme: Vec<Option<&'static str>> = vec![None; dans.len()];
+    for (a, element) in arrondis.iter().zip(&elements_arcs) {
+        let Some(element) = element else { continue };
+        for (x, y) in exceptions::pixels_cotes(a, largeur, hauteur) {
+            let i = (y * largeur + x) as usize;
+            if !dans[i] {
+                cote_nomme[i] = Some(element);
+            }
+        }
+    }
     let mut forts_nommes: std::collections::BTreeMap<&'static str, (u64, u8)> =
         std::collections::BTreeMap::new();
     let (mut differents_arrondi, mut delta_max_arrondi, mut forts_dans_bandes) = (0u64, 0u8, 0u64);
@@ -687,6 +698,12 @@ pub fn comparer_tout(
             e.0 += 1;
             e.1 = e.1.max(delta);
             // Magenta : exception nommée temporaire de T1, mesurée par le cliquet.
+            diff.put_pixel(x, y, Rgba([255, 0, 160, 255]));
+        } else if let Some(element) = cote_nomme[i].filter(|_| delta <= exceptions::DELTA_COTES) {
+            // Côté du contour de l'onglet actif, delta ≤ 1 : même élément, même cliquet.
+            let e = forts_nommes.entry(element).or_default();
+            e.0 += 1;
+            e.1 = e.1.max(delta);
             diff.put_pixel(x, y, Rgba([255, 0, 160, 255]));
         } else if exception[i] && !bande[i] {
             forts_exception += 1;
