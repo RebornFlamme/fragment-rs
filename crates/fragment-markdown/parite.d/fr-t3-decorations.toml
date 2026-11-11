@@ -1,0 +1,21 @@
+# Parité de fr-t3-decorations (fragment-markdown). Schéma `parite.d` : un fichier par tâche, fusionné
+# par `cargo xtask parite`. decorationPlugin.ts n'a pas de test unitaire côté TS : ses cas sont les
+# scénarios e2e d'editor-hell (listes, note ouverte, titres, inline, maths, lecture seule), rejoués sur
+# le MODÈLE (crates/fragment-markdown/tests/decorations.rs) : le `innerText` d'une ligne devient
+# `Decorations::texte_visible`.
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (buildFnMarkdownRenderer, curseurActif, revealAfterFirstFocus, revealOnFocusOnly, listLevel, isInsideCode) ; scénarios app/e2e/editor-hell.spec.ts"
+rs = "crates/fragment-markdown/src/decorations/mod.rs, calcul.rs, index_lignes.rs"
+cas_source = 14
+cas_portes = 14
+cas_ajoutes = 21
+notes = "Cas editor-hell portés : tâche sans texte en fin de ligne, cocher sans déplacer le texte, alignement sous-puce / case / texte, note ouverte (révélée au 1er focus), titres 1 à 6, les 7 inline (gras, italique, barré, surligné, code, lien interne, lien), maths en ligne, lecture seule. Ajoutés : cellule révélée au focus seulement (revealOnFocusOnly), règle touches, curseur_actif, zone active d'une tâche, puce et liste numérotée, barres d'indentation (colonnes, tabulations, pas dans le code), taille du texte, marque orpheline, alias de lien interne, URL d'autolien, bloc de code et badge, citation, séparateur, image du coffre / externe, positions UTF-16, viewport, sélection principale seule, 10 000 lignes (forme ; mesure #[ignore]) ; plus 3 tests unitaires (conversions, colonnes, decodeURIComponent). Hors module : blocs $$, embeds ![[…]], tableaux, Properties, HTML (StateField → blocs), repli et survol de la puce (blocs), rendu des widgets (fr-t3-widgets-inline), tooltip d'aperçu des maths. Image : la résolution dans le coffre (resolveLink + embedRegistry) est laissée à l'hôte."
+
+[[module]]
+ts = "app/src/ui/views/markdown/editor.css, embeds.css (styles du live preview)"
+rs = "crates/fragment-markdown/src/decorations/styles.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Styles des marques et des lignes en NOMS de jetons (vérifiés contre Palette/Forme/Typo de fragment-theme) et en em : tailles des titres, interligne 1,25, code 0,9 em, cellule d'indentation 1,6 em."

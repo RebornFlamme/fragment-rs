@@ -2935,6 +2935,7 @@ version = "0.0.1"
 dependencies = [
  "fragment-core",
  "fragment-text",
+ "fragment-theme",
  "gpui-kit",
  "regex",
  "serde_json",
