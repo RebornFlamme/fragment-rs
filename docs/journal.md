@@ -215,3 +215,14 @@ Battement recréé toutes les 2 h (CronCreate, à la minute 17).
 - fr-t1-reglages si la part du jour le permet, sinon le 12/11 ;
 - fr-t1.3 après fr-t1.2 ;
 - reprise de fr-t1.1.
+
+## Vague 7 (sas fusionné) — 11/11/2026 09:00 UTC — usage 5h 10 % / semaine 16 %
+Tâches fermées : fr-t1.2 (#31, CI verte avec les 7 jobs, audit à 0, 44 tests xtask ; 249k tokens). En cours : fr-t1-onglets et fr-t1.3 (équipier local Sonnet, worktree `../fragment-rs-largeur`, target `C:/dev/fragment-rs-target-largeur`, fichiers `polices.rs` et `echelle.rs` sans changer leur API). Bloqué : rien.
+**Part fixe** : la semaine reste à 16 % ; le sas a coûté moins d'un point. 11/11 : environ 1 sur 8.
+Sas livré : chiffres dans ADR-009. Deux écarts avec la décision :
+- Les boîtes sont DÉDUITES de l'image candidate (traits droits ≥ 24 px exclus comme géométrie), car GPUI ne laisse pas lire les glyphes peints. L'export exact demanderait un crochet dans `fragment-ui`, format prêt.
+- Une lettre changée dans du texte réel de 13 px n'est vue que deux fois sur trois.
+Mesure (palette et modale, avant #30) : aucune scène ne passe. Plus de 99 % des pixels hors boîte ont un delta ≤ 2, et c'est l'ombre.
+Décisions du chef : fusion acceptée, l'outil ne relâche rien hors boîte. `program.md` §5 (anciens seuils) n'est pas aligné : texte de l'orchestrateur, signalé.
+À trancher par l'orchestrateur (envoyé) : une catégorie « ombre » (ADR) ; l'acceptation des boîtes déduites ; l'alignement de §5.
+**Prochaine action exacte.** Aux comptes rendus d'onglets et de largeur : revue habituelle. Puis fr-t1-reglages, le 12/11 si la part du jour est prise. fr-t1.1 reprend après la réponse sur l'ombre.
