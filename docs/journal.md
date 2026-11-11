@@ -561,3 +561,33 @@ Livraison de T1 quand #49 est fusionnée.
   - Lancée : fr-t4-raster (spike S7, Opus, `../fragment-rs-raster`). ★ ADR-013 est déjà pris (ombres) : S7 écrira ADR-014.
   - fr-t11-reglages est en attente : elle partagerait `reglages/` avec fr-t1.5.
   - Actifs : shell5, surface, laterale, rechercheui, raster.
+
+## Pause — 11/11/2026 19:32 UTC — usage 5h 58 % (reset 22:30) / semaine 44 %
+Pause décidée par l'utilisateur (« j'ai besoin de crédits ce soir »), transmise par l'orchestrateur. Reprise sur son seul message.
+- Battement 1b9dfc9f annulé ; CronList vide.
+- Équipiers : AUCUN actif. Les 5 ont été arrêtés à un point propre, travail poussé, notes ajoutées aux beads par `--append-notes`, aucune fusion.
+- Bilan de la vague 10 : fusionnées #63, #64, #65, #66, #67, #68, #69, #71, #72.
+
+**État des tâches ouvertes** (worktrees conservés, beads in_progress) :
+- **fr-t1.5**, #49 en brouillon, tête dc721f6, `../fragment-rs-shell` :
+  - 24 PNG sur 42 verts en CI (run 43083575167), run 43086926887 (dc721f6) non lu ;
+  - deux demandes à trancher :
+    - (a) t1-boutons-fenetre sombre : « N » coupé en ClearType, teinte 0,9950 contre une borne de 0,995 ;
+    - (b) t1-menu-onglet clair : l'étalement −0,08 px échoue en CI, contrairement à ce que [D] supposait.
+- **fr-t2-explorateur**, #73 PRÊTE (20 tests, audit à 0), `../fragment-rs-explorateur` : 6 jobs sur 7 verts, test-windows en cours. Non fusionnée, à cause de la pause.
+- **fr-t3-surface**, #70 en brouillon, `../fragment-rs-surface` : 6 jobs sur 7 verts, test-windows (11 tests, temps sur 10 000 lignes) non lu.
+  - Dettes : le fork ne permet ni police ni taille par plage (code en ligne pas en chasse fixe) ; le document entier est reprojeté à chaque changement.
+- **fr-t4-laterale-ui**, #74 en brouillon, `../fragment-rs-laterale` : `cargo check` passe ; tests, clippy et audit jamais lancés.
+  - ★ Elle a modifié `tree_item/rendu.rs`, hors de sa liste (`Ligne::flair`, `Ligne::sur_chevron`) : à relire.
+- **fr-t4-recherche-ui**, #75 en brouillon, `../fragment-rs-rechercheui` : la dernière correction n'a pas été compilée ; 8 tests jamais lancés.
+  - Elle demande les jetons `pdf_find_bg` et `pdf_find_bg_current`.
+- **fr-t4-raster** (S7), aucun commit, `../fragment-rs-raster` : plan dans le bead ; ADR-014 et non 013.
+  - ★ Point à vérifier sur main : `Document::rendre_region` pourrait sortir le rouge et le bleu inversés (inversion BGRA par défaut de pdfium-render puis échange 0↔2), les tests ne vérifiant que le noir et le blanc.
+
+**Prochaine action exacte** (à la reprise, sur message de l'orchestrateur) :
+1. get_usage, puis reposer le battement (CronCreate, minute 17) et le vérifier par CronList.
+2. #73 : si la CI est verte, fusionner, `bd close`, retirer le worktree et le dossier cible.
+3. Trancher (a) et (b) de fr-t1.5, puis relancer un équipier Opus neuf (le 6e) sur #49. Lui faire d'abord lire le run 43086926887.
+4. Relancer des équipiers neufs sur #70, #74, #75 et S7, selon leurs notes. Créer le bead des jetons de recherche PDF, et un bead bug pour l'inversion rouge/bleu s'il se confirme.
+5. Livraison de T1 à la fusion de #49 : artefact de `build.yml` et dettes listées en vague 9.
+**Part et rythme** : (97 − 44) ÷ 46,4 h ≈ 1,15 point par heure à la reprise.
