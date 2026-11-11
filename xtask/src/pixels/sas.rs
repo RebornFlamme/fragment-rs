@@ -5,8 +5,13 @@
 //! garde-fous, mesurés sur la référence ET le candidat :
 //! 1. **encre totale** : la couverture cumulée (distance au fond, normalisée par le contraste de
 //!    la référence) reste à [`ECART_ENCRE`] près ;
-//! 2. **boîte d'encre** : l'origine est strictement la même, le bord droit et le bord bas sont à
-//!    ±1 px (la largeur à ±1 px est la dette T1 `fr-t1.3`) ;
+//! 2. **position** (amendement du 11/11, 12:00) : le BARYCENTRE de l'encre du passage est à
+//!    ±[`ECART_BARYCENTRE`] px de celui de la référence, en x ET en y ; un passage d'au moins
+//!    [`LONGUEUR_MOITIES`] px d'encre est aussi mesuré par moitié gauche et moitié droite (un côté
+//!    décalé ne se compense pas de l'autre). Les quatre bords de la boîte d'encre restent à ±1 px (la
+//!    largeur à ±1 px est la dette T1 `fr-t1.3`). ★ Le bord à 10 % de couverture ne sert plus
+//!    d'origine : GPUI cale un fût sur la grille (1,0 px net) quand Chromium l'étale (0,27 / 0,87 /
+//!    0,27, même centre), la colonne de bord passait sous le seuil d'un seul côté ;
 //! 3. **forme** : mot par mot, les pixels de cœur d'un trait (couverture ≥ [`COEUR`]) trouvent un trait
 //!    (≥ [`PRESENCE`]) au même endroit de l'autre image, au meilleur décalage de ±[`DECALAGE`] px
 //!    (±[`DECALAGE_V`] en hauteur) ; la part d'orphelins reste sous [`ECART_FORME`]. Des traits plus
@@ -20,6 +25,7 @@ use image::{Rgba, RgbaImage};
 
 use super::arrondis::{self, ResultatArrondi};
 use super::boites::{ArrondiDeclare, BoiteEncre, Categorie, OmbreDeclaree};
+use super::exceptions::{self, Exception};
 use super::ombres::{self, ResultatOmbre};
 use super::{Boite, Verdict, zones_connexes};
 
@@ -49,8 +55,18 @@ pub const ESPACE_MOT: i64 = 2;
 pub const TEINTE_MIN: f64 = 0.995;
 /// Couverture à partir de laquelle un pixel fait partie de la boîte d'encre.
 pub const SEUIL_ENCRE: f64 = 0.10;
-/// Écart maximal (px) d'un bord d'encre autre que l'origine.
+/// Écart maximal (px) d'un bord de la boîte d'encre.
 pub const ECART_BORD: u32 = 1;
+/// Écart maximal (px) du barycentre de l'encre, en x et en y (ADR-009, amendement de 12:00).
+pub const ECART_BARYCENTRE: f64 = 0.5;
+/// Largeur d'encre (px) à partir de laquelle un passage est aussi mesuré par moitié. ★ Choisie sur
+/// les 20 PNG de T1 : une moitié doit porter au moins deux glyphes de 13 px (≈ 7 px d'avance
+/// chacun), sinon la masse d'un glyphe coupé par le milieu fait bouger le barycentre de la moitié
+/// sans qu'aucun trait ne se déplace. Mesure : voir `docs/parite-pixels.md`.
+pub const LONGUEUR_MOITIES: u32 = 28;
+/// Couverture de colonne qui fait le coeur d'un glyphe, pour découper un passage en glyphes : sous
+/// ce seuil des deux côtés, la colonne est un creux entre deux lettres (franges d'anticrénelage).
+pub const COUPURE: f64 = 0.4;
 
 /// Rectangle de pixels, bords inclus : (x0, y0, x1, y1).
 type Rect = (u32, u32, u32, u32);
@@ -219,6 +235,8 @@ pub struct ResultatBoite {
     pub ecart_forme: f64,
     /// Cosinus des teintes.
     pub teinte: f64,
+    /// Écarts (candidat moins référence) des barycentres d'encre : (partie, x, y).
+    pub barycentres: Vec<(&'static str, f64, f64)>,
     /// Écart (candidat moins référence) des bords d'encre : x0, y0, x1, y1.
     pub ecart_bords: Option<[i64; 4]>,
     /// La largeur d'encre diffère d'un pixel (dette T1, `fr-t1.3`).
@@ -234,8 +252,14 @@ impl ResultatBoite {
             || "—".to_owned(),
             |e| format!("{:+},{:+},{:+},{:+}", e[0], e[1], e[2], e[3]),
         );
+        let barycentres = self
+            .barycentres
+            .iter()
+            .map(|(p, x, y)| format!("{p} {x:+.2},{y:+.2}"))
+            .collect::<Vec<_>>()
+            .join(" ; ");
         format!(
-            "encre {:+.1} %, forme {:.1} %, teinte {:.4}, bords {bords}",
+            "encre {:+.1} %, forme {:.1} %, teinte {:.4}, bords {bords}, barycentres {barycentres}",
             100.0 * self.ecart_encre,
             100.0 * self.ecart_forme,
             self.teinte
@@ -245,6 +269,102 @@ impl ResultatBoite {
     pub fn ok(&self) -> bool {
         self.violations.is_empty()
     }
+}
+
+/// Barycentre (x, y) de la couverture de `m` sur les colonnes `[xa, xb]` de sa région, en px depuis
+/// son coin haut gauche ; `None` sans encre.
+fn barycentre(m: &Mesure, xa: u32, xb: u32) -> Option<(f64, f64)> {
+    let l = m.largeur as usize;
+    let (mut masse, mut sx, mut sy) = (0.0, 0.0, 0.0);
+    for (i, &c) in m.couverture.iter().enumerate() {
+        let (x, y) = ((i % l) as u32, (i / l) as u32);
+        if x < xa || x > xb {
+            continue;
+        }
+        masse += c;
+        sx += c * f64::from(x);
+        sy += c * f64::from(y);
+    }
+    (masse > 0.0).then(|| (sx / masse, sy / masse))
+}
+
+/// Les glyphes d'un passage, en colonnes `[a, b]` de la région. Coeurs : suites de colonnes où
+/// l'une OU l'autre image atteint [`COUPURE`] de couverture ; chaque creux entre deux coeurs est
+/// partagé en son milieu (la colonne du milieu d'un creux impair, frange commune aux deux glyphes,
+/// n'est à aucun), et les bords de la région vont au premier et au dernier glyphe. La même découpe
+/// sert aux deux images.
+fn glyphes(rf: &Mesure, cd: &Mesure) -> Vec<(u32, u32)> {
+    let l = rf.largeur as usize;
+    let h = rf.couverture.len() / l.max(1);
+    let plein = |x: usize| {
+        (0..h).any(|y| rf.couverture[y * l + x] >= COUPURE || cd.couverture[y * l + x] >= COUPURE)
+    };
+    let mut coeurs: Vec<(u32, u32)> = Vec::new();
+    for x in (0..l).filter(|&x| plein(x)) {
+        let x = x as u32;
+        match coeurs.last_mut() {
+            Some(s) if x == s.1 + 1 => s.1 = x,
+            _ => coeurs.push((x, x)),
+        }
+    }
+    let mut glyphes = coeurs.clone();
+    for k in 0..coeurs.len().saturating_sub(1) {
+        let (fin, debut) = (coeurs[k].1, coeurs[k + 1].0);
+        let creux = debut - fin - 1;
+        glyphes[k].1 = fin + creux / 2;
+        glyphes[k + 1].0 = debut - creux / 2;
+    }
+    if let Some(g) = glyphes.first_mut() {
+        g.0 = 0;
+    }
+    if let Some(g) = glyphes.last_mut() {
+        g.1 = (l as u32).saturating_sub(1);
+    }
+    glyphes
+}
+
+/// Écarts (candidat moins référence) du barycentre de l'encre : le passage entier puis, s'il est
+/// assez long, sa moitié gauche et sa moitié droite. Chaque entrée : (partie, écart en x, écart en y).
+///
+/// ★ Le barycentre se prend glyphe par glyphe (voir [`glyphes`]) puis se moyenne, pondéré par la
+/// largeur du coeur du glyphe. Un barycentre unique sur tout le passage lisait la RÉPARTITION de l'encre, pas
+/// la position : sur 413 px, des traits de GPUI plus fins de 10 % à gauche qu'à droite déplaçaient
+/// le barycentre de −0,9 px, alors que chaque moitié restait à ±0,2 px (run 43011857108). Un glyphe
+/// est symétrique sous le calage de GPUI (fût net contre fût étalé, même centre) : son barycentre ne
+/// bouge pas ; un glyphe déplacé d'1 px, si.
+fn ecarts_barycentres(rf: &Mesure, cd: &Mesure) -> Vec<(&'static str, f64, f64)> {
+    let decalages: Vec<(f64, f64, f64, f64)> = glyphes(rf, cd)
+        .into_iter()
+        .filter_map(|(a, b)| {
+            let (r, c) = (barycentre(rf, a, b)?, barycentre(cd, a, b)?);
+            Some((
+                f64::from(a + b) / 2.0,
+                f64::from(b - a + 1),
+                c.0 - r.0,
+                c.1 - r.1,
+            ))
+        })
+        .collect();
+    let moyenne = |nom: &'static str, garde: &dyn Fn(f64) -> bool| {
+        let (mut poids, mut dx, mut dy) = (0.0, 0.0, 0.0);
+        for &(_, largeur, x, y) in decalages.iter().filter(|d| garde(d.0)) {
+            poids += largeur;
+            dx += largeur * x;
+            dy += largeur * y;
+        }
+        (poids > 0.0).then(|| (nom, dx / poids, dy / poids))
+    };
+    let mut parties: Vec<_> = moyenne("passage", &|_| true).into_iter().collect();
+    let longueur = rf.boite.map_or(0, |b| b.2 - b.0 + 1);
+    if let (Some(&(premier, ..)), Some(&(dernier, ..))) = (decalages.first(), decalages.last())
+        && longueur >= LONGUEUR_MOITIES
+        && dernier > premier
+    {
+        let milieu = (premier + dernier) / 2.0;
+        parties.extend(moyenne("moitié gauche", &|c| c <= milieu));
+        parties.extend(moyenne("moitié droite", &|c| c > milieu));
+    }
+    parties
 }
 
 fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
@@ -283,18 +403,10 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
                 i64::from(c.2) - i64::from(r.2),
                 i64::from(c.3) - i64::from(r.3),
             ];
-            if e[0] != 0 || e[1] != 0 {
+            if e.iter().any(|v| v.unsigned_abs() > u64::from(ECART_BORD)) {
                 violations.push(format!(
-                    "origine de la boîte d'encre décalée de ({}, {}) px (strict)",
-                    e[0], e[1]
-                ));
-            }
-            if e[2].unsigned_abs() > u64::from(ECART_BORD)
-                || e[3].unsigned_abs() > u64::from(ECART_BORD)
-            {
-                violations.push(format!(
-                    "boîte d'encre : bord droit {:+}, bord bas {:+} px (borne ±{ECART_BORD})",
-                    e[2], e[3]
+                    "boîte d'encre : bords gauche {:+}, haut {:+}, droit {:+}, bas {:+} px (borne ±{ECART_BORD})",
+                    e[0], e[1], e[2], e[3]
                 ));
             }
             (Some(e), e[2] != 0)
@@ -305,8 +417,17 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
             (None, false)
         }
     };
+    let barycentres = ecarts_barycentres(rf, cd);
+    for &(partie, dx, dy) in &barycentres {
+        if dx.abs() > ECART_BARYCENTRE || dy.abs() > ECART_BARYCENTRE {
+            violations.push(format!(
+                "origine : barycentre ({partie}) décalé de ({dx:+.2}, {dy:+.2}) px (borne ±{ECART_BARYCENTRE})"
+            ));
+        }
+    }
     ResultatBoite {
         boite: *b,
+        barycentres,
         differents: 0,
         delta_max: 0,
         ecart_encre,
@@ -353,6 +474,10 @@ pub struct Sas {
     pub aire_bandes: u64,
     pub forts_dans_bandes: u64,
     pub arrondis: Vec<ResultatArrondi>,
+    /// Les exceptions nommées temporaires de T1 (à retirer par `fr-p4.1`) : par élément, ses
+    /// mesures en valeur absolue (clés du cliquet).
+    pub nommees:
+        std::collections::BTreeMap<&'static str, std::collections::BTreeMap<&'static str, f64>>,
     pub verdict: Verdict,
     pub diff: RgbaImage,
 }
@@ -410,6 +535,34 @@ impl Sas {
         })
     }
 
+    /// Le pire écart absolu des barycentres d'encre, en x et en y, et où se trouve le pire des deux.
+    pub fn pire_barycentre(&self) -> Option<(f64, f64, String)> {
+        let mut pire: Option<(f64, f64, String, f64)> = None;
+        for b in &self.boites {
+            for &(partie, dx, dy) in &b.barycentres {
+                let (x, y, ou, m) = pire.take().unwrap_or((0.0, 0.0, String::new(), -1.0));
+                let (x, y) = (x.max(dx.abs()), y.max(dy.abs()));
+                let ici = dx.abs().max(dy.abs());
+                pire = Some(if ici > m {
+                    (
+                        x,
+                        y,
+                        format!(
+                            "{} ({},{}), {partie}",
+                            b.boite.categorie.nom(),
+                            b.boite.x,
+                            b.boite.y
+                        ),
+                        ici,
+                    )
+                } else {
+                    (x, y, ou, m)
+                });
+            }
+        }
+        pire.map(|(x, y, ou, _)| (x, y, ou))
+    }
+
     pub fn dettes_largeur(&self) -> usize {
         self.boites.iter().filter(|b| b.dette_largeur).count()
     }
@@ -423,17 +576,18 @@ pub fn comparer(
     boites: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
 ) -> anyhow::Result<Sas> {
-    comparer_tout(reference, candidat, boites, ombres, &[])
+    comparer_tout(reference, candidat, boites, ombres, &[], &[])
 }
 
 /// Compare `reference` et `candidat` avec les `boites`, les `ombres` et les `arrondis` déclarés par
-/// le candidat.
+/// le candidat, sous les exceptions nommées `nommees` du PNG (`exceptions::du_png`).
 pub fn comparer_tout(
     reference: &RgbaImage,
     candidat: &RgbaImage,
     boites: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
     arrondis: &[ArrondiDeclare],
+    nommees: &[&'static Exception],
 ) -> anyhow::Result<Sas> {
     if reference.dimensions() != candidat.dimensions() {
         anyhow::bail!(
@@ -475,6 +629,25 @@ pub fn comparer_tout(
         .map(|(&b, &d)| b && !d)
         .collect();
     let aire_bandes = bande.iter().filter(|&&b| b).count() as u64;
+    // Les bandes des arcs d'une exception nommée (à retirer par fr-p4.1) : l'élément de chaque pixel.
+    let elements_arcs: Vec<Option<&'static str>> = arrondis
+        .iter()
+        .map(|a| exceptions::pour_arrondi(nommees, a, ombres))
+        .collect();
+    let mut bande_nommee: Vec<Option<&'static str>> = vec![None; dans.len()];
+    for (a, element) in arrondis.iter().zip(&elements_arcs) {
+        let Some(element) = element else { continue };
+        for arc in arrondis::arcs(a) {
+            for (x, y) in arrondis::pixels_bande(&arc, largeur, hauteur) {
+                let i = (y * largeur + x) as usize;
+                if !dans[i] {
+                    bande_nommee[i] = Some(element);
+                }
+            }
+        }
+    }
+    let mut forts_nommes: std::collections::BTreeMap<&'static str, (u64, u8)> =
+        std::collections::BTreeMap::new();
     let (mut differents_arrondi, mut delta_max_arrondi, mut forts_dans_bandes) = (0u64, 0u8, 0u64);
     let (mut forts_exception, mut delta_max_exception) = (0u64, 0u8);
     let (mut differents_ombre, mut delta_max_ombre, mut forts_dans_halos) = (0u64, 0u8, 0u64);
@@ -509,6 +682,12 @@ pub fn comparer_tout(
             delta_max_ombre = delta_max_ombre.max(delta);
             // Bleu : écart toléré dans un halo d'ombre.
             diff.put_pixel(x, y, Rgba([0, 140, 255, 255]));
+        } else if let Some(element) = bande_nommee[i] {
+            let e = forts_nommes.entry(element).or_default();
+            e.0 += 1;
+            e.1 = e.1.max(delta);
+            // Magenta : exception nommée temporaire de T1, mesurée par le cliquet.
+            diff.put_pixel(x, y, Rgba([255, 0, 160, 255]));
         } else if exception[i] && !bande[i] {
             forts_exception += 1;
             delta_max_exception = delta_max_exception.max(delta);
@@ -564,12 +743,49 @@ pub fn comparer_tout(
         .collect();
     let resultats_ombres: Vec<ResultatOmbre> = ombres
         .iter()
-        .map(|o| ombres::juger(reference, candidat, o, &halo, &exclus))
+        .map(|o| {
+            let mut r = ombres::juger(reference, candidat, o, &halo, &exclus);
+            r.nommee = exceptions::pour_ombre(nommees, o);
+            r
+        })
         .collect();
     let resultats_arrondis: Vec<ResultatArrondi> = arrondis
         .iter()
-        .map(|a| arrondis::juger(reference, candidat, a, &dans))
+        .zip(&elements_arcs)
+        .map(|(a, element)| {
+            let mut r = arrondis::juger(reference, candidat, a, &dans);
+            r.nommee = *element;
+            r
+        })
         .collect();
+    // Les mesures des exceptions nommées, en valeur absolue : le pire de chaque élément.
+    let mut mesures_nommees: std::collections::BTreeMap<
+        &'static str,
+        std::collections::BTreeMap<&'static str, f64>,
+    > = std::collections::BTreeMap::new();
+    let mut garder = |element: &'static str, cle: &'static str, v: f64| {
+        let e = mesures_nommees
+            .entry(element)
+            .or_default()
+            .entry(cle)
+            .or_insert(0.0);
+        *e = e.max(v.abs());
+    };
+    for o in &resultats_ombres {
+        if let Some(element) = o.nommee {
+            garder(element, "etalement", o.gardes.etalement);
+            garder(element, "encre", o.gardes.encre);
+            garder(element, "glissement", o.gardes.glissement);
+        }
+    }
+    for a in &resultats_arrondis {
+        if let Some(element) = a.nommee {
+            let (forts, delta) = forts_nommes.get(element).copied().unwrap_or_default();
+            garder(element, "deplacement", a.pire_aire());
+            garder(element, "forts", forts as f64);
+            garder(element, "delta_max", f64::from(delta));
+        }
+    }
     let gardes = resultats.iter().all(ResultatBoite::ok)
         && resultats_ombres.iter().all(|o| o.ok())
         && resultats_arrondis.iter().all(ResultatArrondi::ok);
@@ -607,6 +823,7 @@ pub fn comparer_tout(
         aire_bandes,
         forts_dans_bandes,
         arrondis: resultats_arrondis,
+        nommees: mesures_nommees,
         verdict,
         diff,
     })
@@ -662,10 +879,24 @@ pub(super) mod tests {
         encre: [u8; 3],
         decalage_fin: u32,
     ) -> RgbaImage {
+        let n = texte.chars().count();
+        let decalages: Vec<i64> = (0..n)
+            .map(|i| {
+                if i + 1 == n {
+                    i64::from(decalage_fin)
+                } else {
+                    0
+                }
+            })
+            .collect();
+        ligne_decalee(texte, couverture, encre, &decalages)
+    }
+
+    /// Comme [`ligne`], chaque lettre poussée de `decalages[i]` px en x.
+    fn ligne_decalee(texte: &str, couverture: f64, encre: [u8; 3], decalages: &[i64]) -> RgbaImage {
         let mut img = RgbaImage::from_pixel(160, 60, Rgba([FOND[0], FOND[1], FOND[2], 255]));
-        let dernier = texte.chars().count() - 1;
         for (i, c) in texte.chars().enumerate() {
-            let gx = 20 + 14 * i as u32 + if i == dernier { decalage_fin } else { 0 };
+            let gx = (20 + 14 * i as i64 + decalages[i]) as u32;
             for (r, rangee) in glyphe(c).iter().enumerate() {
                 for (k, point) in rangee.chars().enumerate() {
                     if point != '#' {
@@ -765,6 +996,106 @@ pub(super) mod tests {
         let s = sas(&r, &c);
         assert_eq!(s.verdict, Verdict::Echec);
         assert!(motifs(&s).contains("origine"), "{}", motifs(&s));
+    }
+
+    /// ★ CONTRE-ÉPREUVE (ADR-009, amendement de 12:00) : un passage déplacé d'1 px en x échoue par
+    /// son barycentre, alors que ses quatre bords d'encre restent dans le ±1 px.
+    #[test]
+    fn un_passage_decale_d_un_pixel_en_x_fait_echouer() {
+        let r = ligne("panneau", 1.0, ENCRE, 0);
+        let c = ligne_decalee("panneau", 1.0, ENCRE, &[1; 7]);
+        let s = sas(&r, &c);
+        assert_eq!(s.verdict, Verdict::Echec);
+        let m = motifs(&s);
+        assert!(m.contains("barycentre (passage)"), "{m}");
+        assert!(!m.contains("boîte d'encre"), "{m}");
+    }
+
+    /// Un côté poussé à gauche, l'autre à droite : le barycentre du passage ne bouge presque pas,
+    /// ceux des moitiés bougent d'un pixel.
+    #[test]
+    fn une_moitie_decalee_ne_se_compense_pas_de_l_autre() {
+        let r = ligne("panneau", 1.0, ENCRE, 0);
+        let c = ligne_decalee("panneau", 1.0, ENCRE, &[-1, -1, -1, 0, 1, 1, 1]);
+        let s = sas(&r, &c);
+        assert_eq!(s.verdict, Verdict::Echec);
+        let m = motifs(&s);
+        assert!(
+            m.contains("moitié gauche") && m.contains("moitié droite"),
+            "{m}"
+        );
+        assert!(!m.contains("(passage)"), "{m}");
+    }
+
+    /// Le calage des fûts de GPUI : un trait net d'1 px (couverture 1,0) contre le même trait étalé
+    /// par Chromium (0,15 / 0,7 / 0,15, même centre). Le bord à 10 % recule d'une colonne d'un seul
+    /// côté ; le barycentre, lui, ne bouge pas : toléré.
+    #[test]
+    fn un_fut_cale_sur_la_grille_est_tolere() {
+        let c = ligne("panneau", 1.0, ENCRE, 0);
+        let mut r = c.clone();
+        let (l, h) = c.dimensions();
+        for y in 0..h {
+            for x in 1..l - 1 {
+                let couv = |x: u32| {
+                    let p = c.get_pixel(x, y).0[0];
+                    (f64::from(p) - f64::from(FOND[0])) / (f64::from(ENCRE[0]) - f64::from(FOND[0]))
+                };
+                let v = 0.15 * couv(x - 1) + 0.7 * couv(x) + 0.15 * couv(x + 1);
+                let mut pixel = [255u8; 4];
+                for canal in 0..3 {
+                    let (f, e) = (f64::from(FOND[canal]), f64::from(ENCRE[canal]));
+                    pixel[canal] = (f + v * (e - f)).round() as u8;
+                }
+                r.put_pixel(x, y, Rgba(pixel));
+            }
+        }
+        let s = sas(&r, &c);
+        assert_eq!(s.verdict, Verdict::Tolere, "{}", motifs(&s));
+        let bords = s.boites[0].ecart_bords.unwrap();
+        assert_eq!(
+            bords[0], 1,
+            "le bord à 10 % recule d'une colonne : {bords:?}"
+        );
+    }
+
+    /// ★ CONTRE-ÉPREUVE sur une vraie capture : dans la référence de `t1-menu-dark`, chaque passage
+    /// de texte déplacé d'1 px (à droite, puis en bas) fait échouer son barycentre ; les autres
+    /// passages, intacts, restent stricts.
+    #[test]
+    fn un_passage_de_la_reference_deplace_d_un_pixel_fait_echouer() {
+        let chemin = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../pixels/reference/t1-menu-dark.png");
+        let r = image::open(chemin)
+            .map(|i| i.to_rgba8())
+            .unwrap_or_else(|e| panic!("référence illisible : {e}"));
+        let boites = detecter(&r);
+        let textes: Vec<&BoiteEncre> = boites
+            .iter()
+            .filter(|b| b.categorie == Categorie::Texte)
+            .collect();
+        assert!(textes.len() >= 5, "{boites:?}");
+        for b in textes {
+            for (dx, dy) in [(1u32, 0u32), (0, 1)] {
+                let mut c = r.clone();
+                let (x0, y0, x1, y1) = rect(b, PAD_MESURE, r.width(), r.height());
+                for y in (y0..=y1).rev() {
+                    for x in (x0..=x1).rev() {
+                        let source = *r.get_pixel(x - dx, y - dy);
+                        c.put_pixel(x, y, source);
+                    }
+                }
+                let s = comparer(&r, &c, &boites, &[]).unwrap();
+                assert_eq!(s.verdict, Verdict::Echec, "{b:?} poussé de ({dx}, {dy})");
+                let fautive = s.boites.iter().find(|x| x.boite == *b).unwrap();
+                let m = fautive.violations.join(" ; ");
+                assert!(
+                    m.contains("barycentre (passage)"),
+                    "{b:?} ({dx}, {dy}) : {m}"
+                );
+                assert!(!m.contains("boîte d'encre"), "{b:?} ({dx}, {dy}) : {m}");
+            }
+        }
     }
 
     #[test]

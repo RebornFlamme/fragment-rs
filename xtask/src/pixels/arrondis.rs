@@ -182,6 +182,9 @@ pub struct ResultatArrondi {
     pub arrondi: ArrondiDeclare,
     pub arcs: Vec<MesureArc>,
     pub violations: Vec<String>,
+    /// L'élément d'une exception nommée temporaire de T1 (`exceptions`, à retirer par `fr-p4.1`) :
+    /// ses violations ne bloquent pas, ses mesures font cliquet.
+    pub nommee: Option<&'static str>,
 }
 
 pub const NOMS_COINS: [&str; 4] = ["haut gauche", "haut droit", "bas gauche", "bas droit"];
@@ -197,7 +200,7 @@ fn nom_coin(arc: &Arc) -> &'static str {
 
 impl ResultatArrondi {
     pub fn ok(&self) -> bool {
-        self.violations.is_empty()
+        self.nommee.is_some() || self.violations.is_empty()
     }
 
     /// Le plus fort déplacement radial moyen, en valeur absolue (0 sans arc jugé).
@@ -282,6 +285,7 @@ pub fn juger(
         arrondi: a.clone(),
         arcs: mesures,
         violations,
+        nommee: None,
     }
 }
 
@@ -378,7 +382,7 @@ pub(super) mod tests {
     }
 
     fn sas(m: &Modele, r: &RgbaImage, c: &RgbaImage) -> crate::pixels::sas::Sas {
-        crate::pixels::sas::comparer_tout(r, c, &[], &[], std::slice::from_ref(&m.a)).unwrap()
+        crate::pixels::sas::comparer_tout(r, c, &[], &[], std::slice::from_ref(&m.a), &[]).unwrap()
     }
 
     #[test]

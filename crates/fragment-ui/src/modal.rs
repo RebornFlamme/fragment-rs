@@ -408,7 +408,14 @@ impl Render for Modale {
                 div()
                     .text_size(u(cx, t.typo.font_ui_larger))
                     .font_weight(gpui_kit::FontWeight::SEMIBOLD)
-                    .mb(u(cx, t.forme.size_4_3))
+                    // ★ Ligne de 27 px (18 × 1,5). Chromium arrondit l'ascendante et la descendante de
+                    // DM Sans séparément (17,9 → 18, 5,6 → 6) et tronque le demi-interligne
+                    // ((27 − 24) / 2 → 1) : ligne de base à 19 px. GPUI garde les fractions
+                    // (1,78 + 17,86 = 19,64) et pose les glyphes à 20 : un pixel trop bas (barycentre
+                    // +0,97 px en y, run 43014977166). Un pixel de marge passe du haut vers le bas :
+                    // la mise en page ne bouge pas, le titre remonte.
+                    .mt(u(cx, -1.0))
+                    .mb(u(cx, t.forme.size_4_3 + 1.0))
                     .child(self.titre.clone()),
             );
         }

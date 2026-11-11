@@ -260,6 +260,9 @@ pub struct ResultatOmbre {
     /// L'ombre est celle de [`JETON_EXCEPTION`] : ses violations ne bloquent pas, ses gardes font
     /// cliquet.
     pub exception: bool,
+    /// L'élément d'une exception nommée temporaire de T1 (`exceptions`, à retirer par `fr-p4.1`) :
+    /// ses violations ne bloquent pas, ses gardes font cliquet.
+    pub nommee: Option<&'static str>,
 }
 
 /// Les valeurs mesurées des garde-fous d'une ombre : étalement (px), encre et glissement (écarts
@@ -274,7 +277,7 @@ pub struct Gardes {
 impl ResultatOmbre {
     /// Les garde-fous tiennent, ou l'ombre est l'exception nommée (jugée par le cliquet).
     pub fn ok(&self) -> bool {
-        self.exception || self.violations.is_empty()
+        self.exception || self.nommee.is_some() || self.violations.is_empty()
     }
 
     /// Les chiffres des côtés, pour le rapport : écart de distance (px) et d'encre (%).
@@ -369,6 +372,7 @@ pub fn juger(
         violations,
         gardes,
         exception: o.jeton == JETON_EXCEPTION,
+        nommee: None,
     }
 }
 

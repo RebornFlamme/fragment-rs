@@ -659,7 +659,10 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             if k > 0 {
                 segments.push(t.forme.size_2_9);
             }
-            segments.push(mesurer(&ins.commande, FontWeight::SEMIBOLD));
+            segments.push(
+                mesurer(&ins.commande, FontWeight::SEMIBOLD)
+                    + AVANCE_GRAS_SYNTHETIQUE * glyphes_en_gras_synthetique(&ins.commande) as f32,
+            );
             segments.push(t.forme.size_2_3);
             segments.push(mesurer(&ins.but, FontWeight::NORMAL));
         }
@@ -680,21 +683,31 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             let base = if k > 0 { 4 * k - 1 } else { 0 };
             let ecart = if k > 0 { largeurs[base] } else { u(cx, 0.0) };
             let i = if k > 0 { base + 1 } else { 0 };
+            let mut commande = div()
+                .flex_none()
+                .w(largeurs[i])
+                .whitespace_nowrap()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(normal)
+                .child(ins.commande.clone());
+            if glyphes_en_gras_synthetique(&ins.commande) > 0 {
+                // Le gras synthétique : le même texte repeint décalé de l'épaississement de Skia.
+                commande = commande.relative().child(
+                    div()
+                        .absolute()
+                        .top(u(cx, 0.0))
+                        .left(u(cx, epaississement_gras_synthetique(taille)))
+                        .whitespace_nowrap()
+                        .child(ins.commande.clone()),
+                );
+            }
             legende = legende.child(
                 div()
                     .flex()
                     .flex_row()
                     .items_center()
                     .ml(ecart)
-                    .child(repli_chromium(
-                        div()
-                            .flex_none()
-                            .w(largeurs[i])
-                            .whitespace_nowrap()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(normal)
-                            .child(ins.commande.clone()),
-                    ))
+                    .child(repli_chromium(commande))
                     .child(
                         div()
                             .flex_none()
@@ -754,6 +767,33 @@ fn repli_chromium<E: Styled>(mut e: E) -> E {
     e
 }
 
+/// ★ Les caractères que Chromium dessine en GRAS SYNTHÉTIQUE dans la légende : `↵` tombe sur Cambria
+/// Math, qui n'a pas de graisse 600 ; Chromium (Blink) l'épaissit (`SkFont::setEmbolden`) et lui
+/// ajoute 1 px d'avance. Mesuré dans Electron (celui de Fragment) : `↵` à 12 px fait 7 px en 400, 8 px
+/// en 600, dix `↵` 70 contre 80 px. GPUI, lui, rend le glyphe de repli maigre et sans l'avance : la
+/// suite de la légende glissait de −1 à −1,6 px (barycentres, run 43014977166). `↑↓` (Segoe UI, qui a
+/// sa graisse 600) n'est pas concerné : 11,34 px dans les deux graisses.
+const GRAS_SYNTHETIQUE: &[char] = &['↵'];
+
+/// L'avance ajoutée par glyphe en gras synthétique (Blink, `SimpleFontData` : 1 px).
+const AVANCE_GRAS_SYNTHETIQUE: f32 = 1.0;
+
+/// Le nombre de glyphes de `texte` que Chromium épaissit synthétiquement.
+fn glyphes_en_gras_synthetique(texte: &str) -> usize {
+    texte
+        .chars()
+        .filter(|c| GRAS_SYNTHETIQUE.contains(c))
+        .count()
+}
+
+/// L'épaississement (px) du gras synthétique de Skia à la taille `taille` : `taille × k`, k
+/// interpolé de 1/24 (9 px) à 1/32 (36 px) (`kStdFakeBoldInterpKeys` / `Values`), soit 0,49 px à
+/// 12 px. Le glyphe est repeint décalé d'autant : GPUI n'expose pas l'épaississement de contour.
+fn epaississement_gras_synthetique(taille: f32) -> f32 {
+    let t = ((taille - 9.0) / (36.0 - 9.0)).clamp(0.0, 1.0);
+    taille * (1.0 / 24.0 + t * (1.0 / 32.0 - 1.0 / 24.0))
+}
+
 fn replis_chromium() -> FontFallbacks {
     FontFallbacks::from_fonts(vec!["Segoe UI".to_owned(), "Cambria Math".to_owned()])
 }
@@ -764,6 +804,15 @@ pub fn commandes_de_scene(_commandes: &CommandManager) {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn le_retour_chariot_est_en_gras_synthetique_et_pas_les_fleches() {
+        assert_eq!(glyphes_en_gras_synthetique("↵"), 1);
+        assert_eq!(glyphes_en_gras_synthetique("↑↓"), 0);
+        assert_eq!(glyphes_en_gras_synthetique("esc"), 0);
+        let e = epaississement_gras_synthetique(12.0);
+        assert!((e - 0.486).abs() < 0.001, "{e}");
+    }
 
     fn nus(v: Vec<(String, bool)>) -> Vec<(String, bool)> {
         v

@@ -638,8 +638,10 @@ fn rendre_niveau(
             .size_full(),
         )
         .children(lignes);
-    let boite =
-        bordure(boite, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
+    // Bordure translucide pré-composée sur le fond du menu, comme Chromium (ADR-009 c) : GPUI la
+    // mélangeait un niveau à côté en clair (232, 232, 232 contre 232, 232, 233).
+    let boite = bordure(boite, u(cx, f.border_width))
+        .border_color(couleur(c.aplat(Aplat::Bordure, c.menu_bg)));
     let boite = ombrer(
         boite,
         cx,

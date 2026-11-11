@@ -20,6 +20,7 @@ use crate::echelle::u;
 use crate::flottant::{bordure, chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
+use fragment_theme::Aplat;
 
 /// Délai avant l'apparition (millisecondes), si la cible n'en fixe pas.
 pub const DELAI_DEFAUT_MS: u64 = 300;
@@ -440,8 +441,9 @@ pub fn couche(cx: &App) -> AnyElement {
     } else {
         bulle.overflow_hidden().text_ellipsis()
     };
-    let bulle =
-        bordure(bulle, u(cx, f.border_width)).border_color(couleur(c.background_modifier_border));
+    // Bordure pré-composée sur le fond de la bulle (ADR-009 c).
+    let bulle = bordure(bulle, u(cx, f.border_width))
+        .border_color(couleur(c.aplat(Aplat::Bordure, c.menu_bg)));
     let bulle = ombrer(
         bulle,
         cx,
