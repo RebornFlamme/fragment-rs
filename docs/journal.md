@@ -311,3 +311,8 @@ PDF : projet de catégorie « raster de page » à préparer dans S7, chrome str
 - 11/11 11:15 UTC : fusionnée #42 (fr-t1-splits : 20 tests headless, 10 scènes et leurs références ; 438k tokens). Ses dettes et branchements sont notés sur fr-t1-binaire.
   - Décision du chef : fr-t1-binaire n'est plus BLOQUÉE par fr-t1.1, les fichiers étant disjoints. Elle tourne en parallèle, et son bead ne se ferme qu'après fr-t1.1, car la tranche exige toutes ses scènes vertes.
   - Lancée : fr-t1-binaire (Opus). Actifs : maths, syntaxe, pdfium, flottantes, binaire.
+- 11/11 11:05 UTC, fenêtre 5 h à 61 %, semaine à 23 % : fusionnée #43 (fr-t4-pdfium : pdfium chromium/8125 épinglé par sha256, pdfium-render =0.9.5, licences BSD-3 / MIT / Apache-2, 11 tests sur des PDF générés).
+  - fr-t3-syntaxe arrêtée à 362k tokens. PR #44 en brouillon, aucun test exécuté.
+  - Décision du chef : le PORT de `@lezer/markdown` 1.7.2 (MIT, notice gardée) est accepté comme troisième voie, à justifier dans ADR-010. Mesures : tree-sitter-md 70,6 % des nœuds Lezer, pulldown-cmark 59,4 %, les deux ignorant les extensions de Fragment.
+  - Lancées : reprise de syntaxe (Opus) et fr-t4-vue-modele (Sonnet). Actifs : maths, flottantes, binaire, syntaxe2, vuepdf.
+  - ★ Pause à 90 % de la fenêtre 5 h. Reset à 12:30 UTC.
