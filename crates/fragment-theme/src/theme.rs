@@ -451,3 +451,7 @@ mod tests {
         assert_eq!(Theme::pour(Mode::Sombre), Theme::sombre());
     }
 }
+
+/// La flèche de la liste déroulante des réglages : littéral du CSS de Fragment
+/// (app/src/ui/core/settings/settings.css:671), sans variable ; même valeur dans les deux thèmes.
+pub const FLECHE_LISTE: Couleur = Couleur::hex(0x8f8e89);

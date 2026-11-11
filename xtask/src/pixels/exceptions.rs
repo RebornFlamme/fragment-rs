@@ -84,6 +84,19 @@ const fn coin_barre(png: &'static str) -> Exception {
     }
 }
 
+/// L'élément des traits de poignée (repos et accent), déclarés sans coin par
+/// `fragment_ui::splits` (boîte exacte du trait peint) : son nom EST la clé du cliquet.
+pub const TRAIT_POIGNEE: &str = "trait de poignée";
+
+const fn poignee(png: &'static str) -> Exception {
+    Exception {
+        png,
+        element: TRAIT_POIGNEE,
+        jeton: "--tab-outline-color",
+        nature: Nature::Arcs,
+    }
+}
+
 /// La liste, À RETIRER PAR `fr-p4.1`. Valeurs mesurées : `pixels/cliquet.json`, `exceptions_t1`.
 pub const EXCEPTIONS: &[Exception] = &[
     // Ombres : étalement de +0,22 à +0,24 px (infobulle, petite boîte : 4 échantillons du shader),
@@ -184,6 +197,16 @@ pub const EXCEPTIONS: &[Exception] = &[
     coin_barre("t1-split-vertical-dark.png"),
     coin_barre("t1-zoom-150-dark.png"),
     coin_barre("t1-zoom-80-dark.png"),
+    // Bords des traits de poignée, en CLAIR (décision du chef, fr-t1.5) : Skia arrondit d'un niveau
+    // (canal bleu surtout) les cellules de bord d'un trait à position fractionnaire, sans règle
+    // constante (plancher en 657,5, autre sens en 1166,5, alternance d'une ligne à l'autre). Même
+    // famille que le 221/222 du côté de l'onglet. Delta 1 seulement, cellules de bord seulement.
+    poignee("t1-boutons-fenetre-light.png"),
+    poignee("t1-glisser-depot-light.png"),
+    poignee("t1-poignee-survol-light.png"),
+    poignee("t1-split-horizontal-light.png"),
+    poignee("t1-split-proportions-light.png"),
+    poignee("t1-split-vertical-light.png"),
 ];
 
 /// Les exceptions du PNG `png`.
@@ -243,6 +266,9 @@ pub const DELTA_COTES: u8 = 1;
 /// (`y + h`, les pieds ont leur propre rayon et leur bande passe avant). Vide pour toute autre
 /// déclaration.
 pub fn pixels_cotes(a: &ArrondiDeclare, largeur: u32, hauteur: u32) -> Vec<(u32, u32)> {
+    if a.element == TRAIT_POIGNEE {
+        return pixels_bords_trait(a, largeur, hauteur);
+    }
     if a.element != CONTOUR_ONGLET || a.coins != [true, true, false, false] || a.bordure <= 0.0 {
         return Vec::new();
     }
@@ -263,9 +289,126 @@ pub fn pixels_cotes(a: &ArrondiDeclare, largeur: u32, hauteur: u32) -> Vec<(u32,
     v
 }
 
+/// Les cellules de BORD d'un trait de poignée déclaré (boîte exacte, px physiques) : en travers du
+/// trait (vertical si plus haut que large), les colonnes (ou lignes) que ses bords coupent à une
+/// couverture fractionnaire, sur toute sa longueur. Les cellules pleines restent strictes.
+fn pixels_bords_trait(a: &ArrondiDeclare, largeur: u32, hauteur: u32) -> Vec<(u32, u32)> {
+    let vertical = a.hauteur >= a.largeur;
+    let (debut, fin) = if vertical {
+        (a.x, a.x + a.largeur)
+    } else {
+        (a.y, a.y + a.hauteur)
+    };
+    let eps = 1e-3;
+    let mut bords: Vec<i64> = Vec::new();
+    for bord in [debut, fin] {
+        if (bord - bord.round()).abs() > eps {
+            bords.push(bord.floor() as i64);
+        }
+    }
+    bords.dedup();
+    let (l0, l1) = if vertical {
+        (a.y, a.y + a.hauteur)
+    } else {
+        (a.x, a.x + a.largeur)
+    };
+    let limite = if vertical { hauteur } else { largeur };
+    let le_long = (l0.floor().max(0.0) as u32)..(l1.ceil().max(0.0) as u32).min(limite);
+    let mut v = Vec::new();
+    for b in bords {
+        let Ok(b) = u32::try_from(b) else { continue };
+        if b >= if vertical { largeur } else { hauteur } {
+            continue;
+        }
+        for t in le_long.clone() {
+            v.push(if vertical { (b, t) } else { (t, b) });
+        }
+    }
+    v
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn trait_de_poignee(x: f64, y: f64, l: f64, h: f64) -> ArrondiDeclare {
+        ArrondiDeclare {
+            x,
+            y,
+            largeur: l,
+            hauteur: h,
+            rayon: 0.0,
+            bordure: 0.0,
+            coins: [false; 4],
+            element: TRAIT_POIGNEE.to_owned(),
+        }
+    }
+
+    #[test]
+    fn les_bords_d_un_trait_de_poignee_sont_ses_cellules_fractionnaires() {
+        // Trait vertical de 1 px à cheval sur 657 et 658, sur 10 lignes.
+        let p = pixels_cotes(&trait_de_poignee(657.5, 0.0, 1.0, 10.0), 1280, 800);
+        assert_eq!(p.len(), 20);
+        assert!(p.contains(&(657, 0)) && p.contains(&(658, 9)) && !p.contains(&(659, 0)));
+        // Accent de 3 px de 656,5 à 659,5 : les deux bords, pas le plein du milieu.
+        let p = pixels_cotes(&trait_de_poignee(656.5, 0.0, 3.0, 4.0), 1280, 800);
+        assert!(p.contains(&(656, 0)) && p.contains(&(659, 3)));
+        assert!(!p.contains(&(657, 0)) && !p.contains(&(658, 0)));
+        // Trait horizontal calé au pixel : aucune cellule de bord.
+        assert!(pixels_cotes(&trait_de_poignee(36.0, 400.0, 100.0, 1.0), 1280, 800).is_empty());
+        let p = pixels_cotes(&trait_de_poignee(36.0, 399.5, 4.0, 1.0), 1280, 800);
+        assert_eq!(
+            p,
+            vec![
+                (36, 399),
+                (37, 399),
+                (38, 399),
+                (39, 399),
+                (36, 400),
+                (37, 400),
+                (38, 400),
+                (39, 400)
+            ]
+        );
+    }
+
+    /// Contre-épreuve du trait de poignée : delta 1 levé en clair, delta 2 ou trait décalé d'1 px
+    /// échouent ; le sombre reste strict.
+    #[test]
+    fn un_trait_de_poignee_decale_ou_a_delta_deux_echoue() {
+        let t = trait_de_poignee(10.5, 0.0, 1.0, 40.0);
+        // Fond 247 à gauche et à droite, trait de teinte 211 à moitié sur 10 et 11.
+        let peindre = |x0: u32, bleu: u8| {
+            let mut img = image::RgbaImage::from_pixel(40, 40, image::Rgba([247, 246, 242, 255]));
+            for y in 0..40 {
+                for x in [x0, x0 + 1] {
+                    img.put_pixel(x, y, image::Rgba([229, 228, bleu, 255]));
+                }
+            }
+            img
+        };
+        let reference = peindre(10, 223);
+        let juger = |png: &str, c: &image::RgbaImage| {
+            crate::pixels::sas::comparer_tout(
+                &reference,
+                c,
+                &[],
+                &[],
+                std::slice::from_ref(&t),
+                &du_png(png),
+            )
+            .unwrap()
+            .differents_hors
+        };
+        let clair = "t1-split-vertical-light.png";
+        assert_eq!(juger(clair, &peindre(10, 222)), 0);
+        assert!(juger(clair, &peindre(10, 221)) > 0, "delta 2");
+        assert!(juger(clair, &peindre(11, 223)) > 0, "trait décalé d'1 px");
+        assert!(
+            juger("t1-split-vertical-dark.png", &peindre(10, 222)) > 0,
+            "sombre strict"
+        );
+    }
 
     #[test]
     fn les_cotes_du_contour_sont_ses_colonnes_entre_les_arcs() {

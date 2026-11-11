@@ -28,7 +28,7 @@ use gpui_kit::{
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
 use crate::echelle::{Echelle, calees, u};
-use crate::flottant::{bordure, texte};
+use crate::flottant::{arrondir, bordure, texte};
 use crate::icones;
 use crate::polices::largeur_texte;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -441,7 +441,6 @@ impl FenetreReglages {
             .flex()
             .items_center()
             .pl(u(cx, f.size_2_15))
-            .rounded(u(cx, f.radius_sm))
             .bg(couleur(c.background_secondary))
             .text_color(couleur(c.text_muted))
             .child(
@@ -459,6 +458,9 @@ impl FenetreReglages {
                     ),
             )
             .child("Search settings...");
+        // L'arrondi est DÉCLARÉ (catégorie bord d'arrondi d'ADR-009) : ses coins ne s'anticrènelent
+        // pas comme ceux de Skia, à un niveau près.
+        let champ = arrondir(champ, cx, u(cx, f.radius_sm), u(cx, f.border_width));
         let champ =
             bordure(champ, u(cx, f.border_width)).border_color(couleur(c.tab_outline_color));
         texte(champ, cx, ty.font_ui_medium, 1.5).into_any_element()
@@ -987,7 +989,6 @@ impl FenetreReglages {
             .flex_none()
             .w(px((largeur_liste(d, t, cx) * zoom).round()))
             .h(ecart_cale(cx, y, y + hauteur))
-            .rounded(u(cx, f.radius_sm))
             .bg(couleur(p.background_secondary))
             .text_color(couleur(p.text_normal))
             .child(
@@ -1007,12 +1008,13 @@ impl FenetreReglages {
                         svg()
                             .path(icones::chemin("chevrons-up-down"))
                             .size(u(cx, f.icon_s))
-                            // ★ Le CSS écrit ici un gris littéral (#8f8e89, dans une URL de données) qui
-                            // n'est pas un jeton : le plus proche est `text_muted` (écart suivi : l'encre
-                            // de la flèche, +30 %).
-                            .text_color(couleur(p.text_muted)),
+                            // ★ Le CSS écrit ici un gris littéral (#8f8e89, dans une URL de données),
+                            // sans variable : jeton fixe `FLECHE_LISTE`, le même dans les deux thèmes.
+                            .text_color(couleur(fragment_theme::theme::FLECHE_LISTE)),
                     ),
             );
+        // Arrondi déclaré, comme celui du champ de recherche.
+        let boite = arrondir(boite, cx, u(cx, f.radius_sm), u(cx, bord));
         let boite = bordure(boite, u(cx, bord)).border_color(couleur(p.tab_outline_color));
         texte(boite, cx, ty.font_ui_medium, 1.5).into_any_element()
     }

@@ -33,7 +33,7 @@ use fragment_core::{
 use gpui_kit::{
     AnyElement, App, DispatchPhase, InteractiveElement as _, IntoElement, MouseButton,
     MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, SharedString, Size, Styled as _,
-    Visibility, canvas, div,
+    Visibility, Window, canvas, div,
 };
 
 use crate::docks::{self, ElementRuban};
@@ -604,13 +604,54 @@ fn rendre_poignee(
             cx.refresh_windows();
         })
         .children(repos)
-        .child(accent);
+        .child(accent)
+        .child(declarer_traits(
+            [
+                trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+                large,
+            ],
+            zoom,
+            cx,
+        ));
     el = if vertical {
         el.cursor_col_resize()
     } else {
         el.cursor_row_resize()
     };
     el.into_any_element()
+}
+
+/// L'élément sous lequel les traits de poignée sont déclarés (exception nommée de T1,
+/// `xtask/src/pixels/exceptions.rs`, `TRAIT_POIGNEE`).
+const ELEMENT_TRAIT_POIGNEE: &str = "trait de poignée";
+
+/// Déclare, au prépeint, les `traits` PEINTS d'une poignée (repos et accent, px logiques) en pixels
+/// physiques, comme des boîtes sans coin arrondi nommées [`ELEMENT_TRAIT_POIGNEE`] : seules leurs
+/// cellules de bord (couverture fractionnaire) relèvent de l'exception (décision du chef, fr-t1.5 :
+/// en clair, Skia arrondit ces bords d'un niveau, sans règle constante).
+fn declarer_traits(traits: [Cadre; 2], zoom: f64, cx: &App) -> impl IntoElement {
+    canvas(
+        move |_, window: &mut Window, _: &mut App| {
+            let k = zoom * f64::from(window.scale_factor());
+            for t in traits {
+                crate::flottant::declarer_arrondi(crate::flottant::ArrondiPeint {
+                    x: (t.x * k) as f32,
+                    y: (t.y * k) as f32,
+                    largeur: (t.largeur * k) as f32,
+                    hauteur: (t.hauteur * k) as f32,
+                    rayon: 0.0,
+                    bordure: 0.0,
+                    coins: [false; 4],
+                    element: ELEMENT_TRAIT_POIGNEE,
+                });
+            }
+        },
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top(u(cx, 0.0))
+    .left(u(cx, 0.0))
+    .size_full()
 }
 
 /// Les écouteurs GLOBAUX du pointeur (la « capture ») et l'horloge des images du gel.
