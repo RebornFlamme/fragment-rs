@@ -281,8 +281,7 @@ fn analyser_rangee(ligne: &str, debut: usize, elts: Option<&mut Vec<Elt>>, offse
         let enfants = en_ligne::analyser(&ligne[a..z], offset + a);
         elts.push(Elt::avec(Genre::TableCell, offset + a, offset + z, enfants));
     };
-    for i in debut..b.len() {
-        let c = b[i];
+    for (i, &c) in b.iter().enumerate().skip(debut) {
         if c == b'|' && !echappe {
             if !premier || debut_cellule.is_some() {
                 compte += 1;

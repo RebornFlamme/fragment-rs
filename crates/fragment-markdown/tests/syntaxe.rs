@@ -48,9 +48,9 @@ fn releve(arbre: &Arbre) -> Vec<String> {
 
 fn comparer(nom: &str) {
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/syntaxe/");
-    let texte = std::fs::read_to_string(format!("{dossier}{nom}.md")).unwrap();
-    let attendu: Vec<String> = std::fs::read_to_string(format!("{dossier}{nom}.lezer"))
-        .unwrap()
+    let lire = |f: String| std::fs::read_to_string(&f).unwrap_or_else(|e| panic!("{f} : {e}"));
+    let texte = lire(format!("{dossier}{nom}.md"));
+    let attendu: Vec<String> = lire(format!("{dossier}{nom}.lezer"))
         .lines()
         .filter(|l| !l.trim().is_empty())
         .map(str::to_owned)

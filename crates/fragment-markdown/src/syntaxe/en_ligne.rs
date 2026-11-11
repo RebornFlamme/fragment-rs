@@ -949,8 +949,7 @@ pub(crate) fn analyser_etiquette(
     let b = texte.as_bytes();
     let fin = b.len().min(start + 1 + 999);
     let mut echappe = false;
-    for pos in start + 1..fin {
-        let ch = b[pos];
+    for (pos, &ch) in b.iter().enumerate().take(fin).skip(start + 1) {
         if echappe {
             echappe = false;
         } else if ch == b']' {
