@@ -249,7 +249,8 @@ pub fn melange_couverture(teinte: u8, fond: u8, part: f32) -> u8 {
 /// d'un pixel, l'alpha modulé par son épaisseur. Chaque pixel (le long du travers) reçoit
 /// `épaisseur × (1 − distance de son centre au centre du trait)`, sur deux pixels au plus. Mesuré
 /// sur la ligne de base de `t1-zoom-80` (trait de 0,8 px centré à 28,4) : 0,08 sur la ligne 27 et
-/// 0,72 sur la 28, là où la surface donnait 0 et 0,8. Rend `(pixel, part)`.
+/// 0,72 sur la 28, là où la surface donnait 0 et 0,8. Rend `(pixel, part)`, la part quantifiée
+/// comme Skia ([`quantifier_filet`]).
 pub fn filet(a: f64, b: f64) -> Vec<(i32, f64)> {
     let epaisseur = (b - a).clamp(0.0, 1.0);
     let centre = (a + b) / 2.0;
@@ -259,11 +260,21 @@ pub fn filet(a: f64, b: f64) -> Vec<(i32, f64)> {
         .map(|p| {
             (
                 p as i32,
-                epaisseur * (1.0 - (centre - (p + 0.5)).abs()).max(0.0),
+                quantifier_filet(epaisseur, (1.0 - (centre - (p + 0.5)).abs()).max(0.0)),
             )
         })
         .filter(|&(_, part)| part > 1e-6)
         .collect()
+}
+
+/// ★ La part d'un pixel de [`filet`] en 256es, comme Skia : l'alpha du trait (`épaisseur`) en
+/// octet, la couverture du pixel en 256es, leur produit décalé de 8 bits. Mesuré sur le haut de
+/// l'onglet actif de `t1-zoom-80` (trait de 0,8 px centré à 3,5875) : la ligne 4, couverte à
+/// 0,0875, sort à 245 sur 247 en clair (17/256), là où le produit flottant (0,07) donnait 244.
+fn quantifier_filet(epaisseur: f64, couverture: f64) -> f64 {
+    let alpha = (epaisseur.clamp(0.0, 1.0) * 255.0).round() as i64;
+    let part = (couverture.clamp(0.0, 1.0) * 256.0).round() as i64;
+    ((part * alpha) >> 8) as f64 / 256.0
 }
 
 /// Un canal de `teinte` posé sur `fond` à la couverture `part` d'un [`filet`] : le mélange flottant
@@ -529,9 +540,9 @@ mod tests {
         let f = filet(28.0, 28.8);
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].0, 27);
-        assert!((f[0].1 - 0.08).abs() < 1e-9);
+        assert!((f[0].1 - 20.0 / 256.0).abs() < 1e-9);
         assert_eq!(f[1].0, 28);
-        assert!((f[1].1 - 0.72).abs() < 1e-9);
+        assert!((f[1].1 - 183.0 / 256.0).abs() < 1e-9);
         // Sombre (trait 52 sur 14, 60 sur 17) et clair (211 sur 232) : la référence.
         assert_eq!(melange_filet(52, 14, f[1].1), 41);
         assert_eq!(melange_filet(60, 17, f[1].1), 48);
@@ -541,7 +552,15 @@ mod tests {
         let centre = filet(10.1, 10.9);
         assert_eq!(centre.len(), 1);
         assert_eq!(centre[0].0, 10);
-        assert!((centre[0].1 - 0.8).abs() < 1e-9);
+        assert!((centre[0].1 - 204.0 / 256.0).abs() < 1e-9);
+        // Le haut de l'onglet actif de t1-zoom-80 : 0,8 px centré à 3,5875 (référence : 221 et 245
+        // en clair sur le pane 247, 43 et 22 en sombre sur le pane 20).
+        let haut = filet(3.1875, 3.9875);
+        assert_eq!(haut.iter().map(|c| c.0).collect::<Vec<_>>(), [3, 4]);
+        assert_eq!(melange_filet(211, 247, haut[0].1), 221);
+        assert_eq!(melange_filet(211, 247, haut[1].1), 245);
+        assert_eq!(melange_filet(52, 20, haut[0].1), 43);
+        assert_eq!(melange_filet(52, 20, haut[1].1), 22);
     }
 
     #[test]

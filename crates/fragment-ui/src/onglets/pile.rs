@@ -68,7 +68,8 @@ thread_local! {
 /// Note la largeur EXACTE de `pile` (px logiques, son cadre avant calage au pixel) pour son
 /// prochain rendu : le trait du contour de l'onglet actif suit alors les bornes non calées, comme
 /// celui de Fragment ([`super::mesures::bords_exacts`]). Sans note, il suit l'en-tête calé par GPUI.
-/// `decalage` : le bord gauche exact moins le bord gauche calé (px logiques) ; les titres le suivent.
+/// `decalage` : le bord gauche exact moins le bord gauche calé (px logiques) ; la ligne de base
+/// s'arrête au bord droit exact qui s'en déduit.
 pub fn noter_largeur_exacte(pile: ItemId, largeur: f32, decalage: f32) {
     LARGEURS_EXACTES.with(|l| l.borrow_mut().insert(pile, (largeur, decalage)));
 }
@@ -574,15 +575,15 @@ fn entete_d_onglet(
     est_dernier: bool,
     suivant_actif: bool,
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
-    decalage: f32,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
     let actif = ligne.visible;
-    // ★ Le titre suit le bord gauche EXACT de la pile (`decalage`) : Chromium pose le texte à la
-    //   position de mise en page non calée (sous-pixel), les fonds seuls sont calés. Sans lui, le
-    //   titre du 2e pane de `t1-split-vertical` sortait à +0,6 px (barycentre de la moitié gauche).
+    // ★ Chromium pose le titre au bord gauche EXACT de la pile (sous-pixel ; seuls les fonds sont
+    //   calés) : le titre du 2e pane de `t1-split-vertical` sort chez nous à +0,6 px (moitié gauche).
+    //   Un `relative().left(−0,5)` n'y change RIEN (CI d4a5542, mesures identiques) : GPUI cale la
+    //   mise en page au pixel. Il faudra décaler le texte à la peinture.
     let titre = div()
         .flex_1()
         .min_w(u(cx, 0.0))
@@ -590,11 +591,6 @@ fn entete_d_onglet(
         .whitespace_nowrap()
         .text_ellipsis()
         .child(ligne.titre.clone());
-    let titre = if decalage.abs() > 1e-3 {
-        titre.relative().left(u(cx, decalage))
-    } else {
-        titre
-    };
     let leaf = ligne.leaf;
     let index = ligne.index;
     let rang = leaf.index() as usize;
@@ -783,7 +779,6 @@ fn barre(
                 i + 1 == n,
                 suivant_actif,
                 Some(mesure.clone()),
-                decalage,
                 cx,
             )
         })
