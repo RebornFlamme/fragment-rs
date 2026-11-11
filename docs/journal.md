@@ -550,3 +550,8 @@ Livraison de T1 quand #49 est fusionnée.
   - Décision : le PDF ne sera pas chargé deux fois. Au montage, le Document du fil de rendu est partagé (note sur fr-t4-vue-pdf).
   - Lancée : fr-t4-recherche-ui (Sonnet, `../fragment-rs-rechercheui`). Actifs : shell5, surface, explorateur, laterale, rechercheui.
   - Rythme : (97 − 43) ÷ 45,2 h ≈ 1,2 point par heure ; réel depuis 17:40 ≈ 1,9.
+- ★ Correction : les heures des entrées « 18:45 » à « 20:50 » ci-dessus ont été estimées par le chef, pas lues. Elles sont fausses : ces fusions ont toutes eu lieu entre 18:23 et 19:20 UTC. Désormais, l'heure se lit par `date -u`.
+- Battement 11/11 19:20 UTC : fenêtre 5 h à 53 % (reset 22:30), semaine à 43 %.
+  - Rythme cible : (97 − 43) ÷ 46,7 h ≈ 1,2 point par heure. Réel depuis 17:40 : environ 3,6, en avance.
+  - #70 (fr-t3-surface) et #73 (fr-t2-explorateur) en CI. #49 en brouillon, pixels rouge, shell5 au travail.
+  - Cinq actifs, pas de place libre.
