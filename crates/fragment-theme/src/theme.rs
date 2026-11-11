@@ -257,137 +257,6 @@ jetons! {
     }
 }
 
-impl Forme {
-    /// La forme commune aux deux thèmes (`:root` de `index.css`).
-    #[allow(clippy::too_many_lines)]
-    pub fn commune() -> Self {
-        let header_height = 36.0; // index.css:63
-        let frame_button_width = 46.0; // index.css:73
-        let frame_right_space = 3.0 * frame_button_width; // index.css:74
-        let border_width = 1.0; // index.css:83
-        let radius_hair = 1.0; // index.css:87
-        let radius_xxs = 2.0; // index.css:88
-        let radius_xs = 3.0; // index.css:89
-        let radius_s = 4.0; // index.css:90
-        let radius_sm = 6.0; // index.css:91
-        let radius_m = 8.0; // index.css:92
-        let radius_ml = 10.0; // index.css:93
-        let radius_l = 12.0; // index.css:94
-        let radius_xl = 16.0; // index.css:95
-        let input_radius = 5.0; // index.css:97
-        let button_radius = input_radius; // index.css:98
-        let checkbox_radius = radius_xs; // index.css:99
-        let clickable_icon_radius = radius_sm; // index.css:100
-        let menu_radius = radius_m; // index.css:101
-        let modal_radius = radius_ml; // index.css:102
-        let tooltip_radius = radius_sm; // index.css:103
-        let code_radius = radius_xs; // index.css:104
-        let icon_xs = 14.0; // index.css:127
-        let icon_s = 16.0; // index.css:128
-        let icon_m = 18.0; // index.css:129
-        let icon_l = 18.0; // index.css:130
-        let icon_stroke = 1.5; // index.css:131
-        let size_2_1 = 2.0; // index.css:136
-        let size_2_2 = 4.0; // index.css:137
-        let size_2_3 = 6.0; // index.css:138
-        let size_2_5 = 10.0; // index.css:139
-        let size_2_7 = 14.0; // index.css:140
-        let size_2_9 = 18.0; // index.css:141
-        let size_2_11 = 22.0; // index.css:142
-        let size_2_13 = 26.0; // index.css:143
-        let size_2_15 = 30.0; // index.css:144
-        let size_2_17 = 34.0; // index.css:145
-        let size_2_19 = 38.0; // index.css:146
-        let size_4_1 = 4.0; // index.css:147
-        let size_4_2 = 8.0; // index.css:148
-        let size_4_3 = 12.0; // index.css:149
-        let size_4_4 = 16.0; // index.css:150
-        let size_4_5 = 20.0; // index.css:151
-        let size_4_6 = 24.0; // index.css:152
-        let size_4_7 = 28.0; // index.css:153
-        let size_4_8 = 32.0; // index.css:154
-        let size_4_9 = 36.0; // index.css:155
-        let size_4_10 = 40.0; // index.css:156
-        let size_4_11 = 44.0; // index.css:157
-        let size_4_12 = 48.0; // index.css:158
-        let size_4_14 = 56.0; // index.css:159
-        let size_4_16 = 64.0; // index.css:160
-        let size_4_18 = 72.0; // index.css:161
-        let size_4_20 = 80.0; // index.css:162
-        let anim_duration_none = 0; // index.css:166
-        let anim_duration_superfast = 80; // index.css:167
-        let anim_duration_quick = 90; // index.css:168
-        let anim_duration_fast = 120; // index.css:169
-        let anim_duration_moderate = 150; // index.css:170
-        let anim_duration_slow = 250; // index.css:171
-        let anim_motion_smooth = [0.2, 0.0, 0.0, 1.0]; // index.css:172
-        let anim_motion_in_out = [0.45, 0.0, 0.55, 1.0]; // index.css:173
-        Self {
-            header_height,
-            frame_button_width,
-            frame_right_space,
-            border_width,
-            radius_hair,
-            radius_xxs,
-            radius_xs,
-            radius_s,
-            radius_sm,
-            radius_m,
-            radius_ml,
-            radius_l,
-            radius_xl,
-            input_radius,
-            button_radius,
-            checkbox_radius,
-            clickable_icon_radius,
-            menu_radius,
-            modal_radius,
-            tooltip_radius,
-            code_radius,
-            icon_xs,
-            icon_s,
-            icon_m,
-            icon_l,
-            icon_stroke,
-            size_2_1,
-            size_2_2,
-            size_2_3,
-            size_2_5,
-            size_2_7,
-            size_2_9,
-            size_2_11,
-            size_2_13,
-            size_2_15,
-            size_2_17,
-            size_2_19,
-            size_4_1,
-            size_4_2,
-            size_4_3,
-            size_4_4,
-            size_4_5,
-            size_4_6,
-            size_4_7,
-            size_4_8,
-            size_4_9,
-            size_4_10,
-            size_4_11,
-            size_4_12,
-            size_4_14,
-            size_4_16,
-            size_4_18,
-            size_4_20,
-            anim_duration_none,
-            anim_duration_superfast,
-            anim_duration_quick,
-            anim_duration_fast,
-            anim_duration_moderate,
-            anim_duration_slow,
-            anim_motion_smooth,
-            anim_motion_in_out,
-        }
-    }
-}
-
 impl Typo {
     /// La typographie commune aux deux thèmes (`:root` de `index.css`).
     pub fn commune() -> Self {
@@ -456,24 +325,14 @@ pub struct Theme {
 }
 
 impl Theme {
-    /// Le thème sombre, valeurs de `.theme-dark` + `body` + `:root`.
+    /// Le thème sombre : le graphe de `.theme-dark` + `body` + `:root`, résolu sans surcharge.
     pub fn sombre() -> Self {
-        Self {
-            mode: Mode::Sombre,
-            palette: crate::sombre::palette(),
-            forme: Forme::commune(),
-            typo: Typo::commune(),
-        }
+        Self::de_reference(Mode::Sombre)
     }
 
-    /// Le thème clair, valeurs de `.theme-light` + `body` + `:root`.
+    /// Le thème clair : le graphe de `.theme-light` + `body` + `:root`, résolu sans surcharge.
     pub fn clair() -> Self {
-        Self {
-            mode: Mode::Clair,
-            palette: crate::clair::palette(),
-            forme: Forme::commune(),
-            typo: Typo::commune(),
-        }
+        Self::de_reference(Mode::Clair)
     }
 
     /// Le thème d'un mode donné.

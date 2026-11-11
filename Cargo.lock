@@ -2985,6 +2985,7 @@ version = "0.0.1"
 dependencies = [
  "fragment-core",
  "image",
+ "serde_json",
  "unicode-normalization",
 ]
 

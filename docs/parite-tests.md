@@ -8,9 +8,9 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 927 | 868 | 477 | 59 | 93.6 % |
+| 953 | 893 | 606 | 60 | 93.7 % |
 
-**PORTE ATTEINTE** : 93.6 % des cas source portés.
+**PORTE ATTEINTE** : 93.7 % des cas source portés.
 
 - Modules non portés sans raison : aucun
 - Fichiers illisibles : aucun
@@ -193,6 +193,9 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | crates/fragment-core/src/config.rs + apparence.rs | app/src/ui/core/settings/ConfigStore.ts + config.ts (AppearanceConfig, applyAppearance) + sync.ts | 0 | 0 | 4 | — |
 | crates/fragment-core/tests/apparence.rs + crates/fragment-core/src/commandes_zoom.rs + crates/fragment-ui/tests/reglages.rs | app/e2e/app-zoom.spec.ts + app/src/ui/coreCommands/AppCommandsPlugin.ts (zoom-in, zoom-out, reset-zoom) | 13 | 8 | 0 | 5 — le menu Electron n'a plus de zoom actif (neutraliserZoomDuMenu) : propre à Electron : GPUI n'a pas de menu d'application à neutraliser ; Ctrl+molette sur une note ne zoome pas : Chromium zoomerait de lui-même ; GPUI n'a aucun zoom par molette. Aucune garde à tester (le geste n'est lié à rien) ; capture : le rectangle en px CSS est converti selon le zoom (devicePixelRatio) : contrat WindowHost::capture, dont l'implémentation GPUI est dans fr-t1-binaire ; pas de devicePixelRatio ici (u() met les longueurs à l'échelle, pas la capture) ; PDF : Ctrl+= reste le zoom du PDF ; PDF : canvas repeints à la nouvelle densité : la vue PDF est de la phase 5 (portée de vue avant la racine : à rejouer avec elle) ; la repeinte des canvas est un souci de Chromium ; boot : `window.outerWidth / window.innerWidth > 1.3` (toute l'interface a rétréci) : mesure du DOM ; la mise à l'échelle de toute l'interface par u() est vérifiée par les scènes pixels t1-zoom-150 et t1-zoom-80 |
 | crates/fragment-ui/src/reglages/{mod,fenetre,curseur}.rs | app/src/ui/settings/SettingsWindow.ts + core/settings/{Setting,SettingTab,SettingPage,SettingManager}.ts + settings.css (Appearance) | 0 | 0 | 5 | — |
+| crates/fragment-core/src/workspace/vue_fichier.rs | app/src/ui/core/workspace/FileView.ts | 0 | 0 | 34 | — |
+| crates/fragment-core/src/workspace/vue_fichier.rs | app/src/ui/core/workspace/EditableFileView.ts | 0 | 0 | 1 | — |
+| crates/fragment-core/src/workspace/vue_fichier.rs | app/src/ui/core/workspace/TextFileView.ts | 0 | 0 | 11 | — |
 | crates/fragment-core/src/vault/fs.rs | app/src/ui/core/vault/FileSystemAdapter.ts, app/src/shared/vaultPath.ts, app/src/shared/resourceUrl.ts | 0 | 0 | 23 | — |
 | crates/fragment-core/src/vault/surveillance.rs | app/src/electron/vaultWatcher.ts, app/src/electron/main.ts (branchement) | 0 | 0 | 19 | — |
 | crates/fragment-core/src/vault/coffre.rs | app/src/ui/core/vault/vault.ts | 0 | 0 | 95 | — |
@@ -200,10 +203,11 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | crates/fragment-core/src/vault/adaptateur.rs, memoire.rs | app/src/ui/core/vault/DataAdapter.ts | 0 | 0 | 0 | — |
 | crates/fragment-core/src/vault/fournisseur.rs | app/src/ui/core/documents/vaultProvider.ts | 0 | 0 | 23 | — |
 | crates/fragment-core/src/vault/coffre.rs | app/src/ui/core/links/resolveLink.ts (sur un vrai Vault) | 0 | 0 | 7 | — |
+| crates/fragment-core/src/vault/metadonnees.rs | app/src/ui/core/metadata/MetadataTypeManager.ts | 1 | 1 | 15 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-core | 261 | 239 | 269 | 22 | 91.6 % |
+| fragment-core | 262 | 240 | 330 | 22 | 91.6 % |
 
 ## fragment-layers
 
@@ -234,13 +238,17 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | crates/fragment-markdown/src/commandes/menu.rs | app/src/ui/views/markdown/MarkdownView.ts (remplirMenuEditeur, wireContextMenu : sections) | 3 | 3 | 11 | — |
 | crates/fragment-markdown/src/commandes/insertion.rs | app/src/ui/views/markdown/table/tableField.ts (separerDuTableau, saisieSousTableau) | 1 | 1 | 2 | — |
 | crates/fragment-markdown/src/coller_image/mod.rs | app/src/ui/views/markdown/pasteImage.ts ; app/src/ui/core/vault/attachments.ts (usage) ; e2e paste-image.spec.ts, markdown-table.spec.ts | 3 | 3 | 12 | — |
+| crates/fragment-markdown/src/decorations/mod.rs, calcul.rs, index_lignes.rs | app/src/ui/views/markdown/decorationPlugin.ts (buildFnMarkdownRenderer, curseurActif, revealAfterFirstFocus, revealOnFocusOnly, listLevel, isInsideCode) ; scénarios app/e2e/editor-hell.spec.ts | 14 | 14 | 21 | — |
+| crates/fragment-markdown/src/decorations/styles.rs | app/src/ui/views/markdown/editor.css, embeds.css (styles du live preview) | 0 | 0 | 1 | — |
+| crates/fragment-markdown/src/listes/clavier.rs, contexte.rs | app/src/ui/views/markdown/listKeys.ts (sortirDeTacheVide, continuerListe, retirerCase, listKeymap) + comportement de @codemirror/lang-markdown (insertNewlineContinueMarkup nonTightLists:false, deleteMarkupBackward) et @codemirror/commands (indentMore, indentLess) | 8 | 8 | 16 | — |
+| crates/fragment-markdown/src/listes/case.rs | app/src/ui/views/markdown/decorationPlugin.ts (toogleCheckbox ; détection des cases, y compris `- [ ]` sans texte) | 3 | 2 | 3 | 1 — alignement : sous-puce bien décalée, case alignée sur les puces, texte aligné : mesures de pixels du DOM (boundingBox) : présentation, portée par fr-t3-widgets-inline et la porte pixels |
 | crates/fragment-markdown/src/syntaxe/analyse_blocs.rs, en_ligne.rs, genre.rs | app/src/ui/views/markdown/language.ts (markdownExtensions : GFM, Subscript, Superscript, WikiLink, Highlight, InlineMath, BlockMath, MathHighlight) sur @lezer/markdown 1.7.2 | 0 | 0 | 28 | — |
 | crates/fragment-markdown/src/syntaxe/arbre.rs | (ajout) arbre à plat et positions UTF-16 (ADR-004) | 0 | 0 | 5 | — |
 | crates/fragment-markdown/src/syntaxe/modele_rangees.rs | (ajout) types partagés par fr-t3-decorations et fr-t3-blocs-modele (contrat set_row_model, ADR-006) | 0 | 0 | 4 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-markdown | 95 | 95 | 72 | 0 | 100.0 % |
+| fragment-markdown | 120 | 119 | 113 | 1 | 99.2 % |
 
 ## fragment-pdf
 
@@ -312,10 +320,12 @@ fragment-html, spike-maths (pas de `parite.toml`).
 | pas_de_litteral | app/src/ui/theme-tokens.test.ts | 5 | 2 | 0 | 3 — aucune forme de l'échelle en dur hors de index.css : scrute des CSS ; côté Rust, `u()` d'echelle.rs et le contrôle de revue ; le détecteur attrape ce qu'il doit (contre-épreuve) [forme] : même raison : porte sur du CSS ; la coloration syntaxique lit les jetons --code-* : CodeMirror, T3 |
 | theme | app/src/ui/index.css | 0 | 0 | 0 | — |
 | theme_model | app/src/ui/theme/themeModel.ts | 4 | 4 | 0 | — |
+| crates/fragment-theme/src/cascade.rs | app/src/ui/index.css | 0 | 0 | 20 | — |
+| crates/fragment-theme/src/valeurs_css.rs | app/src/ui/index.css | 0 | 0 | 7 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-theme | 9 | 6 | 0 | 3 | 66.7 % |
+| fragment-theme | 9 | 6 | 27 | 3 | 66.7 % |
 
 ## fragment-ui
 

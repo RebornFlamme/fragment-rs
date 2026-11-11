@@ -1,0 +1,20 @@
+# Parité de fr-t11-cascade (fragment-theme). index.css n'a pas de test unitaire côté TS ; le test 2
+# de theme-plugin.spec.ts (accent choisi, dérivés, vide = thème) est un e2e, repris ici en tests
+# Rust (accent_choisi_recalcule_les_derives, accent_vide_ou_blancs_laisse_celui_du_theme) ; le cas
+# e2e lui-même se juge avec fr-t11-themes / fr-t11-livraison.
+
+[[module]]
+ts = "app/src/ui/index.css"
+rs = "crates/fragment-theme/src/cascade.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 20
+notes = "Graphe des jetons : var() avec repli, color-mix in srgb (pourcentages avant/après/absents/doubles), calc en px, Theme::avec_surcharges (jeton inconnu, valeur illisible, cycle, mauvais type = avertissement), surcharges_depuis_json, égalité bit à bit contre un instantané figé (tests/figes/). Non géré : color-mix hors srgb, somme des pourcentages < 100, calc avec unités autres que px, piles de polices surchargeables (champs 'static de Typo)."
+
+[[module]]
+ts = "app/src/ui/index.css"
+rs = "crates/fragment-theme/src/valeurs_css.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 7
+notes = "Lecteurs de valeurs : hex 3/4/6/8, rgb/rgba (virgules et forme moderne), hsl/hsla, px, durées, cubic-bezier, listes d'ombres."
