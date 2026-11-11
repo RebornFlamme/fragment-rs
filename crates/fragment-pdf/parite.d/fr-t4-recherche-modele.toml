@@ -1,0 +1,15 @@
+# Parité de fr-t4-recherche-modele (fragment-pdf). Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. Tests e2e (Playwright) de Fragment (pdf-find.spec.ts, tests 2 à 6) traduits en
+# tests du MODÈLE pur (crates/fragment-pdf/tests/recherche.rs), même nom en snake_case.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfFindBar.ts (état find, compteur, fermeture) ; contrôleur de recherche de pdf.js (normalize, correspondance, navigation)"
+rs = "crates/fragment-pdf/src/recherche/*.rs"
+cas_source = 5
+cas_portes = 4
+cas_ajoutes = 21
+notes = "Non porté : « Ctrl+F ouvre la barre, le champ a le focus » (focus et clavier de la barre montée : fr-t4-recherche-ui). Le test « à 200 % » est porté dans sa part pure (la plage rendue couvre le bon mot ; la mesure en pixels reste à la vue). Modèle synchrone : toutes les pages fournies d'avance, la temporisation de la frappe (250 ms) est une constante pour la vue. Écarts : pas d'anticipation dans le crate regex (la règle « Match diacritics » est vérifiée à la main, sans repli vers une occurrence plus courte) ; requêtes en tableau non portées ; option ignoreDashEOL non portée ; Intl.Segmenter remplacé par UAX n° 29 (unicode-segmentation). Ajoutés : navigation page suivante / précédente, page quittée, requête vide, compteur, tout surligner, ligatures, diacritiques, blancs, saut de ligne, mot coupé, guillemets, ponctuation, métacaractères, mots entiers, casse, offsets UTF-16."
+
+[[module.non_porte]]
+cas = "ctrl_f_ouvre_la_barre_le_champ_a_le_focus"
+raison = "focus du champ et clavier de la barre montée : vue (fr-t4-recherche-ui), hors modèle"
