@@ -232,7 +232,16 @@ Le rendu de fragment-rs est jugé **par comparaison d'images avec Fragment**, sc
 
 **Le diff.** `cargo xtask pixels` compare `pixels/reference/` et `pixels/candidate/`, écrit `pixels/diff/<scene>.png` (pixels divergents en rouge) et `docs/parite-pixels.md` (par scène : pixels différents, % de l'image, pire delta de canal, boîtes des zones divergentes). Deux niveaux :
 - **Strict (la cible)** : 0 pixel différent.
-- **Toléré (le sas)** : delta de canal ≤ 16 ET ≤ 0,3 % des pixels, divergences confinées à des GLYPHES (zones < 20 × 20 px). ★ Honnêteté technique : Chromium rasterise le texte avec Skia + DirectWrite, GPUI avec son propre pipeline ; l'anticrénelage des bords de glyphes peut différer d'un ou deux niveaux de gris sans qu'AUCUNE géométrie ne diffère. Tout ce qui n'est pas un bord de glyphe (boîtes, traits de 1 px, rayons, couleurs de fond, position de chaque glyphe, lignes de base) est en STRICT dès la première scène. Les divergences de glyphes sont une dette suivie (tâche « gamma / hinting / sous-pixel » sur le rasterizeur, phase 4) ; si elles ne tombent pas à 0, l'orchestrateur remonte à l'utilisateur avec les images.
+- **Toléré (le sas)** : PAR CATÉGORIE, la règle exacte est dans `docs/decisions/ADR-009-sas-par-categorie.md` (elle remplace l'ancien « delta ≤ 16 et ≤ 0,3 % » sur toute l'image).
+  - Hors des boîtes de texte et d'icônes : strict, origine des boîtes comprise.
+  - Dans les boîtes : anticrénelage toléré sous garde-fous (encre bornée, boîte d'encre à ±1 px, contre-épreuve d'une lettre changée).
+  - Icônes : traitées comme les glyphes.
+  - Largeur du texte : ±1 px pour T1 seulement (fr-t1.3, fermé avant T2).
+  - Ombres : delta ≤ 2 dans le halo géométrique de l'ombre seulement, en dette (décision du 11/11).
+  - Les chiffres de dette (delta max, % par catégorie) font cliquet.
+  - Boîtes déduites de l'image pour T1 ; export exact par `fragment-ui` exigé avant la fin de T3.
+
+  ★ Honnêteté technique : Chromium rasterise le texte avec Skia + DirectWrite, GPUI avec son propre pipeline ; l'anticrénelage des bords de glyphes peut différer d'un ou deux niveaux de gris sans qu'AUCUNE géométrie ne diffère. Tout ce qui n'est pas un bord de glyphe (boîtes, traits de 1 px, rayons, couleurs de fond, position de chaque glyphe, lignes de base) est en STRICT dès la première scène. Les divergences de glyphes sont une dette suivie (tâche « gamma / hinting / sous-pixel » sur le rasterizeur, phase 4) ; si elles ne tombent pas à 0, l'orchestrateur remonte à l'utilisateur avec les images.
 - La CI (`pixels` job, windows) ÉCHOUE sur toute scène hors tolérance et publie `pixels/diff/` en artifact. Un seuil par scène ne se relâche que par ADR.
 
 **Ce que ça impose en amont.** Mêmes jetons (`fragment-theme` = valeurs d'`index.css` au bit près, `--radius-*`, `--size-*`, graisses) ; mêmes polices (fichiers woff2 de Fragment convertis en TTF, embarqués) ; mêmes constantes de mise en page (hauteurs d'en-tête 37/54 px, écart 8, icônes 22 px, `COUDE` 40, 38 px de bandeau…) lues DANS le CSS de Fragment, jamais réestimées. La table des constantes est `docs/constantes-rendu.md` (phase 0, extraite des 50 `.css` : 9 551 lignes).

@@ -51,3 +51,15 @@ GPUI ne laisse pas lire les sprites de glyphes et d'icônes d'une scène peinte 
 ### Ce que le sas montre sur les captures avant #30
 
 Aucune scène de palette ni de modale ne passe, et ce n'est pas le texte : plus de 99 % des pixels divergents HORS boîtes ont un delta ≤ 2 (ombre `--shadow-l`, mélange alpha), le reste est l'arrondi des coins de la boîte (delta jusqu'à 200), un libellé de pied absent côté candidat et la ligne sélectionnée. Dans les boîtes : décalages d'origine de 1 à 3 px sur les libellés du pied (dette de largeur en cascade) et les flèches de repli. L'ombre est le point à trancher : le sas strict hors boîte la fait échouer.
+
+## Amendement du 11/11/2026 (orchestrateur) : ombre et boîtes
+
+**Ombre : catégorie accordée, EN DETTE, pas en règle permanente.**
+- Tolérance : delta ≤ 2, dans le seul HALO GÉOMÉTRIQUE de l'ombre. Le halo, c'est la boîte de l'élément (déjà stricte), plus le décalage, plus 3 σ du flou. Il est calculé depuis la mise en page (déclaré par le candidat), jamais déduit de l'image.
+- Échouent : tout pixel divergent hors du halo, et tout delta > 2 dans le halo.
+- Contre-épreuve : un rayon d'ombre ou un décalage changé d'1 px fait échouer.
+- Cliquet : le delta max et le % de pixels de l'ombre font cliquet, comme le texte.
+- Le mélange alpha et le flou (écart-type de GPUI contre flou/2 de Skia) rejoignent la tâche rasterizeur de la phase 4.
+- Mise en œuvre : dans `fr-t1.1`, qui possède les surfaces flottantes et leurs ombres.
+
+**Boîtes déduites de l'image : confirmées pour T1.** 2 lettres changées détectées sur 3, c'est insuffisant pour l'éditeur. L'export exact des boîtes par `fragment-ui` est le bead `fr-p3.1`, à mener le plus tôt possible dans T3 ; il bloque la FIN de T3.

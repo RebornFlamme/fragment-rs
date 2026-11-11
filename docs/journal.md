@@ -226,3 +226,9 @@ Mesure (palette et modale, avant #30) : aucune scène ne passe. Plus de 99 % des
 Décisions du chef : fusion acceptée, l'outil ne relâche rien hors boîte. `program.md` §5 (anciens seuils) n'est pas aligné : texte de l'orchestrateur, signalé.
 À trancher par l'orchestrateur (envoyé) : une catégorie « ombre » (ADR) ; l'acceptation des boîtes déduites ; l'alignement de §5.
 **Prochaine action exacte.** Aux comptes rendus d'onglets et de largeur : revue habituelle. Puis fr-t1-reglages, le 12/11 si la part du jour est prise. fr-t1.1 reprend après la réponse sur l'ombre.
+
+## Décision de l'orchestrateur, ombre et boîtes — 11/11/2026 09:20 UTC
+- **Ombre** : catégorie accordée, en dette. Delta ≤ 2 dans le halo géométrique seulement, avec contre-épreuve et cliquet. Amendement daté dans ADR-009. La mise en œuvre est confiée à fr-t1.1, qui s'élargit aux fichiers du sas (`xtask/src/pixels/{sas,boites}.rs`, `capture.rs`) en plus des surfaces flottantes.
+- **Boîtes déduites** : confirmées pour T1. Nouveau bead `fr-p3.1`, export exact par fragment-ui. ★ Il bloque la FIN de T3 : à la création de l'épic fr-t3, faire `bd dep add fr-t3 fr-p3.1` (et `fr-p3-gpui-kit-0.9`), et le lancer tôt dans T3.
+- `program.md` §5 est aligné par l'orchestrateur ; commité ici.
+**Prochaine action exacte.** fr-t1.1 en équipier local, quand un des deux équipiers en cours aura rendu compte. Sinon le 12/11, la part du jour étant engagée (onglets ≈ 3,5 et largeur ≈ 2 sur 8). Fichiers disjoints d'onglets et de largeur ; vérifier qu'onglets n'a pas modifié `flottant.rs` ni `menu.rs`. Sinon, aux comptes rendus : revue habituelle, puis fr-t1-reglages.
