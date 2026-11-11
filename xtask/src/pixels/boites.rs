@@ -12,10 +12,12 @@
 //!
 //! Méthode : un pixel est « de bord » s'il diffère d'un voisin de plus de [`SEUIL_BORD`] ;
 //! les traits droits de plus de [`RUN_UNIFORME`] pixels DE COULEUR UNIFORME (bordures, séparateurs,
-//! bords de fonds : les deux pixels de part et d'autre du bord identiques tout le long) et
-//! toute composante qui les touche (arcs des coins arrondis) sont écartés : c'est de la
-//! géométrie, donc strict ; les composantes restantes (traits de glyphes, d'icônes) sont
-//! regroupées quand leurs boîtes sont proches ([`ECART_H`], [`ECART_V`]) : un mot, une ligne,
+//! bords de fonds : les deux pixels de part et d'autre du bord identiques tout le long) sont
+//! écartés : c'est de la géométrie, donc strict (le sas les retire aussi des boîtes gonflées, voir
+//! [`pixels_de_trait`]). Une composante qui touchait un trait en est privée et son reste n'est
+//! gardé que s'il n'est pas lui-même géométrie : ni au bout d'un trait (arc d'un coin arrondi), ni
+//! de 1 px d'épaisseur, ni porteur d'une suite uniforme de [`SEGMENT_MIN`] px (fr-t1.5). Les
+//! composantes restantes (traits de glyphes, d'icônes) sont regroupées quand leurs boîtes sont proches ([`ECART_H`], [`ECART_V`]) : un mot, une ligne,
 //! une icône.
 
 // ★ Deux crates compilent ce fichier et chacune n'en utilise qu'une partie (xtask lit et détecte,
@@ -33,6 +35,15 @@ pub const SEUIL_BORD: u8 = 14;
 /// les boîtes de toutes les captures de T1 restent celles de l'ancienne règle, plus le texte de la
 /// barre d'état ; à 16, des icônes de `t1-zoom-150` deviennent de la géométrie.
 pub const RUN_UNIFORME: u32 = 20;
+/// Longueur maximale d'une coupure de trait par un glyphe (voir [`marquer_traits`]).
+pub const COUPURE_MAX: usize = 16;
+/// Longueur d'une suite uniforme qui fait d'un reste de composante un morceau de géométrie : le
+/// contour du fond arrondi d'un bouton de 28 px (côtés uniformes de 18 px, trop courts pour être
+/// des traits) ; plus longue que les fûts des lettres qui touchent une bordure (14 px dans les tests
+/// du sas, à 12 px les lettres de ces tests devenaient de la géométrie).
+pub const SEGMENT_MIN: usize = 16;
+/// Épaisseur (en pixels de bord) d'un trait de 1 px : la ligne et ses deux voisins.
+pub const EPAISSEUR_TRAIT: u32 = 3;
 /// Écart horizontal maximal entre deux composantes d'un même passage de texte.
 pub const ECART_H: u32 = 5;
 /// Écart vertical maximal entre deux composantes d'un même passage de texte.
@@ -80,8 +91,26 @@ fn delta(a: image::Rgba<u8>, b: image::Rgba<u8>) -> u8 {
     (0..4).map(|i| a.0[i].abs_diff(b.0[i])).max().unwrap_or(0)
 }
 
-/// Les boîtes d'encre de `image`, triées par (y, x).
-pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
+/// Ce que la détection lit d'une image : pixels de bord, pixels de trait et bouts de trait.
+struct Analyse {
+    /// Pixels qui diffèrent d'un voisin de plus de [`SEUIL_BORD`].
+    bord: Vec<bool>,
+    /// Les deux pixels de chaque paire de bord d'un trait droit uniforme (voir [`marquer_traits`]).
+    traits: Vec<bool>,
+    /// Pixels juste au-delà des extrémités d'un trait : ce qui y touche le prolonge (arc d'un coin).
+    bouts: Vec<bool>,
+    /// Pixels des suites uniformes d'au moins [`SEGMENT_MIN`] positions (traits compris).
+    segments: Vec<bool>,
+}
+
+/// Les pixels de trait de `image` : géométrie, que la boîte d'un texte voisin ne tolère pas.
+///
+/// Le sas (`sas.rs`) les retire de ses boîtes de texte, mesurés sur la référence ET le candidat.
+pub fn pixels_de_trait(image: &RgbaImage) -> Vec<bool> {
+    analyser(image).traits
+}
+
+fn analyser(image: &RgbaImage) -> Analyse {
     let (largeur, hauteur) = image.dimensions();
     let (l, h) = (largeur as usize, hauteur as usize);
     let n = l * h;
@@ -119,43 +148,79 @@ pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
     // sans l'exigence d'uniformité, tout le texte touchait un « trait droit » et devenait strict.
     // La clé d'un bord est la paire de pixels qu'il sépare : une bordure, un séparateur, le bord
     // d'un fond la gardent constante ; l'encre anticrénelée d'un glyphe la change à chaque colonne.
-    let mut droit = vec![false; n];
+    let mut traits = vec![false; n];
+    let mut bouts = vec![false; n];
+    let mut segments = vec![false; n];
     let pixel = |i: usize| *image.get_pixel((i % l) as u32, (i / l) as u32);
-    for y in 0..h {
-        marquer_suites(
-            (0..l).map(|x| y * l + x),
+    for y in 0..h.saturating_sub(1) {
+        let ligne: Vec<usize> = (0..l).map(|x| y * l + x).collect();
+        marquer_traits(
+            &ligne,
             &dessous,
-            |i| (pixel(i), pixel(i + l)),
-            &mut droit,
-            RUN_UNIFORME as usize,
+            &bord,
+            &pixel,
+            (l, n),
+            &mut traits,
+            &mut bouts,
         );
+        marquer_segments(&ligne, &dessous, &pixel, l, &mut segments);
     }
-    for x in 0..l {
-        marquer_suites(
-            (0..h).map(|y| y * l + x),
+    for x in 0..l.saturating_sub(1) {
+        let colonne: Vec<usize> = (0..h).map(|y| y * l + x).collect();
+        marquer_traits(
+            &colonne,
             &droite,
-            |i| (pixel(i), pixel(i + 1)),
-            &mut droit,
-            RUN_UNIFORME as usize,
+            &bord,
+            &pixel,
+            (1, n),
+            &mut traits,
+            &mut bouts,
         );
+        marquer_segments(&colonne, &droite, &pixel, 1, &mut segments);
     }
-    // Composantes 8-connexes du masque de bord ; une composante qui touche un trait droit est
-    // de la géométrie.
+    Analyse {
+        bord,
+        traits,
+        bouts,
+        segments,
+    }
+}
+
+/// Les boîtes d'encre de `image`, triées par (y, x).
+pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
+    let (largeur, hauteur) = image.dimensions();
+    let l = largeur as usize;
+    let n = l * hauteur as usize;
+    let Analyse {
+        bord,
+        traits,
+        bouts,
+        segments,
+    } = analyser(image);
+    // Composantes 8-connexes du masque de bord, PRIVÉ DES TRAITS (décision du chef, fr-t1.5) :
+    // un glyphe qui longe une bordure (le A de « Aucun » contre le ruban, le haut de « New Tab »
+    // sous le bord du menu) reste du texte ; le trait, lui, n'entre dans aucune composante.
+    // Un reste qui touchait un trait n'est gardé que s'il n'est pas lui-même un trait :
+    // ★ ce qui touche le BOUT d'un trait le prolonge (l'arc d'un coin arrondi) ; un reste de 1 px
+    // d'épaisseur est une ligne (le séparateur dégradé d'un onglet, posé sur le bord du menu) ; un
+    // reste qui porte une suite uniforme de [`SEGMENT_MIN`] px est un contour (le fond arrondi d'un
+    // bouton, aux côtés de 18 px, collé à la bordure du ruban). Tout cela reste géométrie.
     let mut vu = vec![false; n];
     let mut groupes: Vec<Groupe> = Vec::new();
     let mut pile = Vec::new();
     for depart in 0..n {
-        if !bord[depart] || vu[depart] {
+        if !bord[depart] || traits[depart] || vu[depart] {
             continue;
         }
         let mut g = Groupe::vide();
-        let mut geometrie = false;
+        let (mut geometrie, mut touche, mut segment) = (false, false, false);
         vu[depart] = true;
         pile.push(depart);
         while let Some(i) = pile.pop() {
             let (x, y) = ((i % l) as u32, (i / l) as u32);
             g.ajouter(x, y);
-            geometrie |= droit[i];
+            geometrie |= bouts[i];
+            segment |= segments[i];
             for dy in -1i64..=1 {
                 for dx in -1i64..=1 {
                     let (nx, ny) = (i64::from(x) + dx, i64::from(y) + dy);
@@ -163,14 +228,16 @@ pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
                         continue;
                     }
                     let j = ny as usize * l + nx as usize;
-                    if bord[j] && !vu[j] {
+                    touche |= traits[j];
+                    if bord[j] && !traits[j] && !vu[j] {
                         vu[j] = true;
                         pile.push(j);
                     }
                 }
             }
         }
-        if !geometrie {
+        let fin = (g.x1 - g.x0 + 1).min(g.y1 - g.y0 + 1) <= EPAISSEUR_TRAIT;
+        if !geometrie && !(touche && (segment || fin)) {
             groupes.push(g);
         }
     }
@@ -215,39 +282,125 @@ pub fn detecter(image: &RgbaImage) -> Vec<BoiteEncre> {
     boites
 }
 
-/// Marque dans `dehors` les pixels des suites d'au moins `min` positions vraies de `masque` dont
-/// la `cle` (la paire de pixels de part et d'autre du bord) ne change pas : un trait UNIFORME.
-fn marquer_suites<K: PartialEq>(
-    indices: impl Iterator<Item = usize>,
+/// Marque les traits d'une `ligne` de pixels (une rangée ou une colonne, dans l'ordre).
+///
+/// Un trait est une suite d'au moins [`RUN_UNIFORME`] positions vraies de `masque` dont la `cle`
+/// (la paire de pixels de part et d'autre du bord, le second à `voisin` du premier) ne change pas.
+/// ★ Un glyphe qui touche le trait le coupe : la clé change sous l'encre et laisse des bouts de
+/// suite trop courts contre lui. Les positions de même clé reprises après une coupure d'au plus
+/// [`COUPURE_MAX`] positions, toutes de bord (l'encre et la bordure le sont ; le fond qui sépare
+/// deux boîtes ne l'est pas), appartiennent au même trait. Les deux pixels de chaque paire du
+/// trait vont dans `traits`, et sous une coupure le pixel qui garde la couleur du trait ; les pixels juste au-delà de ses deux extrémités (et leurs voisins
+/// perpendiculaires) vont dans `bouts`.
+fn marquer_traits(
+    ligne: &[usize],
     masque: &[bool],
-    cle: impl Fn(usize) -> K,
-    dehors: &mut [bool],
-    min: usize,
+    bord: &[bool],
+    pixel: &impl Fn(usize) -> image::Rgba<u8>,
+    (voisin, n): (usize, usize),
+    traits: &mut [bool],
+    bouts: &mut [bool],
 ) {
-    let mut courante: Vec<usize> = Vec::new();
-    let mut cle_courante: Option<K> = None;
-    let mut vider = |courante: &mut Vec<usize>| {
-        if courante.len() >= min {
-            for &i in courante.iter() {
-                dehors[i] = true;
-            }
-        }
-        courante.clear();
-    };
-    for i in indices {
-        if !masque[i] {
-            vider(&mut courante);
-            cle_courante = None;
+    type Cle = (image::Rgba<u8>, image::Rgba<u8>);
+    let cle = |i: usize| (pixel(i), pixel(i + voisin));
+    let cles: Vec<Option<Cle>> = ligne.iter().map(|&i| masque[i].then(|| cle(i))).collect();
+    // Les suites uniformes assez longues : leurs positions, et leurs clés.
+    let mut longue = vec![false; cles.len()];
+    let mut cles_longues: Vec<Cle> = Vec::new();
+    let mut debut = 0;
+    for p in 1..=cles.len() {
+        if p < cles.len() && cles[p].is_some() && cles[p] == cles[debut] {
             continue;
         }
-        let k = cle(i);
-        if cle_courante.as_ref() != Some(&k) {
-            vider(&mut courante);
-            cle_courante = Some(k);
+        if let Some(k) = cles[debut]
+            && p - debut >= RUN_UNIFORME as usize
+        {
+            longue[debut..p].iter_mut().for_each(|v| *v = true);
+            if !cles_longues.contains(&k) {
+                cles_longues.push(k);
+            }
         }
-        courante.push(i);
+        debut = p;
     }
-    vider(&mut courante);
+    let mut fermer = |(a, d, avec_longue): (usize, usize, bool), k: Cle| {
+        if !avec_longue {
+            return;
+        }
+        for &i in &ligne[a..=d] {
+            // Sous une coupure, le côté que l'encre ne couvre pas garde sa couleur : il reste du
+            // trait (la bordure sous le pied d'une lettre).
+            let j = i + voisin;
+            traits[i] |= pixel(i) == k.0;
+            traits[j] |= pixel(j) == k.1;
+        }
+        let au_dela = [a.checked_sub(1), Some(d + 1).filter(|&e| e < ligne.len())];
+        for e in au_dela.into_iter().flatten() {
+            let i = ligne[e];
+            let perpendiculaires = [
+                i.checked_sub(voisin),
+                Some(i),
+                Some(i + voisin),
+                Some(i + 2 * voisin),
+            ];
+            for j in perpendiculaires.into_iter().flatten().filter(|&j| j < n) {
+                bouts[j] = true;
+            }
+        }
+    };
+    for &k in &cles_longues {
+        // L'amas courant : première et dernière position de clé `k`, et s'il contient une suite
+        // longue (sinon ce n'est qu'une coïncidence de couleurs, pas un trait).
+        let mut amas: Option<(usize, usize, bool)> = None;
+        let mut dernier_sans_bord: Option<usize> = None;
+        for (p, &i) in ligne.iter().enumerate() {
+            if !bord[i] && !bord[i + voisin] {
+                dernier_sans_bord = Some(p);
+            }
+            if cles[p] != Some(k) {
+                continue;
+            }
+            amas = match amas {
+                Some((a, d, lg))
+                    if p - d - 1 <= COUPURE_MAX && dernier_sans_bord.is_none_or(|s| s < d) =>
+                {
+                    Some((a, p, lg || longue[p]))
+                }
+                precedent => {
+                    if let Some(precedent) = precedent {
+                        fermer(precedent, k);
+                    }
+                    Some((p, p, longue[p]))
+                }
+            };
+        }
+        if let Some(amas) = amas {
+            fermer(amas, k);
+        }
+    }
+}
+
+/// Marque dans `segments` les pixels des suites d'au moins [`SEGMENT_MIN`] positions vraies de
+/// `masque` le long de `ligne` dont la paire de pixels (le second à `voisin`) ne change pas.
+fn marquer_segments(
+    ligne: &[usize],
+    masque: &[bool],
+    pixel: &impl Fn(usize) -> image::Rgba<u8>,
+    voisin: usize,
+    segments: &mut [bool],
+) {
+    let cle = |p: usize| masque[ligne[p]].then(|| (pixel(ligne[p]), pixel(ligne[p] + voisin)));
+    let mut debut = 0;
+    for p in 1..=ligne.len() {
+        if p < ligne.len() && cle(p).is_some() && cle(p) == cle(debut) {
+            continue;
+        }
+        if cle(debut).is_some() && p - debut >= SEGMENT_MIN {
+            for &i in &ligne[debut..p] {
+                segments[i] = true;
+            }
+        }
+        debut = p;
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -619,6 +772,141 @@ mod tests {
             2 * 140,
             "le trait décalé doit diverger hors boîte"
         );
+    }
+
+    /// Un « A » de 5 × 7 px agrandi ×2, d'encre anticrénelée, dont le coin haut gauche est (x0, y0).
+    fn lettre_a(img: &mut RgbaImage, x0: u32, y0: u32) {
+        let motif = [
+            "..#..", ".#.#.", "#...#", "#...#", "#####", "#...#", "#...#",
+        ];
+        for (r, rangee) in motif.iter().enumerate() {
+            for (k, point) in rangee.chars().enumerate() {
+                if point != '#' {
+                    continue;
+                }
+                let encre = 150 + (((r * 5 + k) * 29) % 70) as u8;
+                for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                    let (x, y) = (x0 + 2 * k as u32 + dx, y0 + 2 * r as u32 + dy);
+                    img.put_pixel(x, y, Rgba([encre, encre, encre, 255]));
+                }
+            }
+        }
+    }
+
+    /// ★ fr-t1.5 : le A de « Aucun » touche la bordure verticale du ruban. La composante est privée
+    /// du trait qu'elle longe : le A reste du texte, la bordure n'entre pas dans sa boîte.
+    #[test]
+    fn un_glyphe_qui_longe_une_bordure_reste_du_texte() {
+        let mut img = fond(80, 60);
+        for y in 0..60 {
+            img.put_pixel(19, y, Rgba([90, 90, 90, 255]));
+        }
+        // Les pieds du A (colonne 20) touchent la bordure (colonne 19).
+        lettre_a(&mut img, 20, 20);
+        let boites = detecter(&img);
+        assert_eq!(boites.len(), 1, "{boites:?}");
+        assert!(
+            boites[0].x >= 20,
+            "la bordure n'est pas du texte : {boites:?}"
+        );
+        let traits = pixels_de_trait(&img);
+        assert!(
+            (0..60).all(|y| traits[y * 80 + 19]),
+            "la bordure reste un trait"
+        );
+    }
+
+    /// ★ fr-t1.5 : le haut de « New Tab » passe sous le bord haut du menu, qui coupe la suite
+    /// uniforme en bouts trop courts : ces bouts restent du trait, les lettres du texte.
+    #[test]
+    fn un_passage_pose_sur_un_bord_reste_du_texte() {
+        let mut img = fond(120, 60);
+        for y in 30..60 {
+            for x in 0..120 {
+                img.put_pixel(x, y, Rgba([60, 60, 60, 255]));
+            }
+        }
+        // Trois A dont la dernière rangée (y = 29) touche le bord (y = 30).
+        for lettre in 0..3 {
+            lettre_a(&mut img, 30 + 12 * lettre, 16);
+        }
+        let boites = detecter(&img);
+        assert_eq!(boites.len(), 1, "{boites:?}");
+        assert_eq!(boites[0].categorie, Categorie::Texte);
+        assert!(boites[0].y + boites[0].hauteur <= 30, "{boites:?}");
+        // Entre deux pieds, le fond posé sur le bord reste un pixel de trait.
+        let traits = pixels_de_trait(&img);
+        assert!(traits[29 * 120 + 34] && traits[30 * 120 + 34]);
+    }
+
+    /// Peint une boîte arrondie anticrénelée (x0, y0, x1, y1, rayon) : bordure de 1 px de valeur
+    /// `bordure` (ou aucune), fond de valeur `remplissage`, sur le fond de l'image.
+    fn boite_arrondie(
+        img: &mut RgbaImage,
+        (x0, y0, x1, y1, rayon): (f64, f64, f64, f64, f64),
+        bordure: Option<f64>,
+        remplissage: f64,
+    ) {
+        for y in 0..img.height() {
+            for x in 0..img.width() {
+                let (px, py) = (f64::from(x) + 0.5, f64::from(y) + 0.5);
+                // Distance au contour de la boîte arrondie (négative dedans).
+                let (cx, cy) = (
+                    px.clamp(x0 + rayon, x1 - rayon),
+                    py.clamp(y0 + rayon, y1 - rayon),
+                );
+                let d = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt() - rayon;
+                let dedans = (0.5 - d).clamp(0.0, 1.0);
+                if dedans == 0.0 {
+                    continue;
+                }
+                let fond = f64::from(img.get_pixel(x, y).0[0]);
+                let mut v = fond + dedans * (remplissage - fond);
+                if let Some(b) = bordure {
+                    // Bordure de 1 px à l'intérieur du contour.
+                    let couverture = (1.0 - (d + 0.5).abs()).clamp(0.0, 1.0);
+                    v += couverture * (b - v);
+                }
+                let v = v.round() as u8;
+                img.put_pixel(x, y, Rgba([v, v, v, 255]));
+            }
+        }
+    }
+
+    /// ★ Piège : l'arc anticrénelé d'un coin arrondi prolonge les bordures ; privé des traits, il
+    /// ne doit pas devenir du texte.
+    #[test]
+    fn un_coin_arrondi_au_bout_d_une_bordure_n_est_pas_du_texte() {
+        let mut img = fond(120, 80);
+        boite_arrondie(&mut img, (10.0, 10.0, 110.0, 70.0, 6.0), Some(90.0), 30.0);
+        assert!(detecter(&img).is_empty(), "{:?}", detecter(&img));
+    }
+
+    /// ★ Piège (`t1-entete-vue`) : le fond arrondi d'un bouton, aux côtés trop courts pour être des
+    /// traits, colle au trait de la bordure du dessus. Privé du trait, son contour reste géométrie.
+    #[test]
+    fn le_fond_arrondi_d_un_bouton_colle_a_une_bordure_reste_de_la_geometrie() {
+        let mut img = fond(80, 60);
+        for x in 0..80 {
+            img.put_pixel(x, 9, Rgba([62, 62, 62, 255]));
+        }
+        boite_arrondie(&mut img, (20.0, 12.0, 48.0, 40.0, 6.0), None, 70.0);
+        assert!(detecter(&img).is_empty(), "{:?}", detecter(&img));
+    }
+
+    /// ★ Piège (`t1-menu-onglet`) : un séparateur dégradé de 1 px (sa couleur change à chaque
+    /// rangée, ce n'est pas un trait uniforme) posé sur une bordure reste de la géométrie.
+    #[test]
+    fn un_separateur_degrade_pose_sur_une_bordure_reste_de_la_geometrie() {
+        let mut img = fond(80, 40);
+        for x in 0..80 {
+            img.put_pixel(x, 20, Rgba([76, 76, 76, 255]));
+        }
+        for y in 11..20 {
+            let v = 70 - y as u8;
+            img.put_pixel(40, y, Rgba([v, v, v, 255]));
+        }
+        assert!(detecter(&img).is_empty(), "{:?}", detecter(&img));
     }
 
     #[test]

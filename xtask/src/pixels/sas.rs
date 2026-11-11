@@ -606,6 +606,19 @@ pub fn comparer_tout(
             }
         }
     }
+    // fr-t1.5 : un trait droit (bordure, séparateur, bord de fond) reste STRICT, même sous la boîte
+    // gonflée d'un texte qui le longe. Ses pixels sont ceux du détecteur, sur la référence ET sur le
+    // candidat : un trait décalé d'1 px diverge sur des pixels de trait des deux images.
+    // ★ Les deux, pas l'un OU l'autre : sous le bas d'un glyphe posé sur une bordure, le fond entre
+    // deux jambages est un pixel de trait d'une image et de l'encre dans l'autre ; l'union rendrait
+    // strict l'anticrénelage même que la boîte tolère.
+    let traits_reference = super::boites::pixels_de_trait(reference);
+    let traits_candidat = super::boites::pixels_de_trait(candidat);
+    for ((d, &r), &c) in dans.iter_mut().zip(&traits_reference).zip(&traits_candidat) {
+        if r && c {
+            *d = false;
+        }
+    }
     let aire_boites = dans.iter().filter(|&&d| d).count() as u64;
     // Les halos d'ombre, hors des boîtes de texte (qui gardent leurs propres garde-fous).
     let masques = ombres::masques(ombres, largeur, hauteur);
@@ -1133,6 +1146,70 @@ pub(super) mod tests {
         let c = ligne("panneau", 1.0, ENCRE, 0);
         // Le candidat déclare ses boîtes : la référence, vide, n'a pas d'encre.
         assert_eq!(sas(&r, &c).verdict, Verdict::Echec);
+    }
+
+    /// `img` avec un trait horizontal de 1 px sur la rangée `y`, de x = 10 à 149.
+    fn avec_trait_horizontal(mut img: RgbaImage, y: u32) -> RgbaImage {
+        for x in 10..150 {
+            img.put_pixel(x, y, Rgba([90, 90, 90, 255]));
+        }
+        img
+    }
+
+    /// `img` avec une bordure verticale de 1 px sur la colonne `x`, sur toute la hauteur.
+    fn avec_bordure_verticale(mut img: RgbaImage, x: u32) -> RgbaImage {
+        for y in 0..img.height() {
+            img.put_pixel(x, y, Rgba([90, 90, 90, 255]));
+        }
+        img
+    }
+
+    /// ★ CONTRE-ÉPREUVE (fr-t1.5) : le bas des lettres (rangée 33) touche un trait (rangée 34) ;
+    /// le texte garde sa boîte, mais le trait décalé d'1 px reste hors boîte et fait échouer.
+    #[test]
+    fn un_trait_decale_contre_un_texte_fait_echouer() {
+        let r = avec_trait_horizontal(ligne("panneau", 1.0, ENCRE, 0), 34);
+        let ok = sas(
+            &r,
+            &avec_trait_horizontal(ligne("panneau", 0.85, ENCRE, 0), 34),
+        );
+        assert_eq!(ok.verdict, Verdict::Tolere, "{}", motifs(&ok));
+        assert!(
+            !ok.boites.is_empty(),
+            "le texte posé sur le trait garde sa boîte"
+        );
+        let c = avec_trait_horizontal(ligne("panneau", 1.0, ENCRE, 0), 35);
+        let s = sas(&r, &c);
+        assert_eq!(s.verdict, Verdict::Echec);
+        // Les deux rangées du trait divergent sur toute sa longueur, sous les lettres comprises.
+        assert!(
+            s.differents_hors >= 2 * 140 - 2 * 14,
+            "{}",
+            s.differents_hors
+        );
+    }
+
+    /// ★ CONTRE-ÉPREUVE (fr-t1.5, le A de « Aucun » contre le ruban) : la boîte du « a » gonflée
+    /// d'1 px couvre la bordure qu'il touche ; la bordure décalée d'1 px sous le « a » échoue.
+    #[test]
+    fn une_bordure_decalee_sous_le_a_fait_echouer() {
+        // Le « a » commence en x = 20 : la bordure en x = 19 touche son flanc gauche.
+        let r = avec_bordure_verticale(ligne("anneau", 1.0, ENCRE, 0), 19);
+        let ok = sas(
+            &r,
+            &avec_bordure_verticale(ligne("anneau", 0.85, ENCRE, 0), 19),
+        );
+        assert_eq!(ok.verdict, Verdict::Tolere, "{}", motifs(&ok));
+        assert!(
+            ok.boites.iter().any(|b| b.boite.x <= 21),
+            "le « a » garde sa boîte : {:?}",
+            ok.boites.iter().map(|b| b.boite).collect::<Vec<_>>()
+        );
+        let c = avec_bordure_verticale(ligne("anneau", 1.0, ENCRE, 0), 18);
+        let s = sas(&r, &c);
+        assert_eq!(s.verdict, Verdict::Echec);
+        // Les deux colonnes divergent sur toute la hauteur, à côté du « a » compris.
+        assert_eq!(s.differents_hors, 2 * 60);
     }
 
     #[test]
