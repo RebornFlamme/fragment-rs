@@ -26,6 +26,8 @@ gpui-kit.workspace = true
 [dev-dependencies]
 # Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.
 gpui-kit = { workspace = true, features = ["test-support"] }
+# Spike S6 (tests/spike_s6.rs) : décode les PNG de référence de Chromium. Déjà dans le workspace (spike-maths).
+image = { workspace = true }
 
 [lints]
 workspace = true

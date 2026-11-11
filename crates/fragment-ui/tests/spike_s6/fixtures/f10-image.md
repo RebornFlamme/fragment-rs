@@ -1,0 +1,1 @@
+<img src="data:image/svg+xml;utf8,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2740%27 height=%2730%27%3E%3Crect width=%2740%27 height=%2730%27 fill=%27%23884488%27/%3E%3C/svg%3E" width="80" alt="un rectangle">
