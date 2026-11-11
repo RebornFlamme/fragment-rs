@@ -337,6 +337,12 @@ Theme {
             b: 130,
             a: 255,
         },
+        pdf_page_bg: Couleur {
+            r: 255,
+            g: 255,
+            b: 255,
+            a: 255,
+        },
         menu_shadow: [
             Ombre {
                 decalage_x: 0.0,

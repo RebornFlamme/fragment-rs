@@ -179,6 +179,7 @@ Déclarés sur `:root` (structure, identique dans les deux thèmes), sur `body` 
 | `--avatar-bg-c` | `0.07` | `0.045` | ui\index.css:293, 329 |
 | `--avatar-fg-l` | `0.9` | `0.41` | ui\index.css:294, 330 |
 | `--avatar-fg-c` | `0.05` | `0.085` | ui\index.css:295, 331 |
+| `--pdf-page-bg` | `#ffffff` | (commun) | uiiewspdfpdf-view.css:114 |
 
 ## Constantes de mise en page par fichier
 

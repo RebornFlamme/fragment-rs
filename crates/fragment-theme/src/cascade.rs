@@ -637,6 +637,7 @@ impl Palette {
                 workspace_bg, color_accent, tab_bar_bg, background_secondary, background_primary,
                 background_primary_alt, menu_bg, background_secondary_alt, tab_outline_color,
                 text_normal, text_muted, text_faint, text_error, text_warning, text_success,
+                pdf_page_bg,
             ],
             ombres: [menu_shadow, shadow_xs, shadow_s, shadow_card, shadow_l],
             reels: [avatar_bg_l, avatar_bg_c, avatar_fg_l, avatar_fg_c],

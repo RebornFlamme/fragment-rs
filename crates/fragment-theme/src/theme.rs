@@ -152,6 +152,7 @@ jetons! {
         text_error: Couleur,
         text_warning: Couleur,
         text_success: Couleur,
+        pdf_page_bg: Couleur,
         menu_shadow: Vec<Ombre>,
         shadow_xs: Vec<Ombre>,
         shadow_s: Vec<Ombre>,
