@@ -525,3 +525,10 @@ Livraison de T1 quand #49 est fusionnée.
   - Branchement sur `jetons_dans` noté sur fr-t3-surface.
   - Bead fermé, worktree et dossier cible retirés.
   - Lancée : fr-t3-surface (Opus, `../fragment-rs-surface`). Actifs : shell5, pdfpages, barre, treeitem, surface.
+- 11/11 19:45 UTC, fenêtre 5 h à 39 %, semaine à 41 % : deux fusions, CI verte et audits à 0 pour les deux. Beads fermés, worktrees et dossiers cible retirés.
+  - #66 (fr-t4-pages) :
+    - virtualisation, rendu sur un fil dédié, pixel physique exact, pinch sans rendu, 14 tests ;
+    - fond de page en `Couleur::BLANC` en attendant le jeton : nouveau bead fr-t4.1.
+  - #67 (fr-t4-barre) : 12 tests, 6 icônes Lucide. Consignes de montage notées sur fr-t4-vue-pdf.
+  - Lancées : fr-t4-texte (Opus, `../fragment-rs-pdftexte`) et fr-t11-themes (Sonnet, `../fragment-rs-themes`).
+  - Actifs : shell5, treeitem, surface, pdftexte, themes.
