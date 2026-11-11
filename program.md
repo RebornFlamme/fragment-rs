@@ -62,7 +62,14 @@ Orchestrateur (Fable 5.1, session « Fragment »)
 
 **Seuils (pause stricte).**
 - Fenêtre 5 h : aucune vague ne DÉMARRE au-dessus de **80 %** (décision utilisateur du 01/11, relevé de 60 %) ; au-dessus de **90 %**, le chef demande à tous les équipiers de terminer leur étape en cours et de se mettre en pause ; reprise au reset.
-- Semaine, à partir du reset du 06/11 18:00 UTC (décision de l'orchestrateur du 05/11, remplace le prorata qui affamait le programme dès que l'utilisateur travaille) : fragment-rs dispose d'une **PART FIXE de 30 points d'hebdo par semaine**, comptée par le chef (relevé `get_usage` avant et après chaque tâche lancée, cumul dans `docs/journal.md`) et étalée à **8 points par jour au plus**. Conditions : fenêtre 5 h ≤ 80 % pour lancer, pause à 90 %, **arrêt global à 85 % d'hebdo**.
+- ★ **Semaine, à partir du 11/11 (décision UTILISATEUR, remplace la part fixe ci-dessous) : « je veux que ça charbonne, hors de question qu'on reset la semaine pas proche de 100 % d'usage ».**
+  - **Cible : ≥ 90 % d'hebdo au reset** (jeudi 18:00 UTC). Arrêt global à **97 %**, pour laisser une marge à l'utilisateur et à l'orchestrateur.
+  - Plus de part fixe ni de plafond par jour. Rythme visé : (97 − usage) ÷ heures restantes avant le reset, recalculé à chaque battement. En retard sur ce rythme, le chef OUVRE des équipiers ; il ne les retient pas.
+  - La fenêtre 5 h reste la seule garde : lancer jusqu'à 80 %, pause à 90 %. Ne jamais toucher la limite.
+  - Parallélisme : jusqu'à 5 équipiers simultanés.
+  - Opus 5.5 est permis aux équipiers sur les tâches dures : éditeur, rasterizeur, géométrie du PDF, runtime de plugins.
+  - Battement d'1 h tant qu'il y a du travail prêt.
+- (Ancienne règle, caduque depuis le 11/11.) Semaine, à partir du reset du 06/11 18:00 UTC (décision de l'orchestrateur du 05/11, remplace le prorata qui affamait le programme dès que l'utilisateur travaille) : fragment-rs dispose d'une **PART FIXE de 30 points d'hebdo par semaine**, comptée par le chef (relevé `get_usage` avant et après chaque tâche lancée, cumul dans `docs/journal.md`) et étalée à **8 points par jour au plus**. Conditions : fenêtre 5 h ≤ 80 % pour lancer, pause à 90 %, **arrêt global à 85 % d'hebdo**.
 - Jusqu'à ce reset : plafond de 77 % d'hebdo pour fragment-rs (10 points à partir de 67 %).
 - Le chef note l'usage dans chaque entrée de `docs/journal.md`.
 

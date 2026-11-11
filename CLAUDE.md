@@ -29,7 +29,7 @@ Réécriture de Fragment (clone d'Obsidian pour humains et agents) en Rust sur G
 - ★ Fragment est un dépôt GitHub PRIVÉ : une session cloud le clone en lecture dans `/tmp/Fragment` si l'app GitHub de Claude y a accès (program.md §2, « La référence TS depuis le cloud ») ; jamais de copie de ses sources dans ce dépôt public.
 
 ## Budget (résumé, détail §2 de program.md)
-- Abonnement Max : chef + orchestrateur seulement. Pas de vague au-dessus de 80 % de la fenêtre 5 h ; pause à 90 % ; part fixe de 30 points d'hebdo par semaine (8 par jour au plus), arrêt global à 85 % (§2).
+- Abonnement Max : chef + orchestrateur seulement. Pas de vague au-dessus de 80 % de la fenêtre 5 h ; pause à 90 % ; depuis le 11/11 (décision utilisateur), viser ≥ 90 % d'hebdo au reset, arrêt global à 97 %, plus de part fixe ni de plafond par jour, jusqu'à 5 équipiers (§2).
 - Équipiers : sessions **cloud** (crédits cloud), modèle Sonnet 5.5, y compris le mécanique (un groupe de modules par session). **Aucune clé API, pas de `port.yml`** (décision utilisateur 01/11). GitHub Actions compile et teste, rien d'autre.
 - Brief ≤ 400 mots, chemins plutôt que code, équipier neuf par tâche.
 
