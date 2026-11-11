@@ -1,0 +1,13 @@
+# Parité de fr-t2-explorateur (fragment-ui) : la vue explorateur (arbre du coffre, dossiers ouverts,
+# actif, révéler, ouvrir). Un seul test e2e côté TS (scroll-persistence.spec.ts, « explorateur : les
+# dossiers OUVERTS se rouvrent au redémarrage (et pas les autres) »), porté sous le même nom en
+# snake_case dans crates/fragment-ui/tests/explorateur.rs ; les autres cas sont ajoutés d'après
+# FileTree.tsx.
+
+[[module]]
+ts = "app/src/ui/views/explorer/FileExplorerView.tsx, FileTree.tsx (TreeNode, sortChildren, expanded, reveal, getExpanded / setExpanded), explorer.css (conteneur défilant) ; app/src/ui/views/useVaultVersion.ts"
+rs = "crates/fragment-ui/src/explorateur/*.rs, crates/fragment-ui/tests/explorateur.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 19
+notes = "Porté : tri (dossiers d'abord, noms naturels, sens inversé), ouvrir / fermer au clic, clic de fichier = ouvrir, actif suivi (file-open), révéler (ancêtres ouverts, ligne dans la vue, reveal-in-folder), mise à jour sur création / suppression / renommage du coffre, état éphémère { scroll, expanded } rouvert dans l'ordre dossiers puis défilement. Écarts : (1) l'actif suit `file-open` (Option<DocumentKey>, émis juste après `active-leaf-change`) et non `active-leaf-change` lui-même, dont la charge est une feuille que la vue ne sait pas résoudre sans connaître le Workspace ; un `file-open` sans document ne retire pas l'actif ; (2) un dossier ou un fichier supprimé / renommé est oublié des dossiers ouverts (pas de chemin périmé dans getExpanded), le dossier renommé repart replié comme dans Fragment, l'actif suit le renommage ; (3) le tri est une collation maison (chiffres comparés comme des nombres, accents latins et casse à égalité), pas ICU : les alphabets non latins se trient par code ; (4) pas de scène de pixels ici (la mesure au rognage contre t2-explorateur est reportée à fr-t2-montage, qui a un vrai coffre à montrer), ni d'en-tête de boutons (Nouvelle note, Nouveau dossier, Trier, Tout replier : la vue expose tout_replier et basculer_tri, les boutons et les commandes sont à fr-t2-explorateur-actions / fr-t2-montage) ; (5) les menus contextuels, le renommage en place, la création, le glisser-déposer et l'import de fichiers sont à fr-t2-explorateur-actions ; (6) le défilement restauré est appliqué une seule fois à la première mise en page mesurée (pas de reprise répétée pendant 10 s : l'arbre est local, il n'arrive pas tard)."
