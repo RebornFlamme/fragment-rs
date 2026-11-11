@@ -16,8 +16,13 @@
 //! - [`modele_rangees`] : les types partagés par `decorations` et `blocs` (masques, hauteurs et
 //!   polices par ligne, blocs).
 //!
-//! Licence : `analyse_blocs.rs`, `en_ligne.rs` et `genre.rs` traduisent l'algorithme et les noms de
-//! nœuds de `@lezer/markdown` 1.7.2, sous la licence MIT reproduite ci-dessous.
+//! - [`Arbre::reanalyser`] : après un [`Changement`], le même arbre en ne réanalysant que les blocs
+//!   de tête touchés (`incremental.rs`, fr-t3.1).
+//!
+//! Licence : `analyse_blocs.rs`, `en_ligne.rs`, `genre.rs` et `incremental.rs` traduisent
+//! l'algorithme et les noms de nœuds de `@lezer/markdown` 1.7.2 (et, pour la réutilisation de
+//! l'arbre précédent, le principe des fragments de `@lezer/common`), sous la licence MIT reproduite
+//! ci-dessous.
 
 // MIT License
 //
@@ -45,10 +50,12 @@ mod analyse_blocs;
 pub mod arbre;
 mod en_ligne;
 pub mod genre;
+mod incremental;
 pub mod modele_rangees;
 
 pub use arbre::{Arbre, Cote, Noeud, Parcours};
 pub use genre::Genre;
+pub use incremental::Changement;
 pub use modele_rangees::{Etendue, Plage};
 
 /// Analyse `texte` en entier (raccourci de [`Arbre::analyser`]).
