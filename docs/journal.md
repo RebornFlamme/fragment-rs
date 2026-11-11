@@ -412,3 +412,9 @@ Reprise après clear, relancé par l'orchestrateur (pas par un réveil : le rév
   - Conditions : partout ailleurs, cliquet en baisse seulement (preuve dans la PR) ; garde-fous d'ADR-009 intacts ; section datée dans ADR-013.
   - À REMONTER à l'orchestrateur avec la livraison de T1 (un seuil relâché, §5). Repli en cas de refus : GPUI pour ces quatre PNG.
 - 11/11 14:55 UTC : fr-t1.5, accepté environ 12 lignes dans `sas.rs` (masque `cote_nomme`, delta ≤ 1) et `flottant::arrondir_coins`, en ajout seul ; alpha2 prévenu.
+- 11/11 15:10 UTC, fenêtre 5 h à 56 % (reset 17:30), semaine à 34 % :
+  - #58 (fr-t3.1) livrée : 0,69 ms par frappe en médiane (max 1,52) contre 34 à 37 ms, oracle identique à l'analyse complète. La coloration des blocs de code et des maths est confiée au nouveau bead fr-t3.2.
+  - #59 (fr-t3-metadata) livrée : 16 tests.
+  - ★ Le job clippy (Ubuntu) échoue partout depuis 14:00 UTC : le runner ne résout plus archive/security.ubuntu.com à l'étape apt. #54, #57, #58 et #59 sont vertes sur les 6 autres jobs.
+  - Correctif du chef, PR #61 : clippy passe sous windows-latest (sans apt), et les lints Windows du spike S2 (`fragment-html/tests/spike_s2/scenario.rs`, jamais vu par clippy sous Linux) sont corrigés.
+  - Pas de 5e lancement : au rythme actuel, la fenêtre 5 h atteindrait 90 % avant 17:30. Actifs : shell3, alpha2, listes, decorations.
