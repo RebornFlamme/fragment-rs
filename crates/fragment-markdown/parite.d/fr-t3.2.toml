@@ -1,0 +1,28 @@
+# Parité de fr-t3.2 (fragment-markdown) : langages imbriqués dans l'arbre Markdown. Schéma `parite.d` :
+# un fichier par tâche, fusionné par `cargo xtask parite`. `language.ts` et `livePreview.ts` n'ont pas
+# de test unitaire côté TS : `cas_source = 0`, tous les tests sont AJOUTÉS
+# (crates/fragment-markdown/tests/syntaxe_imbrique.rs).
+
+[[module]]
+ts = "app/src/ui/views/markdown/language.ts (MathHighlight : parseMixed + stexMath ; codeHighlightStyle) sur @codemirror/legacy-modes 6.5.3 et @codemirror/language"
+rs = "crates/fragment-markdown/src/syntaxe/imbrique_stex.rs, imbrique_jetons.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 10
+notes = "Port de l'automate stexMath (MIT, notice dans syntaxe/mod.rs), comparé à des relevés du vrai StreamLanguage de Fragment sur 7 formules réécrites (hors dépôt). ★ Trois écarts entre language.ts et le comportement réel : la tokenTable ne remplace pas la table par défaut (tag = tagName donc code_tag, builtin = code_value, error = code_important) ; blankLine remet l'automate en mode texte (la première ligne vide d'un $$ bloc) ; la fusion des jetons se fait par nom de style, pas par couleur. Jetons = les 11 noms --code-* (champs de Palette)."
+
+[[module]]
+ts = "app/src/ui/views/markdown/livePreview.ts (codeLanguages: languages) : coloration des blocs ``` par langage"
+rs = "crates/fragment-markdown/src/syntaxe/imbrique_code.rs, imbrique_langues.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 17
+notes = "Écart ASSUMÉ : Fragment charge ~100 grammaires Lezer ; ici 19 langages (js/ts, json, rust, python, shell, css/scss, html/xml, yaml, toml, sql, c, c++, java, go, c#) décrits par des tables lues par un analyseur générique, sans dépendance nouvelle. Langage inconnu = non coloré. Les attentes sont écrites à la main (pas de relevé : la référence Lezer des langages n'est pas portée)."
+
+[[module]]
+ts = "(ajout) couche des langages imbriqués, incrémentale (principe de parseMixed, @lezer/common)"
+rs = "crates/fragment-markdown/src/syntaxe/imbrique.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "Imbrique::analyser / reanalyser (arbre + Changement) / jetons / jetons_dans (plages UTF-16 pour le viewport). Oracle : égalité avec l'analyse complète après 500 éditions au hasard sur 10 documents. Mesure (release, 10 000 lignes, machine chargée) : surcoût médian ≈ 0,2 ms par frappe au-dessus de l'arbre ; un bloc ouvert qui avale la suite est recoloré en entier (max ≈ 25 ms)."
