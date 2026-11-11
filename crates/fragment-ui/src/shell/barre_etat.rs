@@ -14,9 +14,10 @@ use gpui_kit::{
     Styled as _, div,
 };
 
-use crate::echelle::u;
+use crate::echelle::{Echelle, u};
 use crate::flottant::{arrondir_coins, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::splits::geometrie;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La hauteur de la barre (`.status-bar`, `height: 20px`).
@@ -31,7 +32,14 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
     }
     let t = theme_ou_defaut(cx);
     let (c, f, ty) = (&t.palette, &t.forme, &t.typo);
-    let trait_ = u(cx, f.border_width);
+    // ★ Le trait (haut et gauche) fait un nombre entier de pixels d'écran, comme chez Chromium : à
+    //   80 % 1 px et non 0,8, à 150 % 1 px et non 1,5. Il entre dans la largeur ci-dessous : avec
+    //   l'épaisseur zoomée, la barre sortait 1 px trop étroite à 80 % et trop large à 150 %.
+    let bordure = geometrie::epaisseur_bordure(
+        f64::from(f.border_width),
+        f64::from(Echelle::courante(cx).zoom()),
+    ) as f32;
+    let trait_ = u(cx, bordure);
     // ★ La largeur est celle de Chromium : le contenu (textes exacts + rembourrages des éléments),
     //   plus le rembourrage et le trait gauche de la barre (`border-box`), arrondie au pixel le plus
     //   proche. GPUI arrondit chaque texte au pixel SUPÉRIEUR : ancrée à droite, la barre (et son
@@ -40,7 +48,7 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
         .iter()
         .map(|e| largeur_texte(cx, e, FontWeight::NORMAL, ty.font_ui_smaller))
         .sum();
-    let ajout = (elements.len() as f32 + 1.0) * 2.0 * f.size_2_3 + f.border_width;
+    let ajout = (elements.len() as f32 + 1.0) * 2.0 * f.size_2_3 + bordure;
     let largeur = largeur_ajustee(cx, textes, ajout).min(u(cx, LARGEUR_MAX));
     let mut barre = div();
     {

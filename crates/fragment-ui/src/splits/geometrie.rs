@@ -244,6 +244,57 @@ pub fn melange_couverture(teinte: u8, fond: u8, part: f32) -> u8 {
     (i32::from(fond) + (d >> 8)).clamp(0, 255) as u8
 }
 
+/// ★ Les pixels d'un trait plus FIN qu'un pixel de l'écran (`[a, b]`, px physiques, `b − a < 1`),
+/// comme les peint Skia : un tel trait n'est pas rempli à sa surface mais tracé en « hairline »
+/// d'un pixel, l'alpha modulé par son épaisseur. Chaque pixel (le long du travers) reçoit
+/// `épaisseur × (1 − distance de son centre au centre du trait)`, sur deux pixels au plus. Mesuré
+/// sur la ligne de base de `t1-zoom-80` (trait de 0,8 px centré à 28,4) : 0,08 sur la ligne 27 et
+/// 0,72 sur la 28, là où la surface donnait 0 et 0,8. Rend `(pixel, part)`.
+pub fn filet(a: f64, b: f64) -> Vec<(i32, f64)> {
+    let epaisseur = (b - a).clamp(0.0, 1.0);
+    let centre = (a + b) / 2.0;
+    let premier = (centre - 0.5).floor();
+    [premier, premier + 1.0]
+        .into_iter()
+        .map(|p| {
+            (
+                p as i32,
+                epaisseur * (1.0 - (centre - (p + 0.5)).abs()).max(0.0),
+            )
+        })
+        .filter(|&(_, part)| part > 1e-6)
+        .collect()
+}
+
+/// Un canal de `teinte` posé sur `fond` à la couverture `part` d'un [`filet`] : le mélange flottant
+/// arrondi au plus proche (et non le `⌊…/256⌋` de [`melange_couverture`], qui tombait un niveau
+/// sous la référence sur 1 050 pixels de la ligne de base de `t1-zoom-80`).
+pub fn melange_filet(teinte: u8, fond: u8, part: f64) -> u8 {
+    let (t, f) = (f64::from(teinte), f64::from(fond));
+    (f + (t - f) * part.clamp(0.0, 1.0))
+        .round()
+        .clamp(0.0, 255.0) as u8
+}
+
+/// ★ Une longueur de mise en page de Chromium : tronquée au 1/64 de pixel de l'écran (`LayoutUnit`).
+/// À 80 %, le rembourrage de 4 px (3,2 px) devient 3,1875 et un onglet de 206 px (164,8) 164,796875 :
+/// c'est ce qui place le haut du contour à 3,5875 (mesuré à 3,587) et non à 3,6.
+pub fn unite_de_mise_en_page(v: f64) -> f64 {
+    (v * 64.0 + 1e-6).floor() / 64.0
+}
+
+/// ★ L'épaisseur d'une bordure CSS (`border-*-width`), en px logiques, telle que Chromium la met en
+/// page : ramenée à un nombre ENTIER de pixels de l'écran (tronquée, au moins 1). À 80 % le trait de
+/// 1 px fait 1 px d'écran et non 0,8 ; à 150 %, 1 et non 1,5 (la barre d'état mesurée 1 px plus
+/// étroite que la somme exacte). Sans effet à 100 %.
+pub fn epaisseur_bordure(largeur: f64, zoom: f64) -> f64 {
+    let ecran = largeur * zoom;
+    if ecran <= 0.0 {
+        return 0.0;
+    }
+    (ecran + 1e-6).floor().max(1.0) / zoom
+}
+
 /// Une arête exacte calée comme Chromium : au pixel de l'écran le plus proche, l'égalité vers le
 /// HAUT (`floor(v + 0,5)`), puis ramenée en px logiques.
 pub fn arrondi(v: f64, zoom: f64) -> f64 {
@@ -470,6 +521,44 @@ mod tests {
         assert_eq!(melange_couverture(203, 225, 0.5), 214);
         assert_eq!(melange_couverture(54, 21, 1.0), 54);
         assert_eq!(melange_couverture(54, 21, 0.0), 21);
+    }
+
+    #[test]
+    fn un_trait_plus_fin_qu_un_pixel_est_trace_en_filet_module() {
+        // La ligne de base de t1-zoom-80 : 0,8 px centré à 28,4.
+        let f = filet(28.0, 28.8);
+        assert_eq!(f.len(), 2);
+        assert_eq!(f[0].0, 27);
+        assert!((f[0].1 - 0.08).abs() < 1e-9);
+        assert_eq!(f[1].0, 28);
+        assert!((f[1].1 - 0.72).abs() < 1e-9);
+        // Sombre (trait 52 sur 14, 60 sur 17) et clair (211 sur 232) : la référence.
+        assert_eq!(melange_filet(52, 14, f[1].1), 41);
+        assert_eq!(melange_filet(60, 17, f[1].1), 48);
+        assert_eq!(melange_filet(60, 17, f[0].1), 20);
+        assert_eq!(melange_filet(211, 232, f[1].1), 217);
+        // Centré sur un pixel : un seul pixel touché.
+        let centre = filet(10.1, 10.9);
+        assert_eq!(centre.len(), 1);
+        assert_eq!(centre[0].0, 10);
+        assert!((centre[0].1 - 0.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn une_bordure_fait_un_nombre_entier_de_pixels_d_ecran() {
+        assert_eq!(epaisseur_bordure(1.0, 1.0), 1.0);
+        assert_eq!(epaisseur_bordure(1.0, 0.8), 1.25);
+        assert_eq!(epaisseur_bordure(1.0, 1.5) * 1.5, 1.0);
+        assert_eq!(epaisseur_bordure(2.0, 1.5) * 1.5, 3.0);
+        assert_eq!(epaisseur_bordure(0.0, 1.5), 0.0);
+    }
+
+    #[test]
+    fn l_unite_de_mise_en_page_tronque_au_64e() {
+        assert_eq!(unite_de_mise_en_page(3.2), 3.1875);
+        assert_eq!(unite_de_mise_en_page(164.8), 164.796875);
+        assert_eq!(unite_de_mise_en_page(4.0), 4.0);
+        assert_eq!(unite_de_mise_en_page(195.25), 195.25);
     }
 
     #[test]

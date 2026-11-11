@@ -138,9 +138,21 @@ fn trait_droit(
     if d1 <= d0 {
         return;
     }
-    for cellule in (a.floor() as i32)..(b.ceil() as i32) {
+    // ★ Plus fin qu'un pixel (zoom < 100 %) : un filet d'un pixel à l'alpha modulé, pas une surface
+    //   ([`geometrie::filet`]) ; à 100 % et au-delà, rien ne change.
+    let fin = b - a < 1.0 - 1e-4;
+    let cellules: Vec<(i32, f32)> = if fin {
+        geometrie::filet(f64::from(a), f64::from(b))
+            .into_iter()
+            .map(|(c, p)| (c, p as f32))
+            .collect()
+    } else {
+        ((a.floor() as i32)..(b.ceil() as i32))
+            .map(|c| (c, (b.min(c as f32 + 1.0) - a.max(c as f32)).max(0.0)))
+            .collect()
+    };
+    for (cellule, part) in cellules {
         let c0 = cellule as f32;
-        let part = (b.min(c0 + 1.0) - a.max(c0)).max(0.0);
         if part <= 0.0 {
             continue;
         }
@@ -151,7 +163,13 @@ fn trait_droit(
                 (t as f32 + 0.5, c0 + 0.5)
             };
             let f = fond(x, y);
-            let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, part);
+            let m = |t: u8, f: u8| {
+                if fin {
+                    geometrie::melange_filet(t, f, f64::from(part))
+                } else {
+                    geometrie::melange_couverture(t, f, part)
+                }
+            };
             Couleur::octets(m(teinte.r, f.r), m(teinte.g, f.g), m(teinte.b, f.b), 255)
         };
         // Des suites de pixels de même fond : un quad par suite.
@@ -187,6 +205,9 @@ type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
 /// GPUI, déclarés coin par coin sous [`ELEMENT_CONTOUR`] : leur anticrénelage (MSAA 4x contre
 /// Skia) est l'exception nommée de T1 rattachée à fr-p4.1.
 ///
+/// Les rayons, puis le haut EXACT de l'onglet actif et la hauteur EXACTE de la barre (repère de la
+/// barre, px de l'écran), que suivent les traits horizontaux.
+///
 /// `bords_exacts` : les bords gauche et droit EXACTS de l'actif (repère de la barre), quand ils
 /// diffèrent de l'en-tête calé ; seul le TRAIT les suit. Le fond des coins concaves reste au ras de
 /// l'en-tête calé, comme les pseudo-éléments de Fragment (des boîtes, calées elles aussi).
@@ -195,7 +216,7 @@ fn peindre_contour(
     actif: Option<Bounds<Pixels>>,
     bords_exacts: Option<(f32, f32)>,
     couleurs: CouleursContour,
-    (rayon_haut, rayon_bas): (f32, f32),
+    (rayon_haut, rayon_bas, haut_exact, hauteur_exacte): (f32, f32, f32, f32),
     epaisseur: f32,
     window: &mut Window,
 ) {
@@ -216,7 +237,10 @@ fn peindre_contour(
     let y_ = |y: f32| (oy + y) * k;
     let pt = |x: f32, y: f32| point(px(x / k), px(y / k));
     let demi = epaisseur * k / 2.0;
-    let base = y_(hauteur) - demi;
+    // ★ Les traits horizontaux suivent la hauteur EXACTE de la barre et le haut EXACT de l'onglet
+    //   (le rembourrage du conteneur), pas les bornes calées par GPUI : à 80 %, la barre fait 28,8 px
+    //   (GPUI : 29) et l'onglet commence à 3,1875 (GPUI : 3). Identiques aux bornes à 100 et 150 %.
+    let base = y_(hauteur_exacte) - demi;
     let (barre_g, barre_d) = (x_(0.0).round() as i32, x_(largeur).round() as i32);
     // Le fond sous un pixel : l'en-tête actif (quad de GPUI, calé au pixel) ou la barre.
     let entete = onglet.and(actif).map(|b| {
@@ -261,7 +285,7 @@ fn peindre_contour(
 
     let (trait_g, trait_d) = bords_exacts.unwrap_or((o.gauche, o.droite));
     let (gx, dx) = (x_(trait_g), x_(trait_d));
-    let haut = y_(o.haut) + demi;
+    let haut = y_(haut_exact) + demi;
     let (rh, rb) = (rayon_haut * k, rayon_bas * k);
     // Les coupes : le premier pixel entier au-delà de chaque bout d'arc.
     let cote_haut = (haut + rh).ceil();
@@ -821,6 +845,10 @@ fn barre(
     };
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
+    let zoom = Echelle::courante(cx).zoom();
+    let haut_exact =
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, f.size_4_1)))) as f32;
+    let hauteur_exacte = f32::from(u(cx, f.header_height));
     let (marge, largeur_max) = (
         f32::from(u(cx, f.size_4_1)),
         f32::from(u(cx, LARGEUR_ONGLET)),
@@ -838,7 +866,8 @@ fn barre(
                         place_espaceur.get(),
                     ) {
                         (Some(exacte), Some(rang), Some(o), Some(e)) => {
-                            let fraction = exacte - f32::from(bornes.size.width);
+                            // La largeur exacte est LOGIQUE, les bornes sont à l'écran (zoomées).
+                            let fraction = exacte * zoom - f32::from(bornes.size.width);
                             let place = f32::from(o.size.width + e.size.width) + fraction;
                             let depart = f32::from(o.origin.x - bornes.origin.x);
                             let (g, d) = bords_exacts(place, marge, n, rang, largeur_max);
@@ -851,7 +880,12 @@ fn barre(
                         mesure.get(),
                         exacts,
                         couleurs,
-                        (f32::from(rayon_haut), f32::from(rayon_bas)),
+                        (
+                            f32::from(rayon_haut),
+                            f32::from(rayon_bas),
+                            haut_exact,
+                            hauteur_exacte,
+                        ),
                         f32::from(epaisseur),
                         window,
                     );

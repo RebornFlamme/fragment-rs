@@ -27,7 +27,7 @@ use crate::icones;
 use crate::onglets::actions;
 use crate::onglets::mesures::{OPACITE_REPOS, REMBOURRAGE_ENTETE};
 use crate::splits::ContexteSplits;
-use crate::splits::geometrie::{CadreDock, PoigneeDock, TRAIT_POIGNEE_ACTIVE};
+use crate::splits::geometrie::{self, CadreDock, PoigneeDock, TRAIT_POIGNEE_ACTIVE};
 use crate::splits::{elargi, quads_du_trait};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_core::{Cadre, Cote};
@@ -74,6 +74,33 @@ fn icone_du_ruban(
         )
 }
 
+/// La même icône du ruban, sans flux : la case (que l'appelant pose) et le SVG décalé de `(x, y)`
+/// (px logiques, déjà calés) dans la case.
+fn icone_posee(
+    id: (&'static str, usize),
+    nom: &str,
+    (x, y): (f32, f32),
+    cx: &App,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
+    let t = theme_ou_defaut(cx);
+    let (c, f) = (&t.palette, &t.forme);
+    let survol = couleur(c.background_modifier_hover);
+    div()
+        .id(id)
+        .rounded(u(cx, f.radius_s))
+        .opacity(OPACITE_REPOS)
+        .hover(move |s| s.opacity(1.0).bg(survol))
+        .child(
+            svg()
+                .path(icones::chemin(nom))
+                .absolute()
+                .left(u(cx, x))
+                .top(u(cx, y))
+                .size(u(cx, f.icon_m))
+                .text_color(couleur(c.text_normal)),
+        )
+}
+
 /// Le ruban (`.workspace-ribbon.mod-left`) au cadre `cadre`.
 pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -102,10 +129,30 @@ pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement 
             }),
         );
 
+    // ★ Les actions sont posées à leurs arêtes EXACTES calées comme Chromium, pas empilées par GPUI :
+    //   GPUI arrondit chaque longueur avant la mise en page (à 80 %, une case de 20,8 px devient 20 et
+    //   un écart de 6,4 devient 6), et l'erreur s'accumulait d'une icône à l'autre (−2 px à la
+    //   deuxième, −3 à la troisième) ; centrée dans le ruban, une case laissait 7,5 px que GPUI
+    //   arrondit vers le bas (à 150 %, chaque icône 1 px à gauche).
+    let z = f64::from(Echelle::courante(cx).zoom());
+    let cale = |v: f32| geometrie::arrondi(f64::from(v), z) as f32;
+    let case_gauche = (f.header_height - case) / 2.0;
     let actions = ctx.ruban.iter().enumerate().map(|(i, e)| {
         let commandes = ctx.onglets.commandes.clone();
         let id = e.commande.clone();
-        icone_du_ruban(("ruban-action", i), &e.icone, cx)
+        let haut = f.header_height + f.size_4_2 + i as f32 * (case + f.size_4_2);
+        let (x0, y0) = (cale(case_gauche), cale(haut));
+        let (x1, y1) = (cale(case_gauche + case), cale(haut + case));
+        let (ix, iy) = (
+            cale(case_gauche + f.size_4_1) - x0,
+            cale(haut + f.size_4_1) - y0,
+        );
+        icone_posee(("ruban-action", i), &e.icone, (ix, iy), cx)
+            .absolute()
+            .left(u(cx, x0))
+            .top(u(cx, y0))
+            .w(u(cx, x1 - x0))
+            .h(u(cx, y1 - y0))
             .on_click(move |_, _, cx| {
                 let m: &CommandManager = &commandes;
                 m.execute_command_by_id(&id, None);
@@ -127,14 +174,7 @@ pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement 
         .pb(u(cx, f.size_4_2))
         .bg(couleur(c.background_secondary))
         .child(repli)
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .items_center()
-                .gap(u(cx, f.size_4_2))
-                .children(actions),
-        )
+        .children(actions)
         // La bordure droite COMMENCE sous la case du repli : le bandeau du haut reste d'un tenant.
         .child(
             div()

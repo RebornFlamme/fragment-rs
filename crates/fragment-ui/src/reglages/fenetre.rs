@@ -457,7 +457,13 @@ impl FenetreReglages {
                             .text_color(couleur(c.text_muted)),
                     ),
             )
-            .child("Search settings...");
+            .child(
+                // Le texte indicatif : couleur `::placeholder` de Chromium (vérifié : aucun
+                // `::placeholder` des CSS de Fragment ne vise ce champ).
+                div()
+                    .text_color(couleur(fragment_theme::theme::INDICATIF_CHROMIUM))
+                    .child("Search settings..."),
+            );
         // L'arrondi est DÉCLARÉ (catégorie bord d'arrondi d'ADR-009) : ses coins ne s'anticrènelent
         // pas comme ceux de Skia, à un niveau près.
         let champ = arrondir(champ, cx, u(cx, f.radius_sm), u(cx, f.border_width));

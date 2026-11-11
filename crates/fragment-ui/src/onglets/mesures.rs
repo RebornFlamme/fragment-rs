@@ -194,6 +194,10 @@ pub fn bords_exacts(place: f32, marge: f32, n: usize, rang: usize, largeur_max: 
     } else {
         largeur_max.min(((place - 2.0 * marge) / n as f32).max(0.0))
     };
+    // ★ Des `LayoutUnit` de Chromium (1/64 px) : à 80 %, 3,2 → 3,1875 et 164,8 → 164,796875 (le côté
+    //   gauche de l'actif mesuré à 196,97, et non 197). Sans effet sur les longueurs déjà au 1/64.
+    let unite = |v: f32| (v * 64.0 + 1e-3).floor() / 64.0;
+    let (marge, largeur) = (unite(marge), unite(largeur));
     let gauche = marge + rang as f32 * largeur;
     (gauche, gauche + largeur)
 }
