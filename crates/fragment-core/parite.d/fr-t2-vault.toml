@@ -1,0 +1,44 @@
+# Parité de fr-t2-vault (fragment-core). Schéma `parite.d` : un fichier par tâche, fusionné
+# par `cargo xtask parite` (fr-p3-socle). Aucun test unitaire côté TS pour le coffre :
+# `cas_source = 0`, tous les tests sont AJOUTÉS (crates/fragment-core/tests/vault.rs),
+# écrits d'après le comportement du code source et les décisions de Fragment.
+
+[[module]]
+ts = "app/src/ui/core/vault/vault.ts"
+rs = "crates/fragment-core/src/vault/coffre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 95
+notes = "Arène indexée par chemin, instantanés TFile/TFolder identifiés par FileId (pas de Rc<RefCell>). API synchrone. Ajouts : refus de renommer/supprimer la racine (VaultError::Racine), un seul événement rename pour un dossier (comme le TS), delete/trash annoncent chaque descendant feuilles d'abord. `process` n'a plus de file de promesses (tout est synchrone)."
+
+[[module]]
+ts = "app/src/ui/core/vault/TAbstractFile.ts, TFile.ts, TFolder.ts"
+rs = "crates/fragment-core/src/vault/fichier.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "Nomenclature name / basename / extension (README, .gitignore, archive.tar.gz) ; le reste (parent, children, is_root) est couvert par les tests du coffre."
+
+[[module]]
+ts = "app/src/ui/core/vault/DataAdapter.ts"
+rs = "crates/fragment-core/src/vault/adaptateur.rs, memoire.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "Trait synchrone (Result<_, io::Error>) ; adaptateur mémoire à horloge logique, sans surveillance, exercé par tous les tests du coffre. `on_change` devient set_on_change (méthode). Pas de test propre : l'adaptateur disque (fr-t2-fs) rejouera ces scénarios."
+
+[[module]]
+ts = "app/src/ui/core/documents/vaultProvider.ts"
+rs = "crates/fragment-core/src/vault/fournisseur.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 23
+notes = "Fournisseur du schéma vide (open, key_of, title, icon, exists) et relais create/modify/rename/delete vers DocumentManager, origine et drapeau dossier compris. La table des extensions est une fermeture (ExtensionLookup). relay_vault_events rend les EventRef (le TS ne se désabonne jamais)."
+
+[[module]]
+ts = "app/src/ui/core/links/resolveLink.ts (sur un vrai Vault)"
+rs = "crates/fragment-core/src/vault/coffre.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 7
+notes = "LinkVault et LinkFile implémentés par Vault et TFile : resolve_link tourne sur un vrai coffre (exact, .md implicite, basename, plus court chemin, ordre d'insertion à longueur égale, renommage)."
