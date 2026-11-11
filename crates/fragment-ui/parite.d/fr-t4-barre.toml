@@ -1,0 +1,11 @@
+# Parité de fr-t4-barre (fragment-ui). Schéma `parite.d` : un fichier par tâche. Tests e2e
+# (Playwright) de la barre d'outils PDF traduits en tests du composant (barre + modèle de vue),
+# crates/fragment-ui/tests/pdf_barre.rs, même nom en snake_case.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (construireBarreOutils, bouton, separateur, ouvrirMenu, remplirMenuBarre, remplirMenuZoom, construireRaccourcis), pdf-view.css (.pdf-toolbar*, .pdf-page-*)"
+rs = "crates/fragment-ui/src/pdf_barre/*.rs"
+cas_source = 7
+cas_portes = 7
+cas_ajoutes = 5
+notes = "Tests 1 à 6 de pdf-toolbar.spec.ts, plus le bouton de barre latérale du test 7 (partie barre). Non portés (hors barre : fr-t4-laterale-ui, fr-t4-pages, fr-t4-vue-pdf) : vignettes, table des matières, repli à 600 px, facteur de zoom de la fenêtre Electron (GPUI ne zoome pas la fenêtre ; la touche est consommée si elle est dans la portée), classes is-zooming / is-stale. Ajoutés : contenu coché du menu de la barre latérale, révéler la page, garde du chevron (appui puis clic), perte de focus du champ, dessin de la barre."
