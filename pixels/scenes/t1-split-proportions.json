@@ -1,6 +1,5 @@
 {
   "scene": "t1-split-proportions",
-  "depuis": "T2",
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",

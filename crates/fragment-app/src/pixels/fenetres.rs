@@ -10,10 +10,10 @@ use fragment_core::{
 };
 use fragment_ui::theme_global;
 use gpui_kit::{
-    AnyWindowHandle, App, AppContext as _, Bounds, Context, FocusHandle, InteractiveElement as _,
+    AnyWindowHandle, App, AppContext as _, Context, FocusHandle, InteractiveElement as _,
     IntoElement, KeyDownEvent, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    ParentElement as _, Pixels, Point, Render, Styled as _, TitlebarOptions, Window, WindowBounds,
-    WindowOptions, div, point, px, rgb, size,
+    ParentElement as _, Pixels, Point, Render, Styled as _, Window, WindowOptions, div, point, px,
+    rgb,
 };
 
 use super::actions::{Taille, VueScene};
@@ -214,21 +214,52 @@ pub fn commandes_de_scene() -> (Rc<CommandManager>, Rc<HoteScene>) {
 
 /// Options d'une fenêtre de scène (centrée, titrée « Fragment »).
 pub fn options(cx: &App, taille: Taille) -> WindowOptions {
-    WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-            None,
-            size(px(taille.width as f32), px(taille.height as f32)),
-            cx,
-        ))),
-        titlebar: Some(TitlebarOptions {
-            title: Some(fragment_app::TITRE.into()),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }
+    fragment_app::options_fenetre(
+        cx,
+        fragment_app::TITRE,
+        taille.width as f32,
+        taille.height as f32,
+    )
 }
 
-/// Ouvre la fenêtre principale de la scène, avec la vue demandée.
+/// La version que montrent les références (le build de dev de Fragment) : un réglage de la scène,
+/// comme les dates figées, pas la version de fragment-rs.
+pub const VERSION_DES_REFERENCES: &str = "0.0.0";
+
+/// Ce qu'une scène `"vue": "app"` monte : l'application entière, en mémoire.
+pub struct ScenesApp {
+    pub application: Rc<fragment_app::Application>,
+    /// Les abonnements de scène (`pixels:layout`, `pixels:epingler`…), vivants avec la scène.
+    _abonnements: Vec<fragment_core::EventRef>,
+}
+
+/// Démarre l'application (stockages en mémoire, version des références) dans une fenêtre de
+/// `taille`, et branche les actions de scène sur SON workspace et SES commandes.
+///
+/// ★ Les commandes `pixels:*` de la coquille (onglets) sont enregistrées dans le gestionnaire de
+///   l'application, pas dans un gestionnaire à part : une scène d'app exécute les VRAIES commandes
+///   (`app:zoom-in`). Les fixtures de la palette (`palette::commandes_de_scene`) n'y vont pas : elles
+///   doublonneraient les commandes `app:*` réelles.
+pub fn ouvrir_app(cx: &mut App, taille: Taille) -> anyhow::Result<ScenesApp> {
+    // ★ Les surfaces flottantes vivent dans des magasins de fil (menus, notices, infobulle) que
+    // chaque `commandes_de_scene` vide : un gestionnaire jetable les remet à zéro, sans quoi le menu
+    // d'onglet d'une scène resterait ouvert dans la suivante.
+    drop(commandes_de_scene());
+    let options = fragment_app::boot::Options::memoire(VERSION_DES_REFERENCES);
+    let application =
+        fragment_app::monter(cx, &options, taille.width as f32, taille.height as f32)?;
+    let commandes = application.noyau.commandes();
+    fragment_ui::onglets::commandes_de_scene(&commandes);
+    let ws = fragment_core::App::workspace(&*application.noyau.app).clone();
+    let mut abonnements = fragment_ui::onglets::brancher_scene(&commandes, &ws);
+    abonnements.push(fragment_ui::splits::brancher_scene(&commandes, &ws));
+    Ok(ScenesApp {
+        application,
+        _abonnements: abonnements,
+    })
+}
+
+/// Ouvre la fenêtre principale d'une scène dont la vue n'est PAS l'application.
 pub fn ouvrir_principale(
     cx: &mut App,
     vue: VueScene,
@@ -236,12 +267,7 @@ pub fn ouvrir_principale(
 ) -> anyhow::Result<AnyWindowHandle> {
     let opts = options(cx, taille);
     let fenetre = match vue {
-        VueScene::App => {
-            gpui_kit::open_window(opts, cx, |window, cx| {
-                cx.new(|cx| fragment_app::Coquille::new(window, cx))
-            })?
-            .0
-        }
+        VueScene::App => anyhow::bail!("la vue « app » s'ouvre par `ouvrir_app`"),
         VueScene::Mire => gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| Mire))?.0,
         VueScene::Jouet => {
             gpui_kit::open_window(opts, cx, |window, cx| cx.new(|cx| Jouet::new(window, cx)))?.0
@@ -253,9 +279,16 @@ pub fn ouvrir_principale(
     Ok(fenetre)
 }
 
-/// Ouvre la fenêtre de réglages (2e fenêtre, 1000 × 700 dans les scènes de Fragment).
-/// ★ Son contenu réel arrive avec `fr-t1-reglages` ; ici un fond de thème.
-pub fn ouvrir_reglages(cx: &mut App, taille: Taille) -> anyhow::Result<AnyWindowHandle> {
+/// Ouvre la fenêtre de réglages (2e fenêtre, 1000 × 700 dans les scènes de Fragment) : celle de
+/// l'application si la scène en a une, sinon un fond de thème.
+pub fn ouvrir_reglages(
+    cx: &mut App,
+    taille: Taille,
+    application: Option<&fragment_app::Application>,
+) -> anyhow::Result<AnyWindowHandle> {
+    if let Some(a) = application {
+        return a.ouvrir_reglages(cx, (taille.width as f32, taille.height as f32));
+    }
     let opts = options(cx, taille);
     let (fenetre, _) = gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| Vide))?;
     Ok(fenetre)

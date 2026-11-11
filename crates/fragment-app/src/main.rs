@@ -1,19 +1,56 @@
 //! Point d'entrée de Fragment.
+//!
+//! Usage : `fragment [dossier de travail]`. Le dossier porte `.fragment/` (workspace.json,
+//! appearance.json, hotkeys.json) ; sans argument, le dossier courant. T1 n'ouvre pas encore de
+//! coffre (T2) : le dossier ne sert qu'à la configuration.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use fragment_app::boot::Options;
+use fragment_app::stockage::Stockages;
+
 fn main() {
-    gpui_kit::application().run(|cx| {
-        gpui_kit::init(cx);
-        // Fermer la dernière fenêtre quitte l'application.
-        cx.on_window_closed(|cx, _| {
-            if cx.windows().is_empty() {
-                cx.quit();
+    let dossier = std::env::args_os()
+        .nth(1)
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut options = Options::avec(Stockages::dossier(&dossier), env!("CARGO_PKG_VERSION"));
+    options.nom = dossier.file_name().map_or_else(
+        || "Fragment".to_owned(),
+        |n| n.to_string_lossy().into_owned(),
+    );
+
+    gpui_kit::application()
+        .with_assets(fragment_ui::icones::Ressources)
+        .run(move |cx| {
+            gpui_kit::init(cx);
+            if let Err(erreur) = fragment_ui::polices::enregistrer(cx.text_system()) {
+                eprintln!("fragment : polices : {erreur:#}");
             }
-        })
-        .detach();
-        if let Err(erreur) = fragment_app::ouvrir_fenetre(cx) {
-            eprintln!("fragment : impossible d'ouvrir la fenêtre : {erreur:#}");
-            cx.quit();
-        }
-    });
+            let application = match fragment_app::monter(
+                cx,
+                &options,
+                fragment_app::LARGEUR,
+                fragment_app::HAUTEUR,
+            ) {
+                Ok(a) => a,
+                Err(erreur) => {
+                    eprintln!("fragment : impossible d'ouvrir la fenêtre : {erreur:#}");
+                    cx.quit();
+                    return;
+                }
+            };
+            // Fermer la fenêtre principale (ou la dernière) écrit ce qui attend et quitte.
+            let a = Rc::clone(&application);
+            cx.on_window_closed(move |cx, fermee| {
+                if fermee == a.principale.window_id() || cx.windows().is_empty() {
+                    a.sauver();
+                    cx.quit();
+                }
+            })
+            .detach();
+        });
 }

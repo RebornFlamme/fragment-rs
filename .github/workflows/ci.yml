@@ -159,7 +159,25 @@ jobs:
       - name: pdfium (binaire épinglé, scripts/pdfium.ps1)
         shell: pwsh
         run: ./scripts/pdfium.ps1
-      - run: cargo build -p fragment-app --features pixels --bin fragment-pixels --locked
+      - run: cargo build -p fragment-app --features pixels --bin fragment-pixels --bin fragment --locked
+      # Le binaire de la tranche démarre (fr-t1-binaire) : la fenêtre s'ouvre sur un dossier de travail
+      # neuf, le processus tient, et le layout par défaut est écrit dans .fragment/workspace.json
+      # (débounce de 2 s). La scène de contrôle `t1-binaire` vérifie ensuite le rendu et le clavier.
+      - name: Démarrage du binaire
+        shell: pwsh
+        run: |
+          $dossier = Join-Path $env:RUNNER_TEMP 'fragment-demarrage'
+          New-Item -ItemType Directory -Force $dossier | Out-Null
+          $p = Start-Process -FilePath target/debug/fragment.exe -ArgumentList "`"$dossier`"" -PassThru `
+            -RedirectStandardError (Join-Path $env:RUNNER_TEMP 'fragment-stderr.txt')
+          Start-Sleep -Seconds 10
+          $ws = Join-Path $dossier '.fragment/workspace.json'
+          $vivant = -not $p.HasExited
+          if ($vivant) { Stop-Process -Id $p.Id -Force }
+          Get-Content (Join-Path $env:RUNNER_TEMP 'fragment-stderr.txt') -ErrorAction SilentlyContinue
+          if (-not $vivant) { throw "fragment.exe s'est arrêté (code $($p.ExitCode))" }
+          if (-not (Test-Path $ws)) { throw "workspace.json non écrit dans $dossier" }
+          Get-Content $ws
       - name: Capture n°1
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
       - name: Capture n°2
@@ -178,7 +196,7 @@ jobs:
           shopt -s nullglob
           paires=0
           for c in pixels/candidate/*.png; do [ -f "pixels/reference/$(basename "$c")" ] && paires=$((paires+1)); done
-          if [ "$paires" -gt 0 ]; then cargo xtask pixels; else echo "Aucune scène n'a encore référence + candidat (phase 0)."; fi
+          if [ "$paires" -gt 0 ]; then cargo xtask pixels --exiger-references; else echo "Aucune scène n'a encore référence + candidat (phase 0)."; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
