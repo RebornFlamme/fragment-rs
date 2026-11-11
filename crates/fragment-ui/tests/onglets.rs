@@ -580,7 +580,7 @@ fn les_commandes_de_scene_sont_enregistrees() {
 /// Sur Fragment (Chromium, DM Sans variable à axe optique), l'ENCRE du titre de l'onglet actif va de x = 258
 /// à x = 304 (47 px, mesurés sur `t1-onglets-dark.png`) ; la chasse (avance) attendue est donc d'environ
 /// 47 à 48 px. Ici, l'instance statique 400 (ADR-005) sur le système de texte de la plateforme : la mesure
-/// est imprimée (`cargo test -p fragment-ui --test onglets chasse -- --nocapture`) et bornée à ±2 px.
+/// est imprimée (`cargo test -p fragment-ui --test onglets chasse -- --nocapture`) et bornée à 46-48,5 px (crénage de polices::interface).
 #[test]
 fn la_chasse_de_dm_sans_sur_un_titre_d_onglet_reste_a_deux_pixels_de_chromium() {
     use gpui_kit::platform::current_platform;
@@ -602,7 +602,7 @@ fn la_chasse_de_dm_sans_sur_un_titre_d_onglet_reste_a_deux_pixels_de_chromium() 
         "chasse DM Sans 400, 12 px, « {titre} » : {largeur:.2} px (Chromium : encre de 47 px)"
     );
     assert!(
-        (45.0..=50.0).contains(&largeur),
-        "chasse de « {titre} » = {largeur} px, attendu 47 à 48 ±2"
+        (46.0..=48.5).contains(&largeur),
+        "chasse de « {titre} » = {largeur} px, attendu 47 à 48"
     );
 }
