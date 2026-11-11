@@ -266,3 +266,22 @@ fr-t2 ne dépend plus de fr-t1.3. En cours : onglets, fr-t1.1 (Opus), reglages, 
   - Dettes passées à fr-t1-binaire : `brancher_scene`, rognage des scènes d'onglets, activation par le focus, contour de l'onglet actif à comparer à Skia, fichiers de parité.
   - Chasse « New Tab » à 12 px : 47,11 px dans GPUI contre 47 px d'encre dans Chromium (risque 3 levé).
   - fr-t1-splits lancée (Opus), worktree `../fragment-rs-splits`.
+
+## Vague 8 (T2, T3, T4, T11 découpées) — 11/11/2026 10:25 UTC
+Planificateur (Opus, 393k tokens) : PR #37 (docs/tranches/T{2,3,4,11}.md), fusion à CI verte.
+Découpe : T2 = 12 tâches, T3 = 20, T4 = 13, T11 = 7, plus `fr-p3-socle`, qui débloque fragment-ui, -markdown et -pdf.
+★ Beads bloque tous les enfants d'une épic bloquée. Les dépendances de fin de tranche se posent donc sur une TÂCHE et non sur l'épic :
+- fr-t1.3 → `fr-t2-tree-item`, `fr-t3-surface`, `fr-t4-barre` ;
+- fr-p3.1 et gpui-kit-0.9 → `fr-t3-livraison` ;
+- `fr-p3.1` → `fr-t1.1` (fichiers du sas).
+Lancées : fr-p3-socle (Sonnet, `../fragment-rs-socle`) et fr-t2-vault (Sonnet, `../fragment-rs-vault`). Avec fr-t1.1, reglages et splits, cela fait 5 équipiers.
+Chevauchements acceptés, à rebaser : `fragment-core/src/lib.rs` (vault et reglages) ; `fragment-ui/src/lib.rs` (socle, splits, fr-t1.1).
+À remonter à l'orchestrateur, avec la prochaine remontée : l'icône de marque vient du dépôt privé et serait publiée dans un dépôt public ; le spike S7 chiffrera l'écart du raster pdfium face à pdf.js.
+**Prochaine action exacte.** À chaque place libre, dans l'ordre :
+1. `fr-t2-coffres`, `fr-t11-cascade`, `fr-t3-maths` (Opus), `fr-t3-html` ;
+2. après le socle : `fr-t3-syntaxe` (Opus), `fr-t4-pdfium`, puis les modèles de T4 ;
+3. scènes en local, une à la fois, à cause du verrou de capture.
+- 11/11 10:55 UTC : fusionnées #35 (fr-t1.1 : catégorie ombre, garde-fous plus stricts que l'amendement, 1 PNG vert sur 20 ; bead ROUVERT avec ses dettes), #36 (fr-t1-reglages, fermée) et #37 (plans).
+  - Dettes de réglages passées à fr-t1-binaire.
+  - Lancées : fr-t2-coffres (Sonnet) et fr-t3-maths S5 (Opus). Actifs : splits, socle, vault, coffres, maths.
+  - Envoyé à l'orchestrateur : approbation des garde-fous d'ombre, catégorie « bord d'arrondi », mélange alpha de --shadow-l, icône de marque, pdfium (pour info). fr-t1.1 attend sa réponse et bloque fr-t1-binaire.
