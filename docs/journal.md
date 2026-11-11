@@ -337,3 +337,30 @@ Inscrite dans ADR-009 (amendement daté, d3c43ea) :
 - ★ En contrepartie, fr-p4.1 (mélange alpha) est lancée tout de suite, sans attendre la phase 4. Son critère de fin : toutes ces exceptions retirées, cliquets à 0.
 Lancée : fr-t1.1, étape 3 (Opus), avec une fenêtre 5 h à 77 %. fr-p4.1 est programmée juste après le reset de 12:30 UTC (réveil ponctuel à 12:37 UTC). Elle travaille d'abord sur une mire ; elle ne touche les fichiers de fr-t1.1 qu'après leur fusion.
 À livrer à l'orchestrateur dès que #48 est verte avec ses scènes : le lien de l'artefact Windows, avec la liste des dettes ouvertes et leurs cliquets.
+- 11/11 12:00 UTC : S5 (maths, #45). Verdict GO-AVEC pour la voie A : MathJax 3.2.1 dans QuickJS. Le SVG est identique à celui de Fragment, la boîte exacte au 1/64 px. Voies B (latex-rust) et C (typst) en NO-GO.
+  - Dette de fidélité restante : l'anticrénelage des tracés (resvg contre Skia). 5,7 % des pixels dépassent un delta de 16, delta max 82, 0 pixel de géométrie. ADR-011 propose de la traiter comme les glyphes. À remonter à l'orchestrateur avec la livraison de T1.
+  - À corriger dans program.md §4 (texte de l'orchestrateur) : `rex` n'est pas ReX sur crates.io, et `typst-math` est un nom réservé vide.
+  - #45 est en conflit sur Cargo.lock : l'équipier rebase. Fusion après CI et audit.
+
+## Vague 8 (fin, avant clear du chef) — 11/11/2026 12:15 UTC — usage 5h 82 % (reset à 12:30) / semaine 26 %
+Fusionnées depuis la dernière entrée :
+- #45 (fr-t3-maths, S5 GO-AVEC : MathJax 3.2.1 dans QuickJS ; B et C en NO-GO ; ADR-011 proposé) ;
+- #48 (fr-t1-binaire : boot, `.fragment/` sur disque, pont clavier, hôte de fenêtre, coquille avec barre d'état ; scène de contrôle `t1-binaire` verte).
+Décisions du chef :
+- Pour fusionner #48 en CI verte, ses 21 scènes de shell, plus `t1-toolbar-horizontale` (régressée dans la coquille assemblée), sont remises en `"depuis": "T2"`. Bilan : 0 PNG vert sur 42.
+- Nouveau bug `fr-t1.5` : parité des 21 scènes de shell. Il couvre 7 causes chiffrées dans le bead, dont le sélecteur de coffre rendu statiquement en T1 à partir du modèle de #39.
+- `fr-t1-binaire` reste OUVERT et dépend de fr-t1.5 et de fr-t1.1.
+- `t1-toolbar-horizontale` revient à fr-t1.1 (équipier prévenu).
+Équipiers actifs : UN seul, fr-t1.1 étape 3 (Opus), worktree `../fragment-rs-flottantes`, branche `task/fr-t1.1`. Il fait l'origine au barycentre, les exceptions nommées, ↵, le titre de la modale et les 10 scènes, plus la toolbar dans la coquille. Son compte rendu arrivera après le clear : revue habituelle.
+Worktrees hors `main` : `../fragment-rs-flottantes` seulement.
+À remonter à l'orchestrateur avec la livraison de T1, en un seul message :
+- la dette de fidélité des maths (ADR-011 : anticrénelage resvg contre Skia, 5,7 % des pixels au-delà d'un delta de 16, 0 pixel de géométrie, proposée comme les glyphes) ;
+- `program.md` §4 à corriger : `rex` n'est pas ReX, et `typst-math` est un nom vide.
+Livraison de T1 à l'orchestrateur : lien de l'artefact `build.yml` de main, liste des dettes avec leurs cliquets. Seulement quand fr-t1.1 et fr-t1.5 auront rendu les scènes vertes.
+**Part et rythme** : cible (97 − 26) ÷ 53,7 h ≈ 1,3 point par heure ; réel depuis 08:20 ≈ 2,6, en avance.
+**Clear** : contexte du chef à 354k. Procédure ancienne de §10 (le réveil d'après-clear n'a pas survécu le 10/11) : réveils annulés, « prêt pour le clear » envoyé à l'orchestrateur.
+**Prochaine action exacte** (après le reset de 12:30 UTC, fenêtre ≤ 80 %) :
+1. Lancer fr-p4.1 (mélange alpha, Opus, `../fragment-rs-alpha`). Consignes : `bd show fr-p4.1` et l'amendement de 12:00 d'ADR-009. Cause d'abord, sur une mire ou une crate jetable. Ne toucher `flottant.rs`, `xtask/src/pixels*` et `cliquet.json` qu'après la fusion de fr-t1.1.
+2. Lancer fr-t1.5 (Opus, `../fragment-rs-shell`). Ses fichiers sont disjoints de ceux de fr-t1.1, sauf l'API de déclaration des arrondis, qu'il utilise sans la modifier.
+3. Places restantes (5 au plus), d'après `bd ready` et dans l'ordre du planificateur : `fr-t3-html`, `fr-t3-commandes`, `fr-t4-recherche-modele`, `fr-t4-laterale-modele`, `fr-t2-fs`, `fr-t2-fileview`, `fr-t11-cascade`, `fr-t3.1`. Les scènes une à une, à cause du verrou de capture.
+4. Reposer le battement horaire (CronCreate) et le vérifier par CronList.
