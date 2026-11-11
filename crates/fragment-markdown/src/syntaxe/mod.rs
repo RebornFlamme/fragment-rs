@@ -50,6 +50,7 @@ mod analyse_blocs;
 pub mod arbre;
 mod en_ligne;
 pub mod genre;
+pub mod imbrique;
 mod incremental;
 pub mod modele_rangees;
 
