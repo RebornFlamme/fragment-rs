@@ -536,3 +536,7 @@ Livraison de T1 quand #49 est fusionnée.
   - Écarts et scène reportés sur fr-t2-montage.
   - Bead fermé, worktree et dossier cible retirés.
   - Lancée : fr-t4.1 (Sonnet, `../fragment-rs-fondpage`). Actifs : shell5, surface, pdftexte, themes, fondpage.
+- 11/11 20:20 UTC : fusionnée #69 (fr-t11-themes). CI verte, audit à 0, 22 tests.
+  - Le montage dans le shell (`themes::monter`, `basculer_avec_themes`, CLI) est noté sur fr-t11-livraison.
+  - Bead fermé, worktree et dossier cible retirés.
+  - Lancée : fr-t2-explorateur (Sonnet, `../fragment-rs-explorateur`), débloquée par #68. Actifs : shell5, surface, pdftexte, fondpage, explorateur.
