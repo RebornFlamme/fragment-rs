@@ -215,7 +215,9 @@ fn comparaison_naturelle_des_noms() {
         "la minuscule d'abord à égalité"
     );
     assert_eq!(comparer_noms("note 9", "note 10"), Less);
-    assert_eq!(comparer_noms("note 007", "note 7"), Equal);
+    // Égalité numérique : l'ordre reste total (le plus long après), jamais « égal ».
+    assert_eq!(comparer_noms("note 007", "note 7"), Greater);
+    assert_eq!(comparer_noms("note 7", "note 7"), Equal);
     assert_eq!(comparer_noms("note", "note 1"), Less);
     assert_eq!(
         comparer_noms("1", "a"),
