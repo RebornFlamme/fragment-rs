@@ -1,0 +1,12 @@
+{
+  "scene": "t11-clair-editeur",
+  "depuis": "T11",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["light"],
+  "vault": "pixels/vault-t11",
+  "actions": [
+    {"type":"click","x":150,"y":195},
+    {"type":"wait","ms":500},
+    {"type":"click","x":300,"y":60}
+  ]
+}
