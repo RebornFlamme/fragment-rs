@@ -8,6 +8,7 @@
 pub mod complement;
 pub mod geometrie;
 pub mod hote;
+pub mod maths;
 
 pub use hote::{Geometrie, HoteBlocs, LigneEcran, Mesureur};
 

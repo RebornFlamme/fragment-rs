@@ -4,11 +4,11 @@
 
 [[module]]
 ts = "app/src/ui/views/markdown/decorationPlugin.ts (SeparatorWidget, LangBadgeWidget, MathBlockWidget, mathBlockField, embedField), editor.css (.cm-ob-codeblock*, .cm-ob-code-lang, .cm-hr, .cm-math-block)"
-rs = "crates/fragment-ui/src/md_blocs/hote.rs, crates/fragment-ui/src/md_blocs/complement.rs, crates/fragment-ui/src/md_blocs/geometrie.rs"
+rs = "crates/fragment-ui/src/md_blocs/hote.rs, crates/fragment-ui/src/md_blocs/complement.rs, crates/fragment-ui/src/md_blocs/geometrie.rs, crates/fragment-ui/src/md_blocs/maths.rs"
 cas_source = 4
 cas_portes = 4
-cas_ajoutes = 8
-notes = "e2e editor-hell portés : un_clic_sur_chaque_ligne_sous_un_bloc_pose_le_curseur_sur_cette_ligne, fenetre_etroite_aucun_defilement_horizontal_clics_toujours_justes, menu_insert_puis_la_ligne_suivante_cliquable (le menu est à fr-t3-commandes : on insère son texte), et le cas d'alignement réduit au bord commun (même debut_texte). Ajoutés : rangee_de_hauteur_nulle_pour_les_lignes_suivantes_d_un_bloc (point 1 de #64, confirmé), bloc_atomique_bas_traverse_le_rendu_d_un_coup, clic_sur_un_bloc_de_maths_selectionne_le_latex, et 5 unitaires (géométrie, complément). Écarts : le rendu des maths attend fragment-maths (le cadre et sa hauteur passent par le Mesureur) ; embed = hauteur réservée seulement (T9) ; letter-spacing du badge non appliqué par GPUI (porté dans la largeur) ; position verticale du texte dans une rangée de code plus haute (padding des clôtures) dictée par le fork, à vérifier aux scènes t3-code."
+cas_ajoutes = 11
+notes = "e2e editor-hell portés : un_clic_sur_chaque_ligne_sous_un_bloc_pose_le_curseur_sur_cette_ligne, fenetre_etroite_aucun_defilement_horizontal_clics_toujours_justes, menu_insert_puis_la_ligne_suivante_cliquable (le menu est à fr-t3-commandes : on insère son texte), et le cas d'alignement réduit au bord commun (même debut_texte). Ajoutés : rangee_de_hauteur_nulle_pour_les_lignes_suivantes_d_un_bloc (point 1 de #64, confirmé), bloc_atomique_bas_traverse_le_rendu_d_un_coup, clic_sur_un_bloc_de_maths_selectionne_le_latex, maths_en_bloc_a_leur_vraie_hauteur (moteur réel de fragment-maths), et 7 unitaires (géométrie, complément, boîte de ligne des maths). Écarts : bordure de survol de .cm-math-block non peinte ; formule plus large que la colonne rognée (pas de défilement horizontal du bloc) ; embed = hauteur réservée seulement (T9) ; letter-spacing du badge non appliqué par GPUI (porté dans la largeur) ; position verticale du texte dans une rangée de code plus haute (padding des clôtures) dictée par le fork, à vérifier aux scènes t3-code."
 
 [[module]]
 ts = "app/src/ui/views/markdown/decorationPlugin.ts (markdownFolding : hoveredLine, foldCtl, hoverTracker, foldChevronGutter, ChevronMarker, toggleFoldAt), editor.css (.cm-foldGutter, .cm-fold-chevron)"

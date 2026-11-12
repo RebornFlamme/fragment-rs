@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use fragment_markdown::blocs::{BlocCalcule, ContenuBloc};
+use fragment_maths::moteur::{Cle, Moteur};
 use fragment_theme::Mode;
 use fragment_ui::editeur::{EditeurLive, OptionsEditeur};
 use fragment_ui::md_blocs::{HoteBlocs, Mesureur};
@@ -401,4 +402,45 @@ fn clic_sur_un_bloc_de_maths_selectionne_le_latex() {
     b.cliquer(boite.center());
     let r = b.cx.update(|cx| b.etat.read(cx).selected_range());
     assert_eq!(&doc[r.start.min(r.end)..r.start.max(r.end)], "\na+b\n");
+}
+
+// ─── Maths en bloc réelles (fragment-maths, ADR-011) ───
+
+/// `MathBlockWidget` : le `$$…$$` hors curseur prend la hauteur de `.cm-math-block` — sa formule
+/// (au moins une ligne de texte), 1,3 em de padding et la bordure en haut et en bas — et son image
+/// est peinte. Le moteur rend sur son fil ; l'hôte relit son cache puis reprojette.
+#[test]
+fn maths_en_bloc_a_leur_vraie_hauteur() {
+    let tex = r"\sum_{i=1}^{n} \frac{a_i}{b_i}";
+    let doc = format!("avant\n$$\n{tex}\n$$\naprès");
+    let mut b = Banc::new(&doc, 1000., 600.);
+    let moteur = Rc::new(Moteur::new(16));
+    let h = b.hote.clone();
+    let m = moteur.clone();
+    b.cx.update(|cx| h.update(cx, |h, cx| h.poser_moteur_maths(m, cx)));
+    b.stabiliser();
+    let debut = Instant::now();
+    while moteur.en_attente() > 0 && debut.elapsed() < Duration::from_secs(120) {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    b.cx.executor().advance_clock(Duration::from_millis(200));
+    b.stabiliser();
+    let theme = b.cx.update(|cx| theme_global::theme_ou_defaut(cx));
+    let c = theme.palette.text_normal;
+    // Le LaTeX du bloc garde les sauts de ligne autour de la formule (comme `MathBlockWidget`).
+    let cle = Cle::new(&format!("\n{tex}\n"), true, 16.0, [c.r, c.g, c.b]);
+    let rendu = moteur.en_cache(&cle).expect("formule rendue").unwrap();
+    let g = b.geometrie();
+    let math = *g.ligne(1).unwrap();
+    let ligne = (rendu.hauteur as f32).max(16. * 1.4);
+    let attendu = ligne + 2. * 1.3 * 16. + 2. * theme.forme.border_width;
+    assert!(
+        (math.hauteur - attendu).abs() < 0.05,
+        "{math:?} contre {attendu}"
+    );
+    assert!(g.ligne(2).is_none() && g.ligne(3).is_none());
+    let apres = *g.ligne(4).unwrap();
+    assert!((apres.haut - (math.haut + math.hauteur)).abs() < 0.05);
+    let images = b.cx.update(|cx| h.read(cx).maths().unwrap().images());
+    assert_eq!(images, 1, "l'image de la formule est peinte");
 }

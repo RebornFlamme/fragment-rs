@@ -21,15 +21,16 @@
 //! défile ; sa position dans la fenêtre est DÉDUITE d'une ligne visible (`range_to_bounds` du fork
 //! contre `haut_de_ligne`).
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use fragment_markdown::blocs::{BlocCalcule, ContenuBloc, ModeBloc};
 use fragment_markdown::decorations::GenreWidget;
 use fragment_markdown::syntaxe::modele_rangees::ModeleRangees;
+use fragment_maths::moteur::Moteur;
 use fragment_text::editor::EditorChange;
 use fragment_text::utf16::{byte_to_utf16, utf16_to_byte};
-use fragment_theme::{Aplat, Theme};
+use fragment_theme::{Aplat, Couleur, Theme};
 use gpui_kit::{
     App, AppContext as _, Bounds, Context, Corners, Entity, IntoElement, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Render,
@@ -42,6 +43,7 @@ use super::geometrie::{
     ESPACEMENT_BADGE_EM, PADDING_BADGE_EM, PADDING_CLOTURE_CODE_EM, corps_badge, corps_code,
     interligne,
 };
+use super::maths::{MathsBlocs, Strut};
 use crate::editeur::constantes::{MARGE_LIGNE_DROITE, MARGE_LIGNE_GAUCHE, debut_texte, fin_texte};
 use crate::editeur::{ComplementRangees, EditeurLive, EntreeComplement, OptionsEditeur};
 use crate::icones;
@@ -59,6 +61,13 @@ pub type Mesureur = Rc<dyn Fn(&BlocCalcule, f32) -> Option<f32>>;
 /// L'unité de mise en page de Chromium (`LayoutUnit`, 1/64 px) : en dessous, une rangée est nulle.
 const UNITE_MISE_EN_PAGE: f32 = 1.0 / 64.0;
 
+/// L'intervalle de relecture du cache des maths pendant que le moteur travaille.
+const RELECTURE_MATHS_MS: u64 = 30;
+
+fn rgb(c: Couleur) -> [u8; 3] {
+    [c.r, c.g, c.b]
+}
+
 /// Ce que l'hôte partage avec le complément de rangées (appelé par l'éditeur, pendant sa projection).
 struct Partage {
     repli: Repli,
@@ -68,6 +77,11 @@ struct Partage {
     blocs: Vec<BlocCalcule>,
     mesureur: Option<Mesureur>,
     taille_texte: f32,
+    /// Les maths en bloc, une fois le moteur posé ([`HoteBlocs::poser_moteur_maths`]) : elles
+    /// l'emportent sur le `mesureur` pour les blocs `$$`.
+    maths: Option<Rc<MathsBlocs>>,
+    /// `--border-width` : la bordure transparente de `.cm-math-block`.
+    bordure: f32,
     /// Le chevron sous la souris : l'hôte ne libère que le contrôle qu'il a lui-même posé (une puce
     /// liée pose le sien par `Repli::survoler_controle`).
     chevron_survole: Option<usize>,
@@ -125,6 +139,8 @@ pub struct HoteBlocs {
     editeur: Entity<EditeurLive>,
     partage: Rc<RefCell<Partage>>,
     geometrie: Rc<RefCell<Geometrie>>,
+    /// Une relecture du cache des maths est en cours.
+    relit_maths: Rc<Cell<bool>>,
     _abonnements: Vec<Subscription>,
 }
 
@@ -150,6 +166,8 @@ impl HoteBlocs {
             blocs: Vec::new(),
             mesureur,
             taille_texte: options.taille_texte,
+            maths: None,
+            bordure: 0.0,
             chevron_survole: None,
         }));
         let p = partage.clone();
@@ -163,8 +181,13 @@ impl HoteBlocs {
                 }
                 let mesureur = p.mesureur.clone();
                 let taille = p.taille_texte;
-                let mesure =
-                    |b: &BlocCalcule| mesureur.as_ref().and_then(|f| f(b, taille)).unwrap_or(0.0);
+                let (maths, bordure) = (p.maths.clone(), p.bordure);
+                let mesure = |b: &BlocCalcule| {
+                    if let (ContenuBloc::Maths { tex }, Some(m)) = (&b.contenu, &maths) {
+                        return m.hauteur(tex, taille, bordure).unwrap_or(0.0);
+                    }
+                    mesureur.as_ref().and_then(|f| f(b, taille)).unwrap_or(0.0)
+                };
                 let entree = Entree {
                     texte: e.texte,
                     arbre: e.arbre,
@@ -183,8 +206,70 @@ impl HoteBlocs {
             editeur,
             partage,
             geometrie: Rc::new(RefCell::new(Geometrie::default())),
+            relit_maths: Rc::new(Cell::new(false)),
             _abonnements: abonnements,
         }
+    }
+
+    /// Pose le moteur de maths partagé (ADR-011) : les blocs `$$` prennent leur vraie hauteur et
+    /// leur image. Le strut est lu sur DM Sans au corps du texte.
+    pub fn poser_moteur_maths(&mut self, moteur: Rc<Moteur>, cx: &mut Context<Self>) {
+        let theme = theme_ou_defaut(cx);
+        let taille = self.partage.borrow().taille_texte;
+        let ts = cx.text_system().clone();
+        let police = ts.resolve_font(&font(FAMILLE_INTERFACE));
+        let strut = Strut {
+            ascent: f32::from(ts.ascent(police, px(taille))).round(),
+            descent: f32::from(ts.descent(police, px(taille))).round(),
+        };
+        let maths = Rc::new(MathsBlocs::new(
+            moteur,
+            strut,
+            rgb(theme.palette.text_normal),
+        ));
+        {
+            let mut p = self.partage.borrow_mut();
+            p.maths = Some(maths);
+            p.bordure = theme.forme.border_width;
+        }
+        self.editeur.update(cx, |e, cx| e.reprojeter_maintenant(cx));
+        self.relire_maths(cx);
+        cx.notify();
+    }
+
+    /// Les maths en bloc posées, s'il y en a.
+    #[must_use]
+    pub fn maths(&self) -> Option<Rc<MathsBlocs>> {
+        self.partage.borrow().maths.clone()
+    }
+
+    /// Une formule manquait : relit le cache du moteur jusqu'à ce qu'il ait tout rendu, puis
+    /// reprojette (les hauteurs changent) et redessine.
+    fn relire_maths(&mut self, cx: &mut Context<Self>) {
+        let Some(maths) = self.maths() else { return };
+        if !maths.prendre_manque() || self.relit_maths.replace(true) {
+            return;
+        }
+        let relit = self.relit_maths.clone();
+        cx.spawn(async move |hote, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(RELECTURE_MATHS_MS))
+                    .await;
+                if maths.moteur().en_attente() > 0 {
+                    continue;
+                }
+                relit.set(false);
+                let _ = hote.update(cx, |h, cx| {
+                    h.editeur.update(cx, |e, cx| e.reprojeter_maintenant(cx));
+                    // La reprojection a pu demander d'autres formules.
+                    h.relire_maths(cx);
+                    cx.notify();
+                });
+                break;
+            }
+        })
+        .detach();
     }
 
     /// L'éditeur enveloppé.
@@ -427,7 +512,7 @@ impl HoteBlocs {
     /// Ce que la peinture du dessus lit de l'hôte : les blocs, le corps du texte, les lignes
     /// d'ouverture qui portent un badge de langue (hors curseur seulement : la ligne est alors
     /// vidée de ses accents graves).
-    fn donnees_dessus(&self, cx: &App) -> (Vec<BlocCalcule>, f32, Vec<usize>) {
+    fn donnees_dessus(&self, cx: &App) -> Dessus {
         let partage = self.partage.borrow();
         let editeur = self.editeur.read(cx);
         let lignes = editeur.lignes();
@@ -444,13 +529,34 @@ impl HoteBlocs {
             })
             .map(|b| b.premiere_ligne)
             .collect();
-        (partage.blocs.clone(), partage.taille_texte, badges)
+        Dessus {
+            blocs: partage.blocs.clone(),
+            taille: partage.taille_texte,
+            badges,
+            maths: partage.maths.clone(),
+            bordure: partage.bordure,
+        }
     }
+}
+
+/// Ce que lit la peinture du dessus (voir [`HoteBlocs::donnees_dessus`]).
+struct Dessus {
+    blocs: Vec<BlocCalcule>,
+    taille: f32,
+    badges: Vec<usize>,
+    maths: Option<Rc<MathsBlocs>>,
+    bordure: f32,
 }
 
 /// Peint PAR-DESSUS le texte : séparateurs, badges de langue.
 fn peindre_dessus(
-    (blocs, taille, badges): &(Vec<BlocCalcule>, f32, Vec<usize>),
+    Dessus {
+        blocs,
+        taille,
+        badges,
+        maths,
+        bordure,
+    }: &Dessus,
     g: &Geometrie,
     theme: &Theme,
     window: &mut Window,
@@ -525,6 +631,29 @@ fn peindre_dessus(
                         cx,
                     );
                 }
+                ContenuBloc::Maths { tex } => {
+                    let Some(m) = maths else { continue };
+                    // À la place : la rangée de la première ligne ; curseur dedans : le bloc posé
+                    // sous la dernière ligne de la source.
+                    let boite = match b.mode {
+                        ModeBloc::Remplace => {
+                            g.ligne(b.premiere_ligne).map(|le| (le.haut, le.hauteur))
+                        }
+                        ModeBloc::SourceEtRendu => g
+                            .ligne(b.derniere_ligne)
+                            .map(|le| (le.haut + le.hauteur, le.bloc_dessous)),
+                        ModeBloc::SourceSeule => None,
+                    };
+                    let Some((haut, hauteur)) = boite.filter(|&(_, h)| h > 0.0) else {
+                        continue;
+                    };
+                    let gauche = gauche - MARGE_LIGNE_GAUCHE;
+                    let boite = Bounds {
+                        origin: point(px(gauche), px(haut)),
+                        size: size(px(droite + MARGE_LIGNE_DROITE - gauche), px(hauteur)),
+                    };
+                    m.peindre(tex, taille, *bordure, boite, window, cx);
+                }
                 _ => {}
             }
         }
@@ -534,6 +663,19 @@ fn peindre_dessus(
 impl Render for HoteBlocs {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = theme_ou_defaut(cx);
+        if let Some(m) = self.maths() {
+            // La couleur du texte fait partie de la clé du rendu : un changement de thème redemande
+            // les formules (à la prochaine projection, après cette image).
+            if m.poser_couleur(rgb(theme.palette.text_normal)) {
+                let (e, h) = (self.editeur.clone(), cx.entity().downgrade());
+                cx.defer(move |cx| {
+                    e.update(cx, |e, cx| e.reprojeter_maintenant(cx));
+                    let _ = h.update(cx, |_, cx| cx.notify());
+                });
+            }
+            // Une frappe a pu faire demander une formule : relire le cache jusqu'à son arrivée.
+            self.relire_maths(cx);
+        }
         let entite = cx.entity();
         let geometrie = self.geometrie.clone();
         let chevrons: Vec<_> = geometrie.borrow().chevrons.clone();
