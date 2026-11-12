@@ -445,3 +445,13 @@ fn fond_de_page_pdf_blanc_dans_les_deux_themes() {
         );
     }
 }
+
+#[test]
+fn surlignages_recherche_pdf_communs_aux_deux_themes() {
+    // `--pdf-find-bg` / `--pdf-find-bg-current` (pdf-view.css) : jaune 45 %, orange 70 %.
+    for mode in [Mode::Sombre, Mode::Clair] {
+        let p = Theme::pour(mode).palette;
+        assert_eq!(p.pdf_find_bg, Couleur::css(255, 210, 0, 0.45));
+        assert_eq!(p.pdf_find_bg_current, Couleur::css(255, 140, 0, 0.7));
+    }
+}

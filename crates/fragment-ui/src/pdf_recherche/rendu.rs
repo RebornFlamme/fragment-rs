@@ -35,11 +35,6 @@ pub const CHAMP_LARGEUR: f32 = 440.0;
 pub const BOUTON_CASSE: f32 = 20.0;
 /// Le texte du champ vide (`placeholder`).
 pub const MARQUE: &str = "Search...";
-/// `--pdf-find-bg` : le jaune des résultats, en pourcentage sur transparent.
-const SURLIGNAGE_POURCENT: f32 = 45.0;
-/// `--pdf-find-bg-current` : l'orange du résultat courant.
-const COURANT_POURCENT: f32 = 70.0;
-
 /// Un contrôle de la barre.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bouton {
@@ -250,18 +245,12 @@ pub fn rendre_barre(
     .into_any_element()
 }
 
-/// Les couleurs d'un surlignage : (les résultats, le résultat courant).
+/// Les couleurs d'un surlignage : (les résultats, le résultat courant), lues dans le thème.
 fn couleurs_surlignage(cx: &App) -> (gpui_kit::Hsla, gpui_kit::Hsla) {
     let c = &theme_ou_defaut(cx).palette;
     (
-        gpui_kit::Hsla::from(couleur(
-            c.color_yellow
-                .melange(SURLIGNAGE_POURCENT, Couleur::TRANSPARENT),
-        )),
-        gpui_kit::Hsla::from(couleur(
-            c.color_orange
-                .melange(COURANT_POURCENT, Couleur::TRANSPARENT),
-        )),
+        gpui_kit::Hsla::from(couleur(c.pdf_find_bg)),
+        gpui_kit::Hsla::from(couleur(c.pdf_find_bg_current)),
     )
 }
 

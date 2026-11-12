@@ -18,7 +18,7 @@
 use std::time::Duration;
 
 use fragment_core::Keymap;
-use fragment_text::{DocumentSurface, Rect, TextSurface};
+use fragment_text::{DocumentSurface, Rect};
 use fragment_ui::clavier;
 use fragment_ui::menu;
 use fragment_ui::pdf_pages::{FilDeRendu, PagesPdf, RasteriseurPdfium};
@@ -124,9 +124,7 @@ fn banc(cx: &mut TestAppContext) -> (Banc, &mut VisualTestContext) {
     let (vue, vcx) = cx.add_window_view(move |_, cx| {
         let (rendu, couche, recherche) = sources.take().unwrap();
         let pages = cx.new(|cx| PagesPdf::new(FilDeRendu::en_ligne(Box::new(rendu)), cx));
-        let texte = cx.new(|cx| {
-            TextePdf::new(pages, FilDeTexte::en_ligne(Box::new(couche)), cx)
-        });
+        let texte = cx.new(|cx| TextePdf::new(pages, FilDeTexte::en_ligne(Box::new(couche)), cx));
         RecherchePdf::new(
             texte,
             FilDeTexte::en_ligne(Box::new(recherche)),
@@ -176,13 +174,15 @@ fn page(b: &Banc, vcx: &mut VisualTestContext) -> usize {
 }
 
 fn aller_a(b: &Banc, vcx: &mut VisualTestContext, numero: usize) {
+    // Le document doit être ouvert (sinon la navigation est ignorée).
+    stabiliser(vcx);
     b.pages
         .update(vcx, |p, cx| p.agir(cx, |m| m.aller_a_la_page(numero, None)));
     stabiliser(vcx);
 }
 
 /// Ctrl+F puis une requête : le geste d'un utilisateur.
-fn chercher(b: &Banc, vcx: &mut VisualTestContext, requete: &str) {
+fn chercher(_b: &Banc, vcx: &mut VisualTestContext, requete: &str) {
     vcx.simulate_keystrokes("ctrl-f");
     stabiliser(vcx);
     vcx.simulate_input(requete);
@@ -239,7 +239,10 @@ fn ctrl_f_ouvre_la_barre_le_champ_a_le_focus() {
     stabiliser(vcx);
     assert!(b.vue.read_with(vcx, |v, _| v.barre().ouverte()));
     let focus = b.vue.read_with(vcx, |v, _| v.focus().clone());
-    assert!(vcx.update(|w, _| focus.is_focused(w)), "le champ a le focus");
+    assert!(
+        vcx.update(|w, _| focus.is_focused(w)),
+        "le champ a le focus"
+    );
 }
 
 #[test]
@@ -287,7 +290,11 @@ fn aa_respecte_la_casse_whole_words_menu_ne_garde_que_les_mots() {
     // Aa : « spins » (page 3) et « spin » (page 20).
     b.vue.update(vcx, |v, cx| v.basculer_casse(cx));
     stabiliser(vcx);
-    assert!(compteur(&b, vcx).ends_with(" of 2"), "{}", compteur(&b, vcx));
+    assert!(
+        compteur(&b, vcx).ends_with(" of 2"),
+        "{}",
+        compteur(&b, vcx)
+    );
 
     // Whole words (menu) : « spin » seul.
     choisir(&b, vcx, "Whole words");
@@ -338,7 +345,12 @@ fn a_200_pour_cent_la_couche_de_texte_est_a_l_echelle_le_surlignage_couvre_le_bo
         "largeur {reel} px, attendu {attendu} px"
     );
     // « seul » termine la ligne : le surlignage finit avec elle, et commence bien après son début.
-    assert!((hl.right - ligne_d).abs() < 4.0, "fin {} / {}", hl.right, ligne_d);
+    assert!(
+        (hl.right - ligne_d).abs() < 4.0,
+        "fin {} / {}",
+        hl.right,
+        ligne_d
+    );
     assert!(hl.left - ligne_g > (ligne_d - ligne_g) * 0.5);
 }
 
@@ -361,7 +373,11 @@ fn echap_ferme_la_barre_et_efface_les_surlignages() {
     vcx.simulate_keystrokes("escape");
     stabiliser(vcx);
     assert!(!b.vue.read_with(vcx, |v, _| v.barre().ouverte()));
-    assert!(b.vue.read_with(vcx, |v, cx| v.rects_surlignage(cx)).is_empty());
+    assert!(
+        b.vue
+            .read_with(vcx, |v, cx| v.rects_surlignage(cx))
+            .is_empty()
+    );
     for p in 1..=N {
         assert!(
             b.vue
@@ -417,11 +433,11 @@ fn la_frappe_est_temporisee_puis_cherche() {
     stabiliser(vcx);
     assert!(b.vue.read_with(vcx, |v, _| v.prete()));
     vcx.simulate_input("seul");
-    // Avant le délai de la frappe, rien n'a été cherché.
+    // Avant le délai de la frappe, rien n'a été cherché : le compteur reste à « … ».
     vcx.executor().advance_clock(Duration::from_millis(50));
     vcx.run_until_parked();
     image(vcx);
-    assert_eq!(compteur(&b, vcx), "");
+    assert_eq!(compteur(&b, vcx), "…");
     stabiliser(vcx);
     assert_eq!(compteur(&b, vcx), "1 of 1");
 
@@ -443,7 +459,11 @@ fn rouvrir_la_barre_relance_la_requete_gardee() {
     assert_eq!(compteur(&b, vcx), "1 of 1");
     vcx.simulate_keystrokes("escape");
     stabiliser(vcx);
-    assert!(b.vue.read_with(vcx, |v, cx| v.rects_surlignage(cx)).is_empty());
+    assert!(
+        b.vue
+            .read_with(vcx, |v, cx| v.rects_surlignage(cx))
+            .is_empty()
+    );
 
     vcx.simulate_keystrokes("ctrl-f");
     stabiliser(vcx);

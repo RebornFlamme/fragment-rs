@@ -343,6 +343,18 @@ Theme {
             b: 255,
             a: 255,
         },
+        pdf_find_bg: Couleur {
+            r: 255,
+            g: 210,
+            b: 0,
+            a: 115,
+        },
+        pdf_find_bg_current: Couleur {
+            r: 255,
+            g: 140,
+            b: 0,
+            a: 178,
+        },
         menu_shadow: [
             Ombre {
                 decalage_x: 0.0,

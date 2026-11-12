@@ -108,7 +108,11 @@ impl RecherchePdf {
                 Some(false)
             }
         };
-        portee_champ.register(Some(&[Modifier::Shift]), Some("Enter"), deposer(Commande::Precedent));
+        portee_champ.register(
+            Some(&[Modifier::Shift]),
+            Some("Enter"),
+            deposer(Commande::Precedent),
+        );
         portee_champ.register(Some(&[]), Some("Enter"), deposer(Commande::Suivant));
         portee_champ.register(
             Some(&[Modifier::Mod]),
@@ -229,8 +233,7 @@ impl RecherchePdf {
         for page in pages {
             let base = pos_de_page(page) + 1;
             for s in self.barre.surlignages_page(page) {
-                for rect in surface.coords_for_range(base + s.index, base + s.index + s.longueur)
-                {
+                for rect in surface.coords_for_range(base + s.index, base + s.index + s.longueur) {
                     rects.push(RectSurlignage {
                         rect,
                         courant: s.selectionne && courante.is_some_and(|(p, _)| p == page),
@@ -288,7 +291,8 @@ impl RecherchePdf {
                 // Une destination en coordonnées PDF (origine en bas) : la ligne, un peu sous le
                 // haut de la zone.
                 let y = haut.map(|h| {
-                    let hauteur = m.geometrie().hauteur_px(page - 1) / m.echelle().max(f64::EPSILON);
+                    let hauteur =
+                        m.geometrie().hauteur_px(page - 1) / m.echelle().max(f64::EPSILON);
                     hauteur - (h - MARGE_HAUT).max(0.0)
                 });
                 m.aller_a_la_page(page, y)
@@ -409,7 +413,9 @@ impl RecherchePdf {
                     window.focus(&self.focus, cx);
                 }
                 Commande::Bouton(Bouton::Options, x, y) => {
-                    self.barre.menu_options().show_at_position(x, y, &self.keymap);
+                    self.barre
+                        .menu_options()
+                        .show_at_position(x, y, &self.keymap);
                 }
             }
         }
