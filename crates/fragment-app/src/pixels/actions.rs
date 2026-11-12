@@ -239,6 +239,26 @@ pub enum Action {
     },
 }
 
+/// Les commandes de scène du thème (T11) : l'id et les `args` que les scènes `t11-*` publient sur
+/// `pixels:args` avant la commande. Le module `fragment-ui/themes` les branche sur `ThemesCoffre`.
+pub const COMMANDE_THEME: &str = "pixels:theme-set";
+/// Voir [`COMMANDE_THEME`] : choisit l'accent des réglages.
+pub const COMMANDE_ACCENT: &str = "pixels:accent-set";
+
+/// `args` de `pixels:theme-set` : le nom du thème de coffre (`""` = la palette de Fragment).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArgsTheme {
+    pub name: String,
+}
+
+/// `args` de `pixels:accent-set` : la couleur choisie (`null` = l'accent du thème).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArgsAccent {
+    pub couleur: Option<String>,
+}
+
 fn un_f64() -> f64 {
     1.0
 }
@@ -700,5 +720,30 @@ mod tests {
                 .iter()
                 .any(|s| s.nom == "mire" && s.vue == VueScene::Mire)
         );
+    }
+
+    #[test]
+    fn les_scenes_t11_portent_les_commandes_du_theme() {
+        let dossier = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pixels/scenes");
+        let scenes = lire_scenes(&dossier).unwrap();
+        let mut theme = 0;
+        let mut accent = 0;
+        for scene in scenes.iter().filter(|s| s.nom.starts_with("t11-")) {
+            assert_eq!(scene.depuis, Tranche::parser("T11"), "{}", scene.nom);
+            for action in &scene.actions {
+                let Action::Command { id, args } = action else {
+                    continue;
+                };
+                let args = args.clone().unwrap_or(Value::Null);
+                if id == COMMANDE_THEME {
+                    serde_json::from_value::<ArgsTheme>(args).unwrap();
+                    theme += 1;
+                } else if id == COMMANDE_ACCENT {
+                    serde_json::from_value::<ArgsAccent>(args).unwrap();
+                    accent += 1;
+                }
+            }
+        }
+        assert!(theme >= 4 && accent >= 1);
     }
 }
