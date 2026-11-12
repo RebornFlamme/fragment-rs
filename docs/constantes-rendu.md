@@ -180,6 +180,8 @@ Déclarés sur `:root` (structure, identique dans les deux thèmes), sur `body` 
 | `--avatar-fg-l` | `0.9` | `0.41` | ui\index.css:294, 330 |
 | `--avatar-fg-c` | `0.05` | `0.085` | ui\index.css:295, 331 |
 | `--pdf-page-bg` | `#ffffff` | (commun) | ui\views\pdf\pdf-view.css:114 |
+| `--pdf-find-bg` | `rgba(255, 210, 0, 0.45)` | (commun) | ui\views\pdf\pdf-view.css:115 |
+| `--pdf-find-bg-current` | `rgba(255, 140, 0, 0.7)` | (commun) | ui\views\pdf\pdf-view.css:116 |
 
 ## Constantes de mise en page par fichier
 

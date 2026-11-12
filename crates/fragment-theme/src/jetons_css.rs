@@ -198,4 +198,7 @@ pub const BODY: &[Declaration] = &[
     // Déclaré dans `pdf-view.css` (`.pdf-container`, ligne 114), pas dans `index.css` : le papier
     // reste blanc dans les deux thèmes, la valeur est donc commune.
     ("--pdf-page-bg", "#ffffff", 114),
+    // Surlignages de la recherche PDF, même bloc de `pdf-view.css` : communs aux deux thèmes.
+    ("--pdf-find-bg", "rgba(255, 210, 0, 0.45)", 115),
+    ("--pdf-find-bg-current", "rgba(255, 140, 0, 0.7)", 116),
 ];
