@@ -31,6 +31,7 @@ On pensait que ces écarts venaient d'un mélange alpha différent : « linéair
 ## Conséquences
 
 - Exceptions retirées : arcs de l'infobulle, du menu, de la notice et des notices claires. Restent : `--shadow-l` (8 PNG), arcs de la modale et des palettes claires, ombres de l'infobulle, du menu clair et des notices claires. Leurs valeurs baissent, sauf l'échange daté ci-dessous.
+- Retirée le 12/11 (chef, fr-t1.5) : l'ombre du menu clair. Le premier niveau du menu passe par l'ombre CPU du calque émulé ; étalement 0,185 → 0,020 px, sous la borne de 0,08.
 - La mire de S8 (scripts hors dépôt, décrits dans le spike) peut se rejouer pour toute nouvelle géométrie d'ombre.
 - Coût d'une image d'ombre de modale (758 × 250 px, σ 24) : 0,33 s en debug (profil de la CI), une fois par taille, jeton et thème, puis lue dans le cache (16 entrées au plus). Le flou passe par les formes de rangées du masque (séparable) : 2,2 s → 0,33 s en debug. Le profil release n'a pas été mesuré.
 

@@ -336,13 +336,6 @@
       "arrondi_delta_max": 3,
       "arrondi_pourcent": 50.0,
       "delta_max": 71,
-      "exceptions_t1": {
-        "ombre du menu": {
-          "encre": 0.0143,
-          "etalement": 0.0205,
-          "glissement": 0.0037
-        }
-      },
       "ombre_delta_max": 2,
       "ombre_pourcent": 10.1709,
       "pourcent": 34.1774

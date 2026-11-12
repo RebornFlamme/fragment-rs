@@ -3,7 +3,7 @@
 //! liste vide et ses cliquets ramenés à 0.
 //!
 //! Résidus sous le pixel d'une seule cause, le mélange alpha (même cause que `--shadow-l`) :
-//! étalement des ombres de l'infobulle, du menu clair et des notices claires ; position des arcs
+//! étalement des ombres de l'infobulle et des notices claires ; position des arcs
 //! clairs ; arcs de la palette et de la modale claires.
 //!
 //! - Chaque exception nomme son PNG (scène ET thème) et son élément : la surface ombrée de jeton
@@ -132,7 +132,8 @@ const fn poignee(png: &'static str) -> Exception {
 /// La liste, À RETIRER PAR `fr-p4.1`. Valeurs mesurées : `pixels/cliquet.json`, `exceptions_t1`.
 pub const EXCEPTIONS: &[Exception] = &[
     // Ombres : étalement de +0,22 à +0,24 px (infobulle, petite boîte : 4 échantillons du shader),
-    // −0,19 (menu clair), −0,15 à −0,16 (notices claires) ; borne 0,08.
+    // −0,15 à −0,16 (notices claires) ; borne 0,08. Le menu clair (−0,19 px au shader) est retiré
+    // (chef, 12/11) : ombré sur le CPU au calque émulé, étalement 0,020.
     ombre(
         "t1-infobulle-dark.png",
         "ombre de l'infobulle",
@@ -143,7 +144,6 @@ pub const EXCEPTIONS: &[Exception] = &[
         "ombre de l'infobulle",
         "--menu-shadow",
     ),
-    ombre("t1-menu-light.png", "ombre du menu", "--menu-shadow"),
     ombre("t1-notice-light.png", "ombre de la notice", "--shadow-s"),
     ombre(
         "t1-notice-empilees-light.png",
