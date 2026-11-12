@@ -1,0 +1,12 @@
+{
+  "scene": "t3-html-bouton",
+  "depuis": "T3",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t3/c",
+  "actions": [
+    {"type":"open","path":"html-blocs.md"},
+    {"type":"hover","x":600,"y":262},
+    {"type":"wait","ms":200}
+  ]
+}
