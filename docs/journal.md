@@ -651,3 +651,11 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Lancées : fr-t4.2 (Opus, lcd) et fr-p3-gpui-kit-0.9 (Opus, kit09).
     - ★ La PR amont sur longbridge/gpui-kit n'est PAS ouverte par l'équipier : c'est une publication externe, l'accord de l'utilisateur passe par l'orchestrateur. Son texte sera prêt dans ADR-006.
   - Actifs : shell6, surface2, t2scenes, t3scenesa, t4scenes, lcd, kit09.
+- 19:51 UTC : fusionnées, 7 jobs verts et audits à 0 :
+  - #78 (fr-t2-tranches : `pixels/tranches.json`, source unique) ;
+  - #79 (fr-t3.3 : 47 langages) ;
+  - #80 (fr-t2-scenes : 13 scènes × 2 thèmes, références déterministes).
+    - Décision : les 4 scènes qui exigent une vue de fichier passent en `depuis T3`, accepté.
+    - Gestionnaire et sélecteur : PNG sans JSON, laissés à fr-t2-gestionnaire.
+  - Beads fermés, worktrees et dossiers cible retirés.
+  - Lancée : fr-t3-scenes-b (Sonnet). Actifs : shell6, surface2, t3scenesa, t4scenes, lcd, kit09, t3scenesb.
