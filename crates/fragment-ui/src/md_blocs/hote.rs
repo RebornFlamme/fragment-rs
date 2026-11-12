@@ -56,6 +56,9 @@ use crate::theme_global::{couleur, theme_ou_defaut};
 /// HTML de leurs tâches : chacun fournit sa mesure à l'hôte.
 pub type Mesureur = Rc<dyn Fn(&BlocCalcule, f32) -> Option<f32>>;
 
+/// L'unité de mise en page de Chromium (`LayoutUnit`, 1/64 px) : en dessous, une rangée est nulle.
+const UNITE_MISE_EN_PAGE: f32 = 1.0 / 64.0;
+
 /// Ce que l'hôte partage avec le complément de rangées (appelé par l'éditeur, pendant sa projection).
 struct Partage {
     repli: Repli,
@@ -316,7 +319,15 @@ impl HoteBlocs {
                 haut + editeur.interligne() + bloc_de(l)
             };
             let bloc = bloc_de(l);
+            // ★ Depuis l'interligne exact (22,4 px, ADR-015), `haut_de_ligne` cumule des flottants
+            //   non représentables : une rangée de hauteur 0 ressort à ~1,5e-5 px. Sous l'unité de
+            //   mise en page de Chromium (1/64 px), une rangée est nulle.
             let hauteur = (suivant - haut - bloc).max(0.0);
+            let hauteur = if hauteur < UNITE_MISE_EN_PAGE {
+                0.0
+            } else {
+                hauteur
+            };
             if hauteur > 0.0 || bloc > 0.0 {
                 g.lignes.push(LigneEcran {
                     ligne: l,
