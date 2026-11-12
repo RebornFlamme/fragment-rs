@@ -149,7 +149,10 @@ fn texte_cale(texte: SharedString, interligne: f32, apres: f32, cx: &App) -> imp
                 // L'abscisse exacte : la barre est ancrée au bord droit de la fenêtre ; le texte finit
                 // `apres` px avant lui (sonde DOM à 80 % : 1 280 − 2 × 4,796875 − 61,48 = 1 208,92).
                 let droite = f32::from(window.viewport_size().width) * k - apres;
-                let x = (droite - f32::from(ligne.width) * k) / k;
+                // ★ Au pixel entier : le texte de la barre d'état n'est pas positionné au sous-pixel
+                //   (au sous-pixel, +0,06 % de pixels divergents dans les boîtes à 100 %, CI
+                //   43324543651).
+                let x = (droite - f32::from(ligne.width) * k + 0.5).floor() / k;
                 let _ = ligne.paint(
                     point(px(x), px(y)),
                     px((a + d) / k),
