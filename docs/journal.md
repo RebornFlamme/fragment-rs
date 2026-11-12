@@ -758,3 +758,12 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - t3scenesc masque « Start Side Chat » dans t3-menu-format, comme t4-selection.
   - t4recherche, sonde : Ctrl+F n'ouvre pas la barre si le focus reste sur BODY après `setActiveLeaf`.
   - Contexte du chef environ 520k. ★ Dernière vague de lancements avant le seuil de 550k.
+- 23:58 UTC : ★ **#49 FUSIONNÉE (fr-t1.5) : 42/42 PNG de shell verts.** 8 jobs verts, audit à 0, merge 7b72884.
+  - Trois exceptions nommées temporaires, chacune en cliquet, avec contre-épreuves et rattachées à fr-p4.1 :
+    - « demi-couverture de la ligne de base » ;
+    - « icône en hairline » ;
+    - « glyphes à 8,8 px en clair ».
+  - L'exception « ombre du menu » est retirée.
+  - CI et build de main (7b72884) en cours. Livraison de T1 dès l'artefact disponible.
+  - fr-t3-tableaux reçoit editeur/{element,surface}.rs pour les options `marges` et `interligne` des éditeurs imbriqués.
+  - t4recherche a trouvé la cause : `Workspace.setActiveLeaf` de Fragment sort tôt quand la feuille est déjà active, donc la portée PDF n'est pas empilée.
