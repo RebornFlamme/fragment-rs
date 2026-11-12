@@ -746,3 +746,7 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - t11scenes : `t11-sans-theme-dark` diffère entre les passes A et B ; passe C propre en cours.
   - #49 en CI (shell7).
   - ★ Le contexte du chef approche des 550k. Au-delà, plus de lancement, puis « prêt pour le clear » quand les équipiers ont fini.
+- 23:30 UTC : fr-t1.5, 3e exception NOMMÉE temporaire « glyphes à 8,8 px en clair », accordée.
+  - Portée : t1-zoom-80-light, boîte (1208,787) 63×11. Encre jusqu'à ±30 %, barycentre jusqu'à ±0,75 px. Cliquet à 0,258 et 0,58.
+  - Dette du rastériseur de glyphes, notée sur fr-p4.1. À REMONTER avec T1.
+  - Run 43327210906 : 38/42 verts. Les 3 autres PNG de zoom ne manquent plus que de bases, que shell7 pose.
