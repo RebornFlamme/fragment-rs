@@ -1,0 +1,20 @@
+# Parité de fr-t3.3 (fragment-markdown) : langages des blocs de code au-delà des 19 de fr-t3.2.
+# Schéma `parite.d` : un fichier par tâche, fusionné par `cargo xtask parite`. Pas de test unitaire
+# côté TS (`cas_source = 0`) : tous les tests sont AJOUTÉS (tests/syntaxe_imbrique.rs, section
+# « Langages de la suite »).
+
+[[module]]
+ts = "app/src/ui/views/markdown/livePreview.ts (codeLanguages: languages) sur @codemirror/language-data et @codemirror/legacy-modes : langages des blocs ``` au-delà de fr-t3.2"
+rs = "crates/fragment-markdown/src/syntaxe/imbrique_langues_plus.rs, imbrique_langues.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 51
+notes = """Ajout de 47 tables de langage (noms et alias de language-data, plus quelques extensions courantes ; une table sert souvent plusieurs langages proches), chacune lue par l'analyseur générique de fr-t3.2, sans dépendance ni crate tree-sitter. Un test de coloration par langage, plus les alias (casse, `{.x}`), les dialectes SQL, les modèles de pages et les exclusions. Oracle incrémental inchangé et vert (un document de départ de plus, avec des blocs php, lua, haskell, ruby, ocaml, ini).
+Couverts : PHP, Kotlin, Swift, Scala, Dart, Groovy, Objective-C(++), D, Haxe, Protobuf, Ruby, Crystal, Perl, R, Julia, Lua, PowerShell, CoffeeScript et LiveScript, Tcl, Octave, Haskell et Elm, OCaml, F#, SML, Erlang, Clojure (+ ClojureScript, edn), Common Lisp, Scheme, VB.NET et VBScript, Fortran, Pascal, COBOL, Verilog, SystemVerilog, VHDL, Gas (assembleur), Nginx, Dockerfile, CMake, INI et Properties, Puppet, Gherkin, SAS, WebAssembly, Cypher, SPARQL, Turtle.
+Alias vers une table existante : CQL, MariaDB SQL, MS SQL, PLSQL (SQL) ; JSON-LD (JSON) ; Cython (Python) ; GSS (CSS) ; Vue, Angular Template, Jinja, Liquid (HTML : balises seulement, les expressions {{ }} et {% %} ne sont pas colorées).
+★ Approximations assumées, que la table ne sait pas dire : `--[[ ]]` de Lua lu comme commentaire de ligne ; `=begin/=end` de Ruby et `#=` `=#` de Julia non reconnus ; `'` de transposition Matlab lu comme guillemet ; commentaires imbriqués de D (`/+ +/`) et Haskell non imbriqués ; guillemets des types `'a` d'OCaml non traités (chaînes `"` seulement).
+EXCLUS, avec la raison (un bloc de ces langues n'est pas coloré, comme un langage dont le chargement échoue) :
+ 1. Formats de texte sans grammaire de table, dont la coloration dépend de la structure ou de la position : diff, HTTP, Mbox, Markdown (déjà testé comme non coloré : coloré par l'arbre Markdown lui-même), Textile, TiddlyWiki, Tiki wiki, Troff, PGP (asciiarmor), RPM Changes, RPM Spec, Solr, Spreadsheet (formules), Pug (indentation), Sass indenté et Stylus (pas d'accolades : l'analyse CSS en dépend et colorerait les propriétés comme des sélecteurs).
+ 2. DSL et langages à jeu de symboles ou à usage marginal dans des notes, sans mot-clé à tabuler : APL, Brainfuck, ASN.1, EBNF, DTD, ECL, FCL, Esper, Factor, Forth, Dylan, Eiffel, IDL, HXML, mIRC, Mathematica, Modelica, MUMPS, NSIS, NTriples, Oz, Pig, Q, Smalltalk, Squirrel, Yacas, Z80, TTCN, TTCN_CFG, Web IDL, Velocity, XQuery, MscGen, MsGenny, Xù, Asterisk, Closure Stylesheets (le nom entier ; l'alias `gss` est couvert), Sieve.
+ 3. Les `jsx` et `tsx` sont déjà couverts par fr-t3.2. LaTeX et sTeX : seules les formules `$…$` sont colorées (automate stexMath de fr-t3.2), pas les blocs ```latex (exclu, à rouvrir si besoin). WebAssembly est couvert sous le nom `wat`.
+Reprise possible : chaque exclu du groupe 2 est un ajout de table sans toucher à l'analyseur ; le groupe 1 demande des familles d'analyse nouvelles (ADR si une grammaire est envisagée)."""
