@@ -1,0 +1,11 @@
+# Parité de fr-t11-reglages (fragment-ui) : les réglages de thèmes de l'onglet Appearance.
+# Specs e2e de Fragment : theme-plugin.spec.ts (test 2, l'accent choisi) et light-theme.spec.ts
+# (schéma), vus depuis les définitions déclaratives (crates/fragment-ui/tests/reglages_themes.rs).
+
+[[module]]
+ts = "app/src/ui/settings/SettingsPlugin.ts (Appearance), ui/core/settings/theme.ts, e2e/theme-plugin.spec.ts (test 2), e2e/light-theme.spec.ts"
+rs = "crates/fragment-ui/src/reglages/apparence_themes.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 5
+notes = "Portés : l'accent CHOISI l'emporte sur celui du thème, vide (reset) = celui du thème ; le schéma clair/sombre garde le thème du coffre. Ajoutés : liste Default + thèmes, choix d'un thème, boutons relire et ouvrir, schéma écrit et signalé à l'appelant, correspondance schéma vers mode. Écart : le schéma passe par un callback (apres_schema) et appliquer_schema, les callbacks de réglages n'ayant pas de cx. Reste à faire : brancher definitions_apparence_themes dans onglet_appearance / fenetre.rs après la fusion de la PR #49 (fr-t1.5)."
