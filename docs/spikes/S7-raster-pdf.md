@@ -86,3 +86,23 @@ cargo run -p fragment-pdf --example spike_s7 -- epreuves
 ```
 
 Le `main.js` et la `page.html` de capture sont hors dépôt, dans `C:/dev/fragment-rs-s7/capture/` : ils lisent le pdf.js de Fragment par chemin, sans le copier.
+
+## 12/11/2026 — `Document` passe en texte LCD (fr-t4.2)
+
+`Document::rendre_region` rend désormais dans un bitmap `BGRx` (sans alpha) avec `use_lcd_text_rendering(true)` : c'est le jeu `lcd-bgrx`, retenu par ADR-014. Le tampon reste pré-rempli de blanc, `FPDF_REVERSE_BYTE_ORDER` reste explicite (sortie RGB), le 4ᵉ octet est forcé à 255 : `Raster` ne change ni de forme ni de signature, aucun appelant de `fragment-ui` n'a bougé.
+
+Rejeu : `rendre`, `document` puis `epreuves` dans un dossier de travail à part (`C:/dev/fragment-rs-s7-lcd`, la fixture et les captures pdf.js copiées depuis `C:/dev/fragment-rs-s7`, laissé intact ; aucune nouvelle capture de Fragment). `epreuves` mesure maintenant aussi le rendu `document` et la page entière. Le rendu de `Document` est identique, octet pour octet, à `lcd-bgrx` aux trois échelles ; `defaut` se reproduit à l'identique.
+
+Mesure d'ADR-014 (part des pixels de delta > 32, delta moyen), `Document` contre pdf.js, à 50 / 100 / 200 % :
+
+| Zone | Avant (`defaut`) | Après (`lcd-bgrx`) | Seuils d'ADR-014 |
+|---|---|---|---|
+| page | 4,97 / 3,92 / 2,00 %, moy 4,0 / 3,5 / 1,9 | 3,96 / 3,14 / 1,49 %, moy 3,2 / 2,6 / 1,3 | ≤ 12 / 10 / 6 %, moy ≤ 10 / 8 / 5 |
+| texte (la pire) | **13,23** / **10,88** / 5,80 %, moy 10,5 / 9,8 / 5,3 | 10,10 / 8,44 / 4,21 %, moy 8,0 / 6,9 / 3,5 | idem |
+| traits | 1,63 / 0,79 / 0,10 % | inchangé | idem |
+| aplats | 2,02 / 1,50 / 0,76 % | inchangé | idem |
+| image | 0 | 0 | idem |
+
+Avant, la zone de texte dépassait à 50 % et à 100 % ; après, tout est sous les seuils, page comme zones. Les contre-épreuves (décalage d'1 px) restent au-dessus de chaque seuil sur la zone de texte (18,1–19,3 / 14,4–14,8 / 8,3–9,2 %).
+
+Tests ajoutés (`crates/fragment-pdf/tests/document.rs`) : `texte_noir_rendu_en_lcd_avec_franges` (du texte noir laisse des franges r ≠ b, rouge avant le changement) et `region_de_texte_lcd_egale_au_recadrage` (une région de texte LCD = recadrage exact du rendu entier).
