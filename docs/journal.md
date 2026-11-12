@@ -627,3 +627,10 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - ADR-014 est une divergence (§8) : À REMONTER à l'orchestrateur avec la livraison de T1.
   - Laterale2 : correction de PADDING 7/5 → 14/10 confirmée dans pdf-view.css. #74 et #75 en CI.
   - Lancée : fr-t3.3 (Sonnet, langues). Actifs : shell6, surface2, laterale2 (fini), rechercheui2 (fini), explactions, t2scenes, langues.
+- 19:10 UTC : fusionnée #74 (fr-t4-laterale-ui). 7 jobs verts, audit à 0. Constantes 14/10 confirmées dans pdf-view.css.
+  - #77 (fr-t2-explorateur-actions) livrée, 52 tests, CI en cours.
+    - ★ Elle touche `glisser/mod.rs` (+150), comme fr-t1.5 (+33) : #77 fusionnée d'abord, shell6 prévenu de rebaser sans réorganiser.
+    - Branchements de montage notés sur fr-t2-montage.
+  - ★ Verrou de capture commun ajouté aux règles des équipiers (`mkdir C:/dev/fragment-capture.lock`) : trois tâches capturent Fragment.
+  - Lancées (Sonnet) : fr-t2-tranches (diff minimal dans `xtask/src/pixels.rs`), fr-t3-scenes-a et fr-t4-scenes.
+  - Actifs : shell6, surface2, t2scenes, langues, t2tranches, t3scenesa, t4scenes. En attente de CI : #75, #76, #77.
