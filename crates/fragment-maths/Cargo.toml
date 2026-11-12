@@ -1,0 +1,22 @@
+[package]
+name = "fragment-maths"
+description = "Rendu des maths `$…$` / `$$…$$` : MathJax 3.2.1 dans QuickJS, SVG peint par resvg (ADR-011)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Rastérisation des SVG : déjà au lock (par gpui), même version.
+resvg = "0.45"
+serde = { workspace = true }
+serde_json = { workspace = true }
+image = { workspace = true }
+thiserror = { workspace = true }
+# ★ QuickJS de longbridge (déjà au lock par gpui-shell) : le nom de bibliothèque reste `rquickjs`.
+# Utilisé SANS son JIT (ADR-011 : 2,8 s de démarrage).
+rquickjs = { package = "quickjs-jit", version = "=0.14.1" }
+
+[lints]
+workspace = true

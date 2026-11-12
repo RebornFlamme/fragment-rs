@@ -1,6 +1,6 @@
 # S5 — Les maths au plus près de MathJax
 
-Tâche `fr-t3-maths`. Code jetable : `crates/spike-maths` (promu ou supprimé par `fr-t3-widgets-inline`). Décision proposée : `docs/decisions/ADR-011-maths.md`.
+Tâche `fr-t3-maths`. Code jetable : `crates/spike-maths` (promue en `crates/fragment-maths` par `fr-t3-widgets-inline`). Décision proposée : `docs/decisions/ADR-011-maths.md`.
 
 ## Hypothèse
 
