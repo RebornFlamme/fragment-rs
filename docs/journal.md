@@ -695,3 +695,13 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Lancées : fr-t3-widgets-blocs (Opus) et fr-t3-widgets-inline (Sonnet), sur des fichiers disjoints d'`editeur/`.
   - Scènes : t4scenes a poussé fd0cb70 (passe 1) ; t3scenesb (f0fec8f) et t3scenesc (WIP poussé) attendent le verrou, au repos.
   - Actifs : shell7, incr, interligne, t3scenesa, t4scenes, widgetsblocs, widgetsinline.
+- 22:01 UTC : fusionnées, 7 jobs verts, audits à 0 :
+  - #85 (fr-t3.5) : interligne exact par correctif minimal du fork, à 5 endroits. ADR-015 accepté.
+    - PR amont à soumettre à l'utilisateur avec celle d'ADR-006.
+    - Risque : sélection à ordonnée fractionnaire.
+  - #84 (fr-t3-scenes-a) : 9 scènes × 2 thèmes, deux passes identiques au MD5.
+- Prêtes ou en attente :
+  - #86 (fr-t3-widgets-blocs) : CI verte, basée sur task/fr-t3.4, donc fusionnée après elle.
+  - #83 (fragment-maths) : 6 jobs sur 7 verts.
+- Repris : widgetsinline, sur le patch `set_widget_ranges` du fork.
+- Captures : t4scenes et t3scenesb ont fait leurs passes ; t3scenesc attend, puis la passe A de t4scenes.
