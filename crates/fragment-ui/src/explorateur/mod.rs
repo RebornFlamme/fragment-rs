@@ -4,19 +4,28 @@
 //!
 //! - [`etat`] : dossiers ouverts, actif, tri, état éphémère (sans GPUI ni coffre) ;
 //! - [`arbre`] : l'ordre des enfants et les lignes visibles ;
-//! - [`vue`] : la vue `file-explorer` (modèle) et son dessin, sur le gabarit [`crate::tree_item`].
+//! - [`vue`] : la vue `file-explorer` (modèle) et son dessin, sur le gabarit [`crate::tree_item`] ;
+//! - [`menu`] : les menus fichier, dossier et racine, la création, la copie, la suppression ;
+//! - [`renommer`] : le renommage en place ;
+//! - [`deplacer`] : la modale « Déplacer vers… » ;
+//! - [`glisser`] : glisser un fichier sur un dossier, import des fichiers du système, ressort.
 //!
-//! Le montage au dock est fait par `fr-t2-montage` ; les menus, la création, le renommage et le
-//! glisser-déposer par `fr-t2-explorateur-actions`.
+//! Le montage au dock est fait par `fr-t2-montage`.
 
 pub mod arbre;
+pub mod deplacer;
 pub mod etat;
+pub mod glisser;
+pub mod menu;
+pub mod renommer;
 pub mod vue;
 
 use fragment_core::CommandManager;
 
 pub use arbre::{LigneVisible, comparer_noms, lignes_visibles, trier_enfants};
 pub use etat::EtatArbre;
+pub use menu::{ActionsExplorateur, GesteVue};
+pub use renommer::Renommage;
 pub use vue::{
     ContexteExplorateur, FILE_EXPLORER_VIEW_TYPE, FileExplorerView, contenu, fabrique,
     rendre_explorateur,

@@ -19,7 +19,7 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use fragment_core::{
-    Cadre, DragData, DragHost, DragManager, DropZone, GHOST_OFFSET, ItemId, Workspace,
+    Cadre, DragData, DragHost, DragManager, DropZone, FileMove, GHOST_OFFSET, ItemId, Workspace,
     drop_index_at, zone_at,
 };
 use gpui_kit::{
@@ -84,6 +84,95 @@ fn oublier_appui(cx: &mut App) {
     if cx.has_global::<AppuiEnAttente>() {
         cx.set_global(AppuiEnAttente(None));
     }
+    if cx.has_global::<AppuiFichierEnAttente>() {
+        cx.set_global(AppuiFichierEnAttente(None));
+    }
+}
+
+// ── Le glisser d'un FICHIER de l'explorateur (fr-t2-explorateur-actions) ─────────────────────
+//
+// Le routage du lâcher est celui du cœur (`DragManager`) : sur l'explorateur, un déplacement ; sur
+// une pile du workspace, un onglet (le bord découpe, le centre rejoint) ; ailleurs, un widget. Ce
+// module n'ajoute que les crochets par où l'explorateur répond aux trois questions que l'hôte
+// pose : « quel élément de l'arbre est sous ce point ? », « ouvre ce fichier dans cette feuille »,
+// « un fichier vient d'être lâché sur ce dossier ».
+
+/// Un appui sur une ligne de fichier, en attente du seuil de [`SEUIL_GLISSER`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct AppuiFichier {
+    /// Le chemin du fichier dans le coffre.
+    pub chemin: String,
+    /// Le texte de la pilule fantôme (le nom sans extension).
+    pub libelle: String,
+    /// La position de l'appui (px logiques).
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Default)]
+struct AppuiFichierEnAttente(Option<AppuiFichier>);
+
+impl Global for AppuiFichierEnAttente {}
+
+/// Note l'appui sur la ligne du fichier `chemin`, à `position` (px de la fenêtre). Le glisser
+/// démarre quand le pointeur a parcouru le seuil bouton enfoncé.
+pub fn noter_appui_fichier(chemin: &str, libelle: &str, position: Point<Pixels>, cx: &mut App) {
+    let zoom = f64::from(crate::echelle::Echelle::courante(cx).zoom());
+    cx.set_global(AppuiFichierEnAttente(Some(AppuiFichier {
+        chemin: chemin.to_owned(),
+        libelle: libelle.to_owned(),
+        x: f64::from(f32::from(position.x)) / zoom,
+        y: f64::from(f32::from(position.y)) / zoom,
+    })));
+}
+
+/// L'appui de fichier en attente, s'il y en a un.
+pub fn appui_fichier_en_attente(cx: &App) -> Option<AppuiFichier> {
+    cx.try_global::<AppuiFichierEnAttente>()
+        .and_then(|a| a.0.clone())
+}
+
+/// Le chemin de l'arbre sous un point.
+pub type RappelPoint = Rc<dyn Fn(f64, f64) -> Option<String>>;
+/// Ouvre un fichier dans une feuille.
+pub type RappelOuvrir = Rc<dyn Fn(Option<ItemId>, &str)>;
+/// Le dossier survolé.
+pub type RappelSurvol = Rc<dyn Fn(Option<&str>)>;
+/// Déplace un fichier vers une cible.
+pub type RappelDeplacer = Rc<dyn Fn(&str, &str)>;
+
+/// Ce que l'explorateur branche sur le glisser de fichier.
+#[derive(Clone, Default)]
+pub struct CrochetsFichier {
+    /// Le chemin de l'élément de l'arbre sous le point (`explorerPathAt`) ; `""` = le vide de
+    /// l'arbre (la racine) ; `None` hors de l'explorateur.
+    pub chemin_sous_le_point: Option<RappelPoint>,
+    /// Ouvrir le fichier (son chemin) dans la feuille que le lâcher vient de créer.
+    pub ouvrir: Option<RappelOuvrir>,
+    /// Le dossier survolé change (`file-drag-over`) ; `None` = plus aucun.
+    pub survol: Option<RappelSurvol>,
+    /// Lâcher sur l'explorateur : déplacer `fichier` vers l'élément `cible` (`file-move`).
+    pub deplacer: Option<RappelDeplacer>,
+    /// Le glisser démarre (`drag-start`, fichier) ou s'achève (`drag-end`).
+    pub etat: Option<Rc<dyn Fn(bool)>>,
+}
+
+thread_local! {
+    static CROCHETS: std::cell::RefCell<CrochetsFichier> = std::cell::RefCell::new(CrochetsFichier::default());
+}
+
+/// Pose les crochets du glisser de fichier (un explorateur à la fois par fil).
+pub fn poser_crochets(crochets: CrochetsFichier) {
+    CROCHETS.with(|c| *c.borrow_mut() = crochets);
+}
+
+/// Retire les crochets (l'explorateur disparaît).
+pub fn retirer_crochets() {
+    poser_crochets(CrochetsFichier::default());
+}
+
+fn crochets() -> CrochetsFichier {
+    CROCHETS.with(|c| c.borrow().clone())
 }
 
 /// L'aperçu du dépôt sous le pointeur : la pile visée, la zone, et l'abscisse de la barre
@@ -114,6 +203,36 @@ pub fn cadres_des_onglets(barre: Cadre, n: usize) -> Vec<Cadre> {
             )
         })
         .collect()
+}
+
+/// Relaie les évènements du glisser de FICHIER du cœur vers les crochets de l'explorateur.
+fn relayer_vers_explorateur(gestionnaire: &DragManager<HoteGlisser>) {
+    let ev = gestionnaire.events();
+    // Les abonnements vivent autant que le gestionnaire : on ne garde pas leurs poignées.
+    let _ = ev.on("file-drag-over", |d| {
+        if let (Some(cible), Some(f)) = (d.downcast_ref::<Option<String>>(), crochets().survol) {
+            f(cible.as_deref());
+        }
+    });
+    let _ = ev.on("file-move", |d| {
+        if let (Some(m), Some(f)) = (d.downcast_ref::<FileMove<String>>(), crochets().deplacer) {
+            f(&m.file, &m.target);
+        }
+    });
+    let _ = ev.on("drag-start", |d| {
+        let fichier = matches!(
+            d.downcast_ref::<DragData<Option<ItemId>, String>>(),
+            Some(DragData::File(_))
+        );
+        if let (true, Some(f)) = (fichier, crochets().etat) {
+            f(true);
+        }
+    });
+    let _ = ev.on("drag-end", |_| {
+        if let Some(f) = crochets().etat {
+            f(false);
+        }
+    });
 }
 
 /// L'hôte du [`DragManager`] : le Workspace et la dernière mise en page.
@@ -151,12 +270,13 @@ impl HoteGlisser {
 impl DragHost for HoteGlisser {
     /// `None` : une création de feuille refusée (pile disparue).
     type Leaf = Option<ItemId>;
-    /// Les fichiers arrivent avec le coffre (T2) : rien à tirer d'ici en T1.
+    /// Le chemin d'un fichier du coffre (le glisser vient de l'explorateur).
     type File = String;
     type Tabs = ItemId;
 
-    fn explorer_path_at(&self, _x: f64, _y: f64) -> Option<String> {
-        None
+    fn explorer_path_at(&self, x: f64, y: f64) -> Option<String> {
+        let f = crochets().chemin_sous_le_point?;
+        f(x, y)
     }
 
     fn clear_drop_indicator(&self) {
@@ -205,7 +325,11 @@ impl DragHost for HoteGlisser {
         }
     }
 
-    fn open_file_and_activate(&self, _leaf: &Option<ItemId>, _file: &String) {}
+    fn open_file_and_activate(&self, leaf: &Option<ItemId>, file: &String) {
+        if let Some(f) = crochets().ouvrir {
+            f(*leaf, file);
+        }
+    }
 
     fn leaf_file(&self, _leaf: &Option<ItemId>) -> Option<String> {
         None
@@ -233,8 +357,10 @@ impl Glisser {
             apercu: apercu.clone(),
             entete,
         };
+        let gestionnaire = DragManager::new(hote);
+        relayer_vers_explorateur(&gestionnaire);
         Self {
-            gestionnaire: DragManager::new(hote),
+            gestionnaire,
             apercu,
             pointeur: None,
         }
@@ -266,7 +392,7 @@ impl Glisser {
     pub fn deplacer(&mut self, x: f64, y: f64, appuye: bool, alt: bool, cx: &mut App) -> bool {
         if !self.en_cours() {
             let Some(a) = appui_en_attente(cx) else {
-                return false;
+                return self.deplacer_fichier(x, y, appuye, cx);
             };
             if !appuye {
                 // Le relâché a eu lieu ailleurs : l'appui est périmé.
@@ -290,6 +416,26 @@ impl Glisser {
         }
         self.pointeur = Some((x, y));
         self.gestionnaire.on_move(x, y, alt);
+        true
+    }
+
+    /// Le seuil d'un appui de FICHIER : même mécanique que l'onglet, la source est un chemin.
+    fn deplacer_fichier(&mut self, x: f64, y: f64, appuye: bool, cx: &mut App) -> bool {
+        let Some(a) = appui_fichier_en_attente(cx) else {
+            return false;
+        };
+        if !appuye {
+            oublier_appui(cx);
+            return false;
+        }
+        if (x - a.x).hypot(y - a.y) < SEUIL_GLISSER {
+            return false;
+        }
+        oublier_appui(cx);
+        self.gestionnaire
+            .start_drag(DragData::File(a.chemin), &a.libelle);
+        self.pointeur = Some((x, y));
+        self.gestionnaire.on_move(x, y, false);
         true
     }
 
