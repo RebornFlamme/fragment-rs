@@ -1,9 +1,9 @@
 gpui-base (fork n°1 de fragment-rs, ADR-006)
 
-Origine   : https://crates.io/crates/gpui-base/0.8.1 (dépôt https://github.com/longbridge/gpui-kit)
-Version   : 0.8.1 (celle qu'épingle gpui-kit =0.8.1 / gpui-component 0.8.1 ; voir Cargo.lock)
-Archive   : https://static.crates.io/crates/gpui-base/gpui-base-0.8.1.crate
-            sha256 d862bc8f2e27710039013d075ac4995892e9687ff207fa530f880cbcd513936f
+Origine   : https://crates.io/crates/gpui-base/0.9.1 (dépôt https://github.com/longbridge/gpui-kit)
+Version   : 0.9.1 (celle qu'épingle gpui-kit =0.9.1 / gpui-component 0.9.1 ; voir Cargo.lock)
+Archive   : https://static.crates.io/crates/gpui-base/gpui-base-0.9.1.crate
+            sha256 f3e9ae5237737cfd110d0ff513fcd9c20f97d98ebabd0a73164068177f0aca4f
 Licence   : Apache-2.0 (LICENSE-APACHE, inchangée). Les en-têtes d'origine sont conservés.
 Modifié par fragment-rs : les fichiers ci-dessous, et eux seuls. Chaque ajout est marqué
             `// ★ fragment-rs`. Tout autre fichier doit rester identique à l'archive : le job CI
