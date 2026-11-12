@@ -232,6 +232,45 @@ type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
 ///
 /// `droite_exacte` : le bord droit EXACT de la barre (repère de la barre) ; la ligne de base s'y
 /// arrête, en cellule partielle.
+/// ★ Les séparateurs des onglets inactifs, calés comme Chromium calerait leur `::after` : chaque
+/// bord EXACT (sous-pixel) arrondi au pixel, `[⌊R − l⌉, ⌊R⌉)` × `[⌊haut + m⌉, ⌊bas − m⌉)`. Un `div`
+/// de GPUI, posé dans l'en-tête calé, tombait à côté au zoom : 1 px au lieu de 2 à 150 %
+/// (`t1-zoom-150`, (719,18)), 14 lignes au lieu de 12 à 80 % (`t1-zoom-80`, (526,9) et (526,22)).
+///
+/// `depart` : le bord gauche (calé) du conteneur des onglets ; `droite(i)` : le bord droit exact
+/// de l'onglet `i` dans ce conteneur ; `(haut, hauteur, (marge, largeur))` : le haut exact des
+/// onglets et la hauteur exacte de la barre (repère de la barre), la marge et la largeur du trait.
+fn peindre_separateurs(
+    bornes: Bounds<Pixels>,
+    depart: f32,
+    rangs: &[usize],
+    droite: impl Fn(usize) -> f32,
+    (haut, hauteur, (marge, largeur)): (f32, f32, (f32, f32)),
+    teinte: Couleur,
+    window: &mut Window,
+) {
+    let k = window.scale_factor();
+    let oy = f32::from(bornes.origin.y);
+    let (y0, y1) = (
+        ((oy + haut + marge) * k).round(),
+        ((oy + hauteur - marge) * k).round(),
+    );
+    // L'opacité de l'en-tête inactif, que le séparateur portait en enfant.
+    let mut c = couleur(teinte);
+    c.a *= OPACITE_REPOS;
+    for &i in rangs {
+        let r = depart + droite(i);
+        let (x0, x1) = (((r - largeur) * k).round(), (r * k).round());
+        if x1 <= x0 || y1 <= y0 {
+            continue;
+        }
+        window.paint_quad(fill(
+            Bounds::from_corners(point(px(x0 / k), px(y0 / k)), point(px(x1 / k), px(y1 / k))),
+            c,
+        ));
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn peindre_contour(
     bornes: Bounds<Pixels>,
@@ -576,6 +615,7 @@ fn entete_d_onglet(
     suivant_actif: bool,
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
     decalage: f32,
+    separateur_par_la_barre: bool,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -700,7 +740,7 @@ fn entete_d_onglet(
         entete = entete.bg(couleur(c.workspace_bg));
     } else {
         entete = entete.opacity(OPACITE_REPOS);
-        if !est_dernier && !suivant_actif {
+        if !est_dernier && !suivant_actif && !separateur_par_la_barre {
             // Le trait fin au bord droit, plus court que la barre. Ni juste avant l'actif (son
             // fond ne le recouvrirait pas), ni après le dernier.
             entete = entete.child(
@@ -762,6 +802,10 @@ fn barre(
     let place_espaceur: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
     let n = lignes.len();
     let rang_actif = lignes.iter().position(|l| l.visible);
+    // Les rangs qui portent un séparateur : inactifs, ni le dernier, ni juste avant l'actif.
+    let rangs_separes: Vec<usize> = (0..n.saturating_sub(1))
+        .filter(|&i| !lignes[i].visible && !lignes[i + 1].visible)
+        .collect();
 
     let entetes: Vec<AnyElement> = lignes
         .iter()
@@ -776,6 +820,7 @@ fn barre(
                 suivant_actif,
                 Some(mesure.clone()),
                 decalage,
+                largeur_exacte.is_some(),
                 cx,
             )
         })
@@ -894,6 +939,11 @@ fn barre(
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
     let zoom = Echelle::courante(cx).zoom();
+    // Le séparateur (px logiques) : sa marge haute et basse, au 1/64, et sa largeur.
+    let separateur = (
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, SEPARATEUR_MARGE)))) as f32,
+        f32::from(u(cx, SEPARATEUR_LARGEUR)),
+    );
     let haut_exact =
         geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, f.size_4_1)))) as f32;
     let hauteur_exacte = f32::from(u(cx, f.header_height));
@@ -939,6 +989,20 @@ fn barre(
                         }
                         _ => None,
                     };
+                    if let (Some(exacte), Some(o)) = (largeur_exacte, place_onglets.get()) {
+                        let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom))
+                            as f32
+                            - fixes;
+                        peindre_separateurs(
+                            bornes,
+                            f32::from(o.origin.x),
+                            &rangs_separes,
+                            |i| bords_exacts(place, marge, n, i, largeur_max).1,
+                            (haut_exact, hauteur_exacte, separateur),
+                            couleurs.trait_,
+                            window,
+                        );
+                    }
                     peindre_contour(
                         bornes,
                         mesure.get(),
