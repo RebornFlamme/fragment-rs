@@ -666,3 +666,13 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
     - Texte de la PR amont prêt dans ADR-006 : à soumettre à l'utilisateur, par l'orchestrateur.
   - Lancée : fr-t3-scenes-c (Sonnet).
   - Actifs : shell6, surface2, t3scenesa, t4scenes, t3scenesb, t3scenesc, kit09 (fini, attend la CI).
+- 19:58 UTC : fusionnée #70 (fr-t3-surface). 7 jobs verts, audit à 0, 11 tests en 14,9 s.
+  - ★ Le délai de 6 h venait de la destruction du contexte de test avec DirectWrite, qui ne rend jamais la main. Contournée par le Banc, avec un garde-fou de 5 min par test, à recopier ailleurs.
+  - Deux bugs produit corrigés : la dérive de la colonne et le décalage de 24 px dû à la gouttière du fork.
+  - Mesures en debug sur 10 000 lignes : ouverture 11,4 à 11,9 s, frappe 822 à 943 ms, défilement 152 à 185 ms.
+  - Nouveaux beads, lancés en Opus :
+    - fr-t3.4 : reprojeter le viewport seul (cible frappe et défilement < 16 ms en release) ;
+    - fr-t3.5 : GPUI arrondit 22,4 à 22 px, dérive de 0,4 px par ligne. Diagnostic d'abord ; ADR et remontée si aucune option ne tient.
+  - Verrou de capture : ordre fixé (t3scenesa, t4scenes, t3scenesb, t3scenesc, t11scenes), une passe par prise.
+  - #82 : 6 jobs sur 7 verts.
+  - Actifs : shell6, t3scenesa, t4scenes, t3scenesb, t3scenesc, t11scenes, incr, interligne (8 avec kit09 qui attend sa CI).
