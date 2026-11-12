@@ -122,7 +122,7 @@ fn la_liste_des_themes_propose_default_puis_ceux_du_coffre() {
 #[test]
 fn choisir_un_theme_pose_sa_palette_et_ecrit_le_reglage() {
     let b = banc();
-    let mut cx = TestAppContext::single();
+    let cx = TestAppContext::single();
     cx.update(|cx| monter(cx, &b.themes));
     let d = b.liste_deroulante("Themes");
     (d.on_change.expect("on_change"))("Rose".into());
@@ -201,7 +201,7 @@ fn le_schema_clair_ou_sombre_garde_le_theme_du_coffre() {
 
     let b = banc();
     b.apparence.set_theme_css("Rose");
-    let mut cx = TestAppContext::single();
+    let cx = TestAppContext::single();
     cx.update(|cx| monter(cx, &b.themes));
     cx.update(|cx| appliquer_schema(cx, &b.themes, SchemaCouleurs::Light, true));
     let (mode, accent) = cx.update(|cx| (theme(cx).mode, theme(cx).palette.color_accent));
