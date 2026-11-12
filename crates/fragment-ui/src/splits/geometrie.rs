@@ -272,14 +272,16 @@ pub fn couvertures_filet(a: f64, b: f64) -> Vec<(i32, f64)> {
         .collect()
 }
 
-/// ★ La part d'un pixel de [`filet`] en 256es, comme Skia : l'alpha du trait (`épaisseur`) en
-/// octet, la couverture du pixel en 256es, leur produit décalé de 8 bits. Mesuré sur le haut de
-/// l'onglet actif de `t1-zoom-80` (trait de 0,8 px centré à 3,5875) : la ligne 4, couverte à
-/// 0,0875, sort à 245 sur 247 en clair (17/256), là où le produit flottant (0,07) donnait 244.
+/// ★ La part d'un pixel de [`filet`] : l'alpha du trait (`épaisseur`) en octet, la couverture du
+/// pixel en 256es, leur produit EXACT (sans troncature) sur 65 536. Mesuré sur le haut de l'onglet
+/// actif de `t1-zoom-80` (trait de 0,8 px centré à 3,5875), ligne 4 couverte à 0,0875 : 22 × 204 /
+/// 65 536 = 0,0685 rend les trois canaux des deux thèmes (sombre 22, 23, 26 sur 20, 21, 23 ; clair
+/// 245, 244, 239). Le produit tronqué (17/256) perdait le bleu sombre (25), le flottant (0,07) le
+/// rouge et le vert clairs (244, 243). Les lignes 3 et la ligne de base restent justes.
 fn quantifier_filet(epaisseur: f64, couverture: f64) -> f64 {
-    let alpha = (epaisseur.clamp(0.0, 1.0) * 255.0).round() as i64;
-    let part = (couverture.clamp(0.0, 1.0) * 256.0).round() as i64;
-    ((part * alpha) >> 8) as f64 / 256.0
+    let alpha = (epaisseur.clamp(0.0, 1.0) * 255.0).round();
+    let part = (couverture.clamp(0.0, 1.0) * 256.0).round();
+    part * alpha / 65_536.0
 }
 
 /// Un canal de `teinte` posé sur `fond` à la couverture `part` d'un [`filet`] : le mélange flottant
@@ -545,9 +547,9 @@ mod tests {
         let f = filet(28.0, 28.8);
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].0, 27);
-        assert!((f[0].1 - 20.0 / 256.0).abs() < 1e-9);
+        assert!((f[0].1 - 26.0 * 204.0 / 65_536.0).abs() < 1e-9);
         assert_eq!(f[1].0, 28);
-        assert!((f[1].1 - 183.0 / 256.0).abs() < 1e-9);
+        assert!((f[1].1 - 230.0 * 204.0 / 65_536.0).abs() < 1e-9);
         // Sombre (trait 52 sur 14, 60 sur 17) et clair (211 sur 232) : la référence.
         assert_eq!(melange_filet(52, 14, f[1].1), 41);
         assert_eq!(melange_filet(60, 17, f[1].1), 48);
@@ -566,6 +568,17 @@ mod tests {
         assert_eq!(melange_filet(211, 247, haut[1].1), 245);
         assert_eq!(melange_filet(52, 20, haut[0].1), 43);
         assert_eq!(melange_filet(52, 20, haut[1].1), 22);
+        // Les trois canaux de la ligne 4 ((201,4) : le bleu sombre sortait à 25 au lieu de 26).
+        let ligne4 = |t: [u8; 3], f: [u8; 3]| -> [u8; 3] {
+            [0, 1, 2].map(|i| melange_filet(t[i], f[i], haut[1].1))
+        };
+        assert_eq!(ligne4([52, 54, 60], [20, 21, 23]), [22, 23, 26]);
+        assert_eq!(ligne4([211, 210, 203], [247, 246, 242]), [245, 244, 239]);
+        let ligne3 = |t: [u8; 3], f: [u8; 3]| -> [u8; 3] {
+            [0, 1, 2].map(|i| melange_filet(t[i], f[i], haut[0].1))
+        };
+        assert_eq!(ligne3([52, 54, 60], [20, 21, 23]), [43, 45, 50]);
+        assert_eq!(ligne3([211, 210, 203], [247, 246, 242]), [221, 220, 214]);
     }
 
     #[test]
