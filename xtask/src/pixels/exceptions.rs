@@ -35,6 +35,10 @@ pub enum Nature {
     /// Le SEUL garde-fou d'encre totale d'une boîte détectée ([`Exception::boite`]), jusqu'à
     /// [`ECART_ENCRE_HAIRLINE`] : position, forme, bords, barycentres et teinte restent exigés.
     Encre,
+    /// Le garde-fou d'encre totale jusqu'à [`ECART_ENCRE_HAIRLINE`] ET celui des barycentres des
+    /// PARTIES (moitiés) jusqu'à [`ECART_BARYCENTRE_GLYPHES`] d'une boîte ; l'origine (barycentre du
+    /// passage), les bords, la forme et la teinte restent exigés.
+    Glyphes,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -167,6 +171,17 @@ const fn encre(png: &'static str, element: &'static str, boite: [u32; 4]) -> Exc
         boite: Some(boite),
     }
 }
+
+/// ★ L'élément du texte de la barre d'état de `t1-zoom-80` clair (décision du chef, fr-t1.5,
+/// 12/11) : à 8,8 px, GPUI cale les fûts des glyphes sur la grille et les peint plus foncés en clair
+/// (« F » : 180/121 contre 187/154) : encre +25,8 %, concentrée à gauche, qui tire le barycentre
+/// de la moitié gauche à −0,58 px. Position (ligne de base, abscisse exacte) déjà celle de
+/// Chromium ; le sombre passe. Dette du rastériseur de glyphes (ADR-009 §5) et de la largeur
+/// (fr-t1.3). Clés du cliquet : `encre`, `barycentre` (pire partie, px).
+pub const GLYPHES_8_8: &str = "glyphes à 8,8 px en clair";
+
+/// L'écart de barycentre toléré sur les PARTIES d'une boîte par une exception [`Nature::Glyphes`].
+pub const ECART_BARYCENTRE_GLYPHES: f64 = 0.75;
 
 /// L'élément des arcs du contour de l'onglet actif (haut convexe, pieds concaves, raccords
 /// compris), déclarés sans ombre par `fragment_ui::onglets` : son nom EST la clé du cliquet.
@@ -329,6 +344,14 @@ pub const EXCEPTIONS: &[Exception] = &[
     // La croix de l'onglet actif et le chevron de la liste à 80 %, sombre seulement.
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [345, 11, 9, 9]),
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [1127, 13, 11, 7]),
+    // Le texte de la barre d'état à 80 %, clair seulement.
+    Exception {
+        png: "t1-zoom-80-light.png",
+        element: GLYPHES_8_8,
+        jeton: "--text-muted",
+        nature: Nature::Glyphes,
+        boite: Some([1208, 787, 63, 11]),
+    },
 ];
 
 /// Les exceptions du PNG `png`.
@@ -717,6 +740,102 @@ mod tests {
         }
         let s = juger(png, 400, &croix(400, 0), &croix(400, 6));
         assert!(s.boites.iter().any(|b| !b.ok()), "autre boîte");
+    }
+
+    /// Contre-épreuve des glyphes à 8,8 px : encre ≤ 30 % et barycentres des moitiés ≤ 0,75 px
+    /// levés dans SA boîte de SON PNG ; le passage (l'origine) reste à 0,5 ; au-delà, en sombre,
+    /// sur un autre PNG ou dans une autre boîte : rien n'est levé.
+    #[test]
+    fn les_glyphes_a_8_8_px_ne_levent_que_l_encre_et_les_moities() {
+        use crate::pixels::sas::{ResultatBoite, lever_nommees};
+        let boite = |x: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Texte,
+            x,
+            y: 787,
+            largeur: 63,
+            hauteur: 11,
+        };
+        let resultat = |encre: f64, gauche: f64, passage: f64| {
+            let bary = |p: &str, d: f64| {
+                format!("origine : barycentre ({p}) décalé de ({d:+.2}, +0.00) px (borne ±0.5)")
+            };
+            let mut violations = Vec::new();
+            if encre.abs() > 0.25 {
+                violations.push(format!(
+                    "encre totale {:+.0} % (borne ±25 %)",
+                    100.0 * encre
+                ));
+            }
+            if gauche.abs() > 0.5 {
+                violations.push(bary("moitié gauche", gauche));
+            }
+            if passage.abs() > 0.5 {
+                violations.push(bary("passage", passage));
+            }
+            ResultatBoite {
+                boite: boite(1208),
+                differents: 0,
+                delta_max: 0,
+                ecart_encre: encre,
+                ecart_forme: 0.0,
+                teinte: 1.0,
+                barycentres: vec![
+                    ("passage", passage, 0.0),
+                    ("moitié gauche", gauche, 0.0),
+                    ("moitié droite", 0.0, 0.0),
+                ],
+                ecart_bords: Some([0, 0, -1, 0]),
+                dette_largeur: true,
+                nommee: None,
+                violations,
+            }
+        };
+        let leve = |png: &str, x: u32, mut r: ResultatBoite| {
+            lever_nommees(&mut r, &du_png(png), &boite(x));
+            r
+        };
+        let png = "t1-zoom-80-light.png";
+        // La mesure de CI : encre +25,8 %, moitié gauche −0,58, passage −0,31 : levée.
+        let r = leve(png, 1208, resultat(0.258, -0.58, -0.31));
+        assert!(r.violations.is_empty(), "{:?}", r.violations);
+        assert_eq!(r.nommee, Some(GLYPHES_8_8));
+        // À 1 px près sur la boîte.
+        assert!(
+            leve(png, 1209, resultat(0.258, -0.58, -0.31))
+                .violations
+                .is_empty()
+        );
+        // Au-delà : encre > 30 %, moitié > 0,75, passage (origine) > 0,5.
+        assert!(
+            !leve(png, 1208, resultat(0.31, -0.58, -0.31))
+                .violations
+                .is_empty()
+        );
+        assert!(
+            !leve(png, 1208, resultat(0.258, -0.8, -0.31))
+                .violations
+                .is_empty()
+        );
+        assert!(
+            !leve(png, 1208, resultat(0.258, -0.58, -0.6))
+                .violations
+                .is_empty()
+        );
+        // Décalé d'1 px : passage et moitiés à ≈ −1.
+        assert!(
+            !leve(png, 1208, resultat(0.258, -1.58, -1.31))
+                .violations
+                .is_empty()
+        );
+        // Sombre, autre PNG, autre boîte : rien n'est levé.
+        for (autre, x) in [
+            ("t1-zoom-80-dark.png", 1208),
+            ("t1-onglets-light.png", 1208),
+            (png, 1100),
+        ] {
+            let r = leve(autre, x, resultat(0.258, -0.58, -0.31));
+            assert_eq!(r.violations.len(), 2, "{autre} {x}");
+        }
     }
 
     /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON

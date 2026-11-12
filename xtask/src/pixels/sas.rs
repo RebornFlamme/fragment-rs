@@ -444,6 +444,46 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
     }
 }
 
+/// Les garde-fous qu'une exception nommée de T1 lève sur la boîte `b` (teinte, encre, glyphes),
+/// et son nom dans `res.nommee`.
+pub(crate) fn lever_nommees(
+    res: &mut ResultatBoite,
+    nommees: &[&'static Exception],
+    b: &BoiteEncre,
+) {
+    // Exception nommée de teinte (fr-t1.5, « N coupé ClearType ») : ne lève QUE le garde-fou de
+    // teinte de cette boîte ; encre, forme, bords et barycentres restent exigés.
+    if let Some(element) = exceptions::pour_boite(nommees, b) {
+        res.violations.retain(|v| !v.starts_with(VIOLATION_TEINTE));
+        res.nommee = Some(element);
+    }
+    // Exception nommée d'encre (fr-t1.5, « icône en hairline ») : ne lève QUE le garde-fou
+    // d'encre totale, jusqu'à `ECART_ENCRE_HAIRLINE`.
+    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Encre) {
+        if res.ecart_encre.abs() <= exceptions::ECART_ENCRE_HAIRLINE {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_ENCRE));
+        }
+        res.nommee = Some(element);
+    }
+    // Exception nommée des glyphes (fr-t1.5, « glyphes à 8,8 px en clair ») : l'encre jusqu'à
+    // 30 % et les barycentres des PARTIES jusqu'à 0,75 px ; le passage (l'origine) reste à 0,5.
+    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Glyphes) {
+        if res.ecart_encre.abs() <= exceptions::ECART_ENCRE_HAIRLINE {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_ENCRE));
+        }
+        let parties_ok = res.barycentres.iter().all(|&(partie, dx, dy)| {
+            partie == "passage"
+                || (dx.abs() <= exceptions::ECART_BARYCENTRE_GLYPHES
+                    && dy.abs() <= exceptions::ECART_BARYCENTRE_GLYPHES)
+        });
+        if parties_ok {
+            res.violations
+                .retain(|v| !(v.starts_with("origine : barycentre (") && !v.contains("(passage)")));
+        }
+        res.nommee = Some(element);
+    }
+}
+
 /// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
 const VIOLATION_TEINTE: &str = "teinte : ";
 
@@ -769,20 +809,7 @@ pub fn comparer_tout(
             &mesurer(reference, mesure, fond_r, k),
             &mesurer(candidat, mesure, fond_c, k),
         );
-        // Exception nommée de teinte (fr-t1.5, « N coupé ClearType ») : ne lève QUE le garde-fou de
-        // teinte de cette boîte ; encre, forme, bords et barycentres restent exigés.
-        if let Some(element) = exceptions::pour_boite(nommees, b) {
-            res.violations.retain(|v| !v.starts_with(VIOLATION_TEINTE));
-            res.nommee = Some(element);
-        }
-        // Exception nommée d'encre (fr-t1.5, « icône en hairline ») : ne lève QUE le garde-fou
-        // d'encre totale, jusqu'à `ECART_ENCRE_HAIRLINE`.
-        if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Encre) {
-            if res.ecart_encre.abs() <= exceptions::ECART_ENCRE_HAIRLINE {
-                res.violations.retain(|v| !v.starts_with(VIOLATION_ENCRE));
-            }
-            res.nommee = Some(element);
-        }
+        lever_nommees(&mut res, nommees, b);
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
             for x in tol.0..=tol.2 {
@@ -842,7 +869,16 @@ pub fn comparer_tout(
     }
     for b in &resultats {
         if let Some(element) = b.nommee {
-            if element == exceptions::ICONE_HAIRLINE {
+            if element == exceptions::GLYPHES_8_8 {
+                garder(element, "encre", b.ecart_encre);
+                let pire = b
+                    .barycentres
+                    .iter()
+                    .filter(|(partie, _, _)| *partie != "passage")
+                    .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
+                    .fold(0.0, f64::max);
+                garder(element, "barycentre", pire);
+            } else if element == exceptions::ICONE_HAIRLINE {
                 // L'écart d'encre relatif, en valeur absolue.
                 garder(element, "encre", b.ecart_encre);
             } else {
