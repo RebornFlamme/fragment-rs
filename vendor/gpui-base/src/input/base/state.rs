@@ -2926,7 +2926,7 @@ impl<M: InputModeKind> InputBaseState<M> {
             .last_layout
             .as_ref()
             .map(|layout| layout.line_height)
-            .unwrap_or(window.line_height());
+            .unwrap_or(super::element::exact_line_height(window)); // ★ fragment-rs
         let delta = event.delta.pixel_delta(line_height);
 
         let old_offset = self.scroll_handle.offset();

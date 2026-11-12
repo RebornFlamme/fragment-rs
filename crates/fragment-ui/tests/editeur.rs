@@ -228,9 +228,9 @@ fn titre_plus_grand() {
     let mut b = Banc::new(texte, OptionsEditeur::default());
     let lh = b.lire(|_, e, _| f32::from(e.line_height().unwrap()));
     // ★ GPUI ARRONDIT l'interligne au pixel (`line_height_in_pixels`) : 16 × 1,4 = 22,4 devient 22,
-    //   là où Chromium garde 22,4. Écart suivi comme une dette (parite.d), pas corrigé ici.
+    //   là où Chromium garde 22,4. Le fork lit l'interligne exact (ADR-015, fr-t3.5).
     assert!(
-        pres(lh, (16. * INTERLIGNE_TEXTE).round()),
+        pres(lh, 16. * INTERLIGNE_TEXTE),
         "interligne du corps : {lh}"
     );
     let titre = b.bornes(2);

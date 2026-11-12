@@ -650,6 +650,16 @@ fn ime_marked_display_range(
     }
 }
 
+// ★ fragment-rs : l'interligne EXACT du style de texte. `Window::line_height` l'arrondit au pixel
+// (`TextStyle::line_height_in_pixels`) : 22,4 devenait 22, et chaque ligne dérivait de 0,4 px
+// contre un navigateur (ADR-015 de fragment-rs).
+pub(super) fn exact_line_height(window: &Window) -> Pixels {
+    let style = window.text_style();
+    style
+        .line_height
+        .to_pixels(style.font_size, window.rem_size())
+}
+
 /// Viewport capacity in display rows, independent of logical buffer lines.
 ///
 /// Shared by both scroll-into-view paths (`layout_cursors` and
@@ -778,7 +788,7 @@ impl<M: InputModeKind> TextElement<M> {
                     && hitbox.should_handle_scroll(window)
                     && state
                         .read(cx)
-                        .takes_scroll(event.delta.pixel_delta(window.line_height()))
+                        .takes_scroll(event.delta.pixel_delta(exact_line_height(window))) // ★ fragment-rs
                 {
                     crate::scroll_bounce::claim_scroll(hitbox, cx);
                 }
@@ -3273,7 +3283,7 @@ impl<M: InputModeKind> Element for TextElement<M> {
         cx: &mut App,
     ) -> (LayoutId, Self::RequestLayoutState) {
         let state = self.state.read(cx);
-        let line_height = window.line_height();
+        let line_height = exact_line_height(window); // ★ fragment-rs
 
         let mut style = Style::default();
         style.size.width = relative(1.).into();
@@ -3382,7 +3392,7 @@ impl<M: InputModeKind> Element for TextElement<M> {
             });
         }
 
-        let line_height = window.line_height();
+        let line_height = exact_line_height(window); // ★ fragment-rs
         let token_elements = self.measure_tokens(
             (bounds.size.width - line_number_width - RIGHT_MARGIN).max(px(1.)),
             line_height,
@@ -3987,7 +3997,7 @@ impl<M: InputModeKind> Element for TextElement<M> {
         }
 
         // Paint multi line text
-        let line_height = window.line_height();
+        let line_height = exact_line_height(window); // ★ fragment-rs
         let origin = bounds.origin;
 
         let invisible_top_padding = prepaint.last_layout.visible_top;
