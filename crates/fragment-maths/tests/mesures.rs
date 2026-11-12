@@ -1,20 +1,20 @@
 //! Les mesures du spike S5 : chaque voie rend les 12 formules × 2 thèmes, rastérise par resvg et
 //! se compare à la capture de Fragment. Les tableaux s'impriment (`--nocapture`) et les images
-//! (candidat, diff) vont dans le dossier temporaire de cargo, `spike-maths/<voie>/`.
+//! (candidat, diff) vont dans le dossier temporaire de cargo, `fragment-maths/<voie>/`.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use std::path::PathBuf;
 use std::time::Instant;
 
-use spike_maths::diff::{Ecart, comparer, image_de_diff};
-use spike_maths::formules::{FORMULES, Formule};
-use spike_maths::raster::{RenduSvg, peindre, peindre_sur_echantillonne, placer};
-use spike_maths::reference::{self, Mesure, couleur};
+use fragment_maths::diff::{Ecart, comparer, image_de_diff};
+use fragment_maths::formules::{FORMULES, Formule};
+use fragment_maths::raster::{RenduSvg, peindre, peindre_sur_echantillonne, placer};
+use fragment_maths::reference::{self, Mesure, couleur};
 
 fn sortie(voie: &str) -> PathBuf {
     let d = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-        .join("spike-maths")
+        .join("fragment-maths")
         .join(voie);
     std::fs::create_dir_all(&d).unwrap();
     d
@@ -88,10 +88,9 @@ fn les_captures_couvrent_toutes_les_formules() {
     }
 }
 
-#[cfg(feature = "voie-a")]
-mod voie_a {
+mod mathjax {
     use super::*;
-    use spike_maths::voie_a::{MathJax, normaliser, svg_pour_resvg};
+    use fragment_maths::mathjax::{MathJax, normaliser, svg_pour_resvg};
 
     /// MathJax veut plus de pile native que les 2 Mio d'un fil de test (voir voie_a::PILE).
     fn grand_fil(f: impl FnOnce() + Send + 'static) {
@@ -152,7 +151,7 @@ mod voie_a {
     }
 
     #[test]
-    fn mesures_voie_a() {
+    fn mesures_mathjax() {
         grand_fil(mesures_a);
     }
 
@@ -188,22 +187,6 @@ mod voie_a {
         println!(
             "\nvoie A : VM + paquet {init:?} ; 1er rendu {premier_rendu:?} ; rendu chaud moyen {chaud:?} ; resvg (somme) {raster:?}"
         );
-        #[cfg(feature = "voie-a-jit")]
-        {
-            let t0 = Instant::now();
-            let jit = MathJax::avec_jit().unwrap();
-            let init = t0.elapsed();
-            let t2 = Instant::now();
-            for _ in 0..10 {
-                for f in FORMULES {
-                    jit.conteneur(f.tex, f.bloc, 16.0, 8.064, 800.0).unwrap();
-                }
-            }
-            println!(
-                "voie A + JIT : VM + paquet {init:?} ; rendu chaud moyen {:?}",
-                t2.elapsed() / (10 * FORMULES.len() as u32)
-            );
-        }
         // Le temps par formule (chaud, moyenne de 10).
         for f in FORMULES {
             let t = Instant::now();
@@ -231,107 +214,12 @@ mod voie_a {
     }
 }
 
-#[cfg(feature = "voie-b")]
-mod voie_b {
-    use super::*;
-    use spike_maths::voie_b::MoteurTex;
-
-    /// L'em de la math chez MathJax : `matchFontHeight` cale le x de la fonte TeX (0,442 em)
-    /// sur le ex du texte (DM Sans), soit un em de math de ex / 0,442.
-    pub fn em_mathjax(m: &Mesure) -> f64 {
-        m.ex_px / 0.442
-    }
-
-    fn passe(voie: &str, moteur: &MoteurTex) {
-        let mesures = reference::mesures().unwrap();
-        let mut lignes = Vec::new();
-        for m in &mesures {
-            let r = moteur.rendre(&m.tex, m.bloc, em_mathjax(m), couleur(&m.couleur).unwrap());
-            lignes.push((m.nom.clone(), r.ok().map(|r| mesurer(voie, m, &r, false))));
-        }
-        imprimer(voie, &lignes);
-    }
-
-    #[test]
-    fn mesures_voie_b() {
-        let t0 = Instant::now();
-        let moteur = MoteurTex::stix().unwrap();
-        let init = t0.elapsed();
-        let t1 = Instant::now();
-        moteur.rendre("x^2", false, 18.0, [0, 0, 0]).unwrap();
-        let premier = t1.elapsed();
-        let t2 = Instant::now();
-        let mut n = 0u32;
-        for _ in 0..10 {
-            for f in FORMULES {
-                if moteur.rendre(f.tex, f.bloc, 18.0, [0, 0, 0]).is_ok() {
-                    n += 1;
-                }
-            }
-        }
-        let chaud = t2.elapsed() / n.max(1);
-        println!(
-            "\nvoie B : police {init:?} ; 1er rendu {premier:?} ; rendu chaud moyen {chaud:?}"
-        );
-        for f in FORMULES {
-            if let Err(e) = moteur.rendre(f.tex, f.bloc, 18.0, [0, 0, 0]) {
-                println!("voie B : {} non rendu : {e}", f.nom);
-            }
-        }
-        passe("b-stix", &moteur);
-        #[cfg(feature = "voie-c")]
-        {
-            let newcm = spike_maths::voie_c::police_math().unwrap();
-            passe("b-newcm", &MoteurTex::avec_police(newcm).unwrap());
-        }
-    }
-}
-
-#[cfg(feature = "voie-c")]
-mod voie_c {
-    use super::*;
-    use spike_maths::voie_c::Typst;
-
-    #[test]
-    fn mesures_voie_c() {
-        let t0 = Instant::now();
-        let typst = Typst::new();
-        let init = t0.elapsed();
-        let t1 = Instant::now();
-        typst.rendre("x^2", false, 18.0, [0, 0, 0]).unwrap();
-        let premier = t1.elapsed();
-        let t2 = Instant::now();
-        for _ in 0..3 {
-            for f in FORMULES {
-                typst.rendre(f.typst, f.bloc, 18.0, [0, 0, 0]).unwrap();
-            }
-        }
-        let chaud = t2.elapsed() / (3 * FORMULES.len() as u32);
-        println!(
-            "\nvoie C : polices {init:?} ; 1er rendu {premier:?} ; rendu chaud moyen {chaud:?}"
-        );
-        let mut lignes = Vec::new();
-        for m in &reference::mesures().unwrap() {
-            let f = formule(m);
-            let r = typst.rendre(
-                f.typst,
-                m.bloc,
-                m.ex_px / 0.442,
-                couleur(&m.couleur).unwrap(),
-            );
-            lignes.push((m.nom.clone(), r.ok().map(|r| mesurer("c", m, &r, false))));
-        }
-        imprimer("C (typst, New Computer Modern Math)", &lignes);
-    }
-}
-
 /// Exploration (ignorée par défaut) : quelle origine et quelle épaisseur de trait rapprochent
 /// resvg de Chromium ? `cargo test --release -- --ignored explorer --nocapture`.
-#[cfg(feature = "voie-a")]
 #[test]
 #[ignore]
 fn explorer_calage_voie_a() {
-    use spike_maths::voie_a::{MathJax, svg_pour_resvg};
+    use fragment_maths::mathjax::{MathJax, svg_pour_resvg};
     let mj = MathJax::new().unwrap();
     let mesures = reference::mesures().unwrap();
     for nom in ["somme-dark", "puissance-dark", "matrice-light"] {

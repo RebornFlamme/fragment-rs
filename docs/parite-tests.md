@@ -17,7 +17,7 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 ## Crates sans modules portés
 
-fragment-html, spike-maths (pas de `parite.toml`).
+fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 
 ## fragment-agent
 

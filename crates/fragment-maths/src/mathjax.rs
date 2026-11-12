@@ -25,19 +25,15 @@ pub struct MathJax {
     contexte: Context,
 }
 
-/// La VM : l'interpréteur seul, ou avec le JIT de longbridge (cranelift, feature voie-a-jit).
+/// La VM : l'interpréteur seul (★ le JIT est refusé, ADR-011 : 2,8 s de démarrage).
 enum Vm {
     Interpreteur(Runtime),
-    #[cfg(feature = "voie-a-jit")]
-    Jit(rquickjs_jit::JitRuntime),
 }
 
 impl Vm {
     fn runtime(&self) -> &Runtime {
         match self {
             Vm::Interpreteur(r) => r,
-            #[cfg(feature = "voie-a-jit")]
-            Vm::Jit(j) => j,
         }
     }
 }
@@ -66,15 +62,6 @@ impl MathJax {
     /// L'interpréteur QuickJS seul.
     pub fn new() -> Result<Self, Erreur> {
         Self::sur(Vm::Interpreteur(Runtime::new().map_err(js)?))
-    }
-
-    /// QuickJS avec son JIT (cranelift) attaché.
-    #[cfg(feature = "voie-a-jit")]
-    pub fn avec_jit() -> Result<Self, Erreur> {
-        let jit = rquickjs_jit::JitRuntime::builder()
-            .build()
-            .map_err(|e| Erreur::Moteur(format!("JIT : {e}")))?;
-        Self::sur(Vm::Jit(jit))
     }
 
     fn sur(vm: Vm) -> Result<Self, Erreur> {
