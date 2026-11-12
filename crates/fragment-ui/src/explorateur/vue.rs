@@ -16,22 +16,32 @@
 
 use std::any::Any;
 use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::Instant;
 
 use fragment_core::workspace::vue_fichier::{REVEAL_IN_FOLDER, RevealInFolder};
 use fragment_core::{
-    ContexteVue, DocumentKey, EventRef, Events, FILE_OPEN, ItemView, ItemViewBase, Scope, TFile,
-    Vault, VaultEvent, VaultEventType, View, ViewCreator,
+    ContexteVue, DocumentKey, EventRef, Events, FILE_OPEN, ItemView, ItemViewBase, Scope,
+    TAbstractFile, TFile, Vault, VaultEvent, VaultEventType, View, ViewCreator,
 };
 use gpui_kit::{
-    AnyElement, App, InteractiveElement as _, IntoElement as _, ParentElement as _, Pixels,
-    ScrollHandle, SharedString, StatefulInteractiveElement as _, Styled as _, div, point, px,
+    AnyElement, App, DragMoveEvent, ExternalPaths, InteractiveElement as _, IntoElement as _,
+    MouseButton, ParentElement as _, Pixels, ScrollHandle, SharedString,
+    StatefulInteractiveElement as _, Styled as _, div, point, px,
 };
 use serde_json::{Map, Value};
 
 use super::arbre::{LigneVisible, lignes_visibles};
+use super::deplacer;
 use super::etat::{EtatArbre, defilement_de, ouverts_de, vers_ephemere};
-use crate::echelle::u;
+use super::glisser::{self as depot, Ressort};
+use super::menu::{
+    ActionsExplorateur, GesteVue, construire_menu, creer_dossier, creer_note, menu_racine,
+};
+use super::renommer::{self, Issue, Renommage, Suite};
+use crate::echelle::{Echelle, u};
+use crate::glisser::{CrochetsFichier, noter_appui_fichier, poser_crochets, retirer_crochets};
 use crate::theme_global::theme_ou_defaut;
 use crate::tree_item::{Ligne, hauteurs_calees, rendre_item};
 
@@ -67,6 +77,24 @@ struct Interne {
     version: Cell<u64>,
     /// Nommer chaque ligne pour les mesures de test (`<chemin>/ligne`).
     sondes: Cell<bool>,
+    /// Ce que l'application fournit aux actions (menus, presse-papiers, système).
+    actions: RefCell<Option<Rc<ActionsExplorateur>>>,
+    /// Le champ de renommage ouvert sur une ligne.
+    renommage: RefCell<Option<Renommage>>,
+    /// Le ressort des dépôts (dossier fermé survolé qui s'ouvre).
+    ressort: RefCell<Ressort>,
+    /// Le dossier coloré comme cible d'un dépôt (glisser interne ou fichiers du système).
+    cible_depot: RefCell<Option<String>>,
+    /// Un glisser de fichier a eu lieu : le clic qui suit ne doit pas ouvrir le fichier.
+    a_glisse: Cell<bool>,
+    /// Le chemin et la hauteur (px de fenêtre) de chaque ligne visible, relevés au dernier rendu.
+    rangees: RefCell<Vec<(String, f32)>>,
+    /// Le zoom du dernier rendu (px de fenêtre par px logique).
+    zoom: Cell<f32>,
+    /// Les crochets du glisser de fichier ont été posés par cette vue.
+    branche: Cell<bool>,
+    /// L'horloge du ressort.
+    debut: Instant,
 }
 
 /// La vue `file-explorer`, côté modèle.
@@ -89,6 +117,15 @@ impl FileExplorerView {
             sauvegarder: ctx.sauvegarder,
             version: Cell::new(0),
             sondes: Cell::new(false),
+            actions: RefCell::new(None),
+            renommage: RefCell::new(None),
+            ressort: RefCell::new(Ressort::new()),
+            cible_depot: RefCell::new(None),
+            a_glisse: Cell::new(false),
+            rangees: RefCell::new(Vec::new()),
+            zoom: Cell::new(1.0),
+            branche: Cell::new(false),
+            debut: Instant::now(),
         });
         let mut abonnements = Vec::new();
 
@@ -225,8 +262,352 @@ impl FileExplorerView {
     }
 }
 
+// ── Les actions (fr-t2-explorateur-actions) ───────────────────────────────────────────────────
+
+/// Ce que la vue répond aux menus (`GesteVue`) : un pont vers l'état partagé.
+struct GesteInterne(Rc<Interne>);
+
+impl GesteVue for GesteInterne {
+    fn renommer(&self, chemin: &str) {
+        Interne::demarrer_renommage(&self.0, chemin);
+    }
+
+    fn deplacer(&self, chemin: &str) {
+        self.0.demander_deplacement(chemin);
+    }
+
+    fn deplier(&self, chemin: &str) {
+        self.0.ouvrir_dossier(chemin);
+    }
+
+    fn ouvrir(&self, fichier: &TFile) {
+        FileExplorerView::ouvrir_chemin(&self.0, &fichier.path);
+    }
+}
+
+impl Interne {
+    fn actions(&self) -> Option<Rc<ActionsExplorateur>> {
+        self.actions.borrow().clone()
+    }
+
+    fn signaler(&self, message: &str) {
+        if let Some(a) = self.actions() {
+            (a.signaler)(message);
+        }
+    }
+
+    /// Ouvre un dossier (idempotent) et demande la sauvegarde du layout s'il était fermé.
+    fn ouvrir_dossier(&self, chemin: &str) {
+        if self.etat.borrow_mut().ouvrir(chemin) {
+            (self.sauvegarder)();
+        }
+    }
+
+    /// Entre en renommage sur `chemin` (`startRename`) : la ligne est révélée pour rester visible.
+    fn demarrer_renommage(interne: &Rc<Self>, chemin: &str) {
+        if let Some(r) = Renommage::ouvrir(&interne.vault, chemin) {
+            *interne.renommage.borrow_mut() = Some(r);
+            FileExplorerView::reveler_dans(interne, chemin);
+        }
+    }
+
+    fn demander_deplacement(&self, chemin: &str) {
+        let signaler = self.actions().map_or_else(
+            || Rc::new(|_: &str| {}) as Rc<dyn Fn(&str)>,
+            |a| a.signaler.clone(),
+        );
+        deplacer::ouvrir_modale(self.vault.clone(), chemin, signaler);
+    }
+
+    fn geste(interne: &Rc<Self>) -> Rc<dyn GesteVue> {
+        Rc::new(GesteInterne(interne.clone()))
+    }
+
+    fn maintenant_ms(&self) -> u64 {
+        u64::try_from(self.debut.elapsed().as_millis()).unwrap_or(u64::MAX)
+    }
+
+    /// Referme des dossiers (ceux que le ressort avait ouverts).
+    fn fermer_dossiers(&self, chemins: &[String]) {
+        if chemins.is_empty() {
+            return;
+        }
+        {
+            let mut etat = self.etat.borrow_mut();
+            for c in chemins {
+                if etat.est_ouvert(c) {
+                    etat.basculer(c);
+                }
+            }
+        }
+        (self.sauvegarder)();
+    }
+
+    /// L'élément de l'arbre sous un point de la fenêtre (px de fenêtre) : `Some("")` dans le vide de
+    /// la liste (la racine), `None` hors de la liste (`explorerPathAt`).
+    fn chemin_sous_le_point(&self, x: f32, y: f32) -> Option<String> {
+        let cadre = self.defilement.bounds();
+        let (gauche, haut): (f32, f32) = (cadre.origin.x.into(), cadre.origin.y.into());
+        let (largeur, hauteur): (f32, f32) = (cadre.size.width.into(), cadre.size.height.into());
+        if hauteur <= 0.0 || x < gauche || x > gauche + largeur || y < haut || y > haut + hauteur {
+            return None;
+        }
+        let decalage = -f32::from(self.defilement.offset().y);
+        let rangees = self.rangees.borrow();
+        let hauteurs: Vec<f32> = rangees.iter().map(|(_, h)| *h).collect();
+        Some(
+            depot::rang_a(&hauteurs, y - haut + decalage)
+                .map_or_else(String::new, |i| rangees[i].0.clone()),
+        )
+    }
+
+    /// Le survol d'un dépôt de fichiers du système au point `(x, y)` (px de fenêtre).
+    fn survoler_depot_au_point(&self, x: f32, y: f32) {
+        let Some(chemin) = self.chemin_sous_le_point(x, y) else {
+            self.finir_depot(true);
+            return;
+        };
+        let dossier = depot::dossier_de(&self.vault, &chemin);
+        self.survoler_dossier(&dossier, self.maintenant_ms());
+        self.avancer_ressort(self.maintenant_ms());
+    }
+
+    fn survoler_dossier(&self, dossier: &str, maintenant: u64) {
+        let ordres = {
+            let etat = self.etat.borrow();
+            self.ressort
+                .borrow_mut()
+                .survoler(dossier, |d| etat.est_ouvert(d), maintenant)
+        };
+        self.fermer_dossiers(&ordres.fermer);
+        *self.cible_depot.borrow_mut() = Some(dossier.to_owned());
+    }
+
+    fn avancer_ressort(&self, maintenant: u64) {
+        let ouvrir = self.ressort.borrow_mut().avancer(maintenant);
+        if let Some(dossier) = ouvrir {
+            self.ouvrir_dossier(&dossier);
+        }
+    }
+
+    /// Le glisser de fichiers du système est fini (`endDrag`).
+    fn finir_depot(&self, restaurer: bool) {
+        let a_fermer = self.ressort.borrow_mut().finir(restaurer);
+        self.fermer_dossiers(&a_fermer);
+        *self.cible_depot.borrow_mut() = None;
+    }
+
+    /// Importe `fichiers` dans le dossier visé par `chemin` ; les échecs sont signalés.
+    fn importer(&self, chemin: &str, fichiers: &[depot::Entrant]) {
+        let dossier = depot::dossier_de(&self.vault, chemin);
+        self.finir_depot(false);
+        for (nom, issue) in depot::importer(&self.vault, &dossier, fichiers) {
+            if let Err(e) = issue {
+                self.signaler(&format!("import impossible : {nom} ({e})"));
+            }
+        }
+    }
+
+    /// Le dépôt de fichiers du système au point `(x, y)` : importe au nom libre.
+    fn deposer_au_point(&self, x: f32, y: f32, chemins: &[PathBuf]) {
+        let dossier = self
+            .chemin_sous_le_point(x, y)
+            .map_or_else(String::new, |c| depot::dossier_de(&self.vault, &c));
+        self.finir_depot(false);
+        for (nom, issue) in depot::importer_chemins(&self.vault, &dossier, chemins) {
+            if let Err(e) = issue {
+                self.signaler(&format!("import impossible : {nom} ({e})"));
+            }
+        }
+    }
+}
+
+impl FileExplorerView {
+    /// Donne à la vue ce qu'elle ne sait pas faire seule : workspace, presse-papiers, système,
+    /// corbeille. Sans actions, les menus ne s'ouvrent pas.
+    pub fn definir_actions(&self, actions: ActionsExplorateur) {
+        *self.interne.actions.borrow_mut() = Some(Rc::new(actions));
+    }
+
+    /// Le menu d'un élément (`ouvrirMenuFichier`) : `""` = la racine du coffre. `None` sans actions
+    /// ou si le chemin n'existe pas.
+    pub fn menu_de(&self, chemin: &str) -> Option<crate::menu::Menu> {
+        let actions = self.interne.actions()?;
+        let geste = Interne::geste(&self.interne);
+        if chemin.is_empty() {
+            return Some(menu_racine(&self.interne.vault, &actions, &geste));
+        }
+        let af: TAbstractFile = self.interne.vault.get_abstract_file_by_path(chemin)?;
+        Some(construire_menu(&self.interne.vault, &actions, &geste, &af))
+    }
+
+    /// Ouvre le menu de `chemin` à `(x, y)` (px logiques de la fenêtre).
+    pub fn ouvrir_menu(&self, chemin: &str, x: f32, y: f32) {
+        Self::montrer_menu(&self.interne, chemin, x, y);
+    }
+
+    fn montrer_menu(interne: &Rc<Interne>, chemin: &str, x: f32, y: f32) {
+        let Some(actions) = interne.actions() else {
+            return;
+        };
+        let geste = Interne::geste(interne);
+        let menu = if chemin.is_empty() {
+            menu_racine(&interne.vault, &actions, &geste)
+        } else if let Some(af) = interne.vault.get_abstract_file_by_path(chemin) {
+            construire_menu(&interne.vault, &actions, &geste, &af)
+        } else {
+            return;
+        };
+        menu.show_at_position(x, y, &actions.keymap);
+    }
+
+    /// Le bouton « Nouvelle note » de l'en-tête : une note au nom libre à la racine, ouverte.
+    pub fn nouvelle_note(&self) {
+        match creer_note(&self.interne.vault, "") {
+            Ok(f) => Self::ouvrir_chemin(&self.interne, &f.path),
+            Err(e) => self.interne.signaler(&format!("création refusée : {e}")),
+        }
+    }
+
+    /// Le bouton « Nouveau dossier » de l'en-tête : un dossier au nom libre à la racine, en
+    /// renommage.
+    pub fn nouveau_dossier(&self) {
+        match creer_dossier(&self.interne.vault, "") {
+            Ok(d) => Interne::demarrer_renommage(&self.interne, &d.path),
+            Err(e) => self.interne.signaler(&format!("création refusée : {e}")),
+        }
+    }
+
+    /// Passe la ligne `chemin` en renommage (`startRename`).
+    pub fn demarrer_renommage(&self, chemin: &str) {
+        Interne::demarrer_renommage(&self.interne, chemin);
+    }
+
+    /// Le champ de renommage ouvert, s'il y en a un.
+    pub fn renommage(&self) -> Option<Renommage> {
+        self.interne.renommage.borrow().clone()
+    }
+
+    /// Une frappe de texte dans le champ de renommage.
+    pub fn saisir(&self, texte: &str) {
+        if let Some(r) = self.interne.renommage.borrow_mut().as_mut() {
+            r.inserer(texte);
+        }
+    }
+
+    /// Une touche pour le champ de renommage (`"enter"`, `"escape"`, `"backspace"`). Entrée valide,
+    /// Échap annule. Rend vrai si la touche a été prise par le champ.
+    pub fn touche_renommage(&self, touche: &str) -> bool {
+        let suite = {
+            let mut r = self.interne.renommage.borrow_mut();
+            let Some(r) = r.as_mut() else {
+                return false;
+            };
+            r.touche(touche)
+        };
+        match suite {
+            Suite::Valider => self.valider_renommage(),
+            Suite::Annuler => self.annuler_renommage(),
+            Suite::Continuer => {}
+        }
+        true
+    }
+
+    /// Termine le renommage avec la saisie (Entrée, ou la perte du focus : `onBlur`).
+    pub fn valider_renommage(&self) {
+        let Some(r) = self.interne.renommage.borrow_mut().take() else {
+            return;
+        };
+        if let Issue::Refuse(e) =
+            renommer::valider(&self.interne.vault, r.chemin(), Some(r.saisie()))
+        {
+            self.interne.signaler(&format!("renommage refusé : {e}"));
+        }
+    }
+
+    /// Abandonne le renommage sans rien changer (Échap).
+    pub fn annuler_renommage(&self) {
+        self.interne.renommage.borrow_mut().take();
+    }
+
+    /// Ouvre la modale « Déplacer vers… » pour `chemin`.
+    pub fn demander_deplacement(&self, chemin: &str) {
+        self.interne.demander_deplacement(chemin);
+    }
+
+    /// Le dossier coloré comme cible d'un dépôt, s'il y en a un.
+    pub fn cible_depot(&self) -> Option<String> {
+        self.interne.cible_depot.borrow().clone()
+    }
+
+    /// Un dépôt de fichiers du système survole `dossier` à l'instant `maintenant_ms` (le ressort
+    /// ouvre un dossier fermé après [`depot::DELAI_RESSORT_MS`]).
+    pub fn survoler_depot(&self, dossier: &str, maintenant_ms: u64) {
+        self.interne.survoler_dossier(dossier, maintenant_ms);
+    }
+
+    /// L'horloge du ressort avance : ouvre le dossier dont le délai est échu.
+    pub fn avancer_ressort(&self, maintenant_ms: u64) {
+        self.interne.avancer_ressort(maintenant_ms);
+    }
+
+    /// Le dépôt est fini (`endDrag`) : `restaurer` referme ce que le survol a ouvert.
+    pub fn finir_depot(&self, restaurer: bool) {
+        self.interne.finir_depot(restaurer);
+    }
+
+    /// Les fichiers déposés depuis le système, importés au nom libre dans le dossier visé par
+    /// `chemin` (le dossier lui-même, le parent d'un fichier, ou la racine).
+    pub fn deposer_fichiers(&self, chemin: &str, fichiers: &[depot::Entrant]) {
+        self.interne.importer(chemin, fichiers);
+    }
+
+    /// Branche le glisser de FICHIER du workspace sur l'arbre : le dossier survolé se colore, un
+    /// lâcher sur l'arbre déplace, un lâcher sur une pile ouvre le fichier dans la feuille créée
+    /// (`ouvrir` reçoit cette feuille et le chemin). Un seul explorateur par fil.
+    pub fn brancher_glisser(&self, ouvrir: crate::glisser::RappelOuvrir) {
+        let i = self.interne.clone();
+        let survol = self.interne.clone();
+        let deplace = self.interne.clone();
+        let etat = self.interne.clone();
+        poser_crochets(CrochetsFichier {
+            chemin_sous_le_point: Some(Rc::new(move |x, y| {
+                let zoom = i.zoom.get();
+                i.chemin_sous_le_point(x as f32 * zoom, y as f32 * zoom)
+            })),
+            ouvrir: Some(ouvrir),
+            survol: Some(Rc::new(move |chemin| {
+                let dossier = chemin.map(|c| depot::dossier_de(&survol.vault, c));
+                *survol.cible_depot.borrow_mut() = dossier;
+            })),
+            deplacer: Some(Rc::new(move |fichier, cible| {
+                *deplace.cible_depot.borrow_mut() = None;
+                if let Err(e) = depot::deplacer_fichier(&deplace.vault, fichier, cible) {
+                    deplace.signaler(&format!("déplacement refusé : {e}"));
+                }
+            })),
+            etat: Some(Rc::new(move |en_cours| {
+                if en_cours {
+                    etat.a_glisse.set(true);
+                } else {
+                    *etat.cible_depot.borrow_mut() = None;
+                }
+            })),
+        });
+        self.interne.branche.set(true);
+    }
+
+    /// Un glisser de fichier a eu lieu depuis le dernier clic.
+    pub fn a_glisse(&self) -> bool {
+        self.interne.a_glisse.get()
+    }
+}
+
 impl Drop for FileExplorerView {
     fn drop(&mut self) {
+        if self.interne.branche.get() {
+            retirer_crochets();
+        }
         for a in &self.abonnements {
             a.off();
         }
@@ -350,9 +731,16 @@ fn construire(
         } else {
             Vec::new()
         };
-        let mut ligne = Ligne::new(SharedString::from(l.chemin.clone()), l.titre.clone())
+        // Le champ de renommage remplace le nom de la ligne (la saisie, puis un curseur).
+        let titre: SharedString = match interne.renommage.borrow().as_ref() {
+            Some(r) if r.chemin() == l.chemin => format!("{}\u{258f}", r.saisie()).into(),
+            _ => l.titre.clone().into(),
+        };
+        let cible = interne.cible_depot.borrow().as_deref() == Some(l.chemin.as_str());
+        let mut ligne = Ligne::new(SharedString::from(l.chemin.clone()), titre)
             .profondeur(profondeur)
             .actif(actif == Some(l.chemin.as_str()))
+            .cible_depot(l.dossier && cible)
             .hauteur(h);
         if l.dossier {
             ligne = ligne.repliable(!l.ouvert);
@@ -362,14 +750,46 @@ fn construire(
         }
         let (i, chemin, dossier) = (interne.clone(), l.chemin.clone(), l.dossier);
         ligne = ligne.sur_clic(move |_, fenetre, _| {
+            if i.renommage
+                .borrow()
+                .as_ref()
+                .is_some_and(|r| r.chemin() == chemin)
+            {
+                return;
+            }
             if dossier {
                 FileExplorerView::basculer(&i, &chemin);
-            } else {
+            } else if !i.a_glisse.replace(false) {
+                // (Le clic qui suit un glisser n'ouvre pas le fichier : le drapeau vient de tomber.)
                 FileExplorerView::ouvrir_chemin(&i, &chemin);
             }
             fenetre.refresh();
         });
-        sortie.push(rendre_item(ligne, enfants, cx));
+        let (i, chemin) = (interne.clone(), l.chemin.clone());
+        ligne = ligne.sur_menu(move |evt, fenetre, app| {
+            let zoom = Echelle::courante(app).zoom();
+            FileExplorerView::montrer_menu(
+                &i,
+                &chemin,
+                f32::from(evt.position.x) / zoom,
+                f32::from(evt.position.y) / zoom,
+            );
+            // La ligne a pris le clic droit : le « vide » de l'arbre n'ouvre pas le menu racine.
+            app.stop_propagation();
+            fenetre.refresh();
+        });
+        let mut item = rendre_item(ligne, enfants, cx);
+        if !l.dossier {
+            // L'appui sur un fichier note le début d'un glisser (le seuil est jugé par le workspace).
+            let (chemin, libelle) = (l.chemin.clone(), l.titre.to_string());
+            item = div()
+                .on_mouse_down(MouseButton::Left, move |evt, _, app| {
+                    noter_appui_fichier(&chemin, &libelle, evt.position, app);
+                })
+                .child(item)
+                .into_any_element();
+        }
+        sortie.push(item);
     }
     sortie
 }
@@ -382,6 +802,14 @@ pub fn rendre_explorateur(vue: &FileExplorerView, cx: &App) -> AnyElement {
     let hauteurs = hauteurs_calees(cx, 0.0, lignes.len());
     let bas = u(cx, t.forme.size_2_3);
     defiler_si_pret(interne, &hauteurs, &lignes, bas);
+    // Ce que le glisser et le dépôt ont besoin de savoir de l'image courante.
+    interne.zoom.set(Echelle::courante(cx).zoom());
+    *interne.rangees.borrow_mut() = lignes
+        .iter()
+        .zip(&hauteurs)
+        .map(|(l, h)| (l.chemin.clone(), f32::from(*h)))
+        .collect();
+    interne.avancer_ressort(interne.maintenant_ms());
 
     let actif = interne.etat.borrow().actif().map(str::to_owned);
     let mut rang = 0;
@@ -404,6 +832,39 @@ pub fn rendre_explorateur(vue: &FileExplorerView, cx: &App) -> AnyElement {
         .px(u(cx, t.forme.size_4_1))
         .pb(bas)
         .child(div().flex().flex_col().children(rangees));
+    // Clic droit dans le vide : le menu du dossier RACINE (les lignes ont arrêté le leur).
+    let i = interne.clone();
+    liste = liste.on_mouse_down(MouseButton::Right, move |evt, fenetre, app| {
+        let zoom = Echelle::courante(app).zoom();
+        FileExplorerView::montrer_menu(
+            &i,
+            "",
+            f32::from(evt.position.x) / zoom,
+            f32::from(evt.position.y) / zoom,
+        );
+        fenetre.refresh();
+    });
+    // Fichiers déposés depuis le système : le dossier visé se colore (et s'ouvre après un délai),
+    // le lâcher importe au nom libre. Quitter la liste sans lâcher referme ce que le survol a ouvert.
+    let i = interne.clone();
+    liste =
+        liste.on_drag_move::<ExternalPaths>(move |e: &DragMoveEvent<ExternalPaths>, fenetre, _| {
+            if e.bounds.contains(&e.event.position) {
+                i.survoler_depot_au_point(
+                    f32::from(e.event.position.x),
+                    f32::from(e.event.position.y),
+                );
+            } else if i.cible_depot.borrow().is_some() {
+                i.finir_depot(true);
+            }
+            fenetre.refresh();
+        });
+    let i = interne.clone();
+    liste = liste.on_drop::<ExternalPaths>(move |chemins, fenetre, _| {
+        let p = fenetre.mouse_position();
+        i.deposer_au_point(f32::from(p.x), f32::from(p.y), chemins.paths());
+        fenetre.refresh();
+    });
     if interne.sondes.get() {
         liste = liste.debug_selector(|| "explorateur/liste".to_owned());
     }
