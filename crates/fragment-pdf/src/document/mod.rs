@@ -196,7 +196,7 @@ impl Document {
         let p = self.page(page)?;
         let (l, h) = (region.largeur as usize, region.hauteur as usize);
         // Tampon à nous, déjà blanc opaque : ce que la page ne couvre pas (débordement) reste blanc.
-        // BGRA sans marge de fin de ligne : pas = largeur × 4.
+        // 4 octets par pixel sans marge de fin de ligne : pas = largeur × 4.
         let mut tampon = vec![255u8; l * h * 4];
         {
             let mut bitmap = PdfBitmap::from_bytes(
@@ -211,15 +211,17 @@ impl Document {
             //   taille fixe (la page sortirait à l'échelle 1).
             let config = PdfRenderConfig::new()
                 .set_format(PdfBitmapFormat::BGRA)
+                // ★ FPDF_REVERSE_BYTE_ORDER (vrai par défaut dans pdfium-render, explicité ici) : le
+                //   tampon BGRA sort déjà en RGBA. Ne pas réinverser les canaux (spike S7, fr-t4-raster).
+                .set_reverse_byte_order(true)
                 .set_fixed_size(pl as i32, ph as i32)
                 .set_origin(-(region.x as i32), -(region.y as i32))
                 .clear_before_rendering(false);
             p.render_into_bitmap_with_config(&mut bitmap, &config)
                 .map_err(|e| ErreurPdf::Rendu(e.to_string()))?;
         }
-        // BGRA → RGBA, alpha forcé opaque.
+        // Déjà en RGBA (voir plus haut) : seul l'alpha est forcé opaque.
         for px in tampon.as_chunks_mut::<4>().0 {
-            px.swap(0, 2);
             px[3] = 255;
         }
         Ok(Raster {

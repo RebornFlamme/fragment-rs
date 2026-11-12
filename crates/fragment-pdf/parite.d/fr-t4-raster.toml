@@ -1,0 +1,11 @@
+# Parité de fr-t4-raster (fragment-pdf), spike S7. Schéma `parite.d` : un fichier par tâche, fusionné par
+# `cargo xtask parite`. Pas de test TS à porter : la mesure compare le canvas de pdf.js (PdfView.ts) au
+# raster de pdfium, chiffres dans docs/spikes/S7-raster-pdf.md.
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (rendu d'une page : canvas round(pt × échelle), transform [w/vw, 0, 0, h/vh])"
+rs = "crates/fragment-pdf/src/document/mod.rs (rendre_region), examples/spike_s7.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+notes = "Ajoutés : page colorée en RGBA (correction de l'inversion rouge/bleu de rendre_region), région colorée et débordement, taille du raster égale au canvas de pdf.js. La parité au pixel du contenu de page n'est pas atteignable en strict : ADR-014 (proposé)."
