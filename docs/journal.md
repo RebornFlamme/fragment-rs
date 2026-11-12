@@ -611,3 +611,8 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Sonnet : laterale2, rechercheui2, explactions (fr-t2-explorateur-actions), t2scenes (fr-t2-scenes).
 - ★ Un clear du chef tue les équipiers locaux en cours. Le clear (contexte ≈ 275k) attend donc la fin de cette vague. Plus aucun lancement au-delà de 300k : les places libérées restent vides jusqu'au clear.
 **Rythme** : (97 − 47) ÷ 23,5 h ≈ 2,1 points par heure.
+- 18:28 UTC, règle de l'orchestrateur, valable jusqu'au reset hebdo du 13/11 :
+  - relance au fil des comptes rendus jusqu'à 550k de contexte du chef ;
+  - au-delà, plus aucun lancement : les équipiers finissent, puis « prêt pour le clear » ;
+  - clear forcé seulement à 750k, après avoir poussé les branches en brouillon.
+  - Remplace la règle des 300k et le gel noté ci-dessus.
