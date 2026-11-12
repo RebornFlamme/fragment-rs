@@ -10,8 +10,8 @@
 //! `padding: 0 --size-2-3`. La largeur suit le contenu, plafonnée à 400 px.
 
 use gpui_kit::{
-    AbsoluteLength, AnyElement, App, FontWeight, IntoElement, ParentElement as _, SharedString,
-    Styled as _, div,
+    AbsoluteLength, AnyElement, App, Bounds, FontWeight, IntoElement, ParentElement as _, Pixels,
+    SharedString, Styled as _, TextAlign, Visibility, Window, canvas, div, point, px,
 };
 
 use crate::echelle::{Echelle, u};
@@ -64,7 +64,13 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
             .h_full()
             .px(u(cx, f.size_2_3))
             .whitespace_nowrap()
-            .child(e.clone())
+            .relative()
+            .child(texte_cale(
+                e.clone(),
+                u(cx, f.size_2_3),
+                ty.line_height_normal,
+                cx,
+            ))
     });
     let barre = texte(barre, cx, ty.font_ui_smaller, ty.line_height_normal)
         .absolute()
@@ -97,3 +103,58 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
 /// L'élément de l'exception nommée du coin (clé du cliquet, `xtask/src/pixels/exceptions.rs`,
 /// `COIN_BARRE_ETAT`).
 pub const ELEMENT_COIN: &str = "coin de la barre d'état";
+
+/// ★ Le texte d'un élément, sa LIGNE DE BASE calée comme Chromium. Chromium arrondit l'ascendante et
+/// la descendante de la police au pixel, pose le haut de la ligne au 1/64 (centrage d'une ligne de
+/// `interligne` × taille dans la barre), ajoute la DEMI-INTERLIGNE ARRONDIE À L'ENTIER INFÉRIEUR
+/// puis l'ascendante, et peint au pixel le plus proche. GPUI centre une hauteur de ligne arrondie
+/// et pose la ligne de base à l'ascendante exacte : 1 px trop bas à 80 et 150 % (`t1-zoom-80`,
+/// (1208,788) ; `t1-zoom-150`, (1147,778) : sonde DOM, haut du texte à 785,906 et 774,125).
+///
+/// Le texte garde sa place par une copie invisible ; il est peint par-dessus, à l'abscisse de la
+/// copie (`gauche` : le rembourrage de l'élément) et sur toute la hauteur de l'élément.
+fn texte_cale(texte: SharedString, gauche: Pixels, interligne: f32, cx: &App) -> impl IntoElement {
+    let mut gabarit = div().child(texte.clone());
+    gabarit.style().visibility = Some(Visibility::Hidden);
+    let _ = cx;
+    div().child(gabarit).child(
+        canvas(
+            |_, _, _| {},
+            move |bornes: Bounds<Pixels>, (), window: &mut Window, cx: &mut App| {
+                let style = window.text_style();
+                let taille = style.font_size.to_pixels(window.rem_size());
+                let run = style.to_run(texte.len());
+                let ligne = window
+                    .text_system()
+                    .shape_line(texte.clone(), taille, &[run], None);
+                let k = window.scale_factor();
+                let (a, d) = (f32::from(ligne.ascent) * k, f32::from(ligne.descent) * k);
+                let (ar, dr) = (a.round(), d.round());
+                let lu = |v: f32| (v * 64.0 + 1e-3).floor() / 64.0;
+                let hauteur_ligne = lu(f32::from(taille) * interligne * k);
+                let (haut, h) = (
+                    f32::from(bornes.origin.y) * k,
+                    f32::from(bornes.size.height) * k,
+                );
+                let ligne_haut = haut + lu((h - hauteur_ligne) / 2.0);
+                let demi = ((hauteur_ligne - (ar + dr)) / 2.0).floor();
+                let base = (ligne_haut + demi + ar + 0.5).floor();
+                // Interligne de peinture = a + d : GPUI pose alors la ligne de base à `y + a`.
+                let y = (base - a) / k;
+                let _ = ligne.paint(
+                    point(bornes.origin.x, px(y)),
+                    px((a + d) / k),
+                    TextAlign::Left,
+                    None,
+                    window,
+                    cx,
+                );
+            },
+        )
+        .absolute()
+        .top(px(0.0))
+        .bottom(px(0.0))
+        .left(gauche)
+        .right(px(0.0)),
+    )
+}
