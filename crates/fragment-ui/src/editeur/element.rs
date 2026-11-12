@@ -19,25 +19,24 @@ use std::cell::Cell;
 use std::ops::Range;
 use std::rc::Rc;
 
-use fragment_markdown::decorations::{Contexte, Curseur, Revelation};
+use fragment_markdown::decorations::{Contexte, Revelation};
 use fragment_markdown::syntaxe::imbrique::Imbrique;
 use fragment_markdown::syntaxe::modele_rangees::{ArgumentsFork, Plage, lignes_de};
 use fragment_markdown::syntaxe::{Arbre, Changement, Etendue};
 use fragment_text::editor::EditorChange;
-use fragment_text::utf16::byte_to_utf16;
 use fragment_theme::{Mode, Theme};
 use gpui_kit::base::input::{
     DiagnosticColors, Editor as EditeurDeBase, EditorState, InputEditorStyle, InputEvent,
     TextDecoration, TextDecorationCollection,
 };
 use gpui_kit::{
-    App, AppContext as _, Context, Edges, Entity, EventEmitter, HighlightStyle, Hsla, IntoElement,
-    ParentElement as _, Render, Styled as _, Subscription, Window, canvas, div, px,
+    AnyElement, App, AppContext as _, Context, Edges, Entity, EventEmitter, HighlightStyle, Hsla,
+    IntoElement, ParentElement as _, Render, Styled as _, Subscription, Window, canvas, div, px,
 };
 
 use super::constantes::{INTERLIGNE_TEXTE, MARGE_CONTENU_VERTICALE, debut_texte, fin_texte};
 use super::jetons::couleur_selection;
-use super::modele::{Projection, projeter};
+use super::modele::{Changements, ComplementRangees, Decalage, Entree, Projection, Projeteur};
 use super::surface::SurfaceLive;
 use crate::polices::FAMILLE_INTERFACE;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -49,6 +48,9 @@ use crate::theme_global::{couleur, theme_ou_defaut};
 /// gouttière de repli de Fragment est le travail de `fr-t3-widgets-blocs`.
 const GOUTTIERE_DU_FORK: f32 = 6.0;
 
+/// Ce qui rend le calque d'un éditeur : appelé à chaque image, avec l'éditeur.
+pub type Calque = Rc<dyn Fn(&EditeurLive, &mut Window, &mut App) -> AnyElement>;
+
 /// La configuration d'un éditeur de live preview.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OptionsEditeur {
@@ -59,6 +61,8 @@ pub struct OptionsEditeur {
     pub unite_indentation: usize,
     /// `--font-text-size`, en pixels logiques.
     pub taille_texte: f32,
+    /// Sans fond : l'éditeur laisse voir ce qui est dessous (une cellule, un bloc imbriqué).
+    pub fond_transparent: bool,
 }
 
 impl Default for OptionsEditeur {
@@ -68,6 +72,7 @@ impl Default for OptionsEditeur {
             lecture_seule: false,
             unite_indentation: 4,
             taille_texte: fragment_markdown::decorations::styles::TAILLE_TEXTE_DEFAUT,
+            fond_transparent: false,
         }
     }
 }
@@ -87,7 +92,8 @@ pub struct EditeurLive {
     a_eu_le_focus: bool,
     /// Garde de comparaison : le dernier modèle posé sur le fork.
     fork: Option<ArgumentsFork>,
-    projection: Projection,
+    /// La projection, tenue à jour par régions (`fr-t3.4`).
+    projeteur: Projeteur,
     marques: TextDecorationCollection,
     styles_lignes: TextDecorationCollection,
     /// Le mode du thème de la dernière projection (un basculement reprojette les couleurs).
@@ -100,6 +106,13 @@ pub struct EditeurLive {
     largeur_mesuree: Rc<Cell<f32>>,
     /// Le « poke » de `request_update` : relu à la prochaine image.
     pub(crate) a_rafraichir: Cell<bool>,
+    /// Le calque dessiné par-dessus l'éditeur (widgets en ligne, `fr-t3-widgets-inline`).
+    calque: Option<Calque>,
+    /// La largeur de chaque plage remplacée par un widget en ligne (octets, px). Stockée seulement :
+    /// elle sera poussée vers le fork quand il saura la poser (`set_widget_ranges`).
+    largeurs_widgets: Vec<(Range<usize>, f32)>,
+    /// Le complément des rangées (blocs, repli : `fr-t3-widgets-blocs`).
+    complement: Option<ComplementRangees>,
     _abonnements: Vec<Subscription>,
 }
 
@@ -149,7 +162,7 @@ impl EditeurLive {
             focus: false,
             a_eu_le_focus: false,
             fork: None,
-            projection: Projection::default(),
+            projeteur: Projeteur::default(),
             marques,
             styles_lignes,
             mode,
@@ -157,10 +170,42 @@ impl EditeurLive {
             marges_posees: (0.0, 0.0),
             largeur_mesuree: Rc::new(Cell::new(0.0)),
             a_rafraichir: Cell::new(false),
+            calque: None,
+            largeurs_widgets: Vec::new(),
+            complement: None,
             _abonnements: abonnements,
         };
-        e.recalculer(cx);
+        e.recalculer(Maj::Complete, cx);
         e
+    }
+
+    /// Pose (ou retire, `None`) le complément des rangées, puis repose les rangées sur le fork.
+    pub fn poser_complement(&mut self, c: Option<ComplementRangees>, cx: &mut Context<Self>) {
+        self.complement = c;
+        self.recalculer(Maj::Rangees, cx);
+    }
+
+    /// Repose les rangées sur le fork (le repli ou une hauteur mesurée a changé : le complément
+    /// rendrait autre chose). Les décorations ne sont pas recalculées.
+    pub fn reprojeter_maintenant(&mut self, cx: &mut Context<Self>) {
+        self.recalculer(Maj::Rangees, cx);
+    }
+
+    /// Pose (ou retire, `None`) le calque rendu par-dessus l'éditeur, en position absolue sur toute
+    /// sa surface, à chaque image.
+    pub fn set_calque(&mut self, f: Option<Calque>) {
+        self.calque = f;
+    }
+
+    /// Les largeurs des plages remplacées par des widgets en ligne (octets, px).
+    pub fn set_largeurs_widgets(&mut self, l: Vec<(Range<usize>, f32)>) {
+        self.largeurs_widgets = l;
+    }
+
+    /// Les largeurs posées par [`Self::set_largeurs_widgets`].
+    #[must_use]
+    pub fn largeurs_widgets(&self) -> &[(Range<usize>, f32)] {
+        &self.largeurs_widgets
     }
 
     /// La marge gauche posée sur le fork à la dernière image : le bord gauche de l'éditeur est à
@@ -190,7 +235,7 @@ impl EditeurLive {
     /// La dernière projection posée.
     #[must_use]
     pub fn projection(&self) -> &Projection {
-        &self.projection
+        self.projeteur.projection()
     }
 
     /// Combien de fois le modèle a réellement été posé sur le fork.
@@ -251,20 +296,22 @@ impl EditeurLive {
                 let vide = Imbrique::analyser("", &Arbre::analyser(""));
                 let ancienne = std::mem::replace(&mut self.imbrique, vide);
                 self.imbrique = ancienne.reanalyser(&nouveau, &self.arbre, c);
-                self.lignes = lignes_de(&nouveau);
+                let lignes = lignes_de(&nouveau);
+                let decalage = Decalage::new(&self.texte, &self.lignes, &nouveau, &lignes, c);
+                self.lignes = lignes;
                 self.texte = nouveau;
                 self.selection = etat.read(cx).selected_range();
                 cx.emit(remplacement.en_changement());
-                self.recalculer(cx);
+                self.recalculer(Maj::Edition(decalage), cx);
             }
             InputEvent::Focus => {
                 self.focus = true;
                 self.a_eu_le_focus = true;
-                self.recalculer(cx);
+                self.recalculer(Maj::Selection, cx);
             }
             InputEvent::Blur => {
                 self.focus = false;
-                self.recalculer(cx);
+                self.recalculer(Maj::Selection, cx);
             }
             InputEvent::PressEnter { .. } => {}
         }
@@ -275,47 +322,51 @@ impl EditeurLive {
         if selection != self.selection {
             self.selection = selection;
             cx.emit(super::changement::changement_de_selection());
-            self.recalculer(cx);
+            self.recalculer(Maj::Selection, cx);
         }
     }
 
     /// Recalcule la projection et la pose sur le fork (seulement ce qui a changé).
-    fn recalculer(&mut self, cx: &mut Context<Self>) {
-        self.reprojeter(cx);
+    fn recalculer(&mut self, maj: Maj, cx: &mut Context<Self>) {
+        self.reprojeter(maj, cx);
         cx.notify();
     }
 
-    fn reprojeter(&mut self, cx: &mut App) {
+    fn reprojeter(&mut self, maj: Maj, cx: &mut App) {
         let theme = theme_ou_defaut(cx);
         self.mode = theme.mode;
         let (a, b) = (
             self.selection.start.min(self.selection.end),
             self.selection.start.max(self.selection.end),
         );
-        let selections = [Etendue::new(
-            byte_to_utf16(&self.texte, a),
-            byte_to_utf16(&self.texte, b),
-        )];
-        let curseur = Curseur {
-            selections: &selections,
+        let entree = Entree {
+            texte: &self.texte,
+            lignes: &self.lignes,
+            arbre: &self.arbre,
+            imbrique: &self.imbrique,
+            selection: Etendue::new(a, b),
             focus: self.focus,
             a_eu_le_focus: self.a_eu_le_focus,
+            ctx: Contexte {
+                revelation: self.options.revelation,
+                lecture_seule: self.options.lecture_seule,
+                visibles: &[],
+                unite_indentation: self.options.unite_indentation,
+                taille_texte: self.options.taille_texte,
+            },
+            theme: &theme,
+            complement: self.complement.as_ref(),
         };
-        let ctx = Contexte {
-            revelation: self.options.revelation,
-            lecture_seule: self.options.lecture_seule,
-            visibles: &[],
-            unite_indentation: self.options.unite_indentation,
-            taille_texte: self.options.taille_texte,
+        let changements = match maj {
+            Maj::Complete => self.projeteur.complet(&entree),
+            Maj::Edition(d) => self.projeteur.apres_edition(&entree, &d),
+            Maj::Selection => self.projeteur.apres_selection(&entree),
+            Maj::Rangees => {
+                self.projeteur.rangees(&entree);
+                Changements::default()
+            }
         };
-        let p = projeter(
-            &self.texte,
-            &self.arbre,
-            &self.imbrique,
-            &curseur,
-            &ctx,
-            &theme,
-        );
+        let p = self.projeteur.projection();
         if self.fork.as_ref() != Some(&p.fork) {
             let f = p.fork.clone();
             self.etat.update(cx, |s, cx| {
@@ -330,14 +381,26 @@ impl EditeurLive {
             self.fork = Some(p.fork.clone());
             self.poses += 1;
         }
-        if p.marques != self.projection.marques {
+        if changements.marques {
             self.marques.set(en_decorations(&p.marques), cx);
         }
-        if p.lignes != self.projection.lignes {
+        if changements.lignes {
             self.styles_lignes.set(en_decorations(&p.lignes), cx);
         }
-        self.projection = p;
     }
+}
+
+/// Ce qui a déclenché une mise à jour de la projection.
+#[derive(Debug, Clone, Copy)]
+enum Maj {
+    /// Tout recalculer (ouverture, thème, demande de la surface).
+    Complete,
+    /// Une édition du texte.
+    Edition(Decalage),
+    /// La sélection ou le focus (texte inchangé).
+    Selection,
+    /// Seulement les rangées du fork (le complément a changé).
+    Rangees,
 }
 
 fn en_decorations(liste: &[(Range<usize>, HighlightStyle)]) -> Vec<TextDecoration> {
@@ -372,11 +435,22 @@ pub fn style_projete(theme: &Theme) -> InputEditorStyle {
     }
 }
 
+/// Le style posé sur le fork pour ces options : [`style_projete`], sans fond si
+/// `fond_transparent`.
+#[must_use]
+pub fn style_de_l_editeur(theme: &Theme, options: &OptionsEditeur) -> InputEditorStyle {
+    let mut style = style_projete(theme);
+    if options.fond_transparent {
+        style.background = Hsla::transparent_black();
+    }
+    style
+}
+
 impl Render for EditeurLive {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = theme_ou_defaut(cx);
         if theme.mode != self.mode || self.a_rafraichir.replace(false) {
-            self.reprojeter(cx);
+            self.reprojeter(Maj::Complete, cx);
         }
         // La colonne se centre dans la largeur de l'éditeur, mesurée à l'image précédente (avant la
         // première, celle de la fenêtre).
@@ -397,7 +471,7 @@ impl Render for EditeurLive {
             left: px(self.marges_posees.0),
             right: px(self.marges_posees.1),
         };
-        let style = style_projete(&theme);
+        let style = style_de_l_editeur(&theme, &self.options);
         self.etat.update(cx, |s, _| {
             s.set_editor_paddings(marges);
             s.set_editor_style(style);
@@ -405,17 +479,27 @@ impl Render for EditeurLive {
         let taille = self.options.taille_texte;
         let mesure = self.largeur_mesuree.clone();
         let id = cx.entity_id();
+        let calque = self.calque.clone().map(|f| {
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full()
+                .child(f(self, window, cx))
+        });
         // ★ L'élément du fork est un enfant `flex_1` + `h_full` : sans parent flex, il ne prend ni la
         //   largeur ni la hauteur et la colonne se calcule sur 0 px.
-        div()
-            .size_full()
-            .flex()
-            .bg(couleur(theme.palette.background_primary))
+        let mut racine = div().size_full().flex();
+        if !self.options.fond_transparent {
+            racine = racine.bg(couleur(theme.palette.background_primary));
+        }
+        racine
             .text_color(couleur(theme.palette.text_normal))
             .font_family(FAMILLE_INTERFACE)
             .text_size(px(taille))
             .line_height(px(taille * INTERLIGNE_TEXTE))
             .child(EditeurDeBase::new(&self.etat))
+            .children(calque)
             .child(
                 canvas(
                     move |bornes, _, cx| {

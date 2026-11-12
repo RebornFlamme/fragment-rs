@@ -28,8 +28,9 @@ use gpui_kit::base::input::EditorState;
 use gpui_kit::platform::current_platform;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
-    AnyWindowHandle, App, AppContext as _, Bounds, Entity, Hsla, Point, ScrollDelta,
-    TestAppContext, TestDispatcher, Window, WindowBounds, WindowOptions, point, px, size,
+    AnyWindowHandle, App, AppContext as _, Bounds, Entity, Hsla, IntoElement as _, Point,
+    ScrollDelta, TestAppContext, TestDispatcher, Window, WindowBounds, WindowOptions, point, px,
+    size,
 };
 
 const LARGEUR: f32 = 1000.;
@@ -388,7 +389,8 @@ fn coordonnees_aller_retour() {
 }
 
 /// 10 000 lignes (1 000 titres, du gras, des blocs de code) avec DirectWrite : pose du modèle,
-/// défilement, frappe au milieu. Les temps sont imprimés (`SURFACE|10k|…`), pas comparés.
+/// défilement, frappe au milieu. Les temps sont imprimés (`SURFACE|10k|…`) ; en release, frappe et
+/// défilement doivent rester sous 16 ms (fr-t3.4).
 #[test]
 fn dix_mille_lignes() {
     let mut texte = String::new();
@@ -449,6 +451,20 @@ fn dix_mille_lignes() {
         texte.len()
     );
     assert!(defilement_ms < 2000., "défilement absurdement lent");
+    // fr-t3.4 : en RELEASE (job CI `editeur-release`), une frappe et un pas de défilement tiennent
+    // dans une image à 60 Hz, rendu des images compris. En debug, seuls les temps sont imprimés.
+    let profil = if cfg!(debug_assertions) {
+        "debug"
+    } else {
+        "release"
+    };
+    println!(
+        "SURFACE|10k|{profil}|frappe_moy_ms={frappe_ms:.2} defilement_moy_ms={defilement_ms:.2}          curseur_moy_ms={curseur_ms:.2} (seuil release : 16 ms)"
+    );
+    if !cfg!(debug_assertions) {
+        assert!(frappe_ms < 16., "frappe : {frappe_ms:.2} ms");
+        assert!(defilement_ms < 16., "défilement : {defilement_ms:.2} ms");
+    }
 }
 
 // ─── Garde, thèmes, spec e2e ───
@@ -561,4 +577,133 @@ fn les_marques_suivent_le_theme() {
     assert!(sombre.is_some() && clair.is_some());
     let attendu: Hsla = theme_global::couleur(Theme::clair().palette.link_color).into();
     assert_eq!(clair, Some(attendu));
+}
+
+// ─── Crochets des widgets en ligne (fr-t3-widgets-inline) ───
+
+/// Le calque est rendu à chaque image, avec l'éditeur ; retiré (`None`), il ne l'est plus.
+#[test]
+fn le_calque_est_rendu_par_dessus_l_editeur() {
+    use std::cell::Cell;
+    use std::rc::Rc;
+    let mut b = Banc::new("# Titre\n\ncorps", OptionsEditeur::default());
+    let appels = Rc::new(Cell::new(0usize));
+    let longueur = Rc::new(Cell::new(0usize));
+    let (a, l) = (appels.clone(), longueur.clone());
+    let calque: fragment_ui::editeur::Calque = Rc::new(move |e, _, _| {
+        a.set(a.get() + 1);
+        l.set(e.texte().len());
+        gpui_kit::div().into_any_element()
+    });
+    let editeur = b.editeur.clone();
+    b.agir(|_, cx, _| {
+        editeur.update(cx, |e, cx| {
+            e.set_calque(Some(calque));
+            cx.notify();
+        });
+    });
+    assert!(appels.get() > 0, "le calque est rendu");
+    assert_eq!(longueur.get(), "# Titre\n\ncorps".len());
+    b.agir(|_, cx, _| {
+        editeur.update(cx, |e, cx| {
+            e.set_calque(None);
+            cx.notify();
+        });
+    });
+    let n = appels.get();
+    b.agir(|_, cx, _| editeur.update(cx, |_, cx| cx.notify()));
+    assert_eq!(appels.get(), n, "retiré : plus rendu");
+}
+
+/// Les largeurs des widgets en ligne sont gardées telles quelles (le fork ne les lit pas encore).
+#[test]
+fn les_largeurs_des_widgets_sont_gardees() {
+    let mut b = Banc::new("a [[lien]] b", OptionsEditeur::default());
+    let editeur = b.editeur.clone();
+    b.agir(|_, cx, _| {
+        editeur.update(cx, |e, _| e.set_largeurs_widgets(vec![(2..10, 31.5)]));
+    });
+    assert_eq!(
+        b.lire(|e, _, _| e.largeurs_widgets().to_vec()),
+        vec![(2..10, 31.5)]
+    );
+}
+
+// ─── Crochets des widgets de bloc (fr-t3-widgets-blocs) ───
+
+/// Le complément des rangées est appliqué à chaque projection (y compris après une frappe), relu
+/// par `reprojeter_maintenant`, et retiré par `None`.
+#[test]
+fn le_complement_des_rangees_s_applique_et_se_retire() {
+    use fragment_markdown::syntaxe::modele_rangees::{Bloc, GenreBloc, Placement};
+    use std::cell::Cell;
+    use std::rc::Rc;
+    let texte = "a\nb\nc";
+    let mut b = Banc::new(texte, OptionsEditeur::default());
+    let hauteur = Rc::new(Cell::new(48.0f32));
+    let h = hauteur.clone();
+    let complement: fragment_ui::editeur::ComplementRangees = Rc::new(move |e, r| {
+        r.blocs.push(Bloc {
+            genre: GenreBloc::Maths,
+            source: e.lignes[0],
+            premiere_ligne: 0,
+            derniere_ligne: 0,
+            placement: Placement::Dessous,
+            hauteur: h.get(),
+        });
+    });
+    let editeur = b.editeur.clone();
+    let haut_b =
+        |b: &mut Banc| b.lire(|_, e, _| f32::from(e.range_to_bounds(&(2..3)).unwrap().origin.y));
+    let sans = haut_b(&mut b);
+    b.agir(|_, cx, _| editeur.update(cx, |e, cx| e.poser_complement(Some(complement), cx)));
+    assert_eq!(
+        b.lire(|e, _, _| e.arguments_fork().unwrap().blocs.clone()),
+        [(0, 48.0)]
+    );
+    assert!(
+        pres(haut_b(&mut b) - sans, 48.),
+        "la ligne suivante descend du bloc"
+    );
+    // Une frappe garde le complément.
+    b.placer(5);
+    b.agir(|window, cx, _| window.input("x", cx));
+    assert_eq!(
+        b.lire(|e, _, _| e.arguments_fork().unwrap().blocs.clone()),
+        [(0, 48.0)]
+    );
+    // Une hauteur mesurée change : `reprojeter_maintenant` la relit.
+    hauteur.set(20.0);
+    b.agir(|_, cx, _| editeur.update(cx, |e, cx| e.reprojeter_maintenant(cx)));
+    assert_eq!(
+        b.lire(|e, _, _| e.arguments_fork().unwrap().blocs.clone()),
+        [(0, 20.0)]
+    );
+    b.agir(|_, cx, _| editeur.update(cx, |e, cx| e.poser_complement(None, cx)));
+    assert!(b.lire(|e, _, _| e.arguments_fork().unwrap().blocs.is_empty()));
+    assert!(pres(haut_b(&mut b), sans));
+}
+
+/// `fond_transparent` : aucun fond, ni sur l'élément ni dans le style du fork ; par défaut, le fond
+/// de la note.
+#[test]
+fn fond_transparent_ne_pose_aucun_fond() {
+    use fragment_ui::editeur::style_de_l_editeur;
+    let theme = Theme::sombre();
+    let defaut = OptionsEditeur::default();
+    assert!(!defaut.fond_transparent);
+    assert_eq!(
+        style_de_l_editeur(&theme, &defaut).background,
+        style_projete(&theme).background
+    );
+    let options = OptionsEditeur {
+        fond_transparent: true,
+        ..OptionsEditeur::default()
+    };
+    let s = style_de_l_editeur(&theme, &options);
+    assert!(s.background.a.abs() < f32::EPSILON, "{:?}", s.background);
+    assert_eq!(s.foreground, style_projete(&theme).foreground);
+    // L'éditeur se rend avec cette option.
+    let mut b = Banc::new("# Titre\n\ncorps", options);
+    assert!(b.lire(|e, _, _| e.arguments_fork().is_some()));
 }
