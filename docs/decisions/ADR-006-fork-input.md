@@ -39,6 +39,19 @@ La montée de gpui-kit est déjà une PR dédiée (ADR-001). Le fork en fait une
 - ★ **Dette nouvelle** : trois fonctions apparues en 0.9 calculent encore leurs ordonnées sur la grille uniforme `line_height × rang` et ignorent le modèle de rangées : les marques de la règle d'ensemble sur la barre de défilement (`OverviewRulerDecorationCollection`), les décorations de gouttière (`GutterDecorationCollection`, `layout_gutter_decorations`) et le fond / l'étiquette d'une ligne pliée (`fold_background`, `fold_placeholder_renderer`). Fragment n'en utilise aucune : non raccordées, pour garder le patch minimal. À raccorder (même remplacement par `row_top`) le jour où l'une sert.
 - Aucune API appelante n'a cassé dans le workspace (les structs de thème devenus `#[non_exhaustive]` ne sont construits nulle part par littéral).
 
+## Amendement : widgets en ligne de largeur dictée (fr-t3-widgets-inline, 12/11/2026)
+
+- Constat (T3 §3.6, S1 point 3) : un masque est un élément de largeur 0 ; une vraie case, une puce ou une formule a SA largeur. Le wrapper portait déjà des métriques `(plage, largeur)` pour les jetons : le fork forçait seulement `px(0.)`.
+- Ajout : `InputBaseState::set_widget_ranges(Vec<(Range<usize>, Pixels)>, cx)`. Une plage de widget est un élément de largeur dictée : `layout_hidden_lines` pose son fragment à cette largeur et avance `x` d'autant (fragment sans glyphes, comme un masque). Le texte suivant se décale, les offsets restent en octets source, la source n'est jamais modifiée. Gauche/Droite la franchissent d'un pas (même code que les masques : `hidden_ranges` rend masques et widgets). Une plage qui chevauche un masque est ignorée ; sans widget, comportement inchangé.
+- Fichiers : `row_model.rs` (champs `hidden`, `widgets`, `set_widget_ranges`), `display_map.rs` (fusion en métriques, `refresh_inline_metrics`), `base/element.rs` (largeur et avance dans `layout_hidden_lines`). Aucun fichier nouveau dans `NOTICE`. Tests headless : `crates/fragment-ui/tests/md_inline.rs`.
+- Hôte : `EditeurLive::poser_largeurs_widgets` (la largeur de chaque widget en ligne vient de `md_inline`).
+
+PR amont, texte prêt (à ouvrir avec l'accord de l'utilisateur, non ouverte) :
+
+> **PR 4 — input: inline widgets of host-dictated width**
+>
+> Builds on hidden ranges. `InputBaseState::set_widget_ranges(widgets, cx)` takes byte ranges with a width in pixels: each range is laid out as one inline element of that width, with no glyphs, so the host can paint a checkbox, a bullet or a rendered formula there while the source stays untouched. Following text shifts by the width; Left/Right cross a widget in one step. A range that overlaps a hidden range is ignored. Test: a 40 px widget shifts the next character by 40 px, the cursor crosses it in one step, clearing the list restores the plain layout.
+
 ## PR amont
 
 **Non ouverte, texte prêt (12/11/2026, après le rebase sur 0.9.1).** C'est une publication externe : le chef l'ouvre avec l'accord de l'utilisateur, puis note le lien ici (`program.md` §10). Les obstacles du 05/11 sont levés ou contournés : (1) le fork est maintenant sur la même base que le tag amont `v0.9.1`, et le patch s'applique tel quel au dépôt amont avec le préfixe `crates/base/` (`patch -p1 -d crates/base < gpui-base-fork.patch`, artefact du job `fork-patch`) ; (2) « une PR, une chose » (`CONTRIBUTING.md`) : le patch se découpe en trois PR empilées, dans cet ordre, chacune avec ses tests headless ; (3) DirectWrite : le patch tourne sous Windows dans la CI de fragment-rs (`spike_s1.rs`, `spike_s1b.rs`, scènes pixels).

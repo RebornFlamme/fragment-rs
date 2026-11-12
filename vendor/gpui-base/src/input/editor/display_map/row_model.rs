@@ -23,6 +23,11 @@ pub(super) struct RowModel {
     pub(super) blocks: Rc<[(usize, Pixels)]>,
     /// (ligne, taille de police du texte de cette ligne), trié par ligne.
     pub(super) font_sizes: Rc<[(usize, Pixels)]>,
+    /// Plages masquées (largeur 0), triées et disjointes.
+    pub(super) hidden: Rc<[Range<usize>]>,
+    /// Plages remplacées par un widget en ligne (largeur dictée), triées, disjointes entre elles et
+    /// de `hidden`.
+    pub(super) widgets: Rc<[(Range<usize>, Pixels)]>,
 }
 
 /// Un tronçon de rangées d'affichage consécutives qui partagent une hauteur dictée.
@@ -155,6 +160,22 @@ impl<M: InputModeKind> InputBaseState<M> {
         self.display_map.ensure_text_prepared(&self.text, cx);
         self.display_map
             .set_row_model(hidden, line_heights, blocks, cx);
+        cx.notify();
+    }
+
+    /// Dicte les plages de source REMPLACÉES par un widget en ligne : chacune est un élément de
+    /// largeur dictée (octets UTF-8 de la source, jamais modifiée). Le texte suivant se décale de
+    /// cette largeur ; le curseur la franchit d'un pas, comme un masque.
+    ///
+    /// Les plages doivent être disjointes de celles de `set_row_model` (`hidden`) : une plage qui en
+    /// chevauche une est ignorée. À rappeler après chaque changement, comme `set_row_model`.
+    pub fn set_widget_ranges(
+        &mut self,
+        widgets: Vec<(Range<usize>, Pixels)>,
+        cx: &mut Context<Self>,
+    ) {
+        self.display_map.ensure_text_prepared(&self.text, cx);
+        self.display_map.set_widget_ranges(widgets, cx);
         cx.notify();
     }
 

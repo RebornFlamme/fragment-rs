@@ -10,15 +10,15 @@ Modifié par fragment-rs : les fichiers ci-dessous, et eux seuls. Chaque ajout e
             `fork-patch` le vérifie.
 
 Fichiers modifiés (chemins relatifs à src/input/) :
-  editor/display_map/row_model.rs        NOUVEAU : modèle de rangées (hauteurs, blocs) + set_row_model, set_line_font_sizes
+  editor/display_map/row_model.rs        NOUVEAU : modèle de rangées (hauteurs, blocs) + set_row_model, set_line_font_sizes, set_widget_ranges
   editor/display_map/mod.rs              déclaration du module row_model
-  editor/display_map/display_map.rs      champs row_model/row_metrics, API row_top/row_at_y/…
+  editor/display_map/display_map.rs      champs row_model/row_metrics, API row_top/row_at_y/…, fusion masques + widgets en métriques
   editor/display_map/text_wrapper.rs     LineLayout : hauteur de rangée dictée + bloc sous la ligne
-  base/element.rs                        mise en forme des plages masquées et polices par ligne ; ordonnées par row_top ; gouttière ; interligne exact (ADR-015)
+  base/element.rs                        mise en forme des plages masquées, des widgets en ligne (largeur dictée) et polices par ligne ; ordonnées par row_top ; gouttière ; interligne exact (ADR-015)
   base/state.rs                          hit-test, défilement, bounds et IME suivent les hauteurs ; interligne exact (ADR-015)
   base/movement.rs                       ordonnée de la rangée cible d'un déplacement vertical ; atomes Gauche/Droite
 
 Ce que le patch ajoute : hauteur de rangée et taille de police dictées par ligne logique, plages de
-source masquées sans trou et franchies d'un pas par Gauche/Droite, blocs de hauteur libre atomiques
+source masquées sans trou et franchies d'un pas par Gauche/Droite, plages de widgets en ligne de largeur dictée (set_widget_ranges), blocs de hauteur libre atomiques
 au clavier, gouttière et position de l'IME qui suivent les hauteurs. Grille uniforme (modèle vide) = comportement
 d'origine. Procédure de rebase : docs/decisions/ADR-006-fork-input.md.
