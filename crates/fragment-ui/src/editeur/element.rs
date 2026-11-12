@@ -17,6 +17,7 @@
 
 use std::cell::Cell;
 use std::ops::Range;
+use std::rc::Rc;
 
 use fragment_markdown::decorations::{Contexte, Curseur, Revelation};
 use fragment_markdown::syntaxe::imbrique::Imbrique;
@@ -31,7 +32,7 @@ use gpui_kit::base::input::{
 };
 use gpui_kit::{
     App, AppContext as _, Context, Edges, Entity, EventEmitter, HighlightStyle, Hsla, IntoElement,
-    ParentElement as _, Render, Styled as _, Subscription, Window, div, px,
+    ParentElement as _, Render, Styled as _, Subscription, Window, canvas, div, px,
 };
 
 use super::constantes::{INTERLIGNE_TEXTE, MARGE_CONTENU_VERTICALE, debut_texte, fin_texte};
@@ -40,6 +41,13 @@ use super::modele::{Projection, projeter};
 use super::surface::SurfaceLive;
 use crate::polices::FAMILLE_INTERFACE;
 use crate::theme_global::{couleur, theme_ou_defaut};
+
+/// ★ La gouttière que l'éditeur du fork garde TOUJOURS devant le texte, même sans numéros de ligne
+/// (`LINE_NUMBER_RIGHT_MARGIN` de son `element.rs`, privé : tout `EditorState` est un éditeur de
+/// code). Elle est retirée de la marge gauche pour que le texte commence à `debut_texte`. Les 18 px
+/// des icônes de pli s'y ajoutaient aussi : le pli du fork est coupé (`folding(false)`), la
+/// gouttière de repli de Fragment est le travail de `fr-t3-widgets-blocs`.
+const GOUTTIERE_DU_FORK: f32 = 6.0;
 
 /// La configuration d'un éditeur de live preview.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,6 +94,10 @@ pub struct EditeurLive {
     mode: Mode,
     /// Nombre de poses réelles du modèle sur le fork (la garde se teste par là).
     poses: usize,
+    /// Les marges gauche et droite posées à la dernière image (la largeur extérieure s'en déduit).
+    marges_posees: (f32, f32),
+    /// La largeur extérieure de l'éditeur, mesurée à la dernière image (0 avant la première).
+    largeur_mesuree: Rc<Cell<f32>>,
     /// Le « poke » de `request_update` : relu à la prochaine image.
     pub(crate) a_rafraichir: Cell<bool>,
     _abonnements: Vec<Subscription>,
@@ -105,6 +117,7 @@ impl EditeurLive {
         let etat = cx.new(|cx| {
             let mut e = EditorState::new(window, cx)
                 .line_number(false)
+                .folding(false)
                 .auto_close(false)
                 .smart_indent(false)
                 .soft_wrap(true)
@@ -141,11 +154,19 @@ impl EditeurLive {
             styles_lignes,
             mode,
             poses: 0,
+            marges_posees: (0.0, 0.0),
+            largeur_mesuree: Rc::new(Cell::new(0.0)),
             a_rafraichir: Cell::new(false),
             _abonnements: abonnements,
         };
         e.recalculer(cx);
         e
+    }
+
+    /// La marge gauche posée sur le fork à la dernière image : le bord gauche de l'éditeur est à
+    /// cette distance avant `input_bounds` (la boîte intérieure du fork).
+    pub(crate) fn marge_gauche(&self) -> f32 {
+        self.marges_posees.0
     }
 
     /// L'état d'édition du fork (texte, sélection, géométrie).
@@ -357,19 +378,24 @@ impl Render for EditeurLive {
         if theme.mode != self.mode || self.a_rafraichir.replace(false) {
             self.reprojeter(cx);
         }
-        // La colonne se centre dans la largeur de l'éditeur (connue après la première image ; avant,
-        // celle de la fenêtre).
-        let bornes = self.etat.read(cx).input_bounds();
-        let largeur = if bornes.size.width > px(0.) {
-            f32::from(bornes.size.width)
+        // La colonne se centre dans la largeur de l'éditeur, mesurée à l'image précédente (avant la
+        // première, celle de la fenêtre).
+        // ★ Pas `input_bounds` du fork : c'est la boîte INTÉRIEURE, marges retirées et arrondie au
+        //   pixel. Centrer sur elle faisait osciller la colonne d'une image à l'autre (marges
+        //   larges → boîte étroite → marges nulles…) et, même corrigée des marges, perdait la
+        //   fraction (177,1 au lieu de 177,2). On mesure la boîte extérieure (`canvas` ci-dessous).
+        let mesuree = self.largeur_mesuree.get();
+        let largeur = if mesuree > 0.0 {
+            mesuree
         } else {
             f32::from(window.viewport_size().width)
         };
+        self.marges_posees = (debut_texte(largeur) - GOUTTIERE_DU_FORK, fin_texte(largeur));
         let marges = Edges {
             top: px(MARGE_CONTENU_VERTICALE),
             bottom: px(MARGE_CONTENU_VERTICALE),
-            left: px(debut_texte(largeur)),
-            right: px(fin_texte(largeur)),
+            left: px(self.marges_posees.0),
+            right: px(self.marges_posees.1),
         };
         let style = style_projete(&theme);
         self.etat.update(cx, |s, _| {
@@ -377,6 +403,8 @@ impl Render for EditeurLive {
             s.set_editor_style(style);
         });
         let taille = self.options.taille_texte;
+        let mesure = self.largeur_mesuree.clone();
+        let id = cx.entity_id();
         // ★ L'élément du fork est un enfant `flex_1` + `h_full` : sans parent flex, il ne prend ni la
         //   largeur ni la hauteur et la colonne se calcule sur 0 px.
         div()
@@ -388,5 +416,20 @@ impl Render for EditeurLive {
             .text_size(px(taille))
             .line_height(px(taille * INTERLIGNE_TEXTE))
             .child(EditeurDeBase::new(&self.etat))
+            .child(
+                canvas(
+                    move |bornes, _, cx| {
+                        let l = f32::from(bornes.size.width);
+                        if (mesure.get() - l).abs() > f32::EPSILON {
+                            mesure.set(l);
+                            // Une autre image, centrée sur la largeur exacte.
+                            cx.notify(id);
+                        }
+                    },
+                    |_, (), _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
     }
 }

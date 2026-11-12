@@ -144,8 +144,8 @@ impl<'a> SurfaceLive<'a> {
         let debut = visibles.start.min(lignes.len().saturating_sub(1));
         let fin = visibles.end.max(debut + 1).min(lignes.len());
         // x : la note ne défile jamais en largeur (`overflow-x: hidden`, markdown-view.css:39) :
-        // le bord gauche du document est celui de l'éditeur.
-        let x = self.etat.input_bounds().origin.x;
+        // le bord gauche du document est celui de l'éditeur, une marge avant la boîte intérieure.
+        let x = self.etat.input_bounds().origin.x - px(self.editeur.marge_gauche());
         (debut..fin).find_map(|l| {
             let b = self.bornes(lignes.get(l)?.octets.from)?;
             Some(point(x, b.origin.y - px(self.haut_de_ligne(l))))
