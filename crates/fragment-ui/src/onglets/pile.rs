@@ -22,7 +22,7 @@ use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
     ParentElement as _, PathBuilder, Pixels, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Visibility, Window, canvas, div, fill, point, px, relative, svg,
+    Styled as _, Visibility, Window, canvas, div, fill, point, px, relative,
 };
 
 use super::ContexteOnglets;
@@ -371,7 +371,18 @@ fn peindre_contour(
     }
 
     let (trait_g, trait_d) = bords_exacts.unwrap_or((o.gauche, o.droite));
-    let (gx, dx) = (x_(trait_g), x_(trait_d));
+    // ★ Un trait d'un pixel ou plus : Skia rastérise le chemin du SVG sur une grille au quart de
+    //   pixel (sur-échantillonnage 4 × 4), le côté exact 279,875 de `t1-zoom-150` tombe à 280,0
+    //   (moitié vers le haut) ; le côté droit (499,75) est déjà sur la grille. Les filets plus fins
+    //   (80 %) suivent une autre voie et restent exacts.
+    let quart = |v: f32| {
+        if demi * 2.0 >= 1.0 - 1e-4 {
+            (v * 4.0 + 0.5).floor() / 4.0
+        } else {
+            v
+        }
+    };
+    let (gx, dx) = (quart(x_(trait_g)), quart(x_(trait_d)));
     let haut = y_(haut_exact) + demi;
     let (rh, rb) = (rayon_haut * k, rayon_bas * k);
     // Les coupes : le premier pixel entier au-delà de chaque bout d'arc.
@@ -503,6 +514,7 @@ fn icone_cliquable(
     id: &'static str,
     nom: &str,
     taille: f32,
+    exacte: PositionExacte,
     cx: &App,
 ) -> gpui_kit::Stateful<gpui_kit::Div> {
     let t = theme_ou_defaut(cx);
@@ -519,13 +531,61 @@ fn icone_cliquable(
             let survol = couleur(c.background_modifier_hover);
             move |s| s.opacity(1.0).bg(survol)
         })
-        .child(
-            svg()
-                .path(icones::chemin(nom))
-                .size(u(cx, taille))
-                .flex_none()
-                .text_color(couleur(c.text_normal)),
+        .child(icone_exacte(
+            nom,
+            taille,
+            couleur(c.text_normal),
+            exacte,
+            cx,
+        ))
+}
+
+/// La moitié de `reste` au 1/64 inférieur : le centrage d'une boîte flexible chez Chromium.
+fn lu_centrage(reste: f32) -> f32 {
+    geometrie::unite_de_mise_en_page(f64::from(reste / 2.0)) as f32
+}
+
+/// Le coin haut gauche EXACT (px logiques de la fenêtre, sous-pixel) d'une icône, calculé à la
+/// peinture comme Chromium le met en page ; `None` tant que la mise en page n'est pas notée.
+type PositionExacte = Rc<dyn Fn() -> Option<(f32, f32)>>;
+
+/// ★ Une icône de `taille` px logiques peinte au coin EXACT que donne `exacte`, calé comme Chromium
+/// cale l'origine d'une racine SVG : au pixel le plus proche, moitié vers le haut. GPUI arrondit à
+/// l'avance chaque longueur (rembourrages de 3,2 px rendus à 3) puis cale les bords moitié vers
+/// zéro : à 80 et 150 %, les icônes de la barre tombaient à 1 px de Chromium (`t1-zoom-80`,
+/// (1151,9), (698,10), (1128,12), (346,11) ; `t1-zoom-150`, (470,22)). La boîte de mise en page reste
+/// celle de GPUI (taille, survol) ; sans position exacte, l'icône est peinte dans sa boîte.
+fn icone_exacte(
+    nom: &str,
+    taille: f32,
+    teinte: gpui_kit::Rgba,
+    exacte: PositionExacte,
+    cx: &App,
+) -> impl IntoElement {
+    let chemin: SharedString = icones::chemin(nom).into();
+    div().relative().flex_none().size(u(cx, taille)).child(
+        canvas(
+            |_, _, _| {},
+            move |bornes: Bounds<Pixels>, (), window: &mut Window, cx: &mut App| {
+                let k = window.scale_factor();
+                let cale = |v: f32| (v * k + 0.5).floor() / k;
+                let origine =
+                    exacte().map_or(bornes.origin, |(x, y)| point(px(cale(x)), px(cale(y))));
+                let _ = window.paint_svg(
+                    Bounds::new(origine, bornes.size),
+                    chemin.clone(),
+                    None,
+                    gpui_kit::TransformationMatrix::unit(),
+                    teinte.into(),
+                    cx,
+                );
+            },
         )
+        .absolute()
+        .top(px(0.0))
+        .left(px(0.0))
+        .size_full(),
+    )
 }
 
 /// Ouvre le menu contextuel d'un onglet (« Fermer ») au point de l'événement.
@@ -617,6 +677,7 @@ fn entete_d_onglet(
     decalage: f32,
     separateur_par_la_barre: bool,
     titre_exact: Rc<dyn Fn() -> Option<f32>>,
+    croix_exacte: PositionExacte,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -656,13 +717,13 @@ fn entete_d_onglet(
                 cx.refresh_windows();
             }
         })
-        .child(
-            svg()
-                .path(icones::chemin("x"))
-                .size(u(cx, f.icon_xs))
-                .flex_none()
-                .text_color(couleur(c.text_normal)),
-        );
+        .child(icone_exacte(
+            "x",
+            f.icon_xs,
+            couleur(c.text_normal),
+            croix_exacte,
+            cx,
+        ));
     if actif {
         let fond = couleur(c.background_modifier_active_hover);
         croix = croix.hover(move |s| s.opacity(1.0).bg(fond));
@@ -828,8 +889,9 @@ fn barre(
     //   tombaient 0,25 px à gauche (`t1-zoom-150`, (279,14) et (498,14)).
     let fixes = {
         let lu = |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
-        let bouton = lu(2.0 * f.size_4_1 + f.icon_s);
-        let nouvel = lu(NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
+        // Chaque part au 1/64, comme Chromium : 3,1875 + 12,796875 + 3,1875 à 80 %.
+        let bouton = 2.0 * lu(f.size_4_1) + lu(f.icon_s);
+        let nouvel = -lu(-NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
         let liste = lu(f.size_2_1) + bouton + lu(f.size_4_1);
         let dock = options.retrait_droit.map_or(0.0, |r| liste + lu(r));
         nouvel + liste + dock
@@ -854,6 +916,91 @@ fn barre(
             Some(f32::from(o.origin.x) + decalage * zoom + g + interieur_titre)
         })
     };
+    // ★ La géométrie verticale et les icônes de la barre, comme Chromium (chaque longueur au 1/64,
+    //   les centrages au 1/64 inférieur), pour [`icone_exacte`].
+    let lu = move |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
+    let bornes_barre: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    let bouton = lu(f.size_4_1) * 2.0 + lu(f.icon_s);
+    let y_icones = {
+        let haut = lu(f.size_4_1);
+        let hauteur = f32::from(u(cx, f.header_height));
+        haut + lu_centrage(hauteur - haut - bouton) + lu(f.size_4_1)
+    };
+    let croix_exacte: Rc<dyn Fn(usize) -> Option<(f32, f32)>> = {
+        let po = place_onglets.clone();
+        let bb = bornes_barre.clone();
+        let haut = lu(f.size_4_1);
+        let hauteur = f32::from(u(cx, f.header_height));
+        let (r3, r2) = (lu(REMBOURRAGE_ENTETE), lu(f.size_2_1));
+        let interligne = lu(t.typo.font_ui_small * 1.5);
+        let boite = 2.0 * r2 + lu(f.icon_xs);
+        let h1 = hauteur - haut - 2.0 * lu(REMBOURRAGE_ENTETE);
+        let h2 = 2.0 * lu(INTERIEUR_AUTRES_COTES) + interligne;
+        let y = haut
+            + r3
+            + lu_centrage(h1 - h2)
+            + lu(INTERIEUR_AUTRES_COTES)
+            + lu_centrage(interligne - boite)
+            + r2;
+        let dx = r3 + lu(INTERIEUR_AUTRES_COTES) + r2 + lu(f.icon_xs);
+        Rc::new(move |i| {
+            let (exacte, o, b) = (largeur_exacte?, po.get()?, bb.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            let (_, d) = bords_exacts(place, marge, n, i, largeur_max);
+            Some((
+                f32::from(o.origin.x) + decalage * zoom + d - dx,
+                f32::from(b.origin.y) + y,
+            ))
+        })
+    };
+    let nouvel_exact: PositionExacte = {
+        let po = place_onglets.clone();
+        let bb = bornes_barre.clone();
+        let dx = -lu(-NOUVEL_ONGLET_MARGE_GAUCHE) + lu(f.size_4_1);
+        Rc::new(move || {
+            let (exacte, o, b) = (largeur_exacte?, po.get()?, bb.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            // La fin du conteneur des onglets : le dernier onglet et la marge (il ne s'étire pas).
+            let fin = if n == 0 {
+                2.0 * marge
+            } else {
+                bords_exacts(place, marge, n, n - 1, largeur_max).1 + marge
+            };
+            Some((
+                f32::from(o.origin.x) + decalage * zoom + fin + dx,
+                f32::from(b.origin.y) + y_icones,
+            ))
+        })
+    };
+    // Depuis le bord droit exact de la barre : retrait, puis (pr, bouton, pl) de chaque bouton.
+    let droite_exacte = {
+        let bb = bornes_barre.clone();
+        move || {
+            let b = bb.get()?;
+            Some(f32::from(b.origin.x) + decalage * zoom + largeur_exacte? * zoom)
+        }
+    };
+    let (pl, pr) = (lu(f.size_2_1), lu(f.size_4_1));
+    let retrait = options.retrait_droit.map_or(0.0, lu);
+    let a_un_dock = options.retrait_droit.is_some();
+    let decale_icone = lu(f.size_4_1);
+    let icone_a_droite = |rang: f32| -> PositionExacte {
+        let droite = droite_exacte.clone();
+        let bb = bornes_barre.clone();
+        Rc::new(move || {
+            let r = droite()? - retrait - rang * (pr + bouton + pl);
+            Some((
+                r - pr - bouton + decale_icone,
+                f32::from(bb.get()?.origin.y) + y_icones,
+            ))
+        })
+    };
+    // Le chevron est à gauche du bouton du dock quand il y en a un.
+    let (liste_exacte, dock_exact) = if a_un_dock {
+        (icone_a_droite(1.0), icone_a_droite(0.0))
+    } else {
+        (icone_a_droite(0.0), icone_a_droite(0.0))
+    };
     let entetes: Vec<AnyElement> = lignes
         .iter()
         .enumerate()
@@ -871,6 +1018,10 @@ fn barre(
                 {
                     let t = titre_exact.clone();
                     Rc::new(move || t(i)) as Rc<dyn Fn() -> Option<f32>>
+                },
+                {
+                    let c = croix_exacte.clone();
+                    Rc::new(move || c(i)) as PositionExacte
                 },
                 cx,
             )
@@ -893,7 +1044,7 @@ fn barre(
         .pr(u(cx, f.size_2_1))
         .ml(u(cx, NOUVEL_ONGLET_MARGE_GAUCHE))
         .child(
-            icone_cliquable("onglet-nouveau", "plus", f.icon_s, cx).on_click({
+            icone_cliquable("onglet-nouveau", "plus", f.icon_s, nouvel_exact, cx).on_click({
                 let ws = ctx.workspace.clone();
                 move |_, _, cx| {
                     if let Ok(mut w) = ws.try_borrow_mut() {
@@ -913,16 +1064,14 @@ fn barre(
         .pl(u(cx, f.size_2_1))
         .pr(u(cx, f.size_4_1))
         .child(
-            icone_cliquable("onglet-liste", "chevron-down", f.icon_s, cx).on_mouse_down(
-                MouseButton::Left,
-                {
+            icone_cliquable("onglet-liste", "chevron-down", f.icon_s, liste_exacte, cx)
+                .on_mouse_down(MouseButton::Left, {
                     let ctx = ctx.clone();
                     move |evt, _, cx| {
                         menu_de_la_pile(&ctx, pile, evt, cx);
                         cx.refresh_windows();
                     }
-                },
-            ),
+                }),
         );
 
     let mut barre = div()
@@ -942,7 +1091,8 @@ fn barre(
                 .flex_grow(1.0)
                 .child(mesurer(place_espaceur.clone(), cx)),
         )
-        .child(liste);
+        .child(liste)
+        .child(mesurer(bornes_barre.clone(), cx));
 
     if let Some(retrait) = options.retrait_droit {
         let bouton = div()
@@ -952,7 +1102,14 @@ fn barre(
             .pl(u(cx, f.size_2_1))
             .pr(u(cx, f.size_4_1))
             .child(
-                icone_cliquable("onglet-dock-droit", "panel-right", f.icon_s, cx).on_click({
+                icone_cliquable(
+                    "onglet-dock-droit",
+                    "panel-right",
+                    f.icon_s,
+                    dock_exact.clone(),
+                    cx,
+                )
+                .on_click({
                     let ws = ctx.workspace.clone();
                     move |_, _, cx| {
                         if let Ok(mut w) = ws.try_borrow_mut() {
