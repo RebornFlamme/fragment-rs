@@ -11,6 +11,7 @@ use std::rc::Rc;
 
 use fragment_core::{Apparence, CommandManager, definitions_appearance};
 
+pub mod apparence_themes;
 pub mod curseur;
 pub mod fenetre;
 
