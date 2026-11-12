@@ -677,7 +677,7 @@
     "t1-pile-active-inactive-dark.png": {
       "arrondi_delta_max": 6,
       "arrondi_pourcent": 19.6203,
-      "delta_max": 164,
+      "delta_max": 144,
       "exceptions_t1": {
         "coin de la barre d'état": {
           "delta_max": 11.0,
@@ -692,12 +692,12 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.3378
+      "pourcent": 33.2748
     },
     "t1-pile-active-inactive-light.png": {
       "arrondi_delta_max": 6,
       "arrondi_pourcent": 31.962,
-      "delta_max": 164,
+      "delta_max": 121,
       "exceptions_t1": {
         "contour d'onglet actif": {
           "delta_max": 28.0,
@@ -712,7 +712,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.189
+      "pourcent": 33.1128
     },
     "t1-poignee-survol-dark.png": {
       "arrondi_delta_max": 5,
@@ -760,7 +760,7 @@
       "delta_max": 144,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.7699
+      "pourcent": 32.7345
     },
     "t1-reglages-appearance-light.png": {
       "arrondi_delta_max": 3,
@@ -768,7 +768,7 @@
       "delta_max": 146,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.1451
+      "pourcent": 32.1097
     },
     "t1-reglages-zoom-dark.png": {
       "arrondi_delta_max": 1,
@@ -776,7 +776,7 @@
       "delta_max": 144,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.7645
+      "pourcent": 32.729
     },
     "t1-reglages-zoom-light.png": {
       "arrondi_delta_max": 3,
@@ -784,7 +784,7 @@
       "delta_max": 146,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.1448
+      "pourcent": 32.1094
     },
     "t1-split-horizontal-dark.png": {
       "arrondi_delta_max": 5,
@@ -937,6 +937,87 @@
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.4181,
       "pourcent": 32.5563
+    },
+    "t1-zoom-150-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 18.0139,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 9.0,
+          "deplacement": 0.0369,
+          "forts": 2.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 21.0,
+          "deplacement": 0.1676,
+          "forts": 54.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 29.4646
+    },
+    "t1-zoom-150-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 21.2471,
+      "delta_max": 157,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 14.0,
+          "deplacement": 0.0722,
+          "forts": 65.0
+        },
+        "demi-couverture de la ligne de base": {
+          "delta_max": 1.0,
+          "forts": 550.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 29.0695
+    },
+    "t1-zoom-80-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 17.8862,
+      "delta_max": 120,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 10.0,
+          "deplacement": 0.0556,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 24.0,
+          "deplacement": 0.2576,
+          "forts": 83.0
+        },
+        "icône en hairline": {
+          "encre": 0.279
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 36.5747
+    },
+    "t1-zoom-80-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 18.0077,
+      "delta_max": 135,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 14.0,
+          "deplacement": 0.293,
+          "forts": 44.0
+        },
+        "glyphes à 8,8 px en clair": {
+          "barycentre": 0.5751,
+          "encre": 0.258
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 37.0693
     }
   }
 }
