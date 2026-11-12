@@ -28,6 +28,10 @@ pub enum Nature {
     /// Le SEUL garde-fou de teinte d'une boîte de texte détectée, désignée par sa position
     /// ([`Exception::boite`]) : encre, forme, bords et barycentres restent exigés.
     Teinte,
+    /// Les pixels d'une boîte (en px physiques, [`Exception::boite`]) hors de toute boîte de texte,
+    /// au delta ≤ [`DELTA_DEMI_COUVERTURE`], quand la RÉFÉRENCE y est une demi-couverture exacte
+    /// entre le pixel du dessus et celui du dessous ([`demi_couverture`]).
+    DemiCouverture,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -84,6 +88,60 @@ const fn teinte(png: &'static str, element: &'static str, boite: [u32; 4]) -> Ex
         nature: Nature::Teinte,
         boite: Some(boite),
     }
+}
+
+/// ★ L'élément de la ligne 52 de `t1-zoom-150` clair (décision du chef, fr-t1.5, 12/11) : à 150 %,
+/// la ligne de base de la barre (1,5 px) est centrée à 53,25 ; la ligne 52 est couverte à 0,5
+/// EXACTEMENT, entre la barre (232) et le trait (211) : 221,5. Le raster GPU de Chromium arrondit
+/// tantôt 221, tantôt 222 (motif irrégulier sur le premier segment, bascule au milieu du second :
+/// les triangles du quad), du bruit qu'aucune règle ne reproduit. Le sombre (33 exact) passe.
+/// Son nom EST la clé du cliquet (`forts` = pixels levés, `delta_max`). Remontée à l'orchestrateur
+/// avec la livraison de T1.
+pub const DEMI_COUVERTURE: &str = "demi-couverture de la ligne de base";
+
+/// Le seul delta levé par une exception [`Nature::DemiCouverture`].
+pub const DELTA_DEMI_COUVERTURE: u8 = 1;
+
+const fn demi(png: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element: DEMI_COUVERTURE,
+        jeton: "--tab-outline-color",
+        nature: Nature::DemiCouverture,
+        boite: Some(boite),
+    }
+}
+
+/// L'élément nommé de demi-couverture qui lève le pixel (`x`, `y`) de delta `delta`, parmi
+/// `liste` : dans la boîte de l'exception, delta ≤ [`DELTA_DEMI_COUVERTURE`], et la référence y
+/// vaut, canal par canal, la moyenne de ses voisins du dessus et du dessous à ½ niveau près.
+pub fn demi_couverture(
+    liste: &[&'static Exception],
+    reference: &image::RgbaImage,
+    (x, y): (u32, u32),
+    delta: u8,
+) -> Option<&'static str> {
+    if delta > DELTA_DEMI_COUVERTURE || y == 0 || y + 1 >= reference.height() {
+        return None;
+    }
+    let (r, haut, bas) = (
+        reference.get_pixel(x, y).0,
+        reference.get_pixel(x, y - 1).0,
+        reference.get_pixel(x, y + 1).0,
+    );
+    let moitie =
+        (0..3).all(|c| (2 * i32::from(r[c]) - i32::from(haut[c]) - i32::from(bas[c])).abs() <= 1);
+    if !moitie {
+        return None;
+    }
+    liste
+        .iter()
+        .filter(|e| e.nature == Nature::DemiCouverture)
+        .find(|e| {
+            e.boite
+                .is_some_and(|[bx, by, bl, bh]| x >= bx && x < bx + bl && y >= by && y < by + bh)
+        })
+        .map(|e| e.element)
 }
 
 /// L'élément des arcs du contour de l'onglet actif (haut convexe, pieds concaves, raccords
@@ -242,6 +300,8 @@ pub const EXCEPTIONS: &[Exception] = &[
     poignee("t1-split-vertical-light.png"),
     // Le « N » coupé du titre étroit, sombre seulement (le clair passe dans la borne).
     teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1183, 14, 7, 11]),
+    // La ligne 52 de la barre à 150 %, clair seulement : la ligne de base y couvre 0,5 exactement.
+    demi("t1-zoom-150-light.png", [54, 52, 1226, 1]),
 ];
 
 /// Les exceptions du PNG `png`.
@@ -596,6 +656,45 @@ mod tests {
             "autre boîte"
         );
         assert_eq!(pour_boite(&du_png(png), &boite(1184)), Some(N_COUPE));
+    }
+
+    #[test]
+    fn la_demi_couverture_ne_leve_que_le_delta_1_de_sa_ligne_et_de_son_png() {
+        // Barre 232 (lignes 0 à 51), ligne 52 à 221,5 arrondi en 222 (référence) ou 221, trait 211.
+        let image_ = |l52: u8, l51: u8| {
+            image::RgbaImage::from_fn(1280, 56, |_, y| {
+                let v = match y {
+                    52 => l52,
+                    51 => l51,
+                    y if y < 52 => 232,
+                    _ => 211,
+                };
+                image::Rgba([v, v, v, 255])
+            })
+        };
+        let reference = image_(222, 232);
+        let juger = |png: &str, candidat: &image::RgbaImage| {
+            crate::pixels::sas::comparer_tout(&reference, candidat, &[], &[], &[], &du_png(png))
+                .unwrap()
+        };
+        let png = "t1-zoom-150-light.png";
+        // Les 54 px à gauche de la boîte (x < 54) restent stricts.
+        let s = juger(png, &image_(221, 232));
+        assert_eq!(s.differents_hors, 54);
+        assert_eq!(s.nommees[DEMI_COUVERTURE]["forts"], 1226.0);
+        assert_eq!(s.nommees[DEMI_COUVERTURE]["delta_max"], 1.0);
+        // Contre-épreuves (toute la ligne diverge : 1 280 px) : un delta 2, les lignes 51 et 53, le
+        // sombre, un autre PNG.
+        let hors = |png: &str, c: &image::RgbaImage| juger(png, c).differents_hors;
+        assert_eq!(hors(png, &image_(220, 232)), 1280, "delta 2");
+        assert_eq!(hors(png, &image_(222, 231)), 1280, "ligne 51");
+        let mut l53 = reference.clone();
+        for x in 0..1280 {
+            l53.put_pixel(x, 53, image::Rgba([212, 212, 212, 255]));
+        }
+        assert_eq!(hors(png, &l53), 1280, "ligne 53");
+        assert_eq!(hors("t1-zoom-150-dark.png", &image_(221, 232)), 1280);
+        assert_eq!(hors("t1-zoom-80-light.png", &image_(221, 232)), 1280);
     }
 
     #[test]

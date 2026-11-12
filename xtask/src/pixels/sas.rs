@@ -726,6 +726,13 @@ pub fn comparer_tout(
             e.0 += 1;
             e.1 = e.1.max(delta);
             diff.put_pixel(x, y, Rgba([255, 0, 160, 255]));
+        } else if let Some(element) = exceptions::demi_couverture(nommees, reference, (x, y), delta)
+        {
+            // Demi-couverture exacte de la référence, delta ≤ 1 (exception nommée de T1).
+            let e = forts_nommes.entry(element).or_default();
+            e.0 += 1;
+            e.1 = e.1.max(delta);
+            diff.put_pixel(x, y, Rgba([255, 0, 160, 255]));
         } else if exception[i] && !bande[i] {
             forts_exception += 1;
             delta_max_exception = delta_max_exception.max(delta);
@@ -835,6 +842,14 @@ pub fn comparer_tout(
             garder(element, "forts", forts as f64);
             garder(element, "delta_max", f64::from(delta));
         }
+    }
+    for e in nommees
+        .iter()
+        .filter(|e| e.nature == exceptions::Nature::DemiCouverture)
+    {
+        let (forts, delta) = forts_nommes.get(e.element).copied().unwrap_or_default();
+        garder(e.element, "forts", forts as f64);
+        garder(e.element, "delta_max", f64::from(delta));
     }
     let gardes = resultats.iter().all(ResultatBoite::ok)
         && resultats_ombres.iter().all(|o| o.ok())
