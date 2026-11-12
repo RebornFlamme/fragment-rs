@@ -380,7 +380,7 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
     };
     if ecart_encre.abs() > ECART_ENCRE {
         violations.push(format!(
-            "encre totale {:+.0} % (borne ±{:.0} %)",
+            "{VIOLATION_ENCRE}{:+.0} % (borne ±{:.0} %)",
             100.0 * ecart_encre,
             100.0 * ECART_ENCRE
         ));
@@ -446,6 +446,9 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
 
 /// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
 const VIOLATION_TEINTE: &str = "teinte : ";
+
+/// Préfixe de la violation du garde-fou d'encre totale (voir [`juger`]).
+const VIOLATION_ENCRE: &str = "encre totale ";
 
 /// Résultat d'une comparaison par catégorie.
 #[derive(Debug)]
@@ -772,6 +775,14 @@ pub fn comparer_tout(
             res.violations.retain(|v| !v.starts_with(VIOLATION_TEINTE));
             res.nommee = Some(element);
         }
+        // Exception nommée d'encre (fr-t1.5, « icône en hairline ») : ne lève QUE le garde-fou
+        // d'encre totale, jusqu'à `ECART_ENCRE_HAIRLINE`.
+        if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Encre) {
+            if res.ecart_encre.abs() <= exceptions::ECART_ENCRE_HAIRLINE {
+                res.violations.retain(|v| !v.starts_with(VIOLATION_ENCRE));
+            }
+            res.nommee = Some(element);
+        }
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
             for x in tol.0..=tol.2 {
@@ -831,8 +842,13 @@ pub fn comparer_tout(
     }
     for b in &resultats {
         if let Some(element) = b.nommee {
-            // L'écart de teinte : 1 − cosinus (0 pour une teinte identique).
-            garder(element, "teinte", 1.0 - b.teinte);
+            if element == exceptions::ICONE_HAIRLINE {
+                // L'écart d'encre relatif, en valeur absolue.
+                garder(element, "encre", b.ecart_encre);
+            } else {
+                // L'écart de teinte : 1 − cosinus (0 pour une teinte identique).
+                garder(element, "teinte", 1.0 - b.teinte);
+            }
         }
     }
     for a in &resultats_arrondis {

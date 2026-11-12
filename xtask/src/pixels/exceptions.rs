@@ -32,6 +32,9 @@ pub enum Nature {
     /// au delta ≤ [`DELTA_DEMI_COUVERTURE`], quand la RÉFÉRENCE y est une demi-couverture exacte
     /// entre le pixel du dessus et celui du dessous ([`demi_couverture`]).
     DemiCouverture,
+    /// Le SEUL garde-fou d'encre totale d'une boîte détectée ([`Exception::boite`]), jusqu'à
+    /// [`ECART_ENCRE_HAIRLINE`] : position, forme, bords, barycentres et teinte restent exigés.
+    Encre,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -142,6 +145,27 @@ pub fn demi_couverture(
                 .is_some_and(|[bx, by, bl, bh]| x >= bx && x < bx + bl && y >= by && y < by + bh)
         })
         .map(|e| e.element)
+}
+
+/// ★ L'élément des icônes à trait plus fin qu'un pixel de `t1-zoom-80` sombre (décision du chef,
+/// fr-t1.5, 12/11) : à 80 %, le trait Lucide fait 0,93 px ; Skia le trace en « hairline » à alpha
+/// modulé, SANS bouts ronds, quand resvg (GPUI) remplit le trait avec ses bouts ronds. L'encre en
+/// trop est aux extrémités (94 contre 29 à 59 en sombre) ; le clair passe dans la borne. Dette
+/// suivie : un rastériseur d'icônes hairline à la Skia. Son nom EST la clé du cliquet (`encre`,
+/// écart relatif absolu). Remontée à l'orchestrateur avec la livraison de T1.
+pub const ICONE_HAIRLINE: &str = "icône en hairline";
+
+/// L'écart d'encre toléré par une exception [`Nature::Encre`].
+pub const ECART_ENCRE_HAIRLINE: f64 = 0.30;
+
+const fn encre(png: &'static str, element: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element,
+        jeton: "--text-normal",
+        nature: Nature::Encre,
+        boite: Some(boite),
+    }
 }
 
 /// L'élément des arcs du contour de l'onglet actif (haut convexe, pieds concaves, raccords
@@ -302,6 +326,9 @@ pub const EXCEPTIONS: &[Exception] = &[
     teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1183, 14, 7, 11]),
     // La ligne 52 de la barre à 150 %, clair seulement : la ligne de base y couvre 0,5 exactement.
     demi("t1-zoom-150-light.png", [54, 52, 1226, 1]),
+    // La croix de l'onglet actif et le chevron de la liste à 80 %, sombre seulement.
+    encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [345, 11, 9, 9]),
+    encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [1127, 13, 11, 7]),
 ];
 
 /// Les exceptions du PNG `png`.
@@ -311,9 +338,18 @@ pub fn du_png(png: &str) -> Vec<&'static Exception> {
 
 /// L'élément nommé de teinte qui vise la boîte de texte `b`, parmi `liste`.
 pub fn pour_boite(liste: &[&'static Exception], b: &BoiteEncre) -> Option<&'static str> {
+    pour_boite_de(liste, b, Nature::Teinte)
+}
+
+/// L'élément nommé de nature `nature` (teinte ou encre) qui vise la boîte `b`, parmi `liste`.
+pub fn pour_boite_de(
+    liste: &[&'static Exception],
+    b: &BoiteEncre,
+    nature: Nature,
+) -> Option<&'static str> {
     liste
         .iter()
-        .filter(|e| e.nature == Nature::Teinte)
+        .filter(|e| e.nature == nature)
         .find(|e| {
             e.boite.is_some_and(|v| {
                 [b.x, b.y, b.largeur, b.hauteur]
@@ -607,6 +643,82 @@ mod tests {
         img
     }
 
+    /// Une croix (deux diagonales pleines, 14 px) sur le fond sombre, dans la boîte (x0, 11) 9 × 9,
+    /// épaissie de `bords` pixels à 65 % à droite de la première diagonale (de l'encre en plus, sous
+    /// le seuil de cœur de trait).
+    fn croix(x0: u32, bords: u32) -> image::RgbaImage {
+        let (fond, plein) = (20u8, 220u8);
+        let mut img = image::RgbaImage::from_pixel(1200, 30, image::Rgba([fond, fond, fond, 255]));
+        for i in 1..8 {
+            img.put_pixel(x0 + i, 11 + i, image::Rgba([plein, plein, plein, 255]));
+            img.put_pixel(x0 + 8 - i, 11 + i, image::Rgba([plein, plein, plein, 255]));
+        }
+        let partiel = 20 + (200 * 65 / 100) as u8;
+        for i in 1..=bords {
+            let (x, y) = if i <= 3 {
+                (x0 + i + 1, 11 + i)
+            } else {
+                (x0 + i, 11 + i + 1)
+            };
+            img.put_pixel(x, y, image::Rgba([partiel, partiel, partiel, 255]));
+        }
+        img
+    }
+
+    /// Contre-épreuve de l'icône en hairline : l'encre est levée jusqu'à 30 % (et mesurée) dans SES
+    /// boîtes de SON PNG ; au-delà de 30 %, décalée d'1 px, en clair, sur un autre PNG ou dans une
+    /// autre boîte : échec.
+    #[test]
+    fn l_icone_en_hairline_ne_leve_que_l_encre_de_ses_boites() {
+        let boite = |x: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Texte,
+            x,
+            y: 11,
+            largeur: 9,
+            hauteur: 9,
+        };
+        let juger =
+            |png: &str, x: u32, reference: &image::RgbaImage, candidat: &image::RgbaImage| {
+                crate::pixels::sas::comparer_tout(
+                    reference,
+                    candidat,
+                    &[boite(x)],
+                    &[],
+                    &[],
+                    &du_png(png),
+                )
+                .unwrap()
+            };
+        let png = "t1-zoom-80-dark.png";
+        let reference = croix(345, 0);
+        // 6 × 0,65 / 14 = +28 % d'encre : levé, mesuré.
+        let s = juger(png, 345, &reference, &croix(345, 6));
+        assert!(s.boites.iter().all(|b| b.ok()), "{:?}", s.boites);
+        let mesure = s.nommees[ICONE_HAIRLINE]["encre"];
+        assert!(mesure > 0.25 && mesure < 0.30, "{mesure}");
+        // 7 × 0,65 / 14 = +32 % : échec.
+        assert!(
+            juger(png, 345, &reference, &croix(345, 7))
+                .boites
+                .iter()
+                .any(|b| !b.ok())
+        );
+        // Décalée d'1 px : barycentre hors borne.
+        assert!(
+            juger(png, 345, &reference, &croix(346, 6))
+                .boites
+                .iter()
+                .any(|b| !b.ok())
+        );
+        // Le clair, un autre PNG, une autre boîte : la borne de 25 % s'applique.
+        for autre in ["t1-zoom-80-light.png", "t1-onglets-dark.png"] {
+            let s = juger(autre, 345, &reference, &croix(345, 6));
+            assert!(s.boites.iter().any(|b| !b.ok()), "{autre}");
+        }
+        let s = juger(png, 400, &croix(400, 0), &croix(400, 6));
+        assert!(s.boites.iter().any(|b| !b.ok()), "autre boîte");
+    }
+
     /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON
     /// PNG seulement ; le même glyphe décalé d'1 px échoue (barycentre), la même teinte dans une
     /// autre boîte ou un autre PNG échoue.
@@ -707,7 +819,13 @@ mod tests {
         // (contour d'onglet et coin de la barre d'état), une seule ombre par PNG.
         for (i, a) in EXCEPTIONS.iter().enumerate() {
             for b in &EXCEPTIONS[i + 1..] {
-                assert!(!(a.png == b.png && a.element == b.element), "{a:?} {b:?}");
+                // Un même élément peut viser plusieurs boîtes distinctes d'un PNG (icône en hairline).
+                let boites_distinctes =
+                    a.boite.is_some() && b.boite.is_some() && a.boite != b.boite;
+                assert!(
+                    !(a.png == b.png && a.element == b.element) || boites_distinctes,
+                    "{a:?} {b:?}"
+                );
                 assert!(
                     !(a.png == b.png && a.nature == Nature::Ombre && b.nature == Nature::Ombre),
                     "{a:?} {b:?}"
