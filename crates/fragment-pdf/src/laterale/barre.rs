@@ -16,8 +16,8 @@ pub const LARGEUR_MAX: f64 = 480.0;
 pub const RATIO_MAX_VUE: f64 = 0.5;
 
 const BORDURE: f64 = 1.0;
-const PADDING_VUE_H: f64 = 7.0;
-const PADDING_VUE_V: f64 = 5.0;
+const PADDING_VUE_H: f64 = 14.0;
+const PADDING_VUE_V: f64 = 10.0;
 const PADDING_VIGNETTE: f64 = 4.0;
 const ECART: f64 = 8.0;
 /// Débord de la zone d'observation des vignettes, en part de la hauteur visible.

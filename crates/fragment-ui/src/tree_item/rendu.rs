@@ -21,8 +21,8 @@ use crate::icones;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use crate::tree_item::couleurs::{Etat, couleur_guide, couleurs_ligne};
 use crate::tree_item::geometrie::{
-    COTE_CHEVRON, INTERLIGNE, LARGEUR_GUIDE, MARGE_ENFANTS, OPACITE_CHEVRON, RETRAIT_ENFANTS,
-    chevron_gauche, chevron_haut, hauteur_ligne, marge_gauche, retrait_titre,
+    COTE_CHEVRON, GOUTTIERE, INTERLIGNE, LARGEUR_GUIDE, MARGE_ENFANTS, OPACITE_CHEVRON, PAS,
+    RETRAIT_ENFANTS, chevron_gauche, chevron_haut, hauteur_ligne, marge_gauche, retrait_titre,
 };
 
 /// Le rappel d'un clic.
@@ -42,6 +42,8 @@ pub struct Ligne {
     panneau: Option<Couleur>,
     hauteur: Option<Pixels>,
     sonde: Option<String>,
+    flair: Option<SharedString>,
+    sur_chevron: Option<RappelClic>,
     sur_clic: Option<RappelClic>,
     sur_menu: Option<RappelMenu>,
 }
@@ -60,6 +62,8 @@ impl Ligne {
             panneau: None,
             hauteur: None,
             sonde: None,
+            flair: None,
+            sur_chevron: None,
             sur_clic: None,
             sur_menu: None,
         }
@@ -113,6 +117,20 @@ impl Ligne {
     /// `<nom>/enfants`.
     pub fn sonde(mut self, nom: impl Into<String>) -> Self {
         self.sonde = Some(nom.into());
+        self
+    }
+
+    /// Le texte de droite (`tree-item-flair`) : le numéro de page d'une entrée de table des
+    /// matières. Il ne rétrécit pas, le titre cède la place ; sonde `<nom>/flair`.
+    pub fn flair(mut self, texte: impl Into<SharedString>) -> Self {
+        self.flair = Some(texte.into());
+        self
+    }
+
+    /// Le rappel du clic sur la gouttière du chevron (24 px de large, pleine hauteur de ligne) :
+    /// il consomme le clic, celui de la ligne n'a pas lieu. Sans effet sans [`Self::repliable`].
+    pub fn sur_chevron(mut self, f: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static) -> Self {
+        self.sur_chevron = Some(Rc::new(f));
         self
     }
 
@@ -218,6 +236,22 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
             chevron = chevron.debug_selector(move || nom);
         }
         row = row.child(chevron);
+        if let Some(sur_chevron) = ligne.sur_chevron {
+            // La zone de clic : toute la gouttière, posée par-dessus le triangle.
+            row = row.child(
+                div()
+                    .id("chevron-clic")
+                    .absolute()
+                    .left(u(cx, ligne.profondeur as f32 * PAS))
+                    .top(u(cx, 0.0))
+                    .w(u(cx, GOUTTIERE))
+                    .h_full()
+                    .on_click(move |e, w, app| {
+                        sur_chevron(e, w, app);
+                        app.stop_propagation();
+                    }),
+            );
+        }
     }
     if let Some(nom_icone) = &ligne.icone {
         // ★ Non définie par le CSS de Fragment (l'explorateur et la table des matières n'en
@@ -242,6 +276,19 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
         titre = titre.debug_selector(move || nom);
     }
     row = row.child(titre);
+    if let Some(flair) = ligne.flair {
+        let mut bloc = texte(
+            div().flex_none().ml(u(cx, f.size_4_2)).opacity(0.6),
+            cx,
+            t.typo.font_ui_smaller,
+            INTERLIGNE,
+        )
+        .child(flair);
+        if let Some(nom) = nom("flair") {
+            bloc = bloc.debug_selector(move || nom);
+        }
+        row = row.child(bloc);
+    }
 
     let mut item = div().flex().flex_col().child(row);
     if !enfants.is_empty() {

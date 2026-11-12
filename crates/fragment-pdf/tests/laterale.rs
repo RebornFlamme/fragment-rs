@@ -282,9 +282,9 @@ fn la_vignette_deja_visible_ne_fait_pas_defiler_la_barre() {
     let haut = b.scroll_top();
     b.set_page_courante(4);
     assert_eq!(b.scroll_top(), haut);
-    // Revenir en haut remonte.
+    // Revenir en haut remonte : le rembourrage de 10 px dépasse la marge de 8 px, il reste 2 px.
     b.set_page_courante(1);
-    assert_eq!(b.scroll_top(), 0.0);
+    assert_eq!(b.scroll_top(), 2.0);
 }
 
 #[test]
@@ -334,7 +334,9 @@ fn une_page_dun_autre_format_corrige_sa_vignette() {
     let haut_avant = b.scroll_top();
     // La page 1 est en paysage : sa vignette raccourcit, les suivantes remontent.
     let nb = b.vignettes_visibles().len();
-    b.format_page_connu(1, 420.0, 300.0);
+    for page in 1..=3 {
+        b.format_page_connu(page, 420.0, 300.0);
+    }
     assert!(b.vignettes_visibles().len() > nb);
     assert_eq!(b.scroll_top(), haut_avant);
     // Une largeur nulle est ignorée.
@@ -439,7 +441,7 @@ fn letat_ephemere_se_restaure() {
 
 #[test]
 fn la_largeur_de_limage_suit_la_largeur_de_la_barre() {
-    // 200 - bordure 1 - 2 x 7 (vue) - 2 x 4 (vignette) = 177.
-    assert_eq!(BarreLaterale::largeur_image(200.0), 177.0);
+    // 200 - bordure 1 - 2 x 14 (vue) - 2 x 4 (vignette) = 163.
+    assert_eq!(BarreLaterale::largeur_image(200.0), 163.0);
     assert_eq!(BarreLaterale::largeur_image(0.0), 1.0);
 }
