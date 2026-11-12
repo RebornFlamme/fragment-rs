@@ -19,7 +19,8 @@ pub mod jetons;
 pub mod modele;
 pub mod surface;
 
-pub use element::{EditeurLive, OptionsEditeur, style_projete};
+pub use element::{Calque, EditeurLive, OptionsEditeur, style_de_l_editeur, style_projete};
+pub use modele::{ComplementRangees, EntreeComplement};
 pub use surface::SurfaceLive;
 
 use fragment_core::CommandManager;

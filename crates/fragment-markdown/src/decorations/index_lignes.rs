@@ -3,19 +3,29 @@
 //! Le calcul travaille en OCTETS (découper un `&str`), la règle du curseur et l'API en UTF-16
 //! (ADR-004) : chaque position sortante passe par [`IndexLignes::plage`], qui rend les deux.
 
+use std::borrow::Cow;
+
 use crate::syntaxe::modele_rangees::lignes_de;
 use crate::syntaxe::{Etendue, Plage};
 
 pub(crate) struct IndexLignes<'a> {
     texte: &'a str,
-    lignes: Vec<Plage>,
+    lignes: Cow<'a, [Plage]>,
 }
 
 impl<'a> IndexLignes<'a> {
     pub(crate) fn new(texte: &'a str) -> Self {
         IndexLignes {
             texte,
-            lignes: lignes_de(texte),
+            lignes: Cow::Owned(lignes_de(texte)),
+        }
+    }
+
+    /// Avec les lignes logiques déjà connues de l'appelant (`lignes_de(texte)`), sans relire le texte.
+    pub(crate) fn avec(texte: &'a str, lignes: &'a [Plage]) -> Self {
+        IndexLignes {
+            texte,
+            lignes: Cow::Borrowed(lignes),
         }
     }
 

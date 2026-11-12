@@ -65,6 +65,22 @@ jobs:
         run: ./scripts/pdfium.ps1
       - run: cargo test --workspace --locked
 
+  # fr-t3.4 : l'éditeur du live preview en RELEASE sur 10 000 lignes. Les temps sont imprimés
+  # (`SURFACE|10k|…`) et le test échoue si la frappe ou le défilement dépasse 16 ms.
+  editeur-release:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: editeur-release
+      - name: pdfium (binaire épinglé, scripts/pdfium.ps1)
+        shell: pwsh
+        run: ./scripts/pdfium.ps1
+      - run: cargo test -p fragment-ui --release --locked --test editeur dix_mille_lignes -- --nocapture
+
   # Fork n°1 (ADR-006) : vendor/gpui-base = gpui-base à la version ÉPINGLÉE par gpui-kit + un patch
   # minimal. Ce job rend la dette de rebase visible : il échoue si (1) la version vendored n'est plus
   # celle du Cargo.lock, (2) un fichier non déclaré dans vendor/gpui-base/NOTICE diverge de l'original,
