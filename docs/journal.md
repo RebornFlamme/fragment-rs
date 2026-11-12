@@ -676,3 +676,12 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Verrou de capture : ordre fixé (t3scenesa, t4scenes, t3scenesb, t3scenesc, t11scenes), une passe par prise.
   - #82 : 6 jobs sur 7 verts.
   - Actifs : shell6, t3scenesa, t4scenes, t3scenesb, t3scenesc, t11scenes, incr, interligne (8 avec kit09 qui attend sa CI).
+- Battement 12/11 21:19 UTC : fenêtre 5 h à 44 % (reset 22:30), semaine à 53 %, contexte du chef 378k.
+  - Rythme cible : (97 − 53) ÷ 20,7 h ≈ 2,1 points par heure. Réel depuis 17:25 : environ 1,6, en retard.
+  - ★ Le processus Claude Code de la session du chef a redémarré : TOUS les équipiers locaux ont été tués en cours de travail.
+    - Les worktrees sont intacts, souvent avec du travail non commité.
+    - Le verrou de capture de t3scenesa (19:57) était caduc : je l'ai retiré.
+    - Leçon : les briefs exigent maintenant de commiter souvent.
+  - Fusionnée : #82 (gpui-kit 0.9.1). 7 jobs verts, audit à 0. Le bead reste ouvert pour la PR amont, à soumettre à l'utilisateur.
+  - Repris par SendMessage sur leur transcript, sans équipier neuf : fr-t1.5 (#49, pixels encore rouge, run 43298178303), fr-t3.4, fr-t3.5, fr-t3-scenes-a, fr-t4-scenes, fr-t3-scenes-b, fr-t3-scenes-c.
+  - fr-t11-scenes attend une place libre (worktree intact, 15 fichiers modifiés).
