@@ -26,8 +26,12 @@ use crate::echelle::{calees, moitie, u};
 use crate::flottant::{ecouter_args, nombre, ombrer, texte};
 use crate::icones;
 use crate::rendu::melange::{aplat_exact, bord_unique};
+use crate::rendu::ombre::{ombrer_au_calque, voile};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
+
+/// Le voile du calque émulé du menu : transparent (le menu n'assombrit rien), seule l'ombre compte.
+const VOILE_TRANSPARENT: fragment_theme::Couleur = fragment_theme::Couleur::TRANSPARENT;
 
 /// Largeur minimale du contenu d'un menu (`min-width`, boîte de contenu).
 const LARGEUR_MIN: f32 = 180.0;
@@ -471,11 +475,19 @@ pub fn couche(cx: &App) -> AnyElement {
     let Some((menu, x, y)) = rendu else {
         return div().into_any_element();
     };
+    // Le voile (transparent) du calque émulé AVANT le menu, dans le même différé : il peint l'ombre
+    // posée au prépeint de la boîte (`ombrer_au_calque`).
     deferred(
-        anchored()
-            .position(point(u(cx, x), u(cx, y)))
-            .snap_to_window_with_margin(u(cx, 8.0))
-            .child(menu),
+        div()
+            .absolute()
+            .size_full()
+            .child(voile(VOILE_TRANSPARENT))
+            .child(
+                anchored()
+                    .position(point(u(cx, x), u(cx, y)))
+                    .snap_to_window_with_margin(u(cx, 8.0))
+                    .child(menu),
+            ),
     )
     .into_any_element()
 }
@@ -646,13 +658,30 @@ fn rendre_niveau(
         .size_full(),
     )
     .children(lignes);
-    let boite = ombrer(
-        boite,
-        cx,
-        &c.menu_shadow,
-        "--menu-shadow",
-        u(cx, f.radius_m),
-        u(cx, f.border_width),
-    );
+    // fr-t1.5 (décision du chef du 12/11, (b)) : le menu est `position: fixed`, Chromium le
+    // rastérise dans un calque composé. L'ombre du PREMIER niveau est l'image calculée sur le CPU du
+    // calque émulé (ADR-013 §2), peinte sous la boîte par le voile transparent de [`couche`] ; le
+    // `BoxShadow` de GPUI laissait un étalement de −0,08 px en clair (`t1-menu-onglet-light`). Un
+    // sous-menu garde l'ombre de GPUI (un seul calque posé à la fois).
+    let boite = if niveau == 0 {
+        ombrer_au_calque(
+            boite,
+            cx,
+            &c.menu_shadow,
+            "--menu-shadow",
+            u(cx, f.radius_m),
+            u(cx, f.border_width),
+            VOILE_TRANSPARENT,
+        )
+    } else {
+        ombrer(
+            boite,
+            cx,
+            &c.menu_shadow,
+            "--menu-shadow",
+            u(cx, f.radius_m),
+            u(cx, f.border_width),
+        )
+    };
     texte(boite, cx, t.typo.font_ui_medium, 1.5).into_any_element()
 }

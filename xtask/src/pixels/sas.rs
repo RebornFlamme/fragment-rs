@@ -241,6 +241,8 @@ pub struct ResultatBoite {
     pub ecart_bords: Option<[i64; 4]>,
     /// La largeur d'encre diffère d'un pixel (dette T1, `fr-t1.3`).
     pub dette_largeur: bool,
+    /// L'exception nommée de teinte qui couvre la boîte (`exceptions::Nature::Teinte`), le cas échéant.
+    pub nommee: Option<&'static str>,
     /// Garde-fous violés, en clair.
     pub violations: Vec<String>,
 }
@@ -393,7 +395,9 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
     }
     let teinte = cosinus(rf.teinte, cd.teinte);
     if teinte < TEINTE_MIN {
-        violations.push(format!("teinte : cosinus {teinte:.3} (min {TEINTE_MIN})"));
+        violations.push(format!(
+            "{VIOLATION_TEINTE}cosinus {teinte:.3} (min {TEINTE_MIN})"
+        ));
     }
     let (ecart_bords, dette_largeur) = match (rf.boite, cd.boite) {
         (Some(r), Some(c)) => {
@@ -435,9 +439,13 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
         teinte,
         ecart_bords,
         dette_largeur,
+        nommee: None,
         violations,
     }
 }
+
+/// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
+const VIOLATION_TEINTE: &str = "teinte : ";
 
 /// Résultat d'une comparaison par catégorie.
 #[derive(Debug)]
@@ -751,6 +759,12 @@ pub fn comparer_tout(
             &mesurer(reference, mesure, fond_r, k),
             &mesurer(candidat, mesure, fond_c, k),
         );
+        // Exception nommée de teinte (fr-t1.5, « N coupé ClearType ») : ne lève QUE le garde-fou de
+        // teinte de cette boîte ; encre, forme, bords et barycentres restent exigés.
+        if let Some(element) = exceptions::pour_boite(nommees, b) {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_TEINTE));
+            res.nommee = Some(element);
+        }
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
             for x in tol.0..=tol.2 {
@@ -806,6 +820,12 @@ pub fn comparer_tout(
             garder(element, "etalement", o.gardes.etalement);
             garder(element, "encre", o.gardes.encre);
             garder(element, "glissement", o.gardes.glissement);
+        }
+    }
+    for b in &resultats {
+        if let Some(element) = b.nommee {
+            // L'écart de teinte : 1 − cosinus (0 pour une teinte identique).
+            garder(element, "teinte", 1.0 - b.teinte);
         }
     }
     for a in &resultats_arrondis {

@@ -253,17 +253,22 @@ pub fn melange_couverture(teinte: u8, fond: u8, part: f32) -> u8 {
 /// comme Skia ([`quantifier_filet`]).
 pub fn filet(a: f64, b: f64) -> Vec<(i32, f64)> {
     let epaisseur = (b - a).clamp(0.0, 1.0);
+    couvertures_filet(a, b)
+        .into_iter()
+        .map(|(p, couverture)| (p, quantifier_filet(epaisseur, couverture)))
+        .filter(|&(_, part)| part > 1e-6)
+        .collect()
+}
+
+/// Les pixels d'un [`filet`] `[a, b]` et leur COUVERTURE brute (`1 − distance de son centre au
+/// centre du trait`, avant l'épaisseur et toute quantification), deux pixels au plus.
+pub fn couvertures_filet(a: f64, b: f64) -> Vec<(i32, f64)> {
     let centre = (a + b) / 2.0;
     let premier = (centre - 0.5).floor();
     [premier, premier + 1.0]
         .into_iter()
-        .map(|p| {
-            (
-                p as i32,
-                quantifier_filet(epaisseur, (1.0 - (centre - (p + 0.5)).abs()).max(0.0)),
-            )
-        })
-        .filter(|&(_, part)| part > 1e-6)
+        .map(|p| (p as i32, (1.0 - (centre - (p + 0.5)).abs()).max(0.0)))
+        .filter(|&(_, c)| c > 1e-6)
         .collect()
 }
 

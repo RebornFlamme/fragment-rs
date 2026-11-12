@@ -16,7 +16,7 @@
 //!   `etalement`, `encre`, `glissement` en valeur absolue ; arcs, `deplacement` (pire déplacement
 //!   radial moyen, px), `delta_max` et `forts` (pixels de delta > 6 de ses bandes).
 
-use super::boites::{ArrondiDeclare, OmbreDeclaree};
+use super::boites::{ArrondiDeclare, BoiteEncre, OmbreDeclaree};
 
 /// Ce qu'une exception lève.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,6 +25,9 @@ pub enum Nature {
     Ombre,
     /// Le garde-fou de position et le delta ≤ 6 des arcs de la boîte arrondie.
     Arcs,
+    /// Le SEUL garde-fou de teinte d'une boîte de texte détectée, désignée par sa position
+    /// ([`Exception::boite`]) : encre, forme, bords et barycentres restent exigés.
+    Teinte,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -37,6 +40,9 @@ pub struct Exception {
     /// Le jeton d'ombre de la surface qui porte l'élément.
     pub jeton: &'static str,
     pub nature: Nature,
+    /// [`Nature::Teinte`] seulement : la boîte de texte visée (x, y, largeur, hauteur, px
+    /// physiques), à [`TOLERANCE_BOITE`] px près sur chaque nombre.
+    pub boite: Option<[u32; 4]>,
 }
 
 const fn ombre(png: &'static str, element: &'static str, jeton: &'static str) -> Exception {
@@ -45,6 +51,7 @@ const fn ombre(png: &'static str, element: &'static str, jeton: &'static str) ->
         element,
         jeton,
         nature: Nature::Ombre,
+        boite: None,
     }
 }
 
@@ -54,6 +61,28 @@ const fn arcs(png: &'static str, element: &'static str, jeton: &'static str) -> 
         element,
         jeton,
         nature: Nature::Arcs,
+        boite: None,
+    }
+}
+
+/// L'élément du « N » coupé de `t1-boutons-fenetre` sombre (décision du chef, fr-t1.5, 12/11 18:30
+/// UTC, (a)) : quand « … » ne tient pas, Chromium coupe le titre (overflow) et peint ce reste de
+/// glyphe en ClearType (franges de couleur), GPUI en niveaux de gris ; teinte 0,9950 pour une borne
+/// de 0,995. Son nom EST la clé du cliquet (`teinte` = 1 − cosinus). Remontée à l'orchestrateur avec
+/// la livraison de T1.
+pub const N_COUPE: &str = "N coupé ClearType";
+
+/// Écart (px) toléré sur chaque nombre de la boîte d'une exception de teinte : la détection des
+/// boîtes peut gagner ou perdre une colonne de frange.
+pub const TOLERANCE_BOITE: u32 = 1;
+
+const fn teinte(png: &'static str, element: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element,
+        jeton: "--text-normal",
+        nature: Nature::Teinte,
+        boite: Some(boite),
     }
 }
 
@@ -67,6 +96,7 @@ const fn contour(png: &'static str) -> Exception {
         element: CONTOUR_ONGLET,
         jeton: "--tab-outline-color",
         nature: Nature::Arcs,
+        boite: None,
     }
 }
 
@@ -81,6 +111,7 @@ const fn coin_barre(png: &'static str) -> Exception {
         element: COIN_BARRE_ETAT,
         jeton: "--tab-outline-color",
         nature: Nature::Arcs,
+        boite: None,
     }
 }
 
@@ -94,6 +125,7 @@ const fn poignee(png: &'static str) -> Exception {
         element: TRAIT_POIGNEE,
         jeton: "--tab-outline-color",
         nature: Nature::Arcs,
+        boite: None,
     }
 }
 
@@ -208,11 +240,29 @@ pub const EXCEPTIONS: &[Exception] = &[
     poignee("t1-split-horizontal-light.png"),
     poignee("t1-split-proportions-light.png"),
     poignee("t1-split-vertical-light.png"),
+    // Le « N » coupé du titre étroit, sombre seulement (le clair passe dans la borne).
+    teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1183, 14, 7, 11]),
 ];
 
 /// Les exceptions du PNG `png`.
 pub fn du_png(png: &str) -> Vec<&'static Exception> {
     EXCEPTIONS.iter().filter(|e| e.png == png).collect()
+}
+
+/// L'élément nommé de teinte qui vise la boîte de texte `b`, parmi `liste`.
+pub fn pour_boite(liste: &[&'static Exception], b: &BoiteEncre) -> Option<&'static str> {
+    liste
+        .iter()
+        .filter(|e| e.nature == Nature::Teinte)
+        .find(|e| {
+            e.boite.is_some_and(|v| {
+                [b.x, b.y, b.largeur, b.hauteur]
+                    .iter()
+                    .zip(v)
+                    .all(|(a, w)| a.abs_diff(w) <= TOLERANCE_BOITE)
+            })
+        })
+        .map(|e| e.element)
 }
 
 /// L'élément nommé d'ombre qui couvre `o`, parmi `liste`.
@@ -482,6 +532,70 @@ mod tests {
             juger(&peindre(11, 221)) > 0,
             "côté décalé d'1 px hors des colonnes"
         );
+    }
+
+    /// Un « N » simplifié (deux fûts et une diagonale) de teinte `couleur`, posé à `x0` dans la
+    /// boîte du « N » coupé, sur le fond sombre.
+    fn glyphe_n(x0: u32, couleur: [u8; 3]) -> image::RgbaImage {
+        let mut img = image::RgbaImage::from_pixel(1200, 30, image::Rgba([14, 15, 17, 255]));
+        let [r, g, b] = couleur;
+        for y in 15..24 {
+            for x in [x0, x0 + 5, x0 + (y - 15) * 5 / 9] {
+                img.put_pixel(x, y, image::Rgba([r, g, b, 255]));
+            }
+        }
+        img
+    }
+
+    /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON
+    /// PNG seulement ; le même glyphe décalé d'1 px échoue (barycentre), la même teinte dans une
+    /// autre boîte ou un autre PNG échoue.
+    #[test]
+    fn le_n_coupe_ne_leve_que_la_teinte_de_sa_boite() {
+        let boite = |x: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Texte,
+            x,
+            y: 14,
+            largeur: 7,
+            hauteur: 11,
+        };
+        let reference = glyphe_n(1184, [100, 100, 100]);
+        // Cosinus 0,9926 (< 0,995), encre totale à 1 % près.
+        let franges = [114, 100, 88];
+        let juger = |png: &str, x: u32, candidat: &image::RgbaImage| {
+            crate::pixels::sas::comparer_tout(
+                &reference,
+                candidat,
+                &[boite(x)],
+                &[],
+                &[],
+                &du_png(png),
+            )
+            .unwrap()
+        };
+        let png = "t1-boutons-fenetre-dark.png";
+        let s = juger(png, 1183, &glyphe_n(1184, franges));
+        assert!(s.boites.iter().all(|b| b.ok()), "{:?}", s.boites);
+        let mesure = s.nommees[N_COUPE]["teinte"];
+        assert!(mesure > 0.005 && mesure < 0.01, "{mesure}");
+        // Teinte identique : rien à mesurer.
+        let s = juger(png, 1183, &glyphe_n(1184, [100, 100, 100]));
+        assert!(s.nommees[N_COUPE]["teinte"].abs() < 1e-9);
+        // Le glyphe décalé d'1 px : barycentre hors borne, toujours un échec.
+        let s = juger(png, 1183, &glyphe_n(1185, franges));
+        assert!(s.boites.iter().any(|b| !b.ok()), "décalé d'1 px");
+        // Le même écart de teinte dans le clair, ou dans une autre boîte, reste un échec.
+        let s = juger(
+            "t1-boutons-fenetre-light.png",
+            1183,
+            &glyphe_n(1184, franges),
+        );
+        assert!(s.boites.iter().any(|b| !b.ok()), "autre PNG");
+        assert!(
+            pour_boite(&du_png(png), &boite(1170)).is_none(),
+            "autre boîte"
+        );
+        assert_eq!(pour_boite(&du_png(png), &boite(1184)), Some(N_COUPE));
     }
 
     #[test]

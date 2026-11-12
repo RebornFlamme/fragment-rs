@@ -52,11 +52,26 @@ impl BoutonFenetre {
 ///   tous les pixels dont le centre tombe dans le trait, bouts ronds compris. Mesuré sur
 ///   `t1-boutons-fenetre` : 10 px × 2 lignes à 0,4375 (69 en sombre, 178 en clair), là où resvg
 ///   donnait 50/81×8/50 (décision du chef, fr-t1.5 [A]).
-fn trait_reduire(teinte: gpui_kit::Rgba, cx: &App) -> impl IntoElement {
-    let f = &theme_ou_defaut(cx).forme;
+/// ★ L'alpha final se quantifie à l'OCTET deux fois, comme Skia puis le calque d'opacité du
+///   bouton : `alpha = ⌊épaisseur × 255⌉ ⊗ ⌊couverture × 255⌉`, puis `⊗ ⌊opacité × 255⌉` (`⊗` =
+///   produit divisé par 255 arrondi, [`mul_div_255`]). Pour 0,875 × 0,5 × 0,6 : 223 ⊗ 128 = 112,
+///   112 ⊗ 153 = 67, soit 67/255 = 0,2627 ; le produit flottant (0,2602 après la part en 256es de
+///   [`geometrie::filet`]) tombait un niveau sous la référence en sombre (68 contre 69, run
+///   43086926887). Le canvas couvre tout le bouton pour savoir s'il est survolé (opacité 1).
+fn trait_reduire(
+    teinte: gpui_kit::Rgba,
+    decalage: (Pixels, Pixels),
+    cote: Pixels,
+) -> impl IntoElement {
     canvas(
         |_, _, _| {},
-        move |bornes: Bounds<Pixels>, (), window: &mut Window, _: &mut App| {
+        move |bouton: Bounds<Pixels>, (), window: &mut Window, _: &mut App| {
+            let survole = bouton.contains(&window.mouse_position());
+            let opacite = if survole { 1.0 } else { OPACITE_REPOS };
+            let bornes = Bounds::new(
+                point(bouton.origin.x + decalage.0, bouton.origin.y + decalage.1),
+                gpui_kit::size(cote, cote),
+            );
             let k = window.scale_factor();
             let s = f32::from(bornes.size.width) * k;
             let (ox, oy) = (
@@ -73,11 +88,13 @@ fn trait_reduire(teinte: gpui_kit::Rgba, cx: &App) -> impl IntoElement {
             if w < 1.0 {
                 // Les colonnes dont le centre est dans le trait, pleines le long.
                 let (c0, c1) = ((x0 - 0.5).ceil(), (x1 - 0.5).floor() + 1.0);
-                for (ligne, part) in
-                    geometrie::filet(f64::from(yc - w / 2.0), f64::from(yc + w / 2.0))
+                for (ligne, couverture) in
+                    geometrie::couvertures_filet(f64::from(yc - w / 2.0), f64::from(yc + w / 2.0))
                 {
                     let mut t = teinte;
-                    t.a *= part as f32;
+                    // GPUI multiplie encore par l'opacité du bouton : on la retire de la cible.
+                    t.a *= alpha_au_calque(f64::from(w), couverture, f64::from(opacite)) as f32
+                        / opacite;
                     let y = ligne as f32;
                     window.paint_quad(fill(Bounds::from_corners(pt(c0, y), pt(c1, y + 1.0)), t));
                 }
@@ -89,8 +106,24 @@ fn trait_reduire(teinte: gpui_kit::Rgba, cx: &App) -> impl IntoElement {
             }
         },
     )
-    .size(u(cx, f.icon_xs))
-    .flex_none()
+    .absolute()
+    .top(px(0.0))
+    .left(px(0.0))
+    .size_full()
+}
+
+/// `a × b / 255` arrondi, comme `SkMulDiv255Round`.
+fn mul_div_255(a: u32, b: u32) -> u32 {
+    let p = a * b + 128;
+    (p + (p >> 8)) >> 8
+}
+
+/// L'alpha final (0 à 1) d'un pixel de filet d'épaisseur `epaisseur` (px physiques) et de
+/// couverture `couverture`, sous un calque d'opacité `opacite` : voir [`trait_reduire`].
+fn alpha_au_calque(epaisseur: f64, couverture: f64, opacite: f64) -> f64 {
+    let octet = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u32;
+    let skia = mul_div_255(octet(epaisseur), octet(couverture));
+    f64::from(mul_div_255(skia, octet(opacite))) / 255.0
 }
 
 /// Le conteneur des trois boutons, en haut à droite de la fenêtre.
@@ -106,7 +139,15 @@ pub fn rendre_boutons(cx: &App) -> AnyElement {
         let normal = couleur(c.text_normal);
         let groupe = format!("bouton-fenetre-{}", b as u8);
         let icone = if b == BoutonFenetre::Reduire {
-            trait_reduire(normal, cx).into_any_element()
+            trait_reduire(
+                normal,
+                (
+                    moitie(cx, f.frame_button_width - f.icon_xs),
+                    moitie(cx, HAUTEUR_BOUTON - f.icon_xs),
+                ),
+                u(cx, f.icon_xs),
+            )
+            .into_any_element()
         } else {
             let icone = svg()
                 .path(icones::chemin(b.icone()))
@@ -147,4 +188,30 @@ pub fn rendre_boutons(cx: &App) -> AnyElement {
         .flex()
         .children(boutons)
         .into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn le_moins_au_repos_sort_a_67_sur_255_comme_chromium() {
+        assert_eq!(mul_div_255(223, 128), 112);
+        assert_eq!(mul_div_255(112, 153), 67);
+        let a = alpha_au_calque(0.875, 0.5, f64::from(OPACITE_REPOS));
+        assert!((a - 67.0 / 255.0).abs() < 1e-9, "{a}");
+        // Sur le fond sombre (14, 15, 17) et le texte (223, 222, 217) : 69, 69, 70 (référence).
+        let mel = |f: f64, t: f64| (f + (t - f) * a).round();
+        assert_eq!(
+            [mel(14.0, 223.0), mel(15.0, 222.0), mel(17.0, 217.0)],
+            [69.0, 69.0, 70.0]
+        );
+        // En clair (232, 231, 225) sous (26, 27, 30) : 178, 177, 174.
+        assert_eq!(
+            [mel(232.0, 26.0), mel(231.0, 27.0), mel(225.0, 30.0)],
+            [178.0, 177.0, 174.0]
+        );
+        // Survolé (opacité 1) : 112/255.
+        assert!((alpha_au_calque(0.875, 0.5, 1.0) - 112.0 / 255.0).abs() < 1e-9);
+    }
 }
