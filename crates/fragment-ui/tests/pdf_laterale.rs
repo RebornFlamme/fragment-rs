@@ -29,9 +29,9 @@ use fragment_ui::pdf_barre::{BarrePdf, Bouton};
 use fragment_ui::pdf_laterale::{EvenementLaterale, LateralePdf};
 use fragment_ui::pdf_pages::{FilDeRendu, PagesPdf, Rasteriseur};
 use gpui_kit::{
-    Bounds, Context, Entity, IntoElement, Modifiers, MouseButton, ParentElement as _,
-    Pixels as PixelsGpui, Render, Styled as _, TestAppContext, VisualTestContext, Window, div,
-    point, px, size,
+    AppContext as _, Bounds, Context, Entity, InteractiveElement as _, IntoElement, Modifiers,
+    MouseButton, ParentElement as _, Pixels as PixelsGpui, Render, Styled as _, TestAppContext,
+    VisualTestContext, Window, div, point, px, size,
 };
 
 const N: usize = 40;
@@ -162,6 +162,7 @@ struct Banc {
     racine: Entity<Racine>,
     pages: Entity<PagesPdf>,
     laterale: Entity<LateralePdf>,
+    #[allow(dead_code)] // journal du fil de la colonne des pages, gardé pour le débogage
     journal_pages: Journal,
     journal_laterale: Journal,
 }
@@ -265,6 +266,7 @@ fn aller_champ(b: &Banc, vcx: &mut VisualTestContext, numero: &str) {
 }
 
 fn bornes(vcx: &mut VisualTestContext, sonde: &str) -> Option<Bounds<PixelsGpui>> {
+    let sonde: &'static str = Box::leak(sonde.to_owned().into_boxed_str()); // test : fuite voulue
     vcx.debug_bounds(sonde)
 }
 
@@ -289,11 +291,6 @@ fn largeur_page(b: &Banc, vcx: &mut VisualTestContext) -> f64 {
 
 fn page_vue(b: &Banc, vcx: &mut VisualTestContext) -> usize {
     b.pages.read_with(vcx, |p, _| p.modele().page_vue())
-}
-
-fn droite(vcx: &mut VisualTestContext, sonde: &str) -> f32 {
-    let b = bornes(vcx, sonde).unwrap_or_else(|| panic!("sonde {sonde} introuvable"));
-    f32::from(b.right())
 }
 
 /// Toutes les vignettes peintes ont EXACTEMENT la taille physique de leur boîte. Rend leur nombre.
@@ -348,7 +345,7 @@ fn vignettes_peintes_cliquables_la_page_courante_est_active() {
             .read_with(vcx, |l, _| l.modele().nombre_vignettes()),
         N
     );
-    assert_eq!(verifier_net(&b, vcx, "ouverture") > 0, true);
+    assert!(verifier_net(&b, vcx, "ouverture") > 0);
     // La première vignette a un canvas peint.
     assert!(b.laterale.read_with(vcx, |l, _| {
         l.etat_vignette(1).and_then(|e| e.image).is_some()
@@ -711,7 +708,7 @@ fn vignettes_de_la_barre_laterale_pixel_pour_pixel_avec_pdfium() {
         eprintln!("pdfium absent, test sauté : {e}");
         return;
     }
-    let octets = pdf(&vec![(300.0, 400.0); 12]);
+    let octets = pdf(&[(300.0, 400.0); 12]);
     let (fil_pages, _) = faux();
     let mut fils = Some((fil_pages, FilDeRendu::pdfium(octets)));
     let mut cx = TestAppContext::single();
