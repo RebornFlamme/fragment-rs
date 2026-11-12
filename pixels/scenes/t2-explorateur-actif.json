@@ -1,0 +1,13 @@
+{
+  "scene": "t2-explorateur-actif",
+  "depuis": "T3",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "actions": [
+    {"type":"click","x":150,"y":195},
+    {"type":"wait","ms":500},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
