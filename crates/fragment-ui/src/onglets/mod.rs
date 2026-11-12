@@ -17,6 +17,7 @@
 pub mod actions;
 pub mod mesures;
 pub mod pile;
+pub mod titre;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,7 +28,7 @@ use serde_json::Value;
 
 use crate::flottant::{ecouter_args, nombre};
 
-pub use pile::{OptionsPile, rendre_pile};
+pub use pile::{OptionsPile, noter_largeur_exacte, rendre_pile};
 
 /// Le contenu d'une vue qui n'est pas la vue vide : rendu par le module de la vue (T2 et suivants).
 pub type ContenuDeVue = Rc<dyn Fn(&dyn View, &App) -> Option<AnyElement>>;

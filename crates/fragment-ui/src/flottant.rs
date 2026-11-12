@@ -82,6 +82,11 @@ pub struct ArrondiPeint {
     pub hauteur: f32,
     pub rayon: f32,
     pub bordure: f32,
+    /// Les coins déclarés (haut gauche, haut droit, bas gauche, bas droit) : `[true; 4]` pour une
+    /// boîte arrondie ordinaire, un seul pour un arc isolé (pied concave de l'onglet actif).
+    pub coins: [bool; 4],
+    /// Le nom de l'élément pour une exception nommée sans ombre (ADR-009) ; vide sinon.
+    pub element: &'static str,
 }
 
 thread_local! {
@@ -141,7 +146,26 @@ fn declaration(
 /// bord d'arrondi d'ADR-009) : une seule source pour ce qui est peint et ce qui est déclaré.
 /// `bordure` est la largeur de bordure de `e` (0 sans bordure).
 pub fn arrondir<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels, bordure: Pixels) -> E {
-    e.rounded(rayon)
+    arrondir_coins(e, cx, rayon, bordure, [true; 4], "")
+}
+
+/// Comme [`arrondir`], pour les seuls `coins` (haut gauche, haut droit, bas gauche, bas droit) ;
+/// les autres restent carrés et ne sont pas déclarés. `element` nomme l'arrondi pour une exception
+/// nommée sans ombre d'ADR-009 (vide sinon).
+pub fn arrondir_coins<E: Styled + ParentElement>(
+    e: E,
+    cx: &App,
+    rayon: Pixels,
+    bordure: Pixels,
+    coins: [bool; 4],
+    element: &'static str,
+) -> E {
+    let zero = u(cx, 0.0);
+    let r = |c: bool| if c { rayon } else { zero };
+    e.rounded_tl(r(coins[0]))
+        .rounded_tr(r(coins[1]))
+        .rounded_bl(r(coins[2]))
+        .rounded_br(r(coins[3]))
         .child(declaration(cx, bordure, move |[x, y, l, h], k| {
             let arrondi = ArrondiPeint {
                 x,
@@ -150,9 +174,18 @@ pub fn arrondir<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels, bordur
                 hauteur: h,
                 rayon: f32::from(rayon) * k,
                 bordure: f32::from(bordure) * k,
+                coins,
+                element,
             };
-            ARRONDIS_PEINTS.with(|a| a.borrow_mut().push(arrondi));
+            declarer_arrondi(arrondi);
         }))
+}
+
+/// Déclare une boîte arrondie peinte à la main (un chemin, des quads pré-composés), en pixels
+/// physiques : même registre que [`arrondir`], pour un dessin qui n'est pas un `div` arrondi (le
+/// contour de l'onglet actif déclare ainsi chacun de ses arcs, coin par coin).
+pub fn declarer_arrondi(arrondi: ArrondiPeint) {
+    ARRONDIS_PEINTS.with(|a| a.borrow_mut().push(arrondi));
 }
 
 /// Pose sur `e` les ombres du jeton `liste` (de nom CSS `jeton`), l'arrondi `rayon`, ET les déclare

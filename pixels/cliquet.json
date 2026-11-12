@@ -1,6 +1,299 @@
 {
-  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes), en valeur absolue. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes) ou teinte d'une boîte de texte (teinte = 1 − cosinus), en valeur absolue. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
   "scenes": {
+    "t1-activation-fermeture-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 12.844,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.5555
+    },
+    "t1-activation-fermeture-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 25.2294,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.4255
+    },
+    "t1-boutons-fenetre-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 19.5489,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "N coupé ClearType": {
+          "teinte": 0.005
+        },
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 68.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.5088
+    },
+    "t1-boutons-fenetre-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 36.0902,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 80.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 839.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.988
+    },
+    "t1-dock-replie-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 15.2941,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.0309,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.6986
+    },
+    "t1-dock-replie-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 32.3529,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.5613
+    },
+    "t1-docks-ouverts-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 17.6471,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.0309,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.8537
+    },
+    "t1-docks-ouverts-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 31.7647,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.616
+    },
+    "t1-entete-vue-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 10.687,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.7634
+    },
+    "t1-entete-vue-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 20.6767,
+      "delta_max": 124,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.7114
+    },
+    "t1-fenetre-vide-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 22.9508,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.0354
+    },
+    "t1-fenetre-vide-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 45.082,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.9091
+    },
+    "t1-glisser-depot-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 23.3945,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 70.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.9145
+    },
+    "t1-glisser-depot-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 44.4954,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 80.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 78.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.6809
+    },
+    "t1-glisser-zone-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 21.5569,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 12.0,
+          "deplacement": 0.0969,
+          "forts": 3.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 5.2557,
+      "pourcent": 33.5555
+    },
+    "t1-glisser-zone-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 32.6347,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 9.3395,
+      "pourcent": 33.4092
+    },
     "t1-infobulle-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 42.3077,
@@ -33,26 +326,54 @@
     },
     "t1-menu-dark.png": {
       "arrondi_delta_max": 3,
-      "arrondi_pourcent": 58.3333,
+      "arrondi_pourcent": 55.5556,
       "delta_max": 85,
       "ombre_delta_max": 1,
-      "ombre_pourcent": 12.107,
+      "ombre_pourcent": 8.0674,
       "pourcent": 34.2581
     },
     "t1-menu-light.png": {
       "arrondi_delta_max": 3,
-      "arrondi_pourcent": 65.2778,
+      "arrondi_pourcent": 50.0,
       "delta_max": 71,
+      "ombre_delta_max": 2,
+      "ombre_pourcent": 10.1709,
+      "pourcent": 34.1774
+    },
+    "t1-menu-onglet-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 27.3171,
+      "delta_max": 138,
       "exceptions_t1": {
-        "ombre du menu": {
-          "encre": 0.0672,
-          "etalement": 0.1851,
-          "glissement": 0.0879
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 7.8263,
+      "pourcent": 34.1604
+    },
+    "t1-menu-onglet-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 33.9024,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
         }
       },
       "ombre_delta_max": 2,
-      "ombre_pourcent": 29.3005,
-      "pourcent": 34.1774
+      "ombre_pourcent": 15.16,
+      "pourcent": 34.2563
     },
     "t1-modale-dark.png": {
       "arrondi_delta_max": 2,
@@ -136,6 +457,111 @@
       "ombre_delta_max": 1,
       "ombre_pourcent": 38.8935,
       "pourcent": 37.3989
+    },
+    "t1-onglet-epingle-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 10.687,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.5923
+    },
+    "t1-onglet-epingle-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 20.6767,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.9512
+    },
+    "t1-onglet-survol-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 13.7405,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.5307
+    },
+    "t1-onglet-survol-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 23.6842,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.9099
+    },
+    "t1-onglets-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 10.687,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.5923
+    },
+    "t1-onglets-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 20.6767,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6752,
+          "forts": 41.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.9512
     },
     "t1-palette-aucun-resultat-dark.png": {
       "arrondi_delta_max": 2,
@@ -248,6 +674,238 @@
         "glissement": 0.0208
       }
     },
+    "t1-pile-active-inactive-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 19.6203,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5043,
+          "forts": 101.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.2748
+    },
+    "t1-pile-active-inactive-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 31.962,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 100.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 78.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.1128
+    },
+    "t1-poignee-survol-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 23.8532,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 68.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.9145
+    },
+    "t1-poignee-survol-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 44.0367,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 80.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 36.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.6809
+    },
+    "t1-reglages-appearance-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 8.1633,
+      "delta_max": 144,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.7345
+    },
+    "t1-reglages-appearance-light.png": {
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 15.6463,
+      "delta_max": 146,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.1097
+    },
+    "t1-reglages-zoom-dark.png": {
+      "arrondi_delta_max": 1,
+      "arrondi_pourcent": 8.1633,
+      "delta_max": 144,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.729
+    },
+    "t1-reglages-zoom-light.png": {
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 15.6463,
+      "delta_max": 146,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.1094
+    },
+    "t1-split-horizontal-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 17.6692,
+      "delta_max": 138,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5064,
+          "forts": 70.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.5512
+    },
+    "t1-split-horizontal-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 34.2105,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6848,
+          "forts": 85.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 855.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.3569
+    },
+    "t1-split-proportions-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 20.6522,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5064,
+          "forts": 135.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.7833
+    },
+    "t1-split-proportions-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 39.1304,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6848,
+          "forts": 152.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 2125.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 31.5052
+    },
+    "t1-split-vertical-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 19.1729,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 70.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.6259
+    },
+    "t1-split-vertical-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 36.4662,
+      "delta_max": 121,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6704,
+          "forts": 80.0
+        },
+        "trait de poignée": {
+          "delta_max": 1.0,
+          "deplacement": 0.0,
+          "forts": 78.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 32.4017
+    },
     "t1-toolbar-horizontale-dark.png": {
       "arrondi_delta_max": 1,
       "arrondi_pourcent": 19.8413,
@@ -279,6 +937,87 @@
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.4181,
       "pourcent": 32.5563
+    },
+    "t1-zoom-150-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 18.0139,
+      "delta_max": 144,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 9.0,
+          "deplacement": 0.0369,
+          "forts": 2.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 21.0,
+          "deplacement": 0.1676,
+          "forts": 54.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 29.4646
+    },
+    "t1-zoom-150-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 21.2471,
+      "delta_max": 157,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 14.0,
+          "deplacement": 0.0722,
+          "forts": 65.0
+        },
+        "demi-couverture de la ligne de base": {
+          "delta_max": 1.0,
+          "forts": 550.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 29.0695
+    },
+    "t1-zoom-80-dark.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 17.8862,
+      "delta_max": 120,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 10.0,
+          "deplacement": 0.0556,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 24.0,
+          "deplacement": 0.2576,
+          "forts": 83.0
+        },
+        "icône en hairline": {
+          "encre": 0.279
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 36.5747
+    },
+    "t1-zoom-80-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 18.0077,
+      "delta_max": 135,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 14.0,
+          "deplacement": 0.293,
+          "forts": 44.0
+        },
+        "glyphes à 8,8 px en clair": {
+          "barycentre": 0.5751,
+          "encre": 0.258
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 37.0693
     }
   }
 }

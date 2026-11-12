@@ -18,10 +18,11 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use fragment_core::{DropZone, ItemId};
+use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
     ParentElement as _, PathBuilder, Pixels, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Visibility, Window, canvas, div, point, px, relative, svg,
+    Styled as _, Visibility, Window, canvas, div, fill, point, px, relative,
 };
 
 use super::ContexteOnglets;
@@ -29,13 +30,14 @@ use super::actions::{self, LigneOnglet};
 use super::mesures::{
     INTERIEUR_AUTRES_COTES, INTERIEUR_COTE_TITRE, LARGEUR_ONGLET, NOUVEL_ONGLET_MARGE_GAUCHE,
     OPACITE_REPOS, OngletActif, REMBOURRAGE_ENTETE, SEPARATEUR_LARGEUR, SEPARATEUR_MARGE, Segment,
-    TRAIT_CONTOUR, coin_concave, contour,
+    TRAIT_CONTOUR, bords_exacts, coin_concave,
 };
 use crate::echelle::{Echelle, u};
 use crate::entete;
-use crate::flottant::texte;
+use crate::flottant::{ArrondiPeint, arrondir, declarer_arrondi, texte};
 use crate::icones;
 use crate::menu::Menu;
+use crate::splits::geometrie;
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Ce qui change d'une pile à l'autre.
@@ -56,8 +58,25 @@ pub struct OptionsPile {
     pub insertion: Option<f32>,
 }
 
-/// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`).
-const OPACITE_APERCU: f32 = 0.22;
+thread_local! {
+    /// La largeur EXACTE (px logiques, avant calage) de chaque pile, notée par la mise en page
+    /// pour son prochain rendu ([`noter_largeur_exacte`]) et consommée par [`rendre_pile`].
+    static LARGEURS_EXACTES: std::cell::RefCell<std::collections::HashMap<ItemId, (f32, f32)>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Note la largeur EXACTE de `pile` (px logiques, son cadre avant calage au pixel) pour son
+/// prochain rendu : le trait du contour de l'onglet actif suit alors les bornes non calées, comme
+/// celui de Fragment ([`super::mesures::bords_exacts`]). Sans note, il suit l'en-tête calé par GPUI.
+/// `decalage` : le bord gauche exact moins le bord gauche calé (px logiques) ; la ligne de base
+/// s'arrête au bord droit exact qui s'en déduit.
+pub fn noter_largeur_exacte(pile: ItemId, largeur: f32, decalage: f32) {
+    LARGEURS_EXACTES.with(|l| l.borrow_mut().insert(pile, (largeur, decalage)));
+}
+
+/// L'opacité du bloc d'accent de l'aperçu de split (workspace.css, `.is-split-preview-*`), en
+/// pourcents.
+const OPACITE_APERCU: f32 = 22.0;
 /// La barre d'insertion du réordonnancement : 3 px de large, à 8 px du haut et du bas de la barre
 /// (workspace.css, `.workspace-tab-header-container::after`).
 const INSERTION_LARGEUR: f32 = 3.0;
@@ -86,15 +105,180 @@ fn tracer(construit: &mut PathBuilder, segments: &[Segment], origine: gpui_kit::
     }
 }
 
-/// Peint le fond des coins concaves, puis le trait du contour, dans la barre `bornes`.
+/// Les couleurs du contour : le trait, le fond de la barre et celui du pane (fond de l'onglet actif
+/// et des coins concaves).
+#[derive(Clone, Copy)]
+struct CouleursContour {
+    trait_: Couleur,
+    barre: Couleur,
+    pane: Couleur,
+}
+
+/// Le nom de l'élément sous lequel les arcs du contour sont déclarés (exception nommée de T1,
+/// `xtask/src/pixels/exceptions.rs`, `CONTOUR_ONGLET`).
+const ELEMENT_CONTOUR: &str = "contour d'onglet actif";
+
+/// Un trait droit d'épaisseur `[a, b]` (pixels physiques, en travers), sur les cellules `[d0, d1[`
+/// (le long), peint en quads OPAQUES d'un pixel d'épaisseur : la couleur de chaque colonne (ou
+/// ligne) est pré-composée par le mélange de Chromium ([`geometrie::melange_couverture`]) sur le
+/// fond `fond(x, y)` du centre du pixel (coordonnées physiques).
+///
+/// ★ Le chemin de GPUI mélange l'anticrénelage au plus proche : le côté gauche du trait, à moitié
+/// sur la barre claire, sortait à 222 au lieu des 221 de Chromium (232 + ⌊−21 × 128 / 256⌋).
+fn trait_droit(
+    window: &mut Window,
+    k: f32,
+    vertical: bool,
+    travers: (f32, f32),
+    long: (i32, i32),
+    teinte: Couleur,
+    fond: &dyn Fn(f32, f32) -> Couleur,
+) {
+    trait_droit_couvert(window, k, vertical, travers, long, 1.0, teinte, fond);
+}
+
+/// [`trait_droit`], chaque cellule couverte à `le_long` (0 à 1) dans le sens du trait : le bout
+/// d'un trait qui s'arrête à une abscisse fractionnaire.
+#[allow(clippy::too_many_arguments)]
+fn trait_droit_couvert(
+    window: &mut Window,
+    k: f32,
+    vertical: bool,
+    (a, b): (f32, f32),
+    (d0, d1): (i32, i32),
+    le_long: f32,
+    teinte: Couleur,
+    fond: &dyn Fn(f32, f32) -> Couleur,
+) {
+    let carre = |x0: f32, y0: f32, x1: f32, y1: f32| {
+        Bounds::from_corners(point(px(x0 / k), px(y0 / k)), point(px(x1 / k), px(y1 / k)))
+    };
+    if d1 <= d0 {
+        return;
+    }
+    // ★ Plus fin qu'un pixel (zoom < 100 %) : un filet d'un pixel à l'alpha modulé, pas une surface
+    //   ([`geometrie::filet`]) ; à 100 % et au-delà, rien ne change.
+    let fin = b - a < 1.0 - 1e-4;
+    let cellules: Vec<(i32, f32)> = if fin {
+        geometrie::filet(f64::from(a), f64::from(b))
+            .into_iter()
+            .map(|(c, p)| (c, p as f32))
+            .collect()
+    } else {
+        ((a.floor() as i32)..(b.ceil() as i32))
+            .map(|c| (c, (b.min(c as f32 + 1.0) - a.max(c as f32)).max(0.0)))
+            .collect()
+    };
+    for (cellule, part) in cellules {
+        let c0 = cellule as f32;
+        if part <= 0.0 {
+            continue;
+        }
+        let couleur_en = |t: i32| {
+            let (x, y) = if vertical {
+                (c0 + 0.5, t as f32 + 0.5)
+            } else {
+                (t as f32 + 0.5, c0 + 0.5)
+            };
+            let f = fond(x, y);
+            let m = |t: u8, f: u8| {
+                if fin {
+                    geometrie::melange_filet(t, f, f64::from(part * le_long))
+                } else {
+                    geometrie::melange_couverture(t, f, part * le_long)
+                }
+            };
+            Couleur::octets(m(teinte.r, f.r), m(teinte.g, f.g), m(teinte.b, f.b), 255)
+        };
+        // Des suites de pixels de même fond : un quad par suite.
+        let mut debut = d0;
+        let mut courante = couleur_en(d0);
+        for t in d0 + 1..=d1 {
+            let suivante = (t < d1).then(|| couleur_en(t));
+            if suivante == Some(courante) {
+                continue;
+            }
+            let (t0, t1) = (debut as f32, t as f32);
+            let bornes = if vertical {
+                carre(c0, t0, c0 + 1.0, t1)
+            } else {
+                carre(t0, c0, t1, c0 + 1.0)
+            };
+            window.paint_quad(fill(bornes, couleur(courante)));
+            if let Some(c) = suivante {
+                (debut, courante) = (t, c);
+            }
+        }
+    }
+}
+
+/// Un arc du contour : départ, raccord (début de l'arc), arrivée de l'arc, fin, rayon (px
+/// physiques), sens horaire.
+type ArcContour = ((f32, f32), (f32, f32), (f32, f32), (f32, f32), f32, bool);
+
+/// Peint le fond des coins concaves, puis le contour, dans la barre `bornes`.
+///
+/// ★ Les droites (ligne de base, côtés, haut) sont des quads pré-composés, STRICTS ; seuls les
+/// quatre arcs (et le bout de droite qui les raccorde au pixel entier suivant) sont des chemins
+/// GPUI, déclarés coin par coin sous [`ELEMENT_CONTOUR`] : leur anticrénelage (MSAA 4x contre
+/// Skia) est l'exception nommée de T1 rattachée à fr-p4.1.
+///
+/// Les rayons, puis le haut EXACT de l'onglet actif et la hauteur EXACTE de la barre (repère de la
+/// barre, px de l'écran), que suivent les traits horizontaux.
+///
+/// `bords_exacts` : les bords gauche et droit EXACTS de l'actif (repère de la barre), quand ils
+/// diffèrent de l'en-tête calé ; seul le TRAIT les suit. Le fond des coins concaves reste au ras de
+/// l'en-tête calé, comme les pseudo-éléments de Fragment (des boîtes, calées elles aussi).
+///
+/// `droite_exacte` : le bord droit EXACT de la barre (repère de la barre) ; la ligne de base s'y
+/// arrête, en cellule partielle.
+/// ★ Les séparateurs des onglets inactifs, calés comme Chromium calerait leur `::after` : chaque
+/// bord EXACT (sous-pixel) arrondi au pixel, `[⌊R − l⌉, ⌊R⌉)` × `[⌊haut + m⌉, ⌊bas − m⌉)`. Un `div`
+/// de GPUI, posé dans l'en-tête calé, tombait à côté au zoom : 1 px au lieu de 2 à 150 %
+/// (`t1-zoom-150`, (719,18)), 14 lignes au lieu de 12 à 80 % (`t1-zoom-80`, (526,9) et (526,22)).
+///
+/// `depart` : le bord gauche (calé) du conteneur des onglets ; `droite(i)` : le bord droit exact
+/// de l'onglet `i` dans ce conteneur ; `(haut, hauteur, (marge, largeur))` : le haut exact des
+/// onglets et la hauteur exacte de la barre (repère de la barre), la marge et la largeur du trait.
+fn peindre_separateurs(
+    bornes: Bounds<Pixels>,
+    depart: f32,
+    rangs: &[usize],
+    droite: impl Fn(usize) -> f32,
+    (haut, hauteur, (marge, largeur)): (f32, f32, (f32, f32)),
+    teinte: Couleur,
+    window: &mut Window,
+) {
+    let k = window.scale_factor();
+    let oy = f32::from(bornes.origin.y);
+    let (y0, y1) = (
+        ((oy + haut + marge) * k).round(),
+        ((oy + hauteur - marge) * k).round(),
+    );
+    // L'opacité de l'en-tête inactif, que le séparateur portait en enfant.
+    let mut c = couleur(teinte);
+    c.a *= OPACITE_REPOS;
+    for &i in rangs {
+        let r = depart + droite(i);
+        let (x0, x1) = (((r - largeur) * k).round(), (r * k).round());
+        if x1 <= x0 || y1 <= y0 {
+            continue;
+        }
+        window.paint_quad(fill(
+            Bounds::from_corners(point(px(x0 / k), px(y0 / k)), point(px(x1 / k), px(y1 / k))),
+            c,
+        ));
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn peindre_contour(
     bornes: Bounds<Pixels>,
     actif: Option<Bounds<Pixels>>,
-    fond_pane: gpui_kit::Rgba,
-    trait_: gpui_kit::Rgba,
-    rayon_haut: f32,
-    rayon_bas: f32,
+    bords_exacts: Option<(f32, f32)>,
+    droite_exacte: Option<f32>,
+    couleurs: CouleursContour,
+    (rayon_haut, rayon_bas, haut_exact, hauteur_exacte): (f32, f32, f32, f32),
     epaisseur: f32,
     window: &mut Window,
 ) {
@@ -108,31 +292,221 @@ fn peindre_contour(
     // L'onglet sorti de la barre n'a plus de contour (son fond est rogné aussi).
     let onglet = onglet.filter(|o| o.droite >= 0.0 && o.gauche <= largeur);
 
-    if let Some(o) = onglet {
-        for (bord, gauche) in [(o.gauche, true), (o.droite, false)] {
-            let segments = coin_concave(bord, hauteur, rayon_bas, gauche);
-            let mut p = PathBuilder::fill();
-            tracer(&mut p, &segments, bornes.origin);
-            p.close();
-            if let Ok(chemin) = p.build() {
-                window.paint_path(chemin, fond_pane);
-            }
+    let k = window.scale_factor();
+    let (ox, oy) = (f32::from(bornes.origin.x), f32::from(bornes.origin.y));
+    // Repère de la barre (px logiques) vers l'écran (px physiques), et retour.
+    let x_ = |x: f32| (ox + x) * k;
+    let y_ = |y: f32| (oy + y) * k;
+    let pt = |x: f32, y: f32| point(px(x / k), px(y / k));
+    let demi = epaisseur * k / 2.0;
+    // ★ Les traits horizontaux suivent la hauteur EXACTE de la barre et le haut EXACT de l'onglet
+    //   (le rembourrage du conteneur), pas les bornes calées par GPUI : à 80 %, la barre fait 28,8 px
+    //   (GPUI : 29) et l'onglet commence à 3,1875 (GPUI : 3). Identiques aux bornes à 100 et 150 %.
+    let base = y_(hauteur_exacte) - demi;
+    let (barre_g, barre_d) = (x_(0.0).round() as i32, x_(largeur).round() as i32);
+    // Le fond sous un pixel : l'en-tête actif (quad de GPUI, calé au pixel) ou la barre.
+    let entete = onglet.and(actif).map(|b| {
+        let v = |p: Pixels| (f32::from(p) * k).round();
+        (
+            v(b.origin.x),
+            v(b.origin.y),
+            v(b.origin.x + b.size.width),
+            v(b.origin.y + b.size.height),
+        )
+    });
+    let fond = move |x: f32, y: f32| match entete {
+        Some((x0, y0, x1, y1)) if x >= x0 && x < x1 && y >= y0 && y < y1 => couleurs.pane,
+        _ => couleurs.barre,
+    };
+    // ★ Le bord droit EXACT de la barre (px physiques), quand il tombe dans un pixel : Chromium y
+    //   arrête la ligne de base (une bordure, anticrénelée), alors que le fond de la barre est calé.
+    //   La poignée de split se mélange ensuite par-dessus (`t1-split-vertical`, (657,35) : 42 = 52
+    //   sur 33, et 33 = la ligne de base à moitié sur la barre).
+    let bout = droite_exacte
+        .map(x_)
+        .filter(|d| d.fract() > 1e-3 && (d.floor() as i32) < barre_d)
+        .map(|d| (d.floor() as i32, d.fract()));
+    let ligne_de_base = |window: &mut Window, d0: i32, d1: i32| {
+        let d1 = d1.min(barre_d);
+        let (d1, reste) = match bout {
+            Some((cellule, part)) if d1 == barre_d => (cellule, Some((cellule, part))),
+            _ => (d1, None),
+        };
+        trait_droit(
+            window,
+            k,
+            false,
+            (base - demi, base + demi),
+            (d0.max(barre_g), d1),
+            couleurs.trait_,
+            &fond,
+        );
+        if let Some((cellule, part)) = reste.filter(|&(c, _)| c >= d0.max(barre_g)) {
+            trait_droit_couvert(
+                window,
+                k,
+                false,
+                (base - demi, base + demi),
+                (cellule, cellule + 1),
+                part,
+                couleurs.trait_,
+                &fond,
+            );
+        }
+    };
+
+    let Some(o) = onglet else {
+        ligne_de_base(window, barre_g, barre_d);
+        return;
+    };
+
+    for (bord, gauche) in [(o.gauche, true), (o.droite, false)] {
+        let segments = coin_concave(bord, hauteur, rayon_bas, gauche);
+        let mut p = PathBuilder::fill();
+        tracer(&mut p, &segments, bornes.origin);
+        p.close();
+        if let Ok(chemin) = p.build() {
+            window.paint_path(chemin, couleur(couleurs.pane));
         }
     }
 
-    let segments = contour(
-        largeur,
-        hauteur,
-        onglet,
-        rayon_haut,
-        rayon_bas,
-        epaisseur / 2.0,
-    );
-    let mut p = PathBuilder::stroke(px(epaisseur));
-    tracer(&mut p, &segments, bornes.origin);
-    if let Ok(chemin) = p.build() {
-        window.paint_path(chemin, trait_);
+    let (trait_g, trait_d) = bords_exacts.unwrap_or((o.gauche, o.droite));
+    // ★ Un trait d'un pixel ou plus : Skia rastérise le chemin du SVG sur une grille au quart de
+    //   pixel (sur-échantillonnage 4 × 4), le côté exact 279,875 de `t1-zoom-150` tombe à 280,0
+    //   (moitié vers le haut) ; le côté droit (499,75) est déjà sur la grille. Les filets plus fins
+    //   (80 %) suivent une autre voie et restent exacts.
+    let quart = |v: f32| {
+        if demi * 2.0 >= 1.0 - 1e-4 {
+            (v * 4.0 + 0.5).floor() / 4.0
+        } else {
+            v
+        }
+    };
+    let (gx, dx) = (quart(x_(trait_g)), quart(x_(trait_d)));
+    let haut = y_(haut_exact) + demi;
+    let (rh, rb) = (rayon_haut * k, rayon_bas * k);
+    // Les coupes : le premier pixel entier au-delà de chaque bout d'arc.
+    let cote_haut = (haut + rh).ceil();
+    let cote_bas = (base - rb).floor();
+    let (haut_g, haut_d) = ((gx + rh).ceil(), (dx - rh).floor());
+    let (base_g, base_d) = ((gx - rb).floor(), (dx + rb).ceil());
+
+    ligne_de_base(window, barre_g, base_g as i32);
+    ligne_de_base(window, base_d as i32, barre_d);
+    for cote in [gx, dx] {
+        trait_droit(
+            window,
+            k,
+            true,
+            (cote - demi, cote + demi),
+            (cote_haut as i32, cote_bas as i32),
+            couleurs.trait_,
+            &fond,
+        );
     }
+    trait_droit(
+        window,
+        k,
+        false,
+        (haut - demi, haut + demi),
+        (haut_g as i32, haut_d as i32),
+        couleurs.trait_,
+        &fond,
+    );
+
+    let arcs: [ArcContour; 4] = [
+        (
+            (gx, cote_haut),
+            (gx, haut + rh),
+            (gx + rh, haut),
+            (haut_g, haut),
+            rh,
+            true,
+        ),
+        (
+            (haut_d, haut),
+            (dx - rh, haut),
+            (dx, haut + rh),
+            (dx, cote_haut),
+            rh,
+            true,
+        ),
+        (
+            (base_g, base),
+            (gx - rb, base),
+            (gx, base - rb),
+            (gx, cote_bas),
+            rb,
+            false,
+        ),
+        (
+            (dx, cote_bas),
+            (dx, base - rb),
+            (dx + rb, base),
+            (base_d, base),
+            rb,
+            false,
+        ),
+    ];
+    for (depart, raccord, arrivee, fin, r, horaire) in arcs {
+        let mut p = PathBuilder::stroke(px(epaisseur));
+        p.move_to(pt(depart.0, depart.1));
+        if depart != raccord {
+            p.line_to(pt(raccord.0, raccord.1));
+        }
+        p.arc_to(
+            point(px(r / k), px(r / k)),
+            px(0.0),
+            false,
+            horaire,
+            pt(arrivee.0, arrivee.1),
+        );
+        if fin != arrivee {
+            p.line_to(pt(fin.0, fin.1));
+        }
+        if let Ok(chemin) = p.build() {
+            window.paint_path(chemin, couleur(couleurs.trait_));
+        }
+    }
+
+    // Les déclarations, en px physiques : le trait de 1 px est la bordure d'une boîte de rayon
+    // extérieur `r + demi`, au demi-pixel. Le haut : les deux coins hauts de l'en-tête élargi ;
+    // chaque pied : le coin d'une boîte de 2R × 2R posée hors de l'onglet, au ras du bas.
+    let declarer = |x: f32, y: f32, cote: (f32, f32), r: f32, coins: [bool; 4]| {
+        declarer_arrondi(ArrondiPeint {
+            x,
+            y,
+            largeur: cote.0,
+            hauteur: cote.1,
+            rayon: r,
+            bordure: 2.0 * demi,
+            coins,
+            element: ELEMENT_CONTOUR,
+        });
+    };
+    let (rh2, rb2) = (rh + demi, rb + demi);
+    declarer(
+        gx - demi,
+        haut - demi,
+        (dx - gx + 2.0 * demi, base - haut + 2.0 * demi),
+        rh2,
+        [true, true, false, false],
+    );
+    let (bas, pied) = (base + demi, (2.0 * rb2, 2.0 * rb2));
+    declarer(
+        gx + demi - 2.0 * rb2,
+        bas - 2.0 * rb2,
+        pied,
+        rb2,
+        [false, false, false, true],
+    );
+    declarer(
+        dx - demi,
+        bas - 2.0 * rb2,
+        pied,
+        rb2,
+        [false, false, true, false],
+    );
 }
 
 /// L'icône cliquable générique (`.clickable-icon`, workspace.css:368) : 16 px dans une case de 24.
@@ -140,6 +514,7 @@ fn icone_cliquable(
     id: &'static str,
     nom: &str,
     taille: f32,
+    exacte: PositionExacte,
     cx: &App,
 ) -> gpui_kit::Stateful<gpui_kit::Div> {
     let t = theme_ou_defaut(cx);
@@ -156,13 +531,61 @@ fn icone_cliquable(
             let survol = couleur(c.background_modifier_hover);
             move |s| s.opacity(1.0).bg(survol)
         })
-        .child(
-            svg()
-                .path(icones::chemin(nom))
-                .size(u(cx, taille))
-                .flex_none()
-                .text_color(couleur(c.text_normal)),
+        .child(icone_exacte(
+            nom,
+            taille,
+            couleur(c.text_normal),
+            exacte,
+            cx,
+        ))
+}
+
+/// La moitié de `reste` au 1/64 inférieur : le centrage d'une boîte flexible chez Chromium.
+fn lu_centrage(reste: f32) -> f32 {
+    geometrie::unite_de_mise_en_page(f64::from(reste / 2.0)) as f32
+}
+
+/// Le coin haut gauche EXACT (px logiques de la fenêtre, sous-pixel) d'une icône, calculé à la
+/// peinture comme Chromium le met en page ; `None` tant que la mise en page n'est pas notée.
+type PositionExacte = Rc<dyn Fn() -> Option<(f32, f32)>>;
+
+/// ★ Une icône de `taille` px logiques peinte au coin EXACT que donne `exacte`, calé comme Chromium
+/// cale l'origine d'une racine SVG : au pixel le plus proche, moitié vers le haut. GPUI arrondit à
+/// l'avance chaque longueur (rembourrages de 3,2 px rendus à 3) puis cale les bords moitié vers
+/// zéro : à 80 et 150 %, les icônes de la barre tombaient à 1 px de Chromium (`t1-zoom-80`,
+/// (1151,9), (698,10), (1128,12), (346,11) ; `t1-zoom-150`, (470,22)). La boîte de mise en page reste
+/// celle de GPUI (taille, survol) ; sans position exacte, l'icône est peinte dans sa boîte.
+fn icone_exacte(
+    nom: &str,
+    taille: f32,
+    teinte: gpui_kit::Rgba,
+    exacte: PositionExacte,
+    cx: &App,
+) -> impl IntoElement {
+    let chemin: SharedString = icones::chemin(nom).into();
+    div().relative().flex_none().size(u(cx, taille)).child(
+        canvas(
+            |_, _, _| {},
+            move |bornes: Bounds<Pixels>, (), window: &mut Window, cx: &mut App| {
+                let k = window.scale_factor();
+                let cale = |v: f32| (v * k + 0.5).floor() / k;
+                let origine =
+                    exacte().map_or(bornes.origin, |(x, y)| point(px(cale(x)), px(cale(y))));
+                let _ = window.paint_svg(
+                    Bounds::new(origine, bornes.size),
+                    chemin.clone(),
+                    None,
+                    gpui_kit::TransformationMatrix::unit(),
+                    teinte.into(),
+                    cx,
+                );
+            },
         )
+        .absolute()
+        .top(px(0.0))
+        .left(px(0.0))
+        .size_full(),
+    )
 }
 
 /// Ouvre le menu contextuel d'un onglet (« Fermer ») au point de l'événement.
@@ -251,11 +674,21 @@ fn entete_d_onglet(
     est_dernier: bool,
     suivant_actif: bool,
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
+    decalage: f32,
+    separateur_par_la_barre: bool,
+    titre_exact: Rc<dyn Fn() -> Option<f32>>,
+    croix_exacte: PositionExacte,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
     let actif = ligne.visible;
+    // ★ Chromium pose le titre au bord gauche EXACT de la pile (sous-pixel ; seuls les fonds sont
+    //   calés) : le titre du 2e pane de `t1-split-vertical` sort chez nous à +0,6 px (moitié gauche).
+    //   Un `relative().left(−0,5)` n'y change RIEN (CI d4a5542, mesures identiques) : GPUI cale la
+    //   mise en page au pixel : le texte est décalé à la peinture, et tronqué comme Chromium
+    //   ([`super::titre`]).
+    let titre = super::titre::titre(ligne.titre.clone().into(), decalage, titre_exact, cx);
     let leaf = ligne.leaf;
     let index = ligne.index;
     let rang = leaf.index() as usize;
@@ -284,13 +717,13 @@ fn entete_d_onglet(
                 cx.refresh_windows();
             }
         })
-        .child(
-            svg()
-                .path(icones::chemin("x"))
-                .size(u(cx, f.icon_xs))
-                .flex_none()
-                .text_color(couleur(c.text_normal)),
-        );
+        .child(icone_exacte(
+            "x",
+            f.icon_xs,
+            couleur(c.text_normal),
+            croix_exacte,
+            cx,
+        ));
     if actif {
         let fond = couleur(c.background_modifier_active_hover);
         croix = croix.hover(move |s| s.opacity(1.0).bg(fond));
@@ -314,24 +747,20 @@ fn entete_d_onglet(
         .pl(u(cx, INTERIEUR_COTE_TITRE))
         .pr(u(cx, INTERIEUR_AUTRES_COTES))
         .py(u(cx, INTERIEUR_AUTRES_COTES))
-        .rounded(u(cx, f.radius_s))
         // Le titre prend ce qui reste et s'ellipse ; le statut, vide, garde son rang (et donc l'écart).
-        .child(
-            div()
-                .flex_1()
-                .min_w(u(cx, 0.0))
-                .overflow_hidden()
-                .whitespace_nowrap()
-                .text_ellipsis()
-                .child(ligne.titre.clone()),
-        )
+        .child(titre)
         .child(div().flex().items_center())
         .child(croix);
-    if !actif {
+    if actif {
+        interieur = interieur.rounded(u(cx, f.radius_s));
+    } else {
         // Le fond de survol vit sur la pilule, pas sur la zone pleine hauteur ; réservé aux
         // inactifs (l'actif a déjà son fond fusionné avec le pane).
+        // ★ Ses coins sont DÉCLARÉS (bord d'arrondi d'ADR-009) : non déclarés, l'anticrénelage de
+        //   GPUI sortait hors boîte au delta 1 (`t1-onglet-survol`, les 4 coins de la pilule).
         let survol = couleur(c.background_modifier_hover);
-        interieur = interieur.hover(move |s| s.bg(survol));
+        interieur =
+            arrondir(interieur, cx, u(cx, f.radius_s), u(cx, 0.0)).hover(move |s| s.bg(survol));
     }
 
     let mut entete = div()
@@ -373,7 +802,7 @@ fn entete_d_onglet(
         entete = entete.bg(couleur(c.workspace_bg));
     } else {
         entete = entete.opacity(OPACITE_REPOS);
-        if !est_dernier && !suivant_actif {
+        if !est_dernier && !suivant_actif && !separateur_par_la_barre {
             // Le trait fin au bord droit, plus court que la barre. Ni juste avant l'actif (son
             // fond ne le recouvrirait pas), ni après le dernier.
             entete = entete.child(
@@ -404,19 +833,174 @@ fn entete_d_onglet(
     entete.into_any_element()
 }
 
+/// Un `canvas` qui note les bornes (calées) de son parent, à poser en enfant `absolute`.
+fn mesurer(cellule: Rc<Cell<Option<Bounds<Pixels>>>>, cx: &App) -> impl IntoElement {
+    canvas(
+        move |bornes, _, _| cellule.set(Some(bornes)),
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top(u(cx, 0.0))
+    .left(u(cx, 0.0))
+    .right(u(cx, 0.0))
+    .bottom(u(cx, 0.0))
+}
+
 /// La barre d'onglets d'une pile.
 fn barre(
     ctx: &ContexteOnglets,
     pile: ItemId,
     lignes: &[LigneOnglet],
     options: OptionsPile,
+    (largeur_exacte, decalage): (Option<f32>, f32),
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
     let mesure: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    // Les bornes calées du conteneur des onglets et de l'espaceur : la place des onglets, à
+    // laquelle s'ajoute la fraction de largeur que le calage a retirée à la pile.
+    let place_onglets: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    let place_espaceur: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
     let n = lignes.len();
+    let rang_actif = lignes.iter().position(|l| l.visible);
+    // Les rangs qui portent un séparateur : inactifs, ni le dernier, ni juste avant l'actif.
+    let rangs_separes: Vec<usize> = (0..n.saturating_sub(1))
+        .filter(|&i| !lignes[i].visible && !lignes[i + 1].visible)
+        .collect();
 
+    let zoom = Echelle::courante(cx).zoom();
+    // Le séparateur (px logiques) : sa marge haute et basse, au 1/64, et sa largeur.
+    let separateur = (
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, SEPARATEUR_MARGE)))) as f32,
+        f32::from(u(cx, SEPARATEUR_LARGEUR)),
+    );
+    let haut_exact =
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, f.size_4_1)))) as f32;
+    let hauteur_exacte = f32::from(u(cx, f.header_height));
+    let (marge, largeur_max) = (
+        f32::from(u(cx, f.size_4_1)),
+        f32::from(u(cx, LARGEUR_ONGLET)),
+    );
+    // ★ Les largeurs EXACTES (px d'écran, chacune au 1/64 comme les `LayoutUnit` de Chromium, qui
+    //   met en page en px zoomés) de ce qui, dans la barre, n'est pas le conteneur des onglets ni
+    //   l'espaceur : « + », chevron, bouton du dock droit et retrait des boutons de fenêtre. GPUI
+    //   cale chacune au pixel : à 150 %, la somme calée perdait 1 px et les côtés de l'actif
+    //   tombaient 0,25 px à gauche (`t1-zoom-150`, (279,14) et (498,14)).
+    let fixes = {
+        let lu = |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
+        // Chaque part au 1/64, comme Chromium : 3,1875 + 12,796875 + 3,1875 à 80 %.
+        let bouton = 2.0 * lu(f.size_4_1) + lu(f.icon_s);
+        let nouvel = -lu(-NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
+        let liste = lu(f.size_2_1) + bouton + lu(f.size_4_1);
+        let dock = options.retrait_droit.map_or(0.0, |r| liste + lu(r));
+        nouvel + liste + dock
+    };
+    // ★ Le bord gauche EXACT du titre de l'onglet `i` (px logiques de la fenêtre), quand la largeur
+    //   exacte de la pile est connue : Chromium pose le texte au sous-pixel, onglet par onglet ; seuls
+    //   les fonds sont calés. Les en-têtes calés de GPUI décalaient les titres de 0,9 à 1,6 px
+    //   (`t1-zoom-150`). Lu à la peinture : la place des onglets est notée au prépeint.
+    let titre_exact: Rc<dyn Fn(usize) -> Option<f32>> = {
+        let po = place_onglets.clone();
+        let interieur_titre =
+            geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, REMBOURRAGE_ENTETE))))
+                as f32
+                + geometrie::unite_de_mise_en_page(f64::from(f32::from(u(
+                    cx,
+                    INTERIEUR_COTE_TITRE,
+                )))) as f32;
+        Rc::new(move |i| {
+            let (exacte, o) = (largeur_exacte?, po.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            let (g, _) = bords_exacts(place, marge, n, i, largeur_max);
+            Some(f32::from(o.origin.x) + decalage * zoom + g + interieur_titre)
+        })
+    };
+    // ★ La géométrie verticale et les icônes de la barre, comme Chromium (chaque longueur au 1/64,
+    //   les centrages au 1/64 inférieur), pour [`icone_exacte`].
+    let lu = move |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
+    let bornes_barre: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
+    let bouton = lu(f.size_4_1) * 2.0 + lu(f.icon_s);
+    let y_icones = {
+        let haut = lu(f.size_4_1);
+        let hauteur = f32::from(u(cx, f.header_height));
+        haut + lu_centrage(hauteur - haut - bouton) + lu(f.size_4_1)
+    };
+    let croix_exacte: Rc<dyn Fn(usize) -> Option<(f32, f32)>> = {
+        let po = place_onglets.clone();
+        let bb = bornes_barre.clone();
+        let haut = lu(f.size_4_1);
+        let hauteur = f32::from(u(cx, f.header_height));
+        let (r3, r2) = (lu(REMBOURRAGE_ENTETE), lu(f.size_2_1));
+        let interligne = lu(t.typo.font_ui_small * 1.5);
+        let boite = 2.0 * r2 + lu(f.icon_xs);
+        let h1 = hauteur - haut - 2.0 * lu(REMBOURRAGE_ENTETE);
+        let h2 = 2.0 * lu(INTERIEUR_AUTRES_COTES) + interligne;
+        let y = haut
+            + r3
+            + lu_centrage(h1 - h2)
+            + lu(INTERIEUR_AUTRES_COTES)
+            + lu_centrage(interligne - boite)
+            + r2;
+        let dx = r3 + lu(INTERIEUR_AUTRES_COTES) + r2 + lu(f.icon_xs);
+        Rc::new(move |i| {
+            let (exacte, o, b) = (largeur_exacte?, po.get()?, bb.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            let (_, d) = bords_exacts(place, marge, n, i, largeur_max);
+            Some((
+                f32::from(o.origin.x) + decalage * zoom + d - dx,
+                f32::from(b.origin.y) + y,
+            ))
+        })
+    };
+    let nouvel_exact: PositionExacte = {
+        let po = place_onglets.clone();
+        let bb = bornes_barre.clone();
+        let dx = -lu(-NOUVEL_ONGLET_MARGE_GAUCHE) + lu(f.size_4_1);
+        Rc::new(move || {
+            let (exacte, o, b) = (largeur_exacte?, po.get()?, bb.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            // La fin du conteneur des onglets : le dernier onglet et la marge (il ne s'étire pas).
+            let fin = if n == 0 {
+                2.0 * marge
+            } else {
+                bords_exacts(place, marge, n, n - 1, largeur_max).1 + marge
+            };
+            Some((
+                f32::from(o.origin.x) + decalage * zoom + fin + dx,
+                f32::from(b.origin.y) + y_icones,
+            ))
+        })
+    };
+    // Depuis le bord droit exact de la barre : retrait, puis (pr, bouton, pl) de chaque bouton.
+    let droite_exacte = {
+        let bb = bornes_barre.clone();
+        move || {
+            let b = bb.get()?;
+            Some(f32::from(b.origin.x) + decalage * zoom + largeur_exacte? * zoom)
+        }
+    };
+    let (pl, pr) = (lu(f.size_2_1), lu(f.size_4_1));
+    let retrait = options.retrait_droit.map_or(0.0, lu);
+    let a_un_dock = options.retrait_droit.is_some();
+    let decale_icone = lu(f.size_4_1);
+    let icone_a_droite = |rang: f32| -> PositionExacte {
+        let droite = droite_exacte.clone();
+        let bb = bornes_barre.clone();
+        Rc::new(move || {
+            let r = droite()? - retrait - rang * (pr + bouton + pl);
+            Some((
+                r - pr - bouton + decale_icone,
+                f32::from(bb.get()?.origin.y) + y_icones,
+            ))
+        })
+    };
+    // Le chevron est à gauche du bouton du dock quand il y en a un.
+    let (liste_exacte, dock_exact) = if a_un_dock {
+        (icone_a_droite(1.0), icone_a_droite(0.0))
+    } else {
+        (icone_a_droite(0.0), icone_a_droite(0.0))
+    };
     let entetes: Vec<AnyElement> = lignes
         .iter()
         .enumerate()
@@ -429,6 +1013,16 @@ fn barre(
                 i + 1 == n,
                 suivant_actif,
                 Some(mesure.clone()),
+                decalage,
+                largeur_exacte.is_some(),
+                {
+                    let t = titre_exact.clone();
+                    Rc::new(move || t(i)) as Rc<dyn Fn() -> Option<f32>>
+                },
+                {
+                    let c = croix_exacte.clone();
+                    Rc::new(move || c(i)) as PositionExacte
+                },
                 cx,
             )
         })
@@ -441,7 +1035,8 @@ fn barre(
         .px(u(cx, f.size_4_1))
         .overflow_hidden()
         .min_w(u(cx, 0.0))
-        .children(entetes);
+        .children(entetes)
+        .child(mesurer(place_onglets.clone(), cx));
 
     let nouvel_onglet = div()
         .flex()
@@ -449,7 +1044,7 @@ fn barre(
         .pr(u(cx, f.size_2_1))
         .ml(u(cx, NOUVEL_ONGLET_MARGE_GAUCHE))
         .child(
-            icone_cliquable("onglet-nouveau", "plus", f.icon_s, cx).on_click({
+            icone_cliquable("onglet-nouveau", "plus", f.icon_s, nouvel_exact, cx).on_click({
                 let ws = ctx.workspace.clone();
                 move |_, _, cx| {
                     if let Ok(mut w) = ws.try_borrow_mut() {
@@ -469,16 +1064,14 @@ fn barre(
         .pl(u(cx, f.size_2_1))
         .pr(u(cx, f.size_4_1))
         .child(
-            icone_cliquable("onglet-liste", "chevron-down", f.icon_s, cx).on_mouse_down(
-                MouseButton::Left,
-                {
+            icone_cliquable("onglet-liste", "chevron-down", f.icon_s, liste_exacte, cx)
+                .on_mouse_down(MouseButton::Left, {
                     let ctx = ctx.clone();
                     move |evt, _, cx| {
                         menu_de_la_pile(&ctx, pile, evt, cx);
                         cx.refresh_windows();
                     }
-                },
-            ),
+                }),
         );
 
     let mut barre = div()
@@ -492,8 +1085,14 @@ fn barre(
         .child(interieur)
         .child(nouvel_onglet)
         // Le spacer : reste en zone de glisser de la fenêtre, et pousse le chevron au bord.
-        .child(div().flex_grow(1.0))
-        .child(liste);
+        .child(
+            div()
+                .relative()
+                .flex_grow(1.0)
+                .child(mesurer(place_espaceur.clone(), cx)),
+        )
+        .child(liste)
+        .child(mesurer(bornes_barre.clone(), cx));
 
     if let Some(retrait) = options.retrait_droit {
         let bouton = div()
@@ -503,7 +1102,14 @@ fn barre(
             .pl(u(cx, f.size_2_1))
             .pr(u(cx, f.size_4_1))
             .child(
-                icone_cliquable("onglet-dock-droit", "panel-right", f.icon_s, cx).on_click({
+                icone_cliquable(
+                    "onglet-dock-droit",
+                    "panel-right",
+                    f.icon_s,
+                    dock_exact.clone(),
+                    cx,
+                )
+                .on_click({
                     let ws = ctx.workspace.clone();
                     move |_, _, cx| {
                         if let Ok(mut w) = ws.try_borrow_mut() {
@@ -533,7 +1139,11 @@ fn barre(
         });
 
     // Le contour : peint APRÈS tous les en-têtes, donc par-dessus le fond de l'actif.
-    let (fond_pane, trait_) = (couleur(c.workspace_bg), couleur(c.tab_outline_color));
+    let couleurs = CouleursContour {
+        trait_: c.tab_outline_color,
+        barre: c.tab_bar_bg,
+        pane: c.workspace_bg,
+    };
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
     barre
@@ -541,13 +1151,55 @@ fn barre(
             canvas(
                 |_, _, _| {},
                 move |bornes, (), window, _| {
+                    // Les bords exacts de l'actif, si la mise en page a noté la largeur exacte.
+                    let exacts = match (
+                        largeur_exacte,
+                        rang_actif,
+                        place_onglets.get(),
+                        place_espaceur.get(),
+                    ) {
+                        (Some(exacte), Some(rang), Some(o), Some(_)) => {
+                            // La largeur exacte est LOGIQUE, les bornes sont à l'écran (zoomées) :
+                            // la place des onglets est celle de la pile moins les largeurs exactes
+                            // fixes, pas la somme des boîtes calées par GPUI.
+                            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom))
+                                as f32
+                                - fixes;
+                            let depart = f32::from(o.origin.x - bornes.origin.x);
+                            let (g, d) = bords_exacts(place, marge, n, rang, largeur_max);
+                            Some((depart + g, depart + d))
+                        }
+                        _ => None,
+                    };
+                    if let (Some(exacte), Some(o)) = (largeur_exacte, place_onglets.get()) {
+                        let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom))
+                            as f32
+                            - fixes;
+                        peindre_separateurs(
+                            bornes,
+                            f32::from(o.origin.x),
+                            &rangs_separes,
+                            |i| bords_exacts(place, marge, n, i, largeur_max).1,
+                            (haut_exact, hauteur_exacte, separateur),
+                            couleurs.trait_,
+                            window,
+                        );
+                    }
                     peindre_contour(
                         bornes,
                         mesure.get(),
-                        fond_pane,
-                        trait_,
-                        f32::from(rayon_haut),
-                        f32::from(rayon_bas),
+                        exacts,
+                        // Repère de la barre (son bord gauche calé) : le contour est un SVG, que
+                        // Chromium pose au bord gauche CALÉ (`splits::origine_du_contour`) ; sa
+                        // largeur reste exacte.
+                        largeur_exacte.map(|e| e * zoom),
+                        couleurs,
+                        (
+                            f32::from(rayon_haut),
+                            f32::from(rayon_bas),
+                            haut_exact,
+                            hauteur_exacte,
+                        ),
                         f32::from(epaisseur),
                         window,
                     );
@@ -611,6 +1263,9 @@ pub fn rendre_pile(
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
+    let note = LARGEURS_EXACTES.with(|l| l.borrow_mut().remove(&pile));
+    let largeur_exacte = note.map(|(l, _)| l);
+    let decalage = note.map_or(0.0, |(_, d)| d);
     let (lignes, visible) = match ctx.workspace.try_borrow() {
         Ok(w) => (
             actions::lignes_de_la_pile(&w, pile),
@@ -630,21 +1285,26 @@ pub fn rendre_pile(
         .filter(|z| !matches!(z, DropZone::Reorder | DropZone::Center))
     {
         // Le bloc d'accent remplit la moitié libérée : l'emplacement du futur pane.
+        // ★ `opacity: 0.22` sur un fond connu (le pane, `--workspace-bg`) : l'aplat est PRÉ-COMPOSÉ
+        //   comme Chromium (ADR-009 c). L'opacité de GPUI, mélangée en flottants, tombait un niveau
+        //   à côté en clair (209 au lieu de 210, sur 472 000 px). Les coins sont déclarés (bord
+        //   d'arrondi d'ADR-009).
+        let p = &t.palette;
+        let aplat = p.color_accent.sur_chromium(OPACITE_APERCU, p.workspace_bg);
         let bloc = div()
             .absolute()
             .top(u(cx, 0.0))
             .left(u(cx, 0.0))
             .right(u(cx, 0.0))
             .bottom(u(cx, 0.0))
-            .rounded(u(cx, t.forme.radius_m))
-            .bg(couleur(t.palette.color_accent))
-            .opacity(OPACITE_APERCU);
+            .bg(couleur(aplat));
         let bloc = match zone {
             DropZone::SplitRight => bloc.left(relative(0.5)),
             DropZone::SplitLeft => bloc.right(relative(0.5)),
             DropZone::SplitTop => bloc.bottom(relative(0.5)),
             _ => bloc.top(relative(0.5)),
         };
+        let bloc = arrondir(bloc, cx, u(cx, t.forme.radius_m), u(cx, 0.0));
         conteneur = conteneur.child(bloc);
     }
     let pile_el = div()
@@ -655,7 +1315,14 @@ pub fn rendre_pile(
         .min_h(u(cx, 0.0))
         .overflow_hidden()
         .text_color(couleur(t.palette.text_normal))
-        .child(barre(ctx, pile, &lignes, options, cx))
+        .child(barre(
+            ctx,
+            pile,
+            &lignes,
+            options,
+            (largeur_exacte, decalage),
+            cx,
+        ))
         .child(conteneur);
     texte(pile_el, cx, t.typo.font_ui_small, 1.5).into_any_element()
 }

@@ -39,6 +39,9 @@ pub struct Mesures {
     pub bordure: f64,
     /// Le facteur de zoom : l'arrondi se fait en pixels de l'écran.
     pub zoom: f64,
+    /// La hauteur du pied du dock gauche (le sélecteur de coffre, `VaultSwitcher`), 0 sans pied :
+    /// les piles du dock s'arrêtent au-dessus.
+    pub pied_gauche: f64,
 }
 
 impl Default for Mesures {
@@ -47,6 +50,7 @@ impl Default for Mesures {
             entete: 36.0,
             bordure: 1.0,
             zoom: 1.0,
+            pied_gauche: 0.0,
         }
     }
 }
@@ -134,14 +138,24 @@ pub struct Disposition {
     /// Le ruban, à gauche.
     pub ruban: Cadre,
     cadres: HashMap<ItemId, Cadre>,
+    /// Le cadre EXACT (avant calage) de chaque nœud posé : le contour de l'onglet actif suit ses
+    /// bornes non calées, comme celui de Fragment.
+    exacts: HashMap<ItemId, Cadre>,
     /// Les piles visibles, dans l'ordre du parcours (centre, dock gauche, dock droit).
     pub piles: Vec<ItemId>,
     pub poignees: Vec<Poignee>,
     pub poignees_docks: Vec<PoigneeDock>,
     pub docks: Vec<CadreDock>,
+    /// Le pied du dock gauche (sélecteur de coffre), calé, s'il est à l'écran.
+    pub pied_gauche: Option<Cadre>,
 }
 
 impl Disposition {
+    /// Le cadre EXACT (avant calage) d'un nœud posé, s'il est à l'écran.
+    pub fn cadre_exact(&self, id: ItemId) -> Option<Cadre> {
+        self.exacts.get(&id).copied()
+    }
+
     /// Le cadre calé d'un nœud ; `None` s'il n'est pas à l'écran (dock replié, onglet caché).
     pub fn cadre(&self, id: ItemId) -> Option<Cadre> {
         self.cadres.get(&id).copied()
@@ -219,6 +233,86 @@ pub fn couverture(debut: f64, fin: f64, zoom: f64) -> Vec<Couvert> {
     out
 }
 
+/// ★ Un canal de `teinte` posé sur `fond` à la couverture `part` (0 à 1), comme le mélange
+/// d'anticrénelage de Chromium : `fond + ⌊(teinte − fond) × échelle / 256⌋`, l'échelle étant la part
+/// en 256es. Mesuré sur les traits de poignée à cheval sur deux pixels (`t1-split-vertical`) : 34
+/// sur 15 et 37 sur 21 en sombre (teinte 54), 222 sur 242 et 214 sur 225 en clair ; l'alpha de GPUI
+/// (flottant arrondi au plus proche) tombait un niveau à côté sur chaque différence impaire.
+pub fn melange_couverture(teinte: u8, fond: u8, part: f32) -> u8 {
+    let echelle = (part.clamp(0.0, 1.0) * 256.0).round() as i32;
+    let d = (i32::from(teinte) - i32::from(fond)) * echelle;
+    (i32::from(fond) + (d >> 8)).clamp(0, 255) as u8
+}
+
+/// ★ Les pixels d'un trait plus FIN qu'un pixel de l'écran (`[a, b]`, px physiques, `b − a < 1`),
+/// comme les peint Skia : un tel trait n'est pas rempli à sa surface mais tracé en « hairline »
+/// d'un pixel, l'alpha modulé par son épaisseur. Chaque pixel (le long du travers) reçoit
+/// `épaisseur × (1 − distance de son centre au centre du trait)`, sur deux pixels au plus. Mesuré
+/// sur la ligne de base de `t1-zoom-80` (trait de 0,8 px centré à 28,4) : 0,08 sur la ligne 27 et
+/// 0,72 sur la 28, là où la surface donnait 0 et 0,8. Rend `(pixel, part)`, la part quantifiée
+/// comme Skia ([`quantifier_filet`]).
+pub fn filet(a: f64, b: f64) -> Vec<(i32, f64)> {
+    let epaisseur = (b - a).clamp(0.0, 1.0);
+    couvertures_filet(a, b)
+        .into_iter()
+        .map(|(p, couverture)| (p, quantifier_filet(epaisseur, couverture)))
+        .filter(|&(_, part)| part > 1e-6)
+        .collect()
+}
+
+/// Les pixels d'un [`filet`] `[a, b]` et leur COUVERTURE brute (`1 − distance de son centre au
+/// centre du trait`, avant l'épaisseur et toute quantification), deux pixels au plus.
+pub fn couvertures_filet(a: f64, b: f64) -> Vec<(i32, f64)> {
+    let centre = (a + b) / 2.0;
+    let premier = (centre - 0.5).floor();
+    [premier, premier + 1.0]
+        .into_iter()
+        .map(|p| (p as i32, (1.0 - (centre - (p + 0.5)).abs()).max(0.0)))
+        .filter(|&(_, c)| c > 1e-6)
+        .collect()
+}
+
+/// ★ La part d'un pixel de [`filet`] : l'alpha du trait (`épaisseur`) en octet, la couverture du
+/// pixel en 256es, leur produit EXACT (sans troncature) sur 65 536. Mesuré sur le haut de l'onglet
+/// actif de `t1-zoom-80` (trait de 0,8 px centré à 3,5875), ligne 4 couverte à 0,0875 : 22 × 204 /
+/// 65 536 = 0,0685 rend les trois canaux des deux thèmes (sombre 22, 23, 26 sur 20, 21, 23 ; clair
+/// 245, 244, 239). Le produit tronqué (17/256) perdait le bleu sombre (25), le flottant (0,07) le
+/// rouge et le vert clairs (244, 243). Les lignes 3 et la ligne de base restent justes.
+fn quantifier_filet(epaisseur: f64, couverture: f64) -> f64 {
+    let alpha = (epaisseur.clamp(0.0, 1.0) * 255.0).round();
+    let part = (couverture.clamp(0.0, 1.0) * 256.0).round();
+    part * alpha / 65_536.0
+}
+
+/// Un canal de `teinte` posé sur `fond` à la couverture `part` d'un [`filet`] : le mélange flottant
+/// arrondi au plus proche (et non le `⌊…/256⌋` de [`melange_couverture`], qui tombait un niveau
+/// sous la référence sur 1 050 pixels de la ligne de base de `t1-zoom-80`).
+pub fn melange_filet(teinte: u8, fond: u8, part: f64) -> u8 {
+    let (t, f) = (f64::from(teinte), f64::from(fond));
+    (f + (t - f) * part.clamp(0.0, 1.0))
+        .round()
+        .clamp(0.0, 255.0) as u8
+}
+
+/// ★ Une longueur de mise en page de Chromium : tronquée au 1/64 de pixel de l'écran (`LayoutUnit`).
+/// À 80 %, le rembourrage de 4 px (3,2 px) devient 3,1875 et un onglet de 206 px (164,8) 164,796875 :
+/// c'est ce qui place le haut du contour à 3,5875 (mesuré à 3,587) et non à 3,6.
+pub fn unite_de_mise_en_page(v: f64) -> f64 {
+    (v * 64.0 + 1e-6).floor() / 64.0
+}
+
+/// ★ L'épaisseur d'une bordure CSS (`border-*-width`), en px logiques, telle que Chromium la met en
+/// page : ramenée à un nombre ENTIER de pixels de l'écran (tronquée, au moins 1). À 80 % le trait de
+/// 1 px fait 1 px d'écran et non 0,8 ; à 150 %, 1 et non 1,5 (la barre d'état mesurée 1 px plus
+/// étroite que la somme exacte). Sans effet à 100 %.
+pub fn epaisseur_bordure(largeur: f64, zoom: f64) -> f64 {
+    let ecran = largeur * zoom;
+    if ecran <= 0.0 {
+        return 0.0;
+    }
+    (ecran + 1e-6).floor().max(1.0) / zoom
+}
+
 /// Une arête exacte calée comme Chromium : au pixel de l'écran le plus proche, l'égalité vers le
 /// HAUT (`floor(v + 0,5)`), puis ramenée en px logiques.
 pub fn arrondi(v: f64, zoom: f64) -> f64 {
@@ -270,7 +364,13 @@ pub fn disposer<F>(arbre: &Arbre<F>, largeur: f64, hauteur: f64, m: Mesures) -> 
     let (g, dr) = (arbre.left(), arbre.right());
     if dock_visible(arbre, g) {
         let w = largeur_dock(g);
-        let contenu = Cadre::new(gauche, 0.0, w, hauteur);
+        // ★ Le pied (`.workspace-drawer-vault-switcher`, `order: 1; margin-top: auto`) est le dernier
+        //   enfant en flux de la colonne du dock : les piles (`flex: 1`) prennent le reste, au-dessus.
+        let pied = m.pied_gauche.clamp(0.0, hauteur);
+        let contenu = Cadre::new(gauche, 0.0, w, hauteur - pied);
+        if pied > 0.0 {
+            d.pied_gauche = Some(caler(Cadre::new(gauche, hauteur - pied, w, pied), z));
+        }
         let bordure = Cadre::new(gauche + w, 0.0, m.bordure, hauteur);
         let boite = Cadre::new(gauche, 0.0, w + m.bordure, hauteur);
         gauche += w + m.bordure;
@@ -339,6 +439,7 @@ fn poser<F>(
     z: f64,
 ) {
     d.cadres.insert(id, caler(r, z));
+    d.exacts.insert(id, r);
     if arbre.est_pile(id) {
         d.piles.push(id);
         return;
@@ -427,6 +528,74 @@ mod tests {
         a.add_child(root, p1, None).unwrap();
         a.add_child(root, p2, None).unwrap();
         (a, p1, p2)
+    }
+
+    #[test]
+    fn le_melange_de_couverture_tombe_comme_chromium() {
+        // Mesures de t1-split-vertical (canal vert sombre, canal bleu clair).
+        assert_eq!(melange_couverture(54, 15, 0.5), 34);
+        assert_eq!(melange_couverture(54, 21, 0.5), 37);
+        assert_eq!(melange_couverture(203, 242, 0.5), 222);
+        assert_eq!(melange_couverture(203, 225, 0.5), 214);
+        assert_eq!(melange_couverture(54, 21, 1.0), 54);
+        assert_eq!(melange_couverture(54, 21, 0.0), 21);
+    }
+
+    #[test]
+    fn un_trait_plus_fin_qu_un_pixel_est_trace_en_filet_module() {
+        // La ligne de base de t1-zoom-80 : 0,8 px centré à 28,4.
+        let f = filet(28.0, 28.8);
+        assert_eq!(f.len(), 2);
+        assert_eq!(f[0].0, 27);
+        assert!((f[0].1 - 26.0 * 204.0 / 65_536.0).abs() < 1e-9);
+        assert_eq!(f[1].0, 28);
+        assert!((f[1].1 - 230.0 * 204.0 / 65_536.0).abs() < 1e-9);
+        // Sombre (trait 52 sur 14, 60 sur 17) et clair (211 sur 232) : la référence.
+        assert_eq!(melange_filet(52, 14, f[1].1), 41);
+        assert_eq!(melange_filet(60, 17, f[1].1), 48);
+        assert_eq!(melange_filet(60, 17, f[0].1), 20);
+        assert_eq!(melange_filet(211, 232, f[1].1), 217);
+        // Centré sur un pixel : un seul pixel touché.
+        let centre = filet(10.1, 10.9);
+        assert_eq!(centre.len(), 1);
+        assert_eq!(centre[0].0, 10);
+        assert!((centre[0].1 - 204.0 / 256.0).abs() < 1e-9);
+        // Le haut de l'onglet actif de t1-zoom-80 : 0,8 px centré à 3,5875 (référence : 221 et 245
+        // en clair sur le pane 247, 43 et 22 en sombre sur le pane 20).
+        let haut = filet(3.1875, 3.9875);
+        assert_eq!(haut.iter().map(|c| c.0).collect::<Vec<_>>(), [3, 4]);
+        assert_eq!(melange_filet(211, 247, haut[0].1), 221);
+        assert_eq!(melange_filet(211, 247, haut[1].1), 245);
+        assert_eq!(melange_filet(52, 20, haut[0].1), 43);
+        assert_eq!(melange_filet(52, 20, haut[1].1), 22);
+        // Les trois canaux de la ligne 4 ((201,4) : le bleu sombre sortait à 25 au lieu de 26).
+        let ligne4 = |t: [u8; 3], f: [u8; 3]| -> [u8; 3] {
+            [0, 1, 2].map(|i| melange_filet(t[i], f[i], haut[1].1))
+        };
+        assert_eq!(ligne4([52, 54, 60], [20, 21, 23]), [22, 23, 26]);
+        assert_eq!(ligne4([211, 210, 203], [247, 246, 242]), [245, 244, 239]);
+        let ligne3 = |t: [u8; 3], f: [u8; 3]| -> [u8; 3] {
+            [0, 1, 2].map(|i| melange_filet(t[i], f[i], haut[0].1))
+        };
+        assert_eq!(ligne3([52, 54, 60], [20, 21, 23]), [43, 45, 50]);
+        assert_eq!(ligne3([211, 210, 203], [247, 246, 242]), [221, 220, 214]);
+    }
+
+    #[test]
+    fn une_bordure_fait_un_nombre_entier_de_pixels_d_ecran() {
+        assert_eq!(epaisseur_bordure(1.0, 1.0), 1.0);
+        assert_eq!(epaisseur_bordure(1.0, 0.8), 1.25);
+        assert_eq!(epaisseur_bordure(1.0, 1.5) * 1.5, 1.0);
+        assert_eq!(epaisseur_bordure(2.0, 1.5) * 1.5, 3.0);
+        assert_eq!(epaisseur_bordure(0.0, 1.5), 0.0);
+    }
+
+    #[test]
+    fn l_unite_de_mise_en_page_tronque_au_64e() {
+        assert_eq!(unite_de_mise_en_page(3.2), 3.1875);
+        assert_eq!(unite_de_mise_en_page(164.8), 164.796875);
+        assert_eq!(unite_de_mise_en_page(4.0), 4.0);
+        assert_eq!(unite_de_mise_en_page(195.25), 195.25);
     }
 
     #[test]

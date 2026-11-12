@@ -32,8 +32,8 @@ use fragment_core::{
 };
 use gpui_kit::{
     AnyElement, App, DispatchPhase, InteractiveElement as _, IntoElement, MouseButton,
-    MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Size, Styled as _, Visibility,
-    canvas, div,
+    MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, SharedString, Size, Styled as _,
+    Visibility, Window, canvas, div,
 };
 
 use crate::docks::{self, ElementRuban};
@@ -81,6 +81,9 @@ pub struct ContexteSplits {
     /// L'horloge des images, en ms (le gel du geste compte le temps en images). Remplaçable par les
     /// tests.
     pub horloge: Rc<dyn Fn() -> f64>,
+    /// Le nom du coffre (`app.vault.getName()`), affiché au pied du dock gauche ; sans nom, pas de
+    /// pied.
+    pub coffre: Option<SharedString>,
     etat: Rc<RefCell<Etat>>,
 }
 
@@ -99,6 +102,7 @@ impl ContexteSplits {
             onglets,
             ruban: Rc::new(Vec::new()),
             horloge: Rc::new(move || debut.elapsed().as_secs_f64() * 1000.0),
+            coffre: None,
             etat: Rc::new(RefCell::new(Etat {
                 disposition,
                 taille: (0.0, 0.0),
@@ -113,6 +117,12 @@ impl ContexteSplits {
     /// Remplace les actions du ruban.
     pub fn avec_ruban(mut self, ruban: Vec<ElementRuban>) -> Self {
         self.ruban = Rc::new(ruban);
+        self
+    }
+
+    /// Le nom du coffre, pour le pied du dock gauche (le sélecteur de coffre).
+    pub fn avec_coffre(mut self, nom: impl Into<SharedString>) -> Self {
+        self.coffre = Some(nom.into());
         self
     }
 
@@ -393,6 +403,155 @@ pub(crate) fn quads_du_trait(
         .collect()
 }
 
+/// ★ Les fonds CONNUS sous le trait d'une poignée : les barres d'onglets des piles (fond de barre,
+/// trait bas) et, partout ailleurs, le fond du workspace. Un pixel de bord du trait y est peint en
+/// couleur OPAQUE, pré-composée par le mélange de Chromium ([`geometrie::melange_couverture`]),
+/// plutôt qu'en teinte translucide mélangée par GPUI.
+pub(crate) struct Fonds {
+    /// Les barres d'onglets calées (px logiques).
+    pub barres: Vec<Cadre>,
+    pub barre: fragment_theme::Couleur,
+    pub trait_bas: fragment_theme::Couleur,
+    pub pane: fragment_theme::Couleur,
+    /// L'épaisseur du trait bas d'une barre (px logiques).
+    pub epaisseur: f64,
+    /// Le bord droit EXACT (avant calage, px logiques) de chaque barre de [`Self::barres`].
+    pub droites_exactes: Vec<Option<f64>>,
+    /// Les traits de repos PEINTS des poignées ([`trait_peint`]) et leur sens (`true` : vertical),
+    /// teinte [`Self::trait_bas`] : au croisement de deux poignées, chacune se mélange sur l'autre.
+    pub traits: Vec<(Cadre, bool)>,
+    pub zoom: f64,
+}
+
+impl Fonds {
+    /// Le fond au point (x, y), px logiques, sous un trait de sens `vertical` : les traits de
+    /// l'AUTRE sens qui couvrent ce pixel y sont mélangés (ceux du même sens ne se croisent pas).
+    fn en(&self, x: f64, y: f64, vertical: bool) -> fragment_theme::Couleur {
+        let mut f = self.en_dessous(x, y);
+        for (t, v) in &self.traits {
+            if *v == vertical {
+                continue;
+            }
+            let (le_long, travers, debut, fin) = if *v {
+                (y >= t.y && y < t.bas(), x, t.x, t.droite())
+            } else {
+                (x >= t.x && x < t.droite(), y, t.y, t.bas())
+            };
+            if !le_long {
+                continue;
+            }
+            let cellule = geometrie::couverture(debut, fin, self.zoom)
+                .into_iter()
+                .find(|c| travers >= c.debut && travers < c.debut + c.longueur);
+            if let Some(c) = cellule {
+                let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, c.part);
+                f = fragment_theme::Couleur::octets(
+                    m(self.trait_bas.r, f.r),
+                    m(self.trait_bas.g, f.g),
+                    m(self.trait_bas.b, f.b),
+                    255,
+                );
+            }
+        }
+        f
+    }
+
+    /// Le fond au point (x, y) sans les traits des poignées : barres d'onglets ou pane.
+    fn en_dessous(&self, x: f64, y: f64) -> fragment_theme::Couleur {
+        for (i, b) in self.barres.iter().enumerate() {
+            if x >= b.x && x < b.droite() && y >= b.y && y < b.bas() {
+                if y < b.bas() - self.epaisseur {
+                    return self.barre;
+                }
+                // ★ Le trait bas s'arrête au bord droit EXACT de la barre, en cellule partielle,
+                //   sur le fond de barre calé (onglets::pile, `peindre_contour`).
+                let bout = self
+                    .droites_exactes
+                    .get(i)
+                    .copied()
+                    .flatten()
+                    .map(|d| d * self.zoom)
+                    .filter(|d| d.fract() > 1e-3 && (x * self.zoom).floor() == d.floor());
+                return match bout {
+                    Some(d) => {
+                        let part = d.fract() as f32;
+                        let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, part);
+                        fragment_theme::Couleur::octets(
+                            m(self.trait_bas.r, self.barre.r),
+                            m(self.trait_bas.g, self.barre.g),
+                            m(self.trait_bas.b, self.barre.b),
+                            255,
+                        )
+                    }
+                    None => self.trait_bas,
+                };
+            }
+        }
+        self.pane
+    }
+
+    /// Les tronçons de fond constant le long de [`de`, `a`) sur la ligne `croise` de l'autre axe
+    /// (`vertical` : le long de y, à l'abscisse `croise`).
+    fn troncons(&self, vertical: bool, croise: f64, de: f64, a: f64) -> Vec<(f64, f64)> {
+        let mut bornes = vec![de, a];
+        for b in &self.barres {
+            let (dans, debuts) = if vertical {
+                (
+                    croise >= b.x && croise < b.droite(),
+                    [b.y, b.bas() - self.epaisseur, b.bas()],
+                )
+            } else {
+                (
+                    croise >= b.y && croise < b.bas(),
+                    [b.x, b.droite(), b.droite()],
+                )
+            };
+            if dans {
+                bornes.extend(debuts.into_iter().filter(|v| *v > de && *v < a));
+            }
+        }
+        // Les cellules des traits de l'autre sens qui croisent celui-ci.
+        for (t, v) in &self.traits {
+            if *v == vertical {
+                continue;
+            }
+            let (dans, debut, fin) = if vertical {
+                (croise >= t.x && croise < t.droite(), t.y, t.bas())
+            } else {
+                (croise >= t.y && croise < t.bas(), t.x, t.droite())
+            };
+            if dans {
+                for c in geometrie::couverture(debut, fin, self.zoom) {
+                    bornes.extend(
+                        [c.debut, c.debut + c.longueur]
+                            .into_iter()
+                            .filter(|v| *v > de && *v < a),
+                    );
+                }
+            }
+        }
+        bornes.sort_by(f64::total_cmp);
+        bornes.dedup();
+        bornes.windows(2).map(|w| (w[0], w[1])).collect()
+    }
+}
+
+/// Le zoom courant de l'interface.
+fn zoom_courant(cx: &App) -> f64 {
+    f64::from(Echelle::courante(cx).zoom())
+}
+
+/// L'abscisse (px logiques) où commence le contour de la barre d'onglets d'une pile de cadre
+/// exact `exact` : son bord gauche ARRONDI au pixel physique, la largeur restant exacte.
+///
+/// ★ Le contour (ligne de base comprise) est un SVG : Chromium cale au pixel le décalage de
+/// peinture d'une racine SVG, pas sa largeur. Sondé sur Fragment (`t1-split-proportions`) : pile à
+/// 347,5 de 621 px, ligne de base pleine jusqu'au pixel 968 (contour de 348 à 969) ; pile à 36 de
+/// 310,5 px, ligne arrêtée à 346,5.
+pub(crate) fn origine_du_contour(exact: Cadre, zoom: f64) -> f64 {
+    geometrie::arrondi(exact.x, zoom)
+}
+
 /// Le trait d'une poignée élargi à `epaisseur` autour du même centre.
 pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
     if vertical {
@@ -402,6 +561,88 @@ pub(crate) fn elargi(t: Cadre, vertical: bool, epaisseur: f64) -> Cadre {
         let c = t.y + t.hauteur / 2.0;
         Cadre::new(t.x, c - epaisseur / 2.0, t.largeur, epaisseur)
     }
+}
+
+/// Le trait PEINT d'une poignée d'épaisseur `epaisseur`, centré sur la boîte `t` de la poignée
+/// (`::after { top: 50%; transform: translateY(-50%) }`, workspace.css:206-211).
+///
+/// ★ Chromium cale au pixel le décalage de peinture d'un élément transformé AVANT d'appliquer la
+/// transformation : le `top: 50%` (bord de la poignée + 0,5) est arrondi, puis le trait recule de
+/// la moitié de son épaisseur. Sondé sur Fragment (`t1-split-proportions`) : poignée posée à 199,75,
+/// trait peint de 199,5 à 200,5 et non de 199,75 à 200,75 ; à 346,5 (centre 347, entier) rien ne
+/// bouge.
+///
+/// ★ Le même calage vaut pour l'AUTRE axe : le bord de départ du trait est arrondi, sa longueur reste
+/// exacte. Sondé sur `t1-split-proportions` : poignée horizontale de 347,5 à 968,5, trait peint de
+/// 348 à 969 (le pixel 968, sous la poignée verticale suivante, porte les deux traits).
+pub(crate) fn trait_peint(t: Cadre, vertical: bool, epaisseur: f64, zoom: f64) -> Cadre {
+    if vertical {
+        let c = geometrie::arrondi(t.x + t.largeur / 2.0, zoom);
+        let y = geometrie::arrondi(t.y, zoom);
+        Cadre::new(c - epaisseur / 2.0, y, epaisseur, t.hauteur)
+    } else {
+        let c = geometrie::arrondi(t.y + t.hauteur / 2.0, zoom);
+        let x = geometrie::arrondi(t.x, zoom);
+        Cadre::new(x, c - epaisseur / 2.0, t.largeur, epaisseur)
+    }
+}
+
+/// [`quads_du_trait`], les pixels de bord pré-composés sur `fonds` (couleurs opaques).
+fn quads_du_trait_opaque(
+    trait_: Cadre,
+    origine: Cadre,
+    vertical: bool,
+    teinte: fragment_theme::Couleur,
+    fonds: &Fonds,
+    cx: &App,
+) -> Vec<gpui_kit::Div> {
+    let zoom = f64::from(Echelle::courante(cx).zoom());
+    let (debut, fin, de, a) = if vertical {
+        (trait_.x, trait_.droite(), trait_.y, trait_.bas())
+    } else {
+        (trait_.y, trait_.bas(), trait_.x, trait_.droite())
+    };
+    let mut quads = Vec::new();
+    for c in geometrie::couverture(debut, fin, zoom) {
+        let milieu = c.debut + c.longueur / 2.0;
+        let troncons = if c.part >= 1.0 {
+            vec![(de, a)]
+        } else {
+            fonds.troncons(vertical, milieu, de, a)
+        };
+        for (t0, t1) in troncons {
+            let couleur_px = if c.part >= 1.0 {
+                teinte
+            } else {
+                let (x, y) = if vertical {
+                    (milieu, (t0 + t1) / 2.0)
+                } else {
+                    ((t0 + t1) / 2.0, milieu)
+                };
+                let f = fonds.en(x, y, vertical);
+                let m = |t: u8, f: u8| geometrie::melange_couverture(t, f, c.part);
+                fragment_theme::Couleur::octets(
+                    m(teinte.r, f.r),
+                    m(teinte.g, f.g),
+                    m(teinte.b, f.b),
+                    255,
+                )
+            };
+            let q = div().absolute().bg(couleur(couleur_px));
+            quads.push(if vertical {
+                q.left(u(cx, (c.debut - origine.x) as f32))
+                    .w(u(cx, c.longueur as f32))
+                    .top(u(cx, (t0 - origine.y) as f32))
+                    .h(u(cx, (t1 - t0) as f32))
+            } else {
+                q.top(u(cx, (c.debut - origine.y) as f32))
+                    .h(u(cx, c.longueur as f32))
+                    .left(u(cx, (t0 - origine.x) as f32))
+                    .w(u(cx, (t1 - t0) as f32))
+            });
+        }
+    }
+    quads
 }
 
 /// Une poignée entre deux panes : la zone attrapable (7 px) et, dedans, le trait de 1 px qui passe à
@@ -416,6 +657,7 @@ fn rendre_poignee(
     rang: usize,
     p: &Poignee,
     active: bool,
+    fonds: &Fonds,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -423,13 +665,25 @@ fn rendre_poignee(
     let vertical = p.direction == SplitDirection::Vertical;
     let zone = p.zone();
     let groupe: gpui_kit::SharedString = format!("poignee-{rang}").into();
-    let repos = quads_du_trait(p.exact, zone, vertical, couleur(c.tab_outline_color), cx);
-    let large = elargi(p.exact, vertical, TRAIT_POIGNEE_ACTIVE);
-    let mut accent = div().absolute().size_full().children(quads_du_trait(
+    let zoom = f64::from(Echelle::courante(cx).zoom());
+    let repos = quads_du_trait_opaque(
+        trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+        zone,
+        vertical,
+        c.tab_outline_color,
+        fonds,
+        cx,
+    );
+    let large = trait_peint(p.exact, vertical, TRAIT_POIGNEE_ACTIVE, zoom);
+    // ★ Le trait d'accent aussi est pré-composé sur les fonds connus : mélangé par GPUI, son bord
+    //   sur la ligne de base sortait un niveau au-dessus de Chromium (`t1-poignee-survol`, (656,35) :
+    //   158 contre 157 = 60 + ⌊195 × 128 / 256⌋).
+    let mut accent = div().absolute().size_full().children(quads_du_trait_opaque(
         large,
         zone,
         vertical,
-        couleur(c.color_accent),
+        c.color_accent,
+        fonds,
         cx,
     ));
     if !active {
@@ -454,13 +708,54 @@ fn rendre_poignee(
             cx.refresh_windows();
         })
         .children(repos)
-        .child(accent);
+        .child(accent)
+        .child(declarer_traits(
+            [
+                trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+                large,
+            ],
+            zoom,
+            cx,
+        ));
     el = if vertical {
         el.cursor_col_resize()
     } else {
         el.cursor_row_resize()
     };
     el.into_any_element()
+}
+
+/// L'élément sous lequel les traits de poignée sont déclarés (exception nommée de T1,
+/// `xtask/src/pixels/exceptions.rs`, `TRAIT_POIGNEE`).
+const ELEMENT_TRAIT_POIGNEE: &str = "trait de poignée";
+
+/// Déclare, au prépeint, les `traits` PEINTS d'une poignée (repos et accent, px logiques) en pixels
+/// physiques, comme des boîtes sans coin arrondi nommées [`ELEMENT_TRAIT_POIGNEE`] : seules leurs
+/// cellules de bord (couverture fractionnaire) relèvent de l'exception (décision du chef, fr-t1.5 :
+/// en clair, Skia arrondit ces bords d'un niveau, sans règle constante).
+fn declarer_traits(traits: [Cadre; 2], zoom: f64, cx: &App) -> impl IntoElement {
+    canvas(
+        move |_, window: &mut Window, _: &mut App| {
+            let k = zoom * f64::from(window.scale_factor());
+            for t in traits {
+                crate::flottant::declarer_arrondi(crate::flottant::ArrondiPeint {
+                    x: (t.x * k) as f32,
+                    y: (t.y * k) as f32,
+                    largeur: (t.largeur * k) as f32,
+                    hauteur: (t.hauteur * k) as f32,
+                    rayon: 0.0,
+                    bordure: 0.0,
+                    coins: [false; 4],
+                    element: ELEMENT_TRAIT_POIGNEE,
+                });
+            }
+        },
+        |_, (), _, _| {},
+    )
+    .absolute()
+    .top(u(cx, 0.0))
+    .left(u(cx, 0.0))
+    .size_full()
 }
 
 /// Les écouteurs GLOBAUX du pointeur (la « capture ») et l'horloge des images du gel.
@@ -520,6 +815,11 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         entete: f64::from(f.header_height),
         bordure: f64::from(f.border_width),
         zoom,
+        pied_gauche: if ctx.coffre.is_some() {
+            f64::from(docks::hauteur_pied_coffre(&t))
+        } else {
+            0.0
+        },
     };
 
     // La mise en page de l'image, et ce qu'elle décide : la pile qui porte l'espace des boutons.
@@ -564,6 +864,9 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
     for dock in &disposition.docks {
         racine = racine.child(docks::rendre_fond_dock(dock, cx));
     }
+    if let (Some(pied), Some(nom)) = (disposition.pied_gauche, &ctx.coffre) {
+        racine = racine.child(docks::rendre_pied_coffre(pied, nom, cx));
+    }
 
     for (pile, laterale) in visibles {
         let Some(cadre) = disposition.cadre(pile) else {
@@ -573,6 +876,13 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
             .filter(|e| e.pile == pile)
             .map(|e| e.recouvrement.unwrap_or(f64::from(f.frame_right_space)) as f32);
         let apercu_ici = apercu.filter(|a| a.pile == pile);
+        if let Some(exact) = disposition.cadre_exact(pile) {
+            crate::onglets::noter_largeur_exacte(
+                pile,
+                exact.largeur as f32,
+                (exact.x - cadre.x) as f32,
+            );
+        }
         let contenu = if laterale {
             docks::rendre_pile_laterale(ctx, pile, retrait, apercu_ici, cx)
         } else {
@@ -590,9 +900,43 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
         racine = racine.child(place(cadre, cx).flex().child(contenu));
     }
 
+    let barres: Vec<(Cadre, Option<f64>)> = disposition
+        .piles
+        .iter()
+        .filter_map(|&p| {
+            disposition.barre(p, f64::from(f.header_height)).map(|b| {
+                // Le bord droit du contour : le trait bas de la barre s'y arrête.
+                let exacte = disposition
+                    .cadre_exact(p)
+                    .map(|e| origine_du_contour(e, zoom_courant(cx)) + e.largeur);
+                (b, exacte)
+            })
+        })
+        .collect();
+    let fonds = Fonds {
+        droites_exactes: barres.iter().map(|(_, d)| *d).collect(),
+        zoom: f64::from(Echelle::courante(cx).zoom()),
+        barres: barres.into_iter().map(|(b, _)| b).collect(),
+        barre: t.palette.tab_bar_bg,
+        trait_bas: t.palette.tab_outline_color,
+        pane: t.palette.workspace_bg,
+        epaisseur: f64::from(f.border_width),
+        traits: disposition
+            .poignees
+            .iter()
+            .map(|p| {
+                let vertical = p.direction == SplitDirection::Vertical;
+                let zoom = zoom_courant(cx);
+                (
+                    trait_peint(p.exact, vertical, geometrie::EPAISSEUR_POIGNEE, zoom),
+                    vertical,
+                )
+            })
+            .collect(),
+    };
     for (rang, p) in disposition.poignees.iter().enumerate() {
         let active = matches!(geste, Some(Geste::Split { poignee, .. }) if poignee == *p);
-        racine = racine.child(rendre_poignee(ctx, rang, p, active, cx));
+        racine = racine.child(rendre_poignee(ctx, rang, p, active, &fonds, cx));
     }
     for p in &disposition.poignees_docks {
         let active = matches!(geste, Some(Geste::Dock { dock, .. }) if dock == p.dock);
@@ -609,3 +953,55 @@ pub fn rendre_workspace(ctx: &ContexteSplits, taille: Size<Pixels>, cx: &App) ->
 /// Enregistre les commandes de scène `pixels:splits` : aucune, l'arbre des scènes arrive par
 /// l'action `layout` ([`brancher_scene`]).
 pub fn commandes_de_scene(_commandes: &CommandManager) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn le_trait_d_une_poignee_fractionnaire_est_cale_comme_chromium() {
+        // t1-split-proportions : poignée horizontale sondée à 199,75, trait peint à 199,5.
+        let h = Cadre::new(347.5, 199.75, 621.0, 1.0);
+        assert_eq!(trait_peint(h, false, 1.0, 1.0).y, 199.5);
+        assert_eq!(trait_peint(h, false, TRAIT_POIGNEE_ACTIVE, 1.0).y, 198.5);
+        // Poignée verticale à 346,5 : le centre (347) est entier, rien ne bouge.
+        let v = Cadre::new(346.5, 0.0, 1.0, 800.0);
+        assert_eq!(trait_peint(v, true, 1.0, 1.0).x, 346.5);
+        // Poignée de split-horizontal à 399,5 : idem.
+        let m = Cadre::new(36.0, 399.5, 1244.0, 1.0);
+        assert_eq!(trait_peint(m, false, 1.0, 1.0).y, 399.5);
+        // Le départ du trait est calé, sa longueur reste exacte : 347,5 + 621 → 348 à 969.
+        let peint = trait_peint(h, false, 1.0, 1.0);
+        assert_eq!((peint.x, peint.droite()), (348.0, 969.0));
+    }
+
+    fn fonds_de_test(traits: Vec<(Cadre, bool)>) -> Fonds {
+        let gris = |v| fragment_theme::Couleur::octets(v, v, v, 255);
+        Fonds {
+            barres: Vec::new(),
+            barre: gris(14),
+            trait_bas: gris(52),
+            pane: gris(20),
+            epaisseur: 1.0,
+            droites_exactes: Vec::new(),
+            traits,
+            zoom: 1.0,
+        }
+    }
+
+    #[test]
+    fn le_croisement_de_deux_traits_porte_les_deux() {
+        // t1-split-proportions (968,199) : le trait horizontal (348 à 969, lignes 199,5 à 200,5)
+        // passe sous le bord du trait vertical ; Chromium y lit 44 = 52 sur (52 sur 20 à ½) à ½.
+        let horizontal = Cadre::new(348.0, 199.5, 621.0, 1.0);
+        let fonds = fonds_de_test(vec![(horizontal, false)]);
+        assert_eq!(fonds.en(968.5, 199.5, true).r, 36);
+        // Le trait lui-même ne compte pas pour son propre fond (même sens).
+        assert_eq!(fonds.en(968.5, 199.5, false).r, 20);
+        // Hors du trait : le fond du pane.
+        assert_eq!(fonds.en(968.5, 197.5, true).r, 20);
+        // Les tronçons du trait vertical se coupent aux lignes du trait horizontal.
+        let t = fonds.troncons(true, 968.5, 0.0, 800.0);
+        assert!(t.contains(&(199.0, 200.0)) && t.contains(&(200.0, 201.0)));
+    }
+}

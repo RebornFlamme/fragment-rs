@@ -356,6 +356,15 @@ impl Theme {
     }
 }
 
+/// La flèche de la liste déroulante des réglages : littéral du CSS de Fragment
+/// (app/src/ui/core/settings/settings.css:671), sans variable ; même valeur dans les deux thèmes.
+pub const FLECHE_LISTE: Couleur = Couleur::hex(0x8f8e89);
+
+/// Le texte indicatif d'un champ de saisie : couleur ::placeholder par défaut de la feuille UA de
+/// Chromium ; Fragment ne la surcharge pas (vérifié pour le champ de recherche des réglages : aucun
+/// `::placeholder` des CSS de Fragment ne le vise). Même valeur dans les deux thèmes.
+pub const INDICATIF_CHROMIUM: Couleur = Couleur::hex(0x757575);
+
 #[cfg(test)]
 mod tests {
     use super::*;

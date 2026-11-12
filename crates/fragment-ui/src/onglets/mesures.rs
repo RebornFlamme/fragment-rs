@@ -179,9 +179,41 @@ pub fn largeur_d_un_onglet(n: usize, disponible: f32) -> f32 {
     LARGEUR_ONGLET.min(disponible / n as f32)
 }
 
+/// Les bords gauche et droit EXACTS (px logiques, depuis le bord gauche du conteneur des onglets)
+/// de l'onglet de rang `rang` parmi `n`, quand le conteneur (rembourrage `marge` de chaque côté
+/// compris) dispose de `place` px : chaque onglet prend `min(largeur_max, (place − 2 marge) / n)`.
+///
+/// ★ C'est la géométrie que lit le contour de Fragment (`getBoundingClientRect`, NON calé), alors
+///   que GPUI cale chaque boîte au pixel : dans une pile de largeur fractionnaire (621,5 px d'un
+///   split 50/50), les onglets font 195,25 px chez Chromium, 195 ici, et le trait du côté droit de
+///   l'actif tombait 0,5 px à gauche (mesuré sur `t1-pile-active-inactive` : 858,25 et 1053,5 dans
+///   la référence, 858 et 1053 dans le candidat).
+pub fn bords_exacts(place: f32, marge: f32, n: usize, rang: usize, largeur_max: f32) -> (f32, f32) {
+    let largeur = if n == 0 {
+        largeur_max
+    } else {
+        largeur_max.min(((place - 2.0 * marge) / n as f32).max(0.0))
+    };
+    // ★ Des `LayoutUnit` de Chromium (1/64 px) : à 80 %, 3,2 → 3,1875 et 164,8 → 164,796875 (le côté
+    //   gauche de l'actif mesuré à 196,97, et non 197). Sans effet sur les longueurs déjà au 1/64.
+    let unite = |v: f32| (v * 64.0 + 1e-3).floor() / 64.0;
+    let (marge, largeur) = (unite(marge), unite(largeur));
+    let gauche = marge + rang as f32 * largeur;
+    (gauche, gauche + largeur)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn les_bords_exacts_suivent_la_largeur_fractionnaire_de_la_pile() {
+        // `t1-pile-active-inactive`, pile de droite : 398 px calés + 0,5 px de largeur exacte.
+        assert_eq!(bords_exacts(398.5, 4.0, 2, 1, 206.0), (199.25, 394.5));
+        // Assez de place : les onglets restent à 206, la fraction part dans l'espaceur.
+        assert_eq!(bords_exacts(600.5, 4.0, 2, 1, 206.0), (210.0, 416.0));
+        assert_eq!(bords_exacts(10.0, 4.0, 0, 0, 206.0), (4.0, 210.0));
+    }
 
     #[test]
     fn un_onglet_mesure_206_de_bord_a_bord() {

@@ -1,6 +1,7 @@
 // Port de app/src/ui/core/workspace/WorkspaceRibbon.ts, de la poignée de Workspace.attachSidebarResize
 // et de app/src/ui/workspace.css (`.workspace-ribbon`, `.workspace-sidedock*`,
-// `.workspace-sidebar-resize-handle`).
+// `.workspace-sidebar-resize-handle`), et de la présentation de app/src/ui/core/VaultSwitcher.ts
+// (app/src/ui/core/vault-switcher.css).
 //
 //! Le ruban et les docks latéraux.
 //!
@@ -26,7 +27,7 @@ use crate::icones;
 use crate::onglets::actions;
 use crate::onglets::mesures::{OPACITE_REPOS, REMBOURRAGE_ENTETE};
 use crate::splits::ContexteSplits;
-use crate::splits::geometrie::{CadreDock, PoigneeDock, TRAIT_POIGNEE_ACTIVE};
+use crate::splits::geometrie::{self, CadreDock, PoigneeDock, TRAIT_POIGNEE_ACTIVE};
 use crate::splits::{elargi, quads_du_trait};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_core::{Cadre, Cote};
@@ -73,6 +74,33 @@ fn icone_du_ruban(
         )
 }
 
+/// La même icône du ruban, sans flux : la case (que l'appelant pose) et le SVG décalé de `(x, y)`
+/// (px logiques, déjà calés) dans la case.
+fn icone_posee(
+    id: (&'static str, usize),
+    nom: &str,
+    (x, y): (f32, f32),
+    cx: &App,
+) -> gpui_kit::Stateful<gpui_kit::Div> {
+    let t = theme_ou_defaut(cx);
+    let (c, f) = (&t.palette, &t.forme);
+    let survol = couleur(c.background_modifier_hover);
+    div()
+        .id(id)
+        .rounded(u(cx, f.radius_s))
+        .opacity(OPACITE_REPOS)
+        .hover(move |s| s.opacity(1.0).bg(survol))
+        .child(
+            svg()
+                .path(icones::chemin(nom))
+                .absolute()
+                .left(u(cx, x))
+                .top(u(cx, y))
+                .size(u(cx, f.icon_m))
+                .text_color(couleur(c.text_normal)),
+        )
+}
+
 /// Le ruban (`.workspace-ribbon.mod-left`) au cadre `cadre`.
 pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -101,10 +129,30 @@ pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement 
             }),
         );
 
+    // ★ Les actions sont posées à leurs arêtes EXACTES calées comme Chromium, pas empilées par GPUI :
+    //   GPUI arrondit chaque longueur avant la mise en page (à 80 %, une case de 20,8 px devient 20 et
+    //   un écart de 6,4 devient 6), et l'erreur s'accumulait d'une icône à l'autre (−2 px à la
+    //   deuxième, −3 à la troisième) ; centrée dans le ruban, une case laissait 7,5 px que GPUI
+    //   arrondit vers le bas (à 150 %, chaque icône 1 px à gauche).
+    let z = f64::from(Echelle::courante(cx).zoom());
+    let cale = |v: f32| geometrie::arrondi(f64::from(v), z) as f32;
+    let case_gauche = (f.header_height - case) / 2.0;
     let actions = ctx.ruban.iter().enumerate().map(|(i, e)| {
         let commandes = ctx.onglets.commandes.clone();
         let id = e.commande.clone();
-        icone_du_ruban(("ruban-action", i), &e.icone, cx)
+        let haut = f.header_height + f.size_4_2 + i as f32 * (case + f.size_4_2);
+        let (x0, y0) = (cale(case_gauche), cale(haut));
+        let (x1, y1) = (cale(case_gauche + case), cale(haut + case));
+        let (ix, iy) = (
+            cale(case_gauche + f.size_4_1) - x0,
+            cale(haut + f.size_4_1) - y0,
+        );
+        icone_posee(("ruban-action", i), &e.icone, (ix, iy), cx)
+            .absolute()
+            .left(u(cx, x0))
+            .top(u(cx, y0))
+            .w(u(cx, x1 - x0))
+            .h(u(cx, y1 - y0))
             .on_click(move |_, _, cx| {
                 let m: &CommandManager = &commandes;
                 m.execute_command_by_id(&id, None);
@@ -126,14 +174,7 @@ pub fn rendre_ruban(ctx: &ContexteSplits, cadre: Cadre, cx: &App) -> AnyElement 
         .pb(u(cx, f.size_4_2))
         .bg(couleur(c.background_secondary))
         .child(repli)
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .items_center()
-                .gap(u(cx, f.size_4_2))
-                .children(actions),
-        )
+        .children(actions)
         // La bordure droite COMMENCE sous la case du repli : le bandeau du haut reste d'un tenant.
         .child(
             div()
@@ -168,6 +209,105 @@ pub fn rendre_fond_dock(dock: &CadreDock, cx: &App) -> AnyElement {
                 .h_full()
                 .bg(couleur(t.palette.tab_outline_color)),
         )
+        .into_any_element()
+}
+
+/// `.vault-switcher-action { opacity: 0.85 }` (vault-switcher.css).
+const OPACITE_COFFRE: f32 = 0.85;
+/// `.clickable-icon.is-disabled { opacity: 0.35 }` : l'aide, pas encore câblée (vault-switcher.css).
+const OPACITE_INERTE: f32 = 0.35;
+/// `.vault-switcher-buttons .clickable-icon svg { width/height: 15px }`.
+const ICONE_PIED: f32 = 15.0;
+
+/// La hauteur du pied du dock gauche (`.workspace-drawer-vault-switcher`) : le trait du haut, le
+/// rembourrage vertical, et le bouton du coffre (rembourré, une ligne de `--font-ui-small`), plus
+/// haut que les boutons de droite (15 px rembourrés).
+pub fn hauteur_pied_coffre(t: &fragment_theme::Theme) -> f32 {
+    let (f, ty) = (&t.forme, &t.typo);
+    f.border_width
+        + 2.0 * f.size_2_3
+        + (2.0 * f.size_4_1 + ty.font_ui_small * ty.line_height_normal)
+            .max(ICONE_PIED + 2.0 * f.size_4_1)
+}
+
+/// Le pied du dock gauche, au cadre `cadre` : le sélecteur de coffre (chevron + nom), puis l'aide
+/// (inerte) et les réglages. ★ Rendu STATIQUE en T1 : le menu des coffres et la fenêtre de gestion
+/// viennent avec T2 (modèle dans `fragment_cli::coffres`, fr-t2-coffres).
+pub fn rendre_pied_coffre(cadre: Cadre, nom: &str, cx: &App) -> AnyElement {
+    let t = theme_ou_defaut(cx);
+    let (c, f, ty) = (&t.palette, &t.forme, &t.typo);
+    let ligne = ty.font_ui_small * ty.line_height_normal;
+    let action = 2.0 * f.size_4_1 + ligne;
+    let bouton = ICONE_PIED + 2.0 * f.size_4_1;
+    let icone = |nom: &str, opacite: f32| {
+        div()
+            .flex()
+            .flex_none()
+            .p(u(cx, f.size_4_1))
+            .rounded(u(cx, f.radius_s))
+            .opacity(opacite)
+            .child(
+                svg()
+                    .path(icones::chemin(nom))
+                    .size(u(cx, ICONE_PIED))
+                    .flex_none()
+                    .text_color(couleur(c.text_normal)),
+            )
+    };
+    let selecteur = div()
+        .flex()
+        .flex_1()
+        .min_w(u(cx, 0.0))
+        .h(u(cx, action))
+        .items_center()
+        .gap(u(cx, f.size_2_3))
+        .px(u(cx, f.size_2_3))
+        .py(u(cx, f.size_4_1))
+        .rounded(u(cx, f.radius_s))
+        .opacity(OPACITE_COFFRE)
+        .text_color(couleur(c.text_normal))
+        .child(
+            svg()
+                .path(icones::chemin("chevrons-up-down"))
+                .size(u(cx, f.icon_xs))
+                .flex_none()
+                .text_color(couleur(c.text_muted)),
+        )
+        .child(
+            crate::flottant::texte(
+                div().whitespace_nowrap().overflow_hidden(),
+                cx,
+                ty.font_ui_small,
+                ty.line_height_normal,
+            )
+            .font_weight(gpui_kit::FontWeight::MEDIUM)
+            .child(nom.to_owned()),
+        );
+    let boutons = div()
+        .flex()
+        .flex_none()
+        .gap(u(cx, f.size_2_1))
+        // Centrés sur la hauteur du sélecteur, l'égalité vers le haut comme Chromium.
+        .pt(moitie(cx, action - bouton))
+        .child(icone("circle-help", OPACITE_INERTE))
+        .child(icone("settings", OPACITE_REPOS));
+    let mut pied = div();
+    pied.style().border_widths.top = Some(gpui_kit::AbsoluteLength::from(u(cx, f.border_width)));
+    pied.absolute()
+        .left(u(cx, cadre.x as f32))
+        .top(u(cx, cadre.y as f32))
+        .w(u(cx, cadre.largeur as f32))
+        .h(u(cx, cadre.hauteur as f32))
+        .flex()
+        .items_start()
+        .gap(u(cx, f.size_4_1))
+        .px(u(cx, f.size_4_2))
+        .py(u(cx, f.size_2_3))
+        .overflow_hidden()
+        .border_color(couleur(c.tab_outline_color))
+        .bg(couleur(c.background_secondary))
+        .child(selecteur)
+        .child(boutons)
         .into_any_element()
 }
 
