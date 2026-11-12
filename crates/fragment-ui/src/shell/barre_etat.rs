@@ -65,12 +65,7 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
             .px(u(cx, f.size_2_3))
             .whitespace_nowrap()
             .relative()
-            .child(texte_cale(
-                e.clone(),
-                u(cx, f.size_2_3),
-                ty.line_height_normal,
-                cx,
-            ))
+            .child(texte_cale(e.clone(), ty.line_height_normal, cx))
     });
     let barre = texte(barre, cx, ty.font_ui_smaller, ty.line_height_normal)
         .absolute()
@@ -112,8 +107,8 @@ pub const ELEMENT_COIN: &str = "coin de la barre d'état";
 /// (1208,788) ; `t1-zoom-150`, (1147,778) : sonde DOM, haut du texte à 785,906 et 774,125).
 ///
 /// Le texte garde sa place par une copie invisible ; il est peint par-dessus, à l'abscisse de la
-/// copie (`gauche` : le rembourrage de l'élément) et sur toute la hauteur de l'élément.
-fn texte_cale(texte: SharedString, gauche: Pixels, interligne: f32, cx: &App) -> impl IntoElement {
+/// copie et sur toute la hauteur de l'élément.
+fn texte_cale(texte: SharedString, interligne: f32, cx: &App) -> impl IntoElement {
     let mut gabarit = div().child(texte.clone());
     gabarit.style().visibility = Some(Visibility::Hidden);
     let _ = cx;
@@ -154,7 +149,9 @@ fn texte_cale(texte: SharedString, gauche: Pixels, interligne: f32, cx: &App) ->
         .absolute()
         .top(px(0.0))
         .bottom(px(0.0))
-        .left(gauche)
+        // ★ Le décalage d'un enfant absolu part de la boîte de CONTENU de l'élément chez GPUI : 0,
+        //   et non le rembourrage (qui doublait le retrait, +6 px à 100 %, CI 43318865227).
+        .left(px(0.0))
         .right(px(0.0)),
     )
 }
