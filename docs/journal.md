@@ -616,3 +616,14 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - au-delà, plus aucun lancement : les équipiers finissent, puis « prêt pour le clear » ;
   - clear forcé seulement à 750k, après avoir poussé les branches en brouillon.
   - Remplace la règle des 300k et le gel noté ci-dessus.
+- 19:02 UTC : S7 rendu (fr-t4-raster, PR #76, CI en cours). ★ Bug confirmé et corrigé sur main : `rendre_region` échangeait rouge et bleu (pdfium-render livre déjà du RGBA).
+  - Verdict de S7 : impossible au pixel sans fork de pdfium. Par zone :
+    - images identiques ;
+    - texte : 10 à 22 % des pixels différents (ClearType contre gris) ;
+    - aplats : environ 41 % (bords fractionnaires accrochés à la grille) ;
+    - traits : 1,7 à 8,3 %.
+  - ADR-014 proposé : catégorie « raster de page PDF », bornée au rectangle de page. Pixels de delta > 32 : au plus 12, 10 et 6 % ; delta moyen : au plus 10, 8 et 5 (à 50, 100 et 200 %). Avec garde-fous et cliquet.
+  - Décision du chef : texte LCD ADOPTÉ (les seuils sont calés dessus). Nouveau bead fr-t4.2, après #76.
+  - ADR-014 est une divergence (§8) : À REMONTER à l'orchestrateur avec la livraison de T1.
+  - Laterale2 : correction de PADDING 7/5 → 14/10 confirmée dans pdf-view.css. #74 et #75 en CI.
+  - Lancée : fr-t3.3 (Sonnet, langues). Actifs : shell6, surface2, laterale2 (fini), rechercheui2 (fini), explactions, t2scenes, langues.
