@@ -1,0 +1,11 @@
+{
+  "scene": "t2-explorateur-menu-dossier",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "actions": [
+    {"type":"click","x":150,"y":117,"button":"right"},
+    {"type":"wait","ms":200}
+  ]
+}

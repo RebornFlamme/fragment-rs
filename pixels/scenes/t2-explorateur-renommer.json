@@ -1,0 +1,11 @@
+{
+  "scene": "t2-explorateur-renommer",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "actions": [
+    {"type":"command","id":"pixels:explorer-rename","args":{"path":"Journal.md"}},
+    {"type":"wait","ms":200}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "scene": "t2-explorateur-survol",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "actions": [
+    {"type":"hover","x":150,"y":221},
+    {"type":"wait","ms":200}
+  ]
+}
