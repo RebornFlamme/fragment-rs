@@ -705,3 +705,13 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - #83 (fragment-maths) : 6 jobs sur 7 verts.
 - Repris : widgetsinline, sur le patch `set_widget_ranges` du fork.
 - Captures : t4scenes et t3scenesb ont fait leurs passes ; t3scenesc attend, puis la passe A de t4scenes.
+- 22:02 UTC : fenêtre 5 h à 67 % (reset 22:30), semaine à 56 %, contexte du chef 437k.
+  - Rythme cible : (97 − 56) ÷ 20 h ≈ 2 points par heure.
+  - #87 (fr-t3.4) : frappe 10,6 ms en médiane release contre 39,7 sur main ; curseur 7,9 ms ; défilement 6,6 ms.
+    - Nouveau job CI `editeur-release`, qui échoue au-delà de 16 ms en médiane.
+    - Rebasée après #85, CI en cours.
+    - Ajouts validés hors des fichiers de la tâche : `ci.yml` et `calculer_avec_lignes`.
+    - Équipier arrêté à 311k tokens.
+  - Repris : t11scenes, dernier au verrou.
+  - fr-p3.1 et fr-t11-reglages restent bloquées par le partage de `boites.rs` et de `reglages/` avec fr-t1.5 (#49) : départ après sa fusion.
+  - Actifs : shell7, widgetsinline, t3scenesb, t3scenesc, t4scenes, t11scenes.
