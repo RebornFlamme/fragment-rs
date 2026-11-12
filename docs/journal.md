@@ -643,3 +643,11 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Beads fermés, worktrees et dossiers cible retirés. fr-t4.2 (texte LCD) est débloquée.
   - #70 : test-windows rouge, surface2 au travail. #49 en CI.
   - Actifs (7) : shell6, surface2, t2scenes, langues, t2tranches, t3scenesa, t4scenes.
+- 19:31 UTC :
+  - #78 (fr-t2-tranches) et #79 (fr-t3.3 : 47 langages, environ 50 exclusions justifiées) livrées, CI en cours.
+  - ★ `scripts/ci.ps1` corrigé sur main (cd9349d) : PowerShell 5.1 retirait les guillemets du filtre jq, d'où `failure/0`.
+  - ★ Le test-windows rouge de #70 est un délai de 6 h dépassé, pas un échec de test. surface2 prévenu : borner les tests de l'éditeur.
+  - Captures sérialisées par le verrou : t2scenes le tient (passe 3) ; t3scenesa et t4scenes attendent.
+  - Lancées : fr-t4.2 (Opus, lcd) et fr-p3-gpui-kit-0.9 (Opus, kit09).
+    - ★ La PR amont sur longbridge/gpui-kit n'est PAS ouverte par l'équipier : c'est une publication externe, l'accord de l'utilisateur passe par l'orchestrateur. Son texte sera prêt dans ADR-006.
+  - Actifs : shell6, surface2, t2scenes, t3scenesa, t4scenes, lcd, kit09.
