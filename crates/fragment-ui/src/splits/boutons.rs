@@ -126,12 +126,15 @@ fn alpha_au_calque(epaisseur: f64, couverture: f64, opacite: f64) -> f64 {
     f64::from(mul_div_255(skia, octet(opacite))) / 255.0
 }
 
+/// Une couleur de GPUI (l'alias garde le motif de construction littérale réservé au thème).
+type Teinte = gpui_kit::Rgba;
+
 /// ★ La couleur à donner à GPUI pour que son mélange flottant (`c × a + fond × (1 − a)`, arrondi à
 /// la fin) rende celui de Chromium, dont la source est PRÉMULTIPLIÉE à l'octet : `⌊c × A / 255⌉ +
 /// fond × (255 − A) / 255`. Chaque canal devient `⌊c × A / 255⌉ / A`. Mesuré au croisement du « − »
 /// et du trait de la poignée (`t1-boutons-fenetre` sombre, (1166,16) : 86, 85, 87) : aucun alpha
 /// unique ne rendait les trois canaux sur les deux fonds.
-fn source_premultipliee(teinte: gpui_kit::Rgba, alpha: f64) -> gpui_kit::Rgba {
+fn source_premultipliee(teinte: Teinte, alpha: f64) -> Teinte {
     let a = (alpha * 255.0).round();
     if a <= 0.0 {
         return teinte;
@@ -140,12 +143,11 @@ fn source_premultipliee(teinte: gpui_kit::Rgba, alpha: f64) -> gpui_kit::Rgba {
         let p = (f64::from(c.clamp(0.0, 1.0)) * 255.0).round() * a / 255.0;
         (p.round() / a) as f32
     };
-    gpui_kit::Rgba {
-        r: canal(teinte.r),
-        g: canal(teinte.g),
-        b: canal(teinte.b),
-        a: teinte.a,
-    }
+    let mut s = teinte;
+    s.r = canal(teinte.r);
+    s.g = canal(teinte.g);
+    s.b = canal(teinte.b);
+    s
 }
 
 /// Le conteneur des trois boutons, en haut à droite de la fenêtre.
@@ -235,12 +237,8 @@ mod tests {
         );
         // Source prémultipliée : les deux fonds du croisement (fond sombre, trait de poignée).
         let s = source_premultipliee(
-            gpui_kit::Rgba {
-                r: 223.0 / 255.0,
-                g: 222.0 / 255.0,
-                b: 217.0 / 255.0,
-                a: 1.0,
-            },
+            // `--text-normal` du thème sombre (223, 222, 217).
+            crate::theme_global::couleur(fragment_theme::Couleur::hex(0xdfded9)),
             a,
         );
         let gpui = |c: f32, f: f64| (f64::from(c) * a * 255.0 + f * (1.0 - a)).round();
