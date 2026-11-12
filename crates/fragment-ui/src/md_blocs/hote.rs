@@ -209,6 +209,19 @@ impl HoteBlocs {
         p.repli.etat().ligne_repliee(p.repli.analyse(), ligne)
     }
 
+    /// L'interaction partagée de `ligne` (`foldCtl`) : la puce liée d'une liste la reflète.
+    #[must_use]
+    pub fn interaction(&self, ligne: usize) -> crate::md_repli::Interaction {
+        self.partage.borrow().repli.interaction(ligne)
+    }
+
+    /// La souris entre sur la puce liée de `ligne` (`None` : elle en sort), comme sur le chevron.
+    pub fn survoler_controle(&mut self, ligne: Option<usize>, cx: &mut Context<Self>) {
+        if self.partage.borrow_mut().repli.survoler_controle(ligne) {
+            cx.notify();
+        }
+    }
+
     /// Bascule le repli de `ligne` (le clic sur son chevron, `toggleFoldAt`), puis chasse le curseur
     /// hors des plis.
     pub fn basculer_repli(&mut self, ligne: usize, cx: &mut Context<Self>) {
