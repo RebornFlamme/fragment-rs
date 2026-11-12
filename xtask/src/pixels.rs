@@ -82,9 +82,29 @@ fn zones_connexes(masque: &[bool], largeur: u32, hauteur: u32) -> Vec<Boite> {
     zones
 }
 
-/// La tranche en cours. ★ Même valeur que `TRANCHE_COURANTE` de `fragment-app` (src/pixels/actions.rs) :
-/// une scène marquée `"depuis": "T3"` n'est ni rejouée ni comparée avant que cette tranche l'atteigne.
-pub const TRANCHE_COURANTE: u32 = 1;
+/// Les tranches actives, lues dans `pixels/tranches.json` (`{"actives": ["T1", "T4"]}`).
+/// ★ Une seule source, lue aussi par `fragment-pixels` : une scène marquée `"depuis": "T4"` est
+/// comparée dès que T4 est active, quel que soit l'état de T3 (les tranches finissent dans le désordre).
+fn lire_tranches(chemin: &Path) -> anyhow::Result<Vec<u32>> {
+    let texte = std::fs::read_to_string(chemin)
+        .with_context(|| format!("{} introuvable ou illisible", chemin.display()))?;
+    let json: serde_json::Value = serde_json::from_str(&texte)
+        .with_context(|| format!("{} n'est pas du JSON valide", chemin.display()))?;
+    let Some(liste) = json["actives"].as_array() else {
+        bail!("{} : le champ « actives » (liste) manque", chemin.display());
+    };
+    liste
+        .iter()
+        .map(|t| {
+            t.as_str().and_then(lire_tranche).with_context(|| {
+                format!(
+                    "{} : tranche {t} inconnue (attendu \"T3\")",
+                    chemin.display()
+                )
+            })
+        })
+        .collect()
+}
 
 struct Options {
     scene: Option<String>,
@@ -93,7 +113,9 @@ struct Options {
     diff: PathBuf,
     rapport: PathBuf,
     scenes: PathBuf,
-    tranche: u32,
+    /// Tranches actives forcées par `--tranche` (vide = celles de `tranches.json`).
+    tranches: Vec<u32>,
+    tranches_fichier: PathBuf,
     exiger_references: bool,
     /// Base commitée du cliquet (delta max et % dans les boîtes, par PNG).
     cliquet: PathBuf,
@@ -109,7 +131,8 @@ fn lire_options(args: &[String]) -> anyhow::Result<Options> {
         diff: "pixels/diff".into(),
         rapport: "docs/parite-pixels.md".into(),
         scenes: "pixels/scenes".into(),
-        tranche: TRANCHE_COURANTE,
+        tranches: Vec::new(),
+        tranches_fichier: "pixels/tranches.json".into(),
         exiger_references: false,
         cliquet: "pixels/cliquet.json".into(),
         maj_cliquet: false,
@@ -127,12 +150,13 @@ fn lire_options(args: &[String]) -> anyhow::Result<Options> {
             "--diff" => o.diff = valeur()?.into(),
             "--report" => o.rapport = valeur()?.into(),
             "--scenes" => o.scenes = valeur()?.into(),
+            "--tranches" => o.tranches_fichier = valeur()?.into(),
             "--cliquet" => o.cliquet = valeur()?.into(),
             "--maj-cliquet" => o.maj_cliquet = true,
             "--tranche" => {
                 let v = valeur()?;
-                o.tranche =
-                    lire_tranche(&v).with_context(|| format!("tranche « {v} » inconnue"))?;
+                o.tranches
+                    .push(lire_tranche(&v).with_context(|| format!("tranche « {v} » inconnue"))?);
             }
             // `--require-all` : ancien nom, gardé pour les appels existants.
             "--exiger-references" | "--require-all" => o.exiger_references = true,
@@ -245,13 +269,13 @@ fn planifier(
     references: &BTreeSet<String>,
     candidats: &BTreeSet<String>,
     meta: &BTreeMap<String, MetaScene>,
-    tranche: u32,
+    tranches: &[u32],
     exiger: bool,
     filtre: Option<&str>,
 ) -> Plan {
     let hors = |png: &str| {
         meta.get(scene_du_png(png))
-            .is_some_and(|m| m.depuis.is_some_and(|d| d > tranche))
+            .is_some_and(|m| m.depuis.is_some_and(|d| !tranches.contains(&d)))
     };
     let garde = |n: &&String| filtre.is_none_or(|s| n.starts_with(s));
     let mut plan = Plan::default();
@@ -272,7 +296,8 @@ fn planifier(
     if exiger {
         for (scene, m) in meta {
             let dans_filtre = filtre.is_none_or(|s| scene.starts_with(s));
-            if !dans_filtre || m.sans_reference || m.depuis.is_some_and(|d| d > tranche) {
+            if !dans_filtre || m.sans_reference || m.depuis.is_some_and(|d| !tranches.contains(&d))
+            {
                 continue;
             }
             for theme in &m.themes {
@@ -630,13 +655,18 @@ struct Declaration {
 pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let o = lire_options(args)?;
     let meta = lire_meta(&o.scenes)?;
+    let tranches = if o.tranches.is_empty() {
+        lire_tranches(&o.tranches_fichier)?
+    } else {
+        o.tranches.clone()
+    };
     let references = pngs(&o.reference);
     let candidats = pngs(&o.candidat);
     let plan = planifier(
         &references,
         &candidats,
         &meta,
-        o.tranche,
+        &tranches,
         o.exiger_references,
         o.scene.as_deref(),
     );
@@ -1005,7 +1035,7 @@ mod tests {
             &ens(&[]),
             &ens(&["t1-onglets-dark.png"]),
             &meta(),
-            1,
+            &[1],
             false,
             None,
         );
@@ -1019,7 +1049,7 @@ mod tests {
             &ens(&["menu-dark.png"]),
             &ens(&["menu-dark.png"]),
             &meta(),
-            1,
+            &[1],
             true,
             None,
         );
@@ -1030,7 +1060,7 @@ mod tests {
             &ens(&["menu-dark.png"]),
             &ens(&["menu-dark.png"]),
             &meta(),
-            7,
+            &[7],
             false,
             None,
         );
@@ -1039,7 +1069,14 @@ mod tests {
 
     #[test]
     fn une_scene_de_preuve_n_attend_pas_de_reference() {
-        let plan = planifier(&ens(&[]), &ens(&["mire-dark.png"]), &meta(), 1, true, None);
+        let plan = planifier(
+            &ens(&[]),
+            &ens(&["mire-dark.png"]),
+            &meta(),
+            &[1],
+            true,
+            None,
+        );
         assert_eq!(plan.preuves, vec!["mire-dark.png"]);
         assert!(!plan.manquants.iter().any(|m| m.starts_with("mire")));
     }
@@ -1050,7 +1087,7 @@ mod tests {
             &ens(&["t1-onglets-dark.png"]),
             &ens(&["t1-onglets-dark.png"]),
             &meta(),
-            1,
+            &[1],
             true,
             None,
         );
@@ -1060,7 +1097,7 @@ mod tests {
             &ens(&["t1-onglets-dark.png"]),
             &ens(&["t1-onglets-dark.png"]),
             &meta(),
-            1,
+            &[1],
             false,
             None,
         );
@@ -1073,12 +1110,57 @@ mod tests {
             &ens(&[]),
             &ens(&["t1-onglets-dark.png", "mire-dark.png"]),
             &meta(),
-            1,
+            &[1],
             true,
             Some("mire"),
         );
         assert_eq!(plan.preuves, vec!["mire-dark.png"]);
         assert!(plan.en_attente.is_empty() && plan.manquants.is_empty());
+    }
+
+    #[test]
+    fn une_scene_depuis_t4_est_comparee_des_que_t4_est_active_quel_que_soit_t3() {
+        let paire = ens(&["menu-dark.png"]);
+        let m = BTreeMap::from([(
+            "menu".to_owned(),
+            MetaScene {
+                depuis: Some(4),
+                sans_reference: false,
+                themes: vec!["dark".into()],
+            },
+        )]);
+        // T4 active sans T3 : comparée.
+        let plan = planifier(&paire, &paire, &m, &[1, 4], false, None);
+        assert_eq!(plan.paires, vec!["menu-dark.png"]);
+        // T3 active sans T4 : sautée.
+        let plan = planifier(&paire, &paire, &m, &[1, 3], true, None);
+        assert_eq!(plan.hors_tranche, vec!["menu-dark.png"]);
+        assert!(plan.paires.is_empty() && plan.manquants.is_empty());
+    }
+
+    #[test]
+    fn les_tranches_actives_sont_lues_dans_le_fichier() {
+        let dossier = std::env::temp_dir().join(format!("tranches-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).unwrap();
+        let f = dossier.join("tranches.json");
+        std::fs::write(&f, r#"{"actives": ["T1", "T4"]}"#).unwrap();
+        assert_eq!(lire_tranches(&f).unwrap(), vec![1, 4]);
+        std::fs::write(&f, r#"{"actives": ["quatre"]}"#).unwrap();
+        assert!(lire_tranches(&f).is_err());
+        std::fs::write(&f, "{ pas du json").unwrap();
+        assert!(lire_tranches(&f).is_err());
+        std::fs::write(&f, "{}").unwrap();
+        assert!(lire_tranches(&f).is_err());
+        // Fichier absent : erreur claire qui nomme le chemin.
+        let erreur = lire_tranches(&dossier.join("absent.json")).unwrap_err();
+        assert!(format!("{erreur:#}").contains("absent.json"));
+        let _ = std::fs::remove_dir_all(&dossier);
+    }
+
+    #[test]
+    fn le_fichier_du_depot_active_t1() {
+        let f = Path::new(env!("CARGO_MANIFEST_DIR")).join("../pixels/tranches.json");
+        assert!(lire_tranches(&f).unwrap().contains(&1));
     }
 
     #[test]
@@ -1101,7 +1183,7 @@ mod tests {
         ])
         .unwrap();
         assert!(o.exiger_references);
-        assert_eq!(o.tranche, 3);
+        assert_eq!(o.tranches, vec![3]);
         assert!(lire_options(&["--tranche".into(), "3".into()]).is_err());
     }
 
@@ -1136,6 +1218,8 @@ mod tests {
             &chemin("cliquet.json"),
             "--scenes",
             &chemin("scenes"),
+            "--tranche",
+            "T1",
         ]
         .map(str::to_owned)
         .to_vec();

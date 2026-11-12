@@ -3,7 +3,7 @@
 //! Usage : `fragment-pixels <dossier des scènes> [dossier de sortie = pixels/candidate]`.
 //!
 //! Le lecteur (schéma, entrées simulées, captures) vit dans `src/pixels/` ; ce binaire lit les
-//! scènes, saute celles d'une tranche postérieure (`"depuis": "T3"`, voir `TRANCHE_COURANTE`) et
+//! scènes, saute celles d'une tranche postérieure (`"depuis": "T3"` absente de `pixels/tranches.json`) et
 //! écrit un PNG par scène et par thème. La capture passe par `Window::render_to_image` : elle ne
 //! dépend pas de ce que le compositeur affiche.
 
@@ -15,12 +15,17 @@ use std::path::PathBuf;
 
 use gpui_kit::AsyncApp;
 
-use pixels::actions::{self, Scene, TRANCHE_COURANTE};
+use pixels::actions::{self, Scene, Tranche};
 
-async fn capturer(scenes: Vec<Scene>, sortie: PathBuf, cx: &mut AsyncApp) -> anyhow::Result<usize> {
+async fn capturer(
+    scenes: Vec<Scene>,
+    actives: Vec<Tranche>,
+    sortie: PathBuf,
+    cx: &mut AsyncApp,
+) -> anyhow::Result<usize> {
     let mut ecrites = 0;
     for scene in scenes {
-        if scene.en_attente_de_tranche(TRANCHE_COURANTE) {
+        if scene.en_attente_de_tranche(&actives) {
             println!(
                 "en attente de sa tranche ({}) : {}",
                 scene.depuis.map_or(0, |t| t.0),
@@ -48,6 +53,18 @@ fn main() {
             std::process::exit(2);
         }
     };
+    // ★ Les tranches actives vivent à côté du dossier des scènes (`pixels/tranches.json`), lues aussi par xtask.
+    let fichier_tranches = scenes_dir.parent().map_or_else(
+        || PathBuf::from("tranches.json"),
+        |p| p.join("tranches.json"),
+    );
+    let actives = match actions::lire_tranches(&fichier_tranches) {
+        Ok(t) => t,
+        Err(erreur) => {
+            eprintln!("fragment-pixels : {erreur}");
+            std::process::exit(2);
+        }
+    };
     // Les icônes (SVG de Lucide) sont des ressources embarquées de fragment-ui.
     gpui_kit::application()
         .with_assets(fragment_ui::icones::Ressources)
@@ -60,7 +77,7 @@ fn main() {
             cx.spawn(async move |cx| {
                 // ★ On sort par `process::exit` depuis la tâche : selon la plateforme,
                 // `run` ne rend pas toujours la main après `quit`.
-                match capturer(scenes, sortie, cx).await {
+                match capturer(scenes, actives, sortie, cx).await {
                     Ok(n) if n > 0 => {
                         println!("fragment-pixels : {n} capture(s)");
                         std::process::exit(0);

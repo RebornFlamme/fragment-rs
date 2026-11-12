@@ -35,15 +35,13 @@ pub enum ErreurScene {
         chemin: String,
         source: std::io::Error,
     },
+    #[error("tranches actives ({chemin}) : {message}")]
+    Tranches { chemin: String, message: String },
 }
 
 /// Une tranche du programme (`T1`, `T3`…), ordonnée par son numéro.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Tranche(pub u32);
-
-/// La tranche en cours. ★ `xtask` porte la même constante : une scène marquée `"depuis": "T3"`
-/// n'est ni rejouée ni comparée tant que cette valeur n'a pas atteint 3.
-pub const TRANCHE_COURANTE: Tranche = Tranche(1);
 
 impl Tranche {
     /// `T3` → `Tranche(3)`.
@@ -54,6 +52,31 @@ impl Tranche {
         }
         chiffres.parse().ok().map(Self)
     }
+}
+
+/// Lit les tranches actives dans `pixels/tranches.json` (`{"actives": ["T1", "T4"]}`).
+/// ★ Une seule source, lue aussi par `cargo xtask pixels` : une scène marquée `"depuis": "T4"` est
+/// rejouée et comparée dès que T4 est active, quel que soit l'état de T3. Fichier absent,
+/// illisible ou mal formé : ERREUR, jamais une liste vide silencieuse.
+pub fn lire_tranches(chemin: &std::path::Path) -> Result<Vec<Tranche>, ErreurScene> {
+    let erreur = |message: String| ErreurScene::Tranches {
+        chemin: chemin.display().to_string(),
+        message,
+    };
+    let texte = std::fs::read_to_string(chemin).map_err(|e| erreur(format!("lecture : {e}")))?;
+    let json: Value =
+        serde_json::from_str(&texte).map_err(|e| erreur(format!("JSON illisible : {e}")))?;
+    let liste = json["actives"]
+        .as_array()
+        .ok_or_else(|| erreur("le champ « actives » (liste) manque".to_owned()))?;
+    liste
+        .iter()
+        .map(|t| {
+            t.as_str()
+                .and_then(Tranche::parser)
+                .ok_or_else(|| erreur(format!("tranche {t} inconnue (attendu T1, T2, …)")))
+        })
+        .collect()
 }
 
 /// Taille d'une fenêtre, en pixels logiques, et facteur d'échelle.
@@ -389,9 +412,9 @@ pub struct Scene {
 }
 
 impl Scene {
-    /// Vrai si la scène relève d'une tranche postérieure à `courante` : ni rejouée ni comparée.
-    pub fn en_attente_de_tranche(&self, courante: Tranche) -> bool {
-        self.depuis.is_some_and(|d| d > courante)
+    /// Vrai si la tranche de la scène n'est pas active : ni rejouée ni comparée.
+    pub fn en_attente_de_tranche(&self, actives: &[Tranche]) -> bool {
+        self.depuis.is_some_and(|d| !actives.contains(&d))
     }
 
     /// La taille de l'image capturée : celle de la fenêtre de réglages si la scène en a une.
@@ -594,9 +617,42 @@ mod tests {
         assert_eq!(Tranche::parser("3"), None);
         assert_eq!(Tranche::parser("Tx"), None);
         let s = analyser_scene(r#"{"depuis":"T3"}"#, "t").unwrap();
-        assert!(s.en_attente_de_tranche(Tranche(1)));
-        assert!(!s.en_attente_de_tranche(Tranche(3)));
+        assert!(s.en_attente_de_tranche(&[Tranche(1)]));
+        assert!(!s.en_attente_de_tranche(&[Tranche(3)]));
+        // T4 active sans T3 : une scène « depuis T4 » est jouée, une « depuis T3 » attend.
+        let t4 = analyser_scene(r#"{"depuis":"T4"}"#, "t").unwrap();
+        let actives = [Tranche(1), Tranche(4)];
+        assert!(!t4.en_attente_de_tranche(&actives));
+        assert!(s.en_attente_de_tranche(&actives));
+        // Pas de « depuis » : toujours jouée.
+        assert!(
+            !analyser_scene("{}", "t")
+                .unwrap()
+                .en_attente_de_tranche(&[])
+        );
         assert!(analyser_scene(r#"{"depuis":"bientot"}"#, "t").is_err());
+    }
+
+    #[test]
+    fn les_tranches_actives_sont_lues_et_les_erreurs_sont_claires() {
+        let dossier = std::env::temp_dir().join(format!("tranches-app-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).unwrap();
+        let f = dossier.join("tranches.json");
+        std::fs::write(&f, r#"{"actives":["T1","T4"]}"#).unwrap();
+        assert_eq!(lire_tranches(&f).unwrap(), vec![Tranche(1), Tranche(4)]);
+        for mauvais in [r#"{"actives":["quatre"]}"#, "{ pas du json", "{}"] {
+            std::fs::write(&f, mauvais).unwrap();
+            assert!(lire_tranches(&f).is_err(), "{mauvais}");
+        }
+        let e = lire_tranches(&dossier.join("absent.json")).unwrap_err();
+        assert!(e.to_string().contains("absent.json"), "{e}");
+        let _ = std::fs::remove_dir_all(&dossier);
+    }
+
+    #[test]
+    fn le_fichier_du_depot_active_t1() {
+        let f = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../pixels/tranches.json");
+        assert!(lire_tranches(&f).unwrap().contains(&Tranche(1)));
     }
 
     #[test]

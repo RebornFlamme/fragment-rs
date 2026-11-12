@@ -23,9 +23,12 @@ tourne déjà sur 5123 (celui de l'utilisateur), il est RÉUTILISÉ tel quel, sa
 ## Schéma JSON
 Racine : `scene`, `window {width,height,dpr}`, `settings_window` (1000 × 700), `themes` (`dark`, `light` ;
 défaut `dark`), `vault`, `vue` (`app` par défaut, `mire`, `jouet`), `actions`, et :
-- `depuis` : `"T1"`, `"T7"`… la tranche à partir de laquelle la scène existe. `fragment-pixels` ne la
-  rejoue pas et `cargo xtask pixels` ne la compare pas avant (`TRANCHE_COURANTE`, dans
-  `crates/fragment-app/src/pixels/actions.rs` ET `xtask/src/pixels.rs` : la même valeur). Absent = toujours.
+- `depuis` : `"T1"`, `"T7"`… la tranche de la scène. `fragment-pixels` ne la rejoue pas et
+  `cargo xtask pixels` ne la compare pas tant que cette tranche n'est pas ACTIVE : les tranches actives
+  sont listées dans `pixels/tranches.json` (`{"actives": ["T1", "T4"]}`), lu par les deux outils ; T2, T3 et
+  T4 s'activent dans n'importe quel ordre (une scène `T4` est comparée dès que T4 est active, même sans T3).
+  Fichier absent ou illisible = erreur. `cargo xtask pixels --tranche T4` (répétable) force la liste.
+  Absent = toujours.
   Les scènes à décor note/PDF/chat sont marquées T7 (le chat), `annotation` T8, `reglages-editor` T3,
   `reglages-community-plugins` T10, `reglages-hotkeys` T11. `reglages-appearance` reste en attente (T7)
   tant que Fragment n'a pas prouvé qu'elle ne dépend pas du décor.
