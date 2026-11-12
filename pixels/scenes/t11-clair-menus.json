@@ -7,8 +7,8 @@
   "actions": [
     {"type":"click","x":150,"y":195},
     {"type":"wait","ms":500},
-    {"type":"click","x":120,"y":60,"button":"right"},
-    {"type":"hover","x":160,"y":100},
+    {"type":"click","x":500,"y":200,"button":"right"},
+    {"type":"hover","x":595,"y":288},
     {"type":"wait","ms":300}
   ]
 }

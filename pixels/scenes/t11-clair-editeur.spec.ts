@@ -7,8 +7,9 @@ sceneT11('t11-clair-editeur', async ({ act, capturer, sonde, p }) => {
     await act.click(150, 195);          // Accueil.md
     await p.waitForSelector('.doc-editor .cm-content:visible', { timeout: 15_000 });
     await act.wait(500);
-    // Le gel général coupe le caret : on le rend à l'éditeur seul.
-    await p.addStyleTag({ content: '.doc-editor .cm-content{caret-color:var(--text-normal)!important}' });
+    // Le gel général coupe le caret sur TOUS les éléments (`*`) : le caret prend la couleur de la ligne,
+    // pas celle de .cm-content ; on la rend donc aussi aux descendants, avec une spécificité plus haute.
+    await p.addStyleTag({ content: '.doc-editor .cm-content,.doc-editor .cm-content *{caret-color:var(--text-normal)!important}' });
     const ligne = await p.locator('.doc-editor .cm-content:visible .cm-line').first().boundingBox();
     if (!ligne) throw new Error('ligne de l\'éditeur introuvable');
     await sonde('ligne', p, '.doc-editor .cm-content:visible .cm-line');

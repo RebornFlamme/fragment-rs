@@ -7,6 +7,6 @@
   "actions": [
     {"type":"click","x":150,"y":195},
     {"type":"wait","ms":500},
-    {"type":"click","x":300,"y":60}
+    {"type":"click","x":520,"y":200}
   ]
 }
