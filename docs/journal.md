@@ -715,3 +715,10 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Repris : t11scenes, dernier au verrou.
   - fr-p3.1 et fr-t11-reglages restent bloquées par le partage de `boites.rs` et de `reglages/` avec fr-t1.5 (#49) : départ après sa fusion.
   - Actifs : shell7, widgetsinline, t3scenesb, t3scenesc, t4scenes, t11scenes.
+- 22:04 UTC : fr-t1.5, décision du chef. Exception NOMMÉE temporaire « demi-couverture de la ligne de base », accordée.
+  - Portée : t1-zoom-150-light seulement, boîte y=52 et x de 54 à 1280, delta ≤ 1 quand la référence vaut 0,5 de couverture.
+  - Cliquet : 550 px. Contre-épreuves : delta 2, lignes voisines, autres PNG.
+  - Cause : Chromium (raster GPU) arrondit tantôt 221, tantôt 222 sur une couverture d'exactement 0,5. C'est du bruit, même famille que 221/222.
+  - À REMONTER avec T1.
+  - #49 à 38/42. Restent : icônes et texte de la barre d'état à ±1 px, et le côté de l'onglet actif à 150 %.
+  - Priorité au verrou pour shell7. t3scenesc, t4scenes et t11scenes suspendus, à relancer par le chef.
