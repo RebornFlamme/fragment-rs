@@ -19,7 +19,7 @@ use super::{
     Marque, WidgetEnLigne, curseur_actif, touches,
 };
 use crate::syntaxe::modele_rangees::{HauteurLigne, PoliceLigne};
-use crate::syntaxe::{Arbre, Etendue, Genre, Noeud, Parcours};
+use crate::syntaxe::{Arbre, Etendue, Genre, Noeud, Parcours, Plage};
 
 fn re(motif: &str) -> Regex {
     Regex::new(motif).unwrap_or_else(|_| unreachable!("motif constant invalide : {motif}"))
@@ -41,7 +41,29 @@ static SCHEMA: LazyLock<Regex> = LazyLock::new(|| re(r"(?i)^[a-z][a-z0-9+.-]*://
 /// Les décorations de `texte` (analysé en `arbre`) pour ce curseur et ce contexte.
 #[must_use]
 pub fn calculer(texte: &str, arbre: &Arbre, curseur: &Curseur, ctx: &Contexte) -> Decorations {
-    let idx = IndexLignes::new(texte);
+    calculer_dans(texte, IndexLignes::new(texte), arbre, curseur, ctx)
+}
+
+/// [`calculer`], avec les lignes logiques de `texte` déjà connues (`lignes_de(texte)`) : un éditeur
+/// qui les tient à jour à chaque frappe évite de relire tout le texte (fr-t3.4).
+#[must_use]
+pub fn calculer_avec_lignes(
+    texte: &str,
+    lignes: &[Plage],
+    arbre: &Arbre,
+    curseur: &Curseur,
+    ctx: &Contexte,
+) -> Decorations {
+    calculer_dans(texte, IndexLignes::avec(texte, lignes), arbre, curseur, ctx)
+}
+
+fn calculer_dans(
+    texte: &str,
+    idx: IndexLignes,
+    arbre: &Arbre,
+    curseur: &Curseur,
+    ctx: &Contexte,
+) -> Decorations {
     let principale = curseur.selections.first().copied().unwrap_or_default();
     let (a, b) = (
         principale.from.min(principale.to),

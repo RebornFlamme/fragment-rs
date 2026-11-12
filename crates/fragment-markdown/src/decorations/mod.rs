@@ -28,7 +28,7 @@ mod calcul;
 mod index_lignes;
 pub mod styles;
 
-pub use calcul::calculer;
+pub use calcul::{calculer, calculer_avec_lignes};
 pub use styles::{StyleLigne, StyleMarque};
 
 use crate::syntaxe::modele_rangees::ModeleRangees;

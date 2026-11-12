@@ -1,0 +1,20 @@
+# Parité de fr-t3.4 (fragment-ui) : l'éditeur du live preview mis à jour par régions.
+# Fragment n'a pas d'équivalent : CodeMirror recalcule ses décorations sur le viewport. Ici, la
+# projection couvre le document ENTIER (hauteurs hors écran exactes), tenue à jour par blocs de
+# tête. Tous les tests sont AJOUTÉS : l'oracle compare l'incrémental au calcul complet.
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (recalcul des décorations à chaque transaction)"
+rs = "crates/fragment-ui/src/editeur/modele.rs (Projeteur, Decalage, lignes_apres), crates/fragment-ui/src/editeur/changement.rs (changement_par_morceaux)"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "incremental_egal_au_complet (600 éditions et déplacements aléatoires, projection IDENTIQUE au calcul complet, lignes décalées identiques à lignes_de), incremental_egal_au_complet_avec_un_complement, premier_focus_et_deplacement_sans_effet, par_morceaux_comme_entre (2 000 textes, découpages arbitraires). Temps 10k en release (portable chargé, médianes) : frappe 40 → 10,6 ms, curseur 21,5 → 7,9 ms, défilement 8,3 → 6,6 ms ; seuil 16 ms vérifié par le job CI editeur-release. Reste par frappe ≈ 7 ms dans le traitement de l'entrée par le fork lui-même."
+
+[[module]]
+ts = "(crochets des tâches aval fr-t3-widgets-inline et fr-t3-widgets-blocs)"
+rs = "crates/fragment-ui/src/editeur/element.rs (set_calque, set_largeurs_widgets, poser_complement, reprojeter_maintenant, OptionsEditeur::fond_transparent)"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "le_calque_est_rendu_par_dessus_l_editeur, les_largeurs_des_widgets_sont_gardees, le_complement_des_rangees_s_applique_et_se_retire, fond_transparent_ne_pose_aucun_fond (tests/editeur.rs). set_largeurs_widgets ne fait que stocker : le fork n'a pas encore set_widget_ranges."

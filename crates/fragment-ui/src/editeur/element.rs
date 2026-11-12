@@ -22,7 +22,7 @@ use std::rc::Rc;
 use fragment_markdown::decorations::{Contexte, Revelation};
 use fragment_markdown::syntaxe::imbrique::Imbrique;
 use fragment_markdown::syntaxe::modele_rangees::{ArgumentsFork, Plage, lignes_de};
-use fragment_markdown::syntaxe::{Arbre, Changement, Etendue};
+use fragment_markdown::syntaxe::{Arbre, Etendue};
 use fragment_text::editor::EditorChange;
 use fragment_theme::{Mode, Theme};
 use gpui_kit::base::input::{
@@ -36,7 +36,10 @@ use gpui_kit::{
 
 use super::constantes::{INTERLIGNE_TEXTE, MARGE_CONTENU_VERTICALE, debut_texte, fin_texte};
 use super::jetons::couleur_selection;
-use super::modele::{Changements, ComplementRangees, Decalage, Entree, Projection, Projeteur};
+use super::modele::{
+    Changements, ComplementRangees, Decalage, Entree, Projection, Projeteur, lignes_apres,
+    vers_utf16,
+};
 use super::surface::SurfaceLive;
 use crate::polices::FAMILLE_INTERFACE;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -282,13 +285,15 @@ impl EditeurLive {
     ) {
         match ev {
             InputEvent::Change => {
-                let nouveau = etat.read(cx).value().to_string();
-                if nouveau == self.texte {
+                let (c, insere) = {
+                    let morceaux: Vec<&str> = etat.read(cx).text().chunks().collect();
+                    super::changement::changement_par_morceaux(&self.texte, &morceaux)
+                };
+                if c.de == c.fin_ancien && c.de == c.fin_nouveau {
                     return;
                 }
-                let c = Changement::entre(&self.texte, &nouveau);
-                let remplacement =
-                    super::changement::Remplacement::depuis(&self.texte, &nouveau, c);
+                let mut nouveau = self.texte.clone();
+                nouveau.replace_range(c.de..c.fin_ancien, &insere);
                 // ★ Les deux analyses incrémentales CONSOMMENT l'ancien arbre : on le remplace
                 //   le temps de l'appel par l'arbre (vide, immédiat) d'un texte vide.
                 let ancien = std::mem::replace(&mut self.arbre, Arbre::analyser(""));
@@ -296,7 +301,14 @@ impl EditeurLive {
                 let vide = Imbrique::analyser("", &Arbre::analyser(""));
                 let ancienne = std::mem::replace(&mut self.imbrique, vide);
                 self.imbrique = ancienne.reanalyser(&nouveau, &self.arbre, c);
-                let lignes = lignes_de(&nouveau);
+                let lignes = lignes_apres(&self.lignes, &nouveau, c);
+                // ★ Les positions UTF-16 par les lignes : `Remplacement::depuis` recompte le
+                //   texte entier, trois fois.
+                let remplacement = super::changement::Remplacement {
+                    de: vers_utf16(&self.texte, &self.lignes, c.de),
+                    fin_ancien: vers_utf16(&self.texte, &self.lignes, c.fin_ancien),
+                    fin_nouveau: vers_utf16(&nouveau, &lignes, c.fin_nouveau),
+                };
                 let decalage = Decalage::new(&self.texte, &self.lignes, &nouveau, &lignes, c);
                 self.lignes = lignes;
                 self.texte = nouveau;

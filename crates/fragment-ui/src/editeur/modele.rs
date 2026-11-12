@@ -169,12 +169,55 @@ fn ligne_de(lignes: &[Plage], o: usize) -> usize {
 }
 
 /// L'octet `o` en UTF-16, par la ligne qui le contient (sans reparcourir le texte depuis 0).
-fn vers_utf16(texte: &str, lignes: &[Plage], o: usize) -> usize {
+#[must_use]
+pub fn vers_utf16(texte: &str, lignes: &[Plage], o: usize) -> usize {
     let Some(p) = lignes.get(ligne_de(lignes, o)) else {
         return 0;
     };
     let fin = o.clamp(p.octets.from, p.octets.to);
     p.utf16.from + utf16_len(texte.get(p.octets.from..fin).unwrap_or("")) + (o - fin)
+}
+
+/// Les lignes logiques du nouveau texte, déduites de celles de l'ancien : seules les lignes touchées
+/// par `c` sont relues, les suivantes sont décalées. Identique à `lignes_de(nouveau)`.
+///
+/// ★ `lignes_de` relit tout le texte (et compte l'UTF-16 de chaque caractère) : ≈ 1 ms par frappe
+///   sur 10 000 lignes en release, pour des lignes qui n'ont presque toutes pas changé.
+#[must_use]
+pub fn lignes_apres(anciennes: &[Plage], nouveau: &str, c: Changement) -> Vec<Plage> {
+    let (l0, l1) = (ligne_de(anciennes, c.de), ligne_de(anciennes, c.fin_ancien));
+    let (Some(p0), Some(p1)) = (anciennes.get(l0), anciennes.get(l1)) else {
+        return lignes_de(nouveau);
+    };
+    // La zone touchée : du début de `l0` à la fin de `l1`, décalée de l'édition.
+    let (debut, fin) = (p0.octets.from, p1.octets.to - c.fin_ancien + c.fin_nouveau);
+    let mut res = Vec::with_capacity(anciennes.len() + 1);
+    res.extend_from_slice(&anciennes[..l0]);
+    let (mut octet, mut u16) = (debut, p0.utf16.from);
+    for l in nouveau.get(debut..fin).unwrap_or("").split('\n') {
+        let n16 = utf16_len(l);
+        res.push(Plage {
+            utf16: Etendue::new(u16, u16 + n16),
+            octets: Etendue::new(octet, octet + l.len()),
+        });
+        octet += l.len() + 1;
+        u16 += n16 + 1;
+    }
+    // Les suivantes : décalées, sans arithmétique signée (elles sont toutes au-delà de `l1`).
+    let (fin16, ancien_fin16) = (u16 - 1, p1.utf16.to);
+    for p in &anciennes[l1 + 1..] {
+        res.push(Plage {
+            utf16: Etendue::new(
+                p.utf16.from - ancien_fin16 + fin16,
+                p.utf16.to - ancien_fin16 + fin16,
+            ),
+            octets: Etendue::new(
+                p.octets.from - p1.octets.to + fin,
+                p.octets.to - p1.octets.to + fin,
+            ),
+        });
+    }
+    res
 }
 
 /// Ce que devient une position de l'ancien texte après une édition : ce qui précède les lignes
@@ -444,30 +487,27 @@ fn regions(
     fusion
 }
 
-/// Remplace dans `liste` (triée par `cle`) les éléments que `dans` désigne par `nouveaux`, et rend
-/// vrai si ce qui a été retiré diffère de ce qui est posé.
+/// Remplace dans `liste` les éléments dont la position (`pos`) tombe dans l'une des `bornes`
+/// (triées, disjointes, bornes comprises) par `nouveaux`, et rend vrai si ce qui a été retiré
+/// diffère de ce qui est posé. `liste` et `nouveaux` sont triés d'abord par `pos`.
 ///
-/// ★ Tri STABLE : à clé égale, l'ordre est celui du calcul complet (les éléments retirés et posés
-///   viennent des mêmes régions, les autres n'ont jamais la même clé qu'eux).
-fn remplacer<T: PartialEq, K: Ord>(
+/// ★ Un `splice` par région, pas un tri : les éléments d'une région sont CONTIGUS dans la liste
+///   triée, et l'ordre de `nouveaux` (à position égale) est celui du calcul complet.
+fn remplacer<T: PartialEq>(
     liste: &mut Vec<T>,
-    nouveaux: Vec<T>,
-    dans: impl Fn(&T) -> bool,
-    cle: impl Fn(&T) -> K,
+    mut nouveaux: Vec<T>,
+    pos: impl Fn(&T) -> usize,
+    bornes: &[(usize, usize)],
 ) -> bool {
-    let mut retires = Vec::new();
-    let mut garde = Vec::with_capacity(liste.len() + nouveaux.len());
-    for x in liste.drain(..) {
-        if dans(&x) {
-            retires.push(x);
-        } else {
-            garde.push(x);
-        }
+    let mut change = false;
+    for &(a, b) in bornes.iter().rev() {
+        let debut = nouveaux.partition_point(|x| pos(x) < a);
+        let part: Vec<T> = nouveaux.drain(debut..).collect();
+        let lo = liste.partition_point(|x| pos(x) < a);
+        let hi = lo + liste[lo..].partition_point(|x| pos(x) <= b);
+        change |= liste[lo..hi] != part[..];
+        liste.splice(lo..hi, part);
     }
-    let change = retires != nouveaux;
-    garde.extend(nouveaux);
-    garde.sort_by_key(cle);
-    *liste = garde;
     change
 }
 
@@ -614,7 +654,7 @@ impl Projeteur {
         let mut neuves = if visibles.is_empty() {
             Decorations::default()
         } else {
-            decorations::calculer(e.texte, e.arbre, &curseur, &ctx)
+            decorations::calculer_avec_lignes(e.texte, e.lignes, e.arbre, &curseur, &ctx)
         };
         // Le parcours visite aussi les nœuds qui TOUCHENT une région par sa borne : on ne garde que
         // ce qui commence dedans.
@@ -629,12 +669,16 @@ impl Projeteur {
         neuves.widgets.retain(|w| dans_octets(w.source.octets.from));
 
         let mut marques = styler_marques(&neuves, e.theme);
+        // ★ `jetons()` plutôt que `jetons_dans` : celui-ci recompte l'UTF-16 depuis le début du
+        //   texte, dont on n'a pas besoin (le fork lit des octets).
+        let mut jetons = e.imbrique.jetons().peekable();
         for &(a, b) in &octets {
-            marques.extend(
-                styler_jetons(e.imbrique, e.texte, a, b + 1, e.theme)
-                    .into_iter()
-                    .filter(|(r, _)| a <= r.start && r.start <= b),
-            );
+            while jetons.next_if(|(x, _)| x.from < a).is_some() {}
+            while let Some((x, j)) = jetons.next_if(|(x, _)| x.from <= b) {
+                if !x.is_empty() {
+                    marques.push((x.range(), jetons::style_code(e.theme, j)));
+                }
+            }
         }
         marques.sort_by_key(|(r, _)| (r.start, r.end));
         let lignes = styler_lignes(&neuves, e.lignes, e.theme);
@@ -644,52 +688,37 @@ impl Projeteur {
         remplacer(
             &mut d.rangees.masques,
             neuves.rangees.masques,
-            |m| dans_octets(m.octets.from),
-            |m| (m.octets.from, m.octets.to),
+            |m| m.octets.from,
+            &octets,
         );
         remplacer(
             &mut d.rangees.hauteurs,
             neuves.rangees.hauteurs,
-            |h| dans_lignes(h.ligne),
             |h| h.ligne,
+            &regions,
         );
         remplacer(
             &mut d.rangees.polices,
             neuves.rangees.polices,
-            |p| dans_lignes(p.ligne),
             |p| p.ligne,
+            &regions,
         );
         remplacer(
             &mut d.marques,
             neuves.marques,
-            |m| dans_octets(m.plage.octets.from),
-            |m| (m.plage.octets.from, m.plage.octets.to, m.genre),
+            |m| m.plage.octets.from,
+            &octets,
         );
-        remplacer(
-            &mut d.lignes,
-            neuves.lignes,
-            |l| dans_lignes(l.ligne),
-            |l| (l.ligne, l.genre),
-        );
+        remplacer(&mut d.lignes, neuves.lignes, |l| l.ligne, &regions);
         remplacer(
             &mut d.widgets,
             neuves.widgets,
-            |w| dans_octets(w.source.octets.from),
-            |w| (w.source.octets.from, w.source.octets.to),
+            |w| w.source.octets.from,
+            &octets,
         );
         let changements = Changements {
-            marques: remplacer(
-                &mut p.marques,
-                marques,
-                |(r, _)| dans_octets(r.start),
-                |(r, _)| (r.start, r.end),
-            ),
-            lignes: remplacer(
-                &mut p.lignes,
-                lignes,
-                |(r, _)| dans_octets(r.start),
-                |(r, _)| r.start,
-            ),
+            marques: remplacer(&mut p.marques, marques, |(r, _)| r.start, &octets),
+            lignes: remplacer(&mut p.lignes, lignes, |(r, _)| r.start, &octets),
         };
         let ctx = Contexte {
             visibles: &[],
@@ -848,7 +877,8 @@ mod tests {
             let vide = Imbrique::analyser("", &analyser(""));
             let ancienne = std::mem::replace(&mut self.imbrique, vide);
             self.imbrique = ancienne.reanalyser(&nouveau, &self.arbre, c);
-            let lignes = lignes_de(&nouveau);
+            let lignes = lignes_apres(&self.lignes, &nouveau, c);
+            assert_eq!(lignes, lignes_de(&nouveau), "lignes décalées");
             let d = Decalage::new(&self.texte, &self.lignes, &nouveau, &lignes, c);
             self.texte = nouveau;
             self.lignes = lignes;
