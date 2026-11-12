@@ -729,3 +729,9 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - #86 (widgets de bloc) rebasée par le chef sur main, après le squash de #87 : sans conflit, poussée, CI relancée.
   - #83 : 6 jobs verts sur 7. #49 en CI.
   - Verrou de capture : tenu par t3scenesb. Viennent ensuite shell7 (priorité T1), puis t4scenes, puis t3scenesc et t11scenes, que le chef relancera.
+- 22:54 UTC : fr-t1.5, 2e exception NOMMÉE temporaire « icône en hairline », accordée.
+  - Portée : t1-zoom-80-dark seulement, 2 boîtes. Seul le garde-fou d'encre est levé, jusqu'à ±30 %. Cliquet à 0,279 et 0,266.
+  - Cause : Skia trace un trait de moins d'un pixel en hairline, sans bouts ronds ; resvg l'arrondit.
+  - Dette « rastériseur hairline » ajoutée à fr-p4.1. À REMONTER avec T1.
+  - Run 43321311615 : zoom-150 ne manque plus que de bases ; zoom-80 clair a son correctif en CI.
+  - Mergées #83 (fragment-maths) et #87. #86 et #88 rebasées par le chef sur main, CI en cours. #89 (fr-t11-reglages) en CI ; branchement dans fenetre.rs : fr-t11.1, après #49.
