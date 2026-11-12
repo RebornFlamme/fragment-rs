@@ -591,3 +591,23 @@ Pause décidée par l'utilisateur (« j'ai besoin de crédits ce soir »), trans
 4. Relancer des équipiers neufs sur #70, #74, #75 et S7, selon leurs notes. Créer le bead des jetons de recherche PDF, et un bead bug pour l'inversion rouge/bleu s'il se confirme.
 5. Livraison de T1 à la fusion de #49 : artefact de `build.yml` et dettes listées en vague 9.
 **Part et rythme** : (97 − 44) ÷ 46,4 h ≈ 1,15 point par heure à la reprise.
+
+## Vague 11 (reprise) — 12/11/2026 18:27 UTC — usage 5h 4 % (reset 22:30) / semaine 47 %
+Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
+- Nouvelles règles :
+  - jusqu'à 7 équipiers ;
+  - Opus sur le dur ;
+  - fenêtre 5 h : lancer jusqu'à 80 %, pause à 90 %, réveil juste après le reset puis relance.
+- Battement 03e3df26 reposé (minute 17), vérifié par CronList.
+- Fusionnée : #73 (fr-t2-explorateur). 7 jobs verts, audit à 0. Bead fermé, worktree retiré.
+- Décisions sur fr-t1.5 :
+  - (a) exception NOMMÉE temporaire « N coupé ClearType », bornée à la boîte du glyphe, en cliquet, à remonter avec T1 ;
+  - (b) pas d'exception : l'ombre du menu d'onglet passe par l'ombre CPU de #56.
+- Décision sur fr-t4-laterale-ui : ajouts à `tree_item/rendu.rs` acceptés (`Ligne::flair`, `sur_chevron`).
+- Décision sur fr-t4-recherche-ui : ses jetons de surlignage sont ajoutés dans la même PR.
+- Règles communes des équipiers écrites dans `C:/dev/fragment-rs-regles-equipier.md` (hors dépôt) ; les briefs y renvoient.
+- Lancés (7) :
+  - Opus : shell6 (fr-t1.5), surface2 (fr-t3-surface, test-windows rouge), raster2 (S7, puis le bug rouge/bleu suspecté) ;
+  - Sonnet : laterale2, rechercheui2, explactions (fr-t2-explorateur-actions), t2scenes (fr-t2-scenes).
+- ★ Un clear du chef tue les équipiers locaux en cours. Le clear (contexte ≈ 275k) attend donc la fin de cette vague. Plus aucun lancement au-delà de 300k : les places libérées restent vides jusqu'au clear.
+**Rythme** : (97 − 47) ÷ 23,5 h ≈ 2,1 points par heure.
