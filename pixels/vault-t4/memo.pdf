@@ -1,0 +1,83 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [ 5 0 R 7 0 R 9 0 R ] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 300 420 ] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 282 >>
+stream
+BT /F2 15 Tf 40 350 Td (Mémo de passation) Tj ET
+0.6 w 40 338 m 260 338 l S
+BT /F1 12 Tf 16 TL 40 308 Td
+(Les clés sont dans le tiroir du) Tj
+T* (bureau, sous le registre.) Tj
+T* () Tj
+T* (Penser à relever le baromètre avant) Tj
+T* (la relève.) Tj
+ET
+BT /F1 9 Tf 144 24 Td (1) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 300 420 ] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 205 >>
+stream
+BT /F2 15 Tf 40 350 Td (Contacts) Tj ET
+0.6 w 40 338 m 260 338 l S
+BT /F1 12 Tf 16 TL 40 308 Td
+(Le capitaine du port répond de sept) Tj
+T* (heures à dix-neuf heures.) Tj
+ET
+BT /F1 9 Tf 144 24 Td (2) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [ 0 0 300 420 ] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 10 0 R >>
+endobj
+10 0 obj
+<< /Length 198 >>
+stream
+BT /F2 15 Tf 40 350 Td (Liste de contrôle) Tj ET
+0.6 w 40 338 m 260 338 l S
+BT /F1 12 Tf 16 TL 40 308 Td
+(Lampe, générateur, cloche de brume,) Tj
+T* (jumelles.) Tj
+ET
+BT /F1 9 Tf 144 24 Td (3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Title (Mémo de passation) /Producer (fragment-rs pixels) >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000129 00000 n 
+0000000226 00000 n 
+0000000328 00000 n 
+0000000466 00000 n 
+0000000799 00000 n 
+0000000937 00000 n 
+0000001193 00000 n 
+0000001332 00000 n 
+0000001582 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R /Info 11 0 R >>
+startxref
+1662
+%%EOF
