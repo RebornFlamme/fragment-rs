@@ -1,0 +1,11 @@
+# Parité de fr-t3.5 (fragment-ui) : l'interligne exact de l'éditeur (ADR-015). Aucun cas TS : le cas
+# vient du bead (position de la ligne 100). Solde la dette « GPUI arrondit l'interligne » de
+# fr-t3-surface.toml.
+
+[[module]]
+ts = "app/src/ui/views/markdown/editor.css (thème de base de CodeMirror : .cm-scroller { line-height: 1.4 })"
+rs = "vendor/gpui-base/src/input/base/element.rs (exact_line_height), vendor/gpui-base/src/input/base/state.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "interligne_fractionnaire_ligne_100 (tests/interligne.rs) : ligne 100 à 100 × 22,4 = 2 240 px de la ligne 0, 22,4 px entre 99 et 100 après défilement ; titre_plus_grand attend 22,4 (et non plus 22). Risque suivi : fonds (sélection, ligne active) à des ordonnées fractionnaires, anticrénelés par GPUI là où Chromium les cale au pixel ; à juger aux scènes T3 avec sélection."
