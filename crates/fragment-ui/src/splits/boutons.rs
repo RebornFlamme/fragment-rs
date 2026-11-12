@@ -91,10 +91,10 @@ fn trait_reduire(
                 for (ligne, couverture) in
                     geometrie::couvertures_filet(f64::from(yc - w / 2.0), f64::from(yc + w / 2.0))
                 {
-                    let mut t = teinte;
+                    let alpha = alpha_au_calque(f64::from(w), couverture, f64::from(opacite));
+                    let mut t = source_premultipliee(teinte, alpha);
                     // GPUI multiplie encore par l'opacité du bouton : on la retire de la cible.
-                    t.a *= alpha_au_calque(f64::from(w), couverture, f64::from(opacite)) as f32
-                        / opacite;
+                    t.a = alpha as f32 / opacite;
                     let y = ligne as f32;
                     window.paint_quad(fill(Bounds::from_corners(pt(c0, y), pt(c1, y + 1.0)), t));
                 }
@@ -124,6 +124,28 @@ fn alpha_au_calque(epaisseur: f64, couverture: f64, opacite: f64) -> f64 {
     let octet = |v: f64| (v.clamp(0.0, 1.0) * 255.0).round() as u32;
     let skia = mul_div_255(octet(epaisseur), octet(couverture));
     f64::from(mul_div_255(skia, octet(opacite))) / 255.0
+}
+
+/// ★ La couleur à donner à GPUI pour que son mélange flottant (`c × a + fond × (1 − a)`, arrondi à
+/// la fin) rende celui de Chromium, dont la source est PRÉMULTIPLIÉE à l'octet : `⌊c × A / 255⌉ +
+/// fond × (255 − A) / 255`. Chaque canal devient `⌊c × A / 255⌉ / A`. Mesuré au croisement du « − »
+/// et du trait de la poignée (`t1-boutons-fenetre` sombre, (1166,16) : 86, 85, 87) : aucun alpha
+/// unique ne rendait les trois canaux sur les deux fonds.
+fn source_premultipliee(teinte: gpui_kit::Rgba, alpha: f64) -> gpui_kit::Rgba {
+    let a = (alpha * 255.0).round();
+    if a <= 0.0 {
+        return teinte;
+    }
+    let canal = |c: f32| {
+        let p = (f64::from(c.clamp(0.0, 1.0)) * 255.0).round() * a / 255.0;
+        (p.round() / a) as f32
+    };
+    gpui_kit::Rgba {
+        r: canal(teinte.r),
+        g: canal(teinte.g),
+        b: canal(teinte.b),
+        a: teinte.a,
+    }
 }
 
 /// Le conteneur des trois boutons, en haut à droite de la fenêtre.
@@ -210,6 +232,29 @@ mod tests {
         assert_eq!(
             [mel(232.0, 26.0), mel(231.0, 27.0), mel(225.0, 30.0)],
             [178.0, 177.0, 174.0]
+        );
+        // Source prémultipliée : les deux fonds du croisement (fond sombre, trait de poignée).
+        let s = source_premultipliee(
+            gpui_kit::Rgba {
+                r: 223.0 / 255.0,
+                g: 222.0 / 255.0,
+                b: 217.0 / 255.0,
+                a: 1.0,
+            },
+            a,
+        );
+        let gpui = |c: f32, f: f64| (f64::from(c) * a * 255.0 + f * (1.0 - a)).round();
+        assert_eq!(
+            [gpui(s.r, 14.0), gpui(s.g, 15.0), gpui(s.b, 17.0)],
+            [69.0, 69.0, 70.0]
+        );
+        assert_eq!(
+            [gpui(s.r, 36.0), gpui(s.g, 37.0), gpui(s.b, 41.0)],
+            [86.0, 85.0, 87.0]
+        );
+        assert_eq!(
+            [gpui(s.r, 33.0), gpui(s.g, 34.0), gpui(s.b, 38.0)],
+            [83.0, 83.0, 85.0]
         );
         // Survolé (opacité 1) : 112/255.
         assert!((alpha_au_calque(0.875, 0.5, 1.0) - 112.0 / 255.0).abs() < 1e-9);
