@@ -205,6 +205,20 @@ impl EditeurLive {
         self.largeurs_widgets = l;
     }
 
+    /// Comme [`Self::set_largeurs_widgets`], et pose AUSSI les largeurs sur le fork
+    /// (`set_widget_ranges`, ADR-006) : le texte qui suit chaque plage se décale de sa largeur.
+    /// Sans effet si la liste est inchangée. Ajout de `fr-t3-widgets-inline`.
+    pub fn poser_largeurs_widgets(&mut self, l: Vec<(Range<usize>, f32)>, cx: &mut Context<Self>) {
+        if self.largeurs_widgets == l {
+            return;
+        }
+        let pour_fork: Vec<_> = l.iter().map(|(r, w)| (r.clone(), px(*w))).collect();
+        self.largeurs_widgets = l;
+        self.etat
+            .update(cx, |s, cx| s.set_widget_ranges(pour_fork, cx));
+        cx.notify();
+    }
+
     /// Les largeurs posées par [`Self::set_largeurs_widgets`].
     #[must_use]
     pub fn largeurs_widgets(&self) -> &[(Range<usize>, f32)] {
@@ -251,6 +265,12 @@ impl EditeurLive {
     #[must_use]
     pub fn a_le_focus(&self) -> bool {
         self.focus
+    }
+
+    /// L'éditeur est-il en lecture seule ? (ajout de `fr-t3-widgets-inline` : une case ne bascule pas)
+    #[must_use]
+    pub fn lecture_seule(&self) -> bool {
+        self.options.lecture_seule
     }
 
     /// La taille du texte, en pixels logiques.

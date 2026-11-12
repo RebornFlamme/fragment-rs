@@ -436,13 +436,41 @@ impl DisplayMap {
         self.row_model = RowModel {
             line_heights: line_heights.into(),
             blocks: blocks.into(),
-            font_sizes: self.row_model.font_sizes.clone(),
+            hidden: hidden.into(),
+            ..self.row_model.clone()
         };
-        let metrics: std::rc::Rc<[(Range<usize>, Pixels)]> = hidden
-            .into_iter()
-            .map(|r| (r, gpui::px(0.)))
-            .collect::<Vec<_>>()
-            .into();
+        self.refresh_inline_metrics(cx);
+    }
+
+    /// Plages de widgets en ligne (largeur dictée). Voir `InputBaseState::set_widget_ranges`.
+    pub fn set_widget_ranges(&mut self, mut widgets: Vec<(Range<usize>, Pixels)>, cx: &mut App) {
+        widgets.retain(|(r, _)| r.start < r.end);
+        widgets.sort_by_key(|(r, _)| r.start);
+        let mut last_end = 0;
+        widgets.retain(|(r, _)| {
+            let keep = r.start >= last_end;
+            if keep {
+                last_end = r.end;
+            }
+            keep
+        });
+        self.row_model.widgets = widgets.into();
+        self.refresh_inline_metrics(cx);
+    }
+
+    /// Fusionne masques (largeur 0) et widgets (largeur dictée) en métriques d'éléments pour le
+    /// wrapper, comme il le fait pour un jeton. Un widget qui chevauche un masque est ignoré.
+    fn refresh_inline_metrics(&mut self, cx: &mut App) {
+        let hidden = self.row_model.hidden.clone();
+        let mut metrics: Vec<(Range<usize>, Pixels)> =
+            hidden.iter().map(|r| (r.clone(), gpui::px(0.))).collect();
+        for (r, w) in self.row_model.widgets.iter() {
+            if !hidden.iter().any(|h| h.start < r.end && r.start < h.end) {
+                metrics.push((r.clone(), *w));
+            }
+        }
+        metrics.sort_by_key(|(r, _)| r.start);
+        let metrics: std::rc::Rc<[(Range<usize>, Pixels)]> = metrics.into();
         // Le wrapper traite une plage masquée comme un élément de largeur 0 (comme un jeton).
         self.set_inline_metrics(metrics, cx);
     }

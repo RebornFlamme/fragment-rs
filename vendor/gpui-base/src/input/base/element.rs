@@ -2666,7 +2666,7 @@ impl<M: InputModeKind> TextElement<M> {
                     let mut offset = range.start;
                     let mut x = px(0.);
                     let first = hidden.partition_point(|(r, _)| r.end <= line_start + range.start);
-                    for (hidden_range, _) in hidden[first..]
+                    for (hidden_range, largeur) in hidden[first..]
                         .iter()
                         .take_while(|(r, _)| r.start < line_start + range.end)
                     {
@@ -2688,9 +2688,11 @@ impl<M: InputModeKind> TextElement<M> {
                         fragments.push(InlineFragment {
                             range: start - range.start..end - range.start,
                             x,
-                            width: px(0.),
+                            // ★ fragment-rs : 0 pour un masque, la largeur dictée pour un widget.
+                            width: *largeur,
                             text: None,
                         });
+                        x += *largeur;
                         offset = end;
                     }
                     if offset < range.end {

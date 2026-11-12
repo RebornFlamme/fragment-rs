@@ -19,6 +19,8 @@ fragment-text = { path = "../fragment-text" }
 fragment-markdown = { path = "../fragment-markdown" }
 fragment-pdf = { path = "../fragment-pdf" }
 fragment-cli = { path = "../fragment-cli" }
+# Les maths en ligne (ADR-011) : MathJax dans QuickJS, sans gpui-kit.
+fragment-maths = { path = "../fragment-maths" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true
