@@ -4,6 +4,9 @@
 import { sceneT3b } from './_t3b';
 
 sceneT3b('t3-proprietes-menu', 'proprietes.md', async ({ act, p, capturer, sonde }) => {
+    // ★ Un menu resté ouvert par le thème précédent masquerait celui-ci : on referme d'abord.
+    await act.key('Escape');
+    await p.waitForFunction(() => document.querySelectorAll('.menu').length === 0);
     await act.click(344, 270);
     await p.waitForSelector('.menu-item', { timeout: 3_000 });
     const item = p.locator('.menu-item', { hasText: 'Property type' });
@@ -16,4 +19,5 @@ sceneT3b('t3-proprietes-menu', 'proprietes.md', async ({ act, p, capturer, sonde
     await sonde('sous-menu', '.menu', 1);
     await act.wait(200);
     await capturer();
+    await act.key('Escape');
 });
