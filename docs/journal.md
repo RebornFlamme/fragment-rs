@@ -659,3 +659,10 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
     - Gestionnaire et sélecteur : PNG sans JSON, laissés à fr-t2-gestionnaire.
   - Beads fermés, worktrees et dossiers cible retirés.
   - Lancée : fr-t3-scenes-b (Sonnet). Actifs : shell6, surface2, t3scenesa, t4scenes, lcd, kit09, t3scenesb.
+- 19:55 UTC : fusionnée #81 (fr-t4.2, texte LCD). 7 jobs verts, audit à 0.
+  - Chiffres S7 rejoués pour le texte, pixels de delta > 32 à 50, 100 et 200 % : 13,23 / 10,88 / 5,80 % avant, 10,10 / 8,44 / 4,21 % après.
+  - Toutes les zones passent sous les seuils d'ADR-014.
+  - #82 (fr-p3-gpui-kit-0.9 : 0.9.1, fork rebasé sans conflit, licences compatibles MIT) : pixels et test-windows en attente.
+    - Texte de la PR amont prêt dans ADR-006 : à soumettre à l'utilisateur, par l'orchestrateur.
+  - Lancée : fr-t3-scenes-c (Sonnet).
+  - Actifs : shell6, surface2, t3scenesa, t4scenes, t3scenesb, t3scenesc, kit09 (fini, attend la CI).
