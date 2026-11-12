@@ -25,7 +25,7 @@ unicode-normalization = "0.1"
 #   gpui-kit (types incompatibles). `quickjs` (le moteur) + `components` (le catalogue gpui-component).
 [target.'cfg(windows)'.dev-dependencies]
 gpui-kit = { workspace = true, features = ["test-support"] }
-gpui-shell = { version = "=0.8.1", default-features = false, features = ["quickjs", "components"] }
+gpui-shell = { version = "=0.9.1", default-features = false, features = ["quickjs", "components"] }
 
 [lints]
 workspace = true

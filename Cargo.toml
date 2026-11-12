@@ -12,8 +12,8 @@ repository = "https://github.com/RebornFlamme/fragment-rs"
 
 [workspace.dependencies]
 # ★ gpui-kit et toute la famille gpui-pre-* sont ÉPINGLÉS à la version exacte (ADR-001).
-# gpui-kit 0.8.1 exige lui-même gpui-pre =0.3.10 : ne monter l'un qu'avec l'autre, par ADR.
-gpui-kit = "=0.8.1"
+# gpui-kit 0.9.1 exige lui-même gpui-pre =0.3.12 : ne monter l'un qu'avec l'autre, par ADR.
+gpui-kit = "=0.9.1"
 anyhow = "1"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
@@ -27,6 +27,6 @@ expect_used = "deny"
 [profile.release]
 debug = false
 
-# ★ Fork n°1 (ADR-006) : gpui-base 0.8.1 + rangées dictées par l'hôte. Patch minimal, voir vendor/gpui-base/NOTICE.
+# ★ Fork n°1 (ADR-006) : gpui-base 0.9.1 + rangées dictées par l'hôte. Patch minimal, voir vendor/gpui-base/NOTICE.
 [patch.crates-io]
 gpui-base = { path = "vendor/gpui-base" }
