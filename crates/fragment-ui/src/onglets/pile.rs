@@ -616,6 +616,7 @@ fn entete_d_onglet(
     mesure: Option<Rc<Cell<Option<Bounds<Pixels>>>>>,
     decalage: f32,
     separateur_par_la_barre: bool,
+    titre_exact: Rc<dyn Fn() -> Option<f32>>,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -626,7 +627,7 @@ fn entete_d_onglet(
     //   Un `relative().left(−0,5)` n'y change RIEN (CI d4a5542, mesures identiques) : GPUI cale la
     //   mise en page au pixel : le texte est décalé à la peinture, et tronqué comme Chromium
     //   ([`super::titre`]).
-    let titre = super::titre::titre(ligne.titre.clone().into(), decalage, cx);
+    let titre = super::titre::titre(ligne.titre.clone().into(), decalage, titre_exact, cx);
     let leaf = ligne.leaf;
     let index = ligne.index;
     let rang = leaf.index() as usize;
@@ -807,6 +808,52 @@ fn barre(
         .filter(|&i| !lignes[i].visible && !lignes[i + 1].visible)
         .collect();
 
+    let zoom = Echelle::courante(cx).zoom();
+    // Le séparateur (px logiques) : sa marge haute et basse, au 1/64, et sa largeur.
+    let separateur = (
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, SEPARATEUR_MARGE)))) as f32,
+        f32::from(u(cx, SEPARATEUR_LARGEUR)),
+    );
+    let haut_exact =
+        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, f.size_4_1)))) as f32;
+    let hauteur_exacte = f32::from(u(cx, f.header_height));
+    let (marge, largeur_max) = (
+        f32::from(u(cx, f.size_4_1)),
+        f32::from(u(cx, LARGEUR_ONGLET)),
+    );
+    // ★ Les largeurs EXACTES (px d'écran, chacune au 1/64 comme les `LayoutUnit` de Chromium, qui
+    //   met en page en px zoomés) de ce qui, dans la barre, n'est pas le conteneur des onglets ni
+    //   l'espaceur : « + », chevron, bouton du dock droit et retrait des boutons de fenêtre. GPUI
+    //   cale chacune au pixel : à 150 %, la somme calée perdait 1 px et les côtés de l'actif
+    //   tombaient 0,25 px à gauche (`t1-zoom-150`, (279,14) et (498,14)).
+    let fixes = {
+        let lu = |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
+        let bouton = lu(2.0 * f.size_4_1 + f.icon_s);
+        let nouvel = lu(NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
+        let liste = lu(f.size_2_1) + bouton + lu(f.size_4_1);
+        let dock = options.retrait_droit.map_or(0.0, |r| liste + lu(r));
+        nouvel + liste + dock
+    };
+    // ★ Le bord gauche EXACT du titre de l'onglet `i` (px logiques de la fenêtre), quand la largeur
+    //   exacte de la pile est connue : Chromium pose le texte au sous-pixel, onglet par onglet ; seuls
+    //   les fonds sont calés. Les en-têtes calés de GPUI décalaient les titres de 0,9 à 1,6 px
+    //   (`t1-zoom-150`). Lu à la peinture : la place des onglets est notée au prépeint.
+    let titre_exact: Rc<dyn Fn(usize) -> Option<f32>> = {
+        let po = place_onglets.clone();
+        let interieur_titre =
+            geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, REMBOURRAGE_ENTETE))))
+                as f32
+                + geometrie::unite_de_mise_en_page(f64::from(f32::from(u(
+                    cx,
+                    INTERIEUR_COTE_TITRE,
+                )))) as f32;
+        Rc::new(move |i| {
+            let (exacte, o) = (largeur_exacte?, po.get()?);
+            let place = geometrie::unite_de_mise_en_page(f64::from(exacte * zoom)) as f32 - fixes;
+            let (g, _) = bords_exacts(place, marge, n, i, largeur_max);
+            Some(f32::from(o.origin.x) + decalage * zoom + g + interieur_titre)
+        })
+    };
     let entetes: Vec<AnyElement> = lignes
         .iter()
         .enumerate()
@@ -821,6 +868,10 @@ fn barre(
                 Some(mesure.clone()),
                 decalage,
                 largeur_exacte.is_some(),
+                {
+                    let t = titre_exact.clone();
+                    Rc::new(move || t(i)) as Rc<dyn Fn() -> Option<f32>>
+                },
                 cx,
             )
         })
@@ -938,32 +989,6 @@ fn barre(
     };
     let (rayon_haut, rayon_bas) = (u(cx, f.input_radius), u(cx, f.radius_s));
     let epaisseur = u(cx, TRAIT_CONTOUR);
-    let zoom = Echelle::courante(cx).zoom();
-    // Le séparateur (px logiques) : sa marge haute et basse, au 1/64, et sa largeur.
-    let separateur = (
-        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, SEPARATEUR_MARGE)))) as f32,
-        f32::from(u(cx, SEPARATEUR_LARGEUR)),
-    );
-    let haut_exact =
-        geometrie::unite_de_mise_en_page(f64::from(f32::from(u(cx, f.size_4_1)))) as f32;
-    let hauteur_exacte = f32::from(u(cx, f.header_height));
-    let (marge, largeur_max) = (
-        f32::from(u(cx, f.size_4_1)),
-        f32::from(u(cx, LARGEUR_ONGLET)),
-    );
-    // ★ Les largeurs EXACTES (px d'écran, chacune au 1/64 comme les `LayoutUnit` de Chromium, qui
-    //   met en page en px zoomés) de ce qui, dans la barre, n'est pas le conteneur des onglets ni
-    //   l'espaceur : « + », chevron, bouton du dock droit et retrait des boutons de fenêtre. GPUI
-    //   cale chacune au pixel : à 150 %, la somme calée perdait 1 px et les côtés de l'actif
-    //   tombaient 0,25 px à gauche (`t1-zoom-150`, (279,14) et (498,14)).
-    let fixes = {
-        let lu = |v: f32| geometrie::unite_de_mise_en_page(f64::from(v * zoom)) as f32;
-        let bouton = lu(2.0 * f.size_4_1 + f.icon_s);
-        let nouvel = lu(NOUVEL_ONGLET_MARGE_GAUCHE) + bouton + lu(f.size_2_1);
-        let liste = lu(f.size_2_1) + bouton + lu(f.size_4_1);
-        let dock = options.retrait_droit.map_or(0.0, |r| liste + lu(r));
-        nouvel + liste + dock
-    };
     barre
         .child(
             canvas(

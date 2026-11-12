@@ -22,6 +22,8 @@ use gpui_kit::{
     TextAlign, Visibility, Window, canvas, div, point, px,
 };
 
+use std::rc::Rc;
+
 use crate::echelle::u;
 
 /// L'ellipse de `text-overflow: ellipsis`.
@@ -68,7 +70,12 @@ pub fn couper(largeur: f32, dispo: f32, points: f32, bornes: &[(usize, f32)]) ->
 
 /// Le titre d'un onglet : prend la place qui reste (`flex: 1`), tronqué par [`couper`], peint
 /// décalé de `decalage` px logiques (le bord gauche exact de la pile moins son bord calé).
-pub fn titre(texte: SharedString, decalage: f32, cx: &App) -> impl IntoElement {
+pub fn titre(
+    texte: SharedString,
+    decalage: f32,
+    exact: Rc<dyn Fn() -> Option<f32>>,
+    cx: &App,
+) -> impl IntoElement {
     let mut gabarit = div().child(texte.clone());
     // Invisible mais mesurée : la boîte garde la hauteur de ligne du titre.
     gabarit.style().visibility = Some(Visibility::Hidden);
@@ -82,7 +89,9 @@ pub fn titre(texte: SharedString, decalage: f32, cx: &App) -> impl IntoElement {
         .child(
             canvas(
                 |_, _, _| {},
-                move |bornes, (), window, cx| peindre(&texte, decalage, bornes, window, cx),
+                move |bornes, (), window, cx| {
+                    peindre(&texte, (decalage, exact()), bornes, window, cx)
+                },
             )
             .absolute()
             .top(u(cx, 0.0))
@@ -95,7 +104,7 @@ pub fn titre(texte: SharedString, decalage: f32, cx: &App) -> impl IntoElement {
 /// Mesure, coupe et peint `texte` dans `bornes`.
 fn peindre(
     texte: &SharedString,
-    decalage: f32,
+    (decalage, exact): (f32, Option<f32>),
     bornes: Bounds<Pixels>,
     window: &mut Window,
     cx: &mut App,
@@ -128,7 +137,8 @@ fn peindre(
         Coupure::Tronque(i) => forme(format!("{}{POINTS}", &texte[..i]).into(), window),
     };
     let zoom = f32::from(u(cx, 1.0));
-    let origine = point(bornes.origin.x + px(decalage * zoom), bornes.origin.y);
+    let x = exact.map_or(bornes.origin.x + px(decalage * zoom), px);
+    let origine = point(x, bornes.origin.y);
     window.with_content_mask(Some(ContentMask { bounds: bornes }), |window| {
         // Une erreur de peinture d'un titre ne doit pas faire tomber l'image : rien n'est peint.
         let _ = ligne.paint(origine, interligne, TextAlign::Left, None, window, cx);
