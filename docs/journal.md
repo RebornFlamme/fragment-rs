@@ -722,3 +722,10 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - À REMONTER avec T1.
   - #49 à 38/42. Restent : icônes et texte de la barre d'état à ±1 px, et le côté de l'onglet actif à 150 %.
   - Priorité au verrou pour shell7. t3scenesc, t4scenes et t11scenes suspendus, à relancer par le chef.
+- Battement 12/11 22:19 UTC : fenêtre 5 h à 72 % (reset 22:30), semaine à 56 %, contexte du chef 450k.
+  - Rythme cible : (97 − 56) ÷ 19,7 h ≈ 2,1 points par heure.
+  - Fusionnée : #87 (fr-t3.4, éditeur incrémental). 8 jobs verts, audit à 0.
+    - ★ Mesures CI release sur 10 000 lignes, en médiane : frappe 5,63 ms, curseur 4,50 ms, défilement 3,64 ms, ouverture 878 ms. Le seuil est de 16 ms.
+  - #86 (widgets de bloc) rebasée par le chef sur main, après le squash de #87 : sans conflit, poussée, CI relancée.
+  - #83 : 6 jobs verts sur 7. #49 en CI.
+  - Verrou de capture : tenu par t3scenesb. Viennent ensuite shell7 (priorité T1), puis t4scenes, puis t3scenesc et t11scenes, que le chef relancera.
