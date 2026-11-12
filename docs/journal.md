@@ -735,3 +735,14 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Dette « rastériseur hairline » ajoutée à fr-p4.1. À REMONTER avec T1.
   - Run 43321311615 : zoom-150 ne manque plus que de bases ; zoom-80 clair a son correctif en CI.
   - Mergées #83 (fragment-maths) et #87. #86 et #88 rebasées par le chef sur main, CI en cours. #89 (fr-t11-reglages) en CI ; branchement dans fenetre.rs : fr-t11.1, après #49.
+- Battement 12/11 23:19 UTC : fenêtre 5 h à 12 % (reset 03:30), semaine à 58 %, contexte du chef 492k.
+  - Rythme cible : (97 − 58) ÷ 18,7 h ≈ 2,1 points par heure. Réel depuis 17:25 : environ 1,9.
+  - Fusionnées, 8 jobs verts et audits à 0 :
+    - #90 (fr-t4-scenes, 13 scènes) ;
+    - #89 (fr-t11-reglages) ;
+    - #88 (fr-t3-widgets-inline, avec le patch `set_widget_ranges` du fork ; ADR-006 amendé, PR amont à soumettre).
+  - #86 : test-windows rouge après les rebases (`rangee_de_hauteur_nulle…`). Reprise par blocs2 (Opus), avec le dessin des maths par fragment-maths.
+  - Lancée : fr-t4.3 (scènes de recherche PDF, t4recherche).
+  - t11scenes : `t11-sans-theme-dark` diffère entre les passes A et B ; passe C propre en cours.
+  - #49 en CI (shell7).
+  - ★ Le contexte du chef approche des 550k. Au-delà, plus de lancement, puis « prêt pour le clear » quand les équipiers ont fini.
