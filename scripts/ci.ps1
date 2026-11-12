@@ -13,7 +13,7 @@ if ($Cible.Length -lt 7) {
     $run = $Cible
 }
 gh run view $run -R $Depot
-$echec = gh run view $run -R $Depot --json jobs -q '[.jobs[] | select(.conclusion == "failure")][0].databaseId'
+$echec = gh run view $run -R $Depot --json jobs -q '[.jobs[] | select(.conclusion == \"failure\")][0].databaseId'
 if ($echec) {
     Write-Host "`n== log des échecs (job $echec, 200 lignes max)"
     gh run view $run -R $Depot --job $echec --log-failed | Select-Object -Last 200
