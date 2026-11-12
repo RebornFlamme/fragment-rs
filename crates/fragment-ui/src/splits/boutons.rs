@@ -99,10 +99,26 @@ fn trait_reduire(
                     window.paint_quad(fill(Bounds::from_corners(pt(c0, y), pt(c1, y + 1.0)), t));
                 }
             } else {
-                window.paint_quad(fill(
-                    Bounds::from_corners(pt(x0, yc - w / 2.0), pt(x1, yc + w / 2.0)),
-                    teinte,
-                ));
+                // ★ Un pixel ou plus (zoom ≥ 115 %) : Skia remplit le trait à bouts ronds en
+                //   anticrénelé, il ne le cale pas. Un quad de GPUI, calé, perdait les lignes
+                //   partielles (`t1-zoom-150`, (1100,24) : encre −26 %).
+                let r = w / 2.0;
+                let (a, b) = (x0 + r, x1 - r);
+                for (x, y, couverture) in
+                    couvertures_capsule((f64::from(a), f64::from(b)), f64::from(yc), f64::from(r))
+                {
+                    let alpha = alpha_au_calque(1.0, couverture, f64::from(opacite));
+                    if alpha <= 0.0 {
+                        continue;
+                    }
+                    let mut t = source_premultipliee(teinte, alpha);
+                    t.a = alpha as f32 / opacite;
+                    let (x, y) = (x as f32, y as f32);
+                    window.paint_quad(fill(
+                        Bounds::from_corners(pt(x, y), pt(x + 1.0, y + 1.0)),
+                        t,
+                    ));
+                }
             }
         },
     )
@@ -110,6 +126,37 @@ fn trait_reduire(
     .top(px(0.0))
     .left(px(0.0))
     .size_full()
+}
+
+/// Les pixels (x, y, couverture de 0 à 1) d'un trait horizontal à bouts ronds : le segment
+/// `[a, b]` à la hauteur `yc`, de rayon `r` (px physiques). Couverture exacte en hauteur, moyennée
+/// sur 64 sous-colonnes par pixel.
+fn couvertures_capsule((a, b): (f64, f64), yc: f64, r: f64) -> Vec<(i32, i32, f64)> {
+    const N: u32 = 64;
+    let (x0, x1) = ((a - r).floor() as i32, (b + r).ceil() as i32);
+    let (y0, y1) = ((yc - r).floor() as i32, (yc + r).ceil() as i32);
+    let mut out = Vec::new();
+    for y in y0..y1 {
+        let (haut, bas) = (f64::from(y), f64::from(y) + 1.0);
+        for x in x0..x1 {
+            let somme: f64 = (0..N)
+                .map(|i| {
+                    let px_ = f64::from(x) + (f64::from(i) + 0.5) / f64::from(N);
+                    let dx = px_ - px_.clamp(a, b);
+                    if dx.abs() > r {
+                        return 0.0;
+                    }
+                    let h = (r * r - dx * dx).sqrt();
+                    ((yc + h).min(bas) - (yc - h).max(haut)).max(0.0)
+                })
+                .sum();
+            let couverture = somme / f64::from(N);
+            if couverture > 1e-6 {
+                out.push((x, y, couverture));
+            }
+        }
+    }
+    out
 }
 
 /// `a × b / 255` arrondi, comme `SkMulDiv255Round`.
@@ -217,6 +264,25 @@ pub fn rendre_boutons(cx: &App) -> AnyElement {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn le_moins_a_150_pour_cent_couvre_ses_lignes_partielles() {
+        // `t1-zoom-150` : trait de 1,3125 px centré à 25,5, de 1101,375 à 1113,625 (rayon
+        // 0,65625). Référence : lignes 24 et 26 à 0,16, ligne 25 pleine, bouts à ~0,29.
+        let c = couvertures_capsule((1101.375, 1113.625), 25.5, 0.656_25);
+        let en = |x: i32, y: i32| c.iter().find(|p| p.0 == x && p.1 == y).map_or(0.0, |p| p.2);
+        assert!((en(1107, 25) - 1.0).abs() < 1e-9);
+        assert!((en(1107, 24) - 0.156).abs() < 0.01);
+        assert!((en(1107, 26) - 0.156).abs() < 0.01);
+        assert!(en(1100, 25) > 0.15 && en(1100, 25) < 0.35);
+        assert!(en(1114, 25) > 0.15 && en(1114, 25) < 0.35);
+        // Les coins restent vides (bouts ronds) et rien ne déborde au-delà du rayon.
+        assert!(en(1100, 24) < 0.02);
+        assert!(
+            c.iter()
+                .all(|p| (24..=26).contains(&p.1) && (1100..=1114).contains(&p.0))
+        );
+    }
 
     #[test]
     fn le_moins_au_repos_sort_a_67_sur_255_comme_chromium() {
