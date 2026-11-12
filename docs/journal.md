@@ -750,3 +750,11 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Portée : t1-zoom-80-light, boîte (1208,787) 63×11. Encre jusqu'à ±30 %, barycentre jusqu'à ±0,75 px. Cliquet à 0,258 et 0,58.
   - Dette du rastériseur de glyphes, notée sur fr-p4.1. À REMONTER avec T1.
   - Run 43327210906 : 38/42 verts. Les 3 autres PNG de zoom ne manquent plus que de bases, que shell7 pose.
+- 23:52 UTC : fusionnée #86 (fr-t3-widgets-blocs). 8 jobs verts, audit à 0.
+  - ★ Le rouge venait de `hote.rs` : avec l'interligne exact de #85, une rangée nulle valait 1,5e-5 px. Seuil corrigé à 1/64 px, l'unité de mise en page de Chromium.
+  - Maths en bloc branchées sur fragment-maths.
+  - Écarts : bordure de survol du bloc non peinte ; une formule plus large que la colonne est coupée, alors que Fragment la fait défiler.
+  - Lancées : fr-t3-tableaux (Opus) et fr-t3-proprietes (Sonnet), débloquées par #86.
+  - t3scenesc masque « Start Side Chat » dans t3-menu-format, comme t4-selection.
+  - t4recherche, sonde : Ctrl+F n'ouvre pas la barre si le focus reste sur BODY après `setActiveLeaf`.
+  - Contexte du chef environ 520k. ★ Dernière vague de lancements avant le seuil de 550k.
