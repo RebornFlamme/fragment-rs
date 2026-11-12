@@ -3,9 +3,13 @@
 //!
 //! - [`geometrie`] : les règles de mise en page des blocs, lues dans `editor.css` ;
 //! - [`complement`] : ce que l'hôte ajoute au modèle de rangées (blocs, repli, lignes de code).
+//! - [`hote`] : [`HoteBlocs`], l'éditeur enveloppé, ses fonds, traits, badges et chevrons.
 
 pub mod complement;
 pub mod geometrie;
+pub mod hote;
+
+pub use hote::{Geometrie, HoteBlocs, LigneEcran, Mesureur};
 
 use fragment_core::CommandManager;
 
