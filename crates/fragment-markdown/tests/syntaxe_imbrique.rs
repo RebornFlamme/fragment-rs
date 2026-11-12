@@ -547,6 +547,7 @@ fn texte_de_depart() -> Vec<String> {
         "> ```python\n> \"\"\"a\n> b\"\"\"\n> x = 1\n> ```\n\n- liste\n\n  ```json\n  {\"a\": 1}\n  ```\n\n$$\nx\n$$\n".into(),
         "---\ntitre: a\n---\n```css\n.a { color: red }\n```\n$x$ ```sh\n$HOME\n```\n```\nsans langage\n".into(),
         "texte\n$$\nouvert\n\n```toml\n[a]\nb = 1\n".into(),
+        "```php\n$a = 1; // x\n```\n```lua\nlocal s = \"a\" -- c\n```\n```haskell\nf = 1 {- a\nb -}\n```\n```ruby\nputs \"a\" # c\n```\n```ocaml\nlet x = (* a\n b *) 1\n```\n```ini\n[a]\nb = 1 ; c\n```\n".into(),
     ];
     // Les documents du dépôt de tests de l'arbre.
     let dossier = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/syntaxe/");
@@ -734,4 +735,517 @@ fn mesure_imbrique_dix_mille_lignes() {
         t0.elapsed(),
         tout.nombre_de_regions()
     );
+}
+
+// ─── Langages de la suite (fr-t3.3) ───────────────────────────────────────────
+//
+// Un test par langage : un court extrait réécrit, et les jetons attendus (écrits à la main, comme
+// pour les langages de fr-t3.2). Les noms de jetons sont ceux du thème, jamais des couleurs.
+
+const K: &str = "code_keyword";
+const C: &str = "code_comment";
+const S: &str = "code_string";
+const PR: &str = "code_property";
+
+/// Un test de coloration : le bloc ```` ```info ```` contenant `code`, et les jetons attendus.
+macro_rules! langue_test {
+    ($nom:ident, $info:expr, $code:expr, [$(($t:expr, $j:expr)),+ $(,)?]) => {
+        #[test]
+        fn $nom() {
+            let doc = format!("```{}\n{}\n```\n", $info, $code);
+            let j = jetons(&doc);
+            $(assert!(j.contains(&a($t, $j)), "{} : {:?} absent de {:?}", $info, ($t, $j), j);)+
+        }
+    };
+}
+
+langue_test!(
+    code_php,
+    "php",
+    "<?php\n$x = 1; // c\nfunction f() { return \"a\"; }",
+    [
+        ("function", K),
+        ("return", K),
+        ("$x", V),
+        ("// c", C),
+        ("\"a\"", S),
+        ("1", T)
+    ]
+);
+langue_test!(
+    code_php_commentaire_diese,
+    "php",
+    "$a = 1; # note",
+    [("# note", C)]
+);
+langue_test!(
+    code_kotlin,
+    "kotlin",
+    "fun main() { val s: String = \"a\" } // c",
+    [
+        ("fun", K),
+        ("val", K),
+        ("String", T),
+        ("\"a\"", S),
+        ("// c", C)
+    ]
+);
+langue_test!(
+    code_swift,
+    "swift",
+    "let n: Int = 1 // c\nfunc f() -> Bool { return true }",
+    [
+        ("let", K),
+        ("func", K),
+        ("Int", T),
+        ("true", V),
+        ("// c", C)
+    ]
+);
+langue_test!(
+    code_scala,
+    "scala",
+    "object A { def f(x: Int): Unit = () } /* c */",
+    [("object", K), ("def", K), ("Int", T), ("/* c */", C)]
+);
+langue_test!(
+    code_dart,
+    "dart",
+    "void main() { final x = 'a'; } // c",
+    [("final", K), ("'a'", S), ("void", T), ("// c", C)]
+);
+langue_test!(
+    code_groovy,
+    "groovy",
+    "def x = \"a\"\nclass A extends B {}",
+    [("def", K), ("class", K), ("extends", K), ("\"a\"", S)]
+);
+langue_test!(
+    code_objective_c,
+    "objective-c",
+    "#import <Foo.h>\n@interface A : NSObject\n- (BOOL)ok;\n@end // fin",
+    [
+        ("#import", K),
+        ("interface", K),
+        ("NSObject", T),
+        ("BOOL", T),
+        ("// fin", C)
+    ]
+);
+langue_test!(
+    code_d,
+    "d",
+    "void main() { auto x = `a`; } // c",
+    [("auto", K), ("`a`", S), ("// c", C)]
+);
+langue_test!(
+    code_haxe,
+    "haxe",
+    "class A { var x:Int = 1; } // c",
+    [("class", K), ("var", K), ("Int", T), ("// c", C)]
+);
+langue_test!(
+    code_protobuf,
+    "protobuf",
+    "message M { repeated string a = 1; } // c",
+    [("message", K), ("repeated", K), ("string", T), ("// c", C)]
+);
+langue_test!(
+    code_ruby,
+    "ruby",
+    "def f(x)\n  puts \"a\" # c\n  @v = nil\nend",
+    [
+        ("def", K),
+        ("puts", K),
+        ("end", K),
+        ("\"a\"", S),
+        ("# c", C),
+        ("@v", V),
+        ("nil", V)
+    ]
+);
+langue_test!(
+    code_crystal,
+    "crystal",
+    "def f : Int32\n  1 # c\nend",
+    [("def", K), ("Int32", T), ("# c", C)]
+);
+langue_test!(
+    code_perl,
+    "perl",
+    "my $x = 1; # c\nprint \"a\";",
+    [("my", K), ("print", K), ("$x", V), ("# c", C), ("\"a\"", S)]
+);
+langue_test!(
+    code_r,
+    "r",
+    "f <- function(x) { if (x) TRUE } # c",
+    [("function", K), ("if", K), ("TRUE", V), ("# c", C)]
+);
+langue_test!(
+    code_julia,
+    "julia",
+    "function f(x)\n  return x # c\nend",
+    [("function", K), ("return", K), ("end", K), ("# c", C)]
+);
+langue_test!(
+    code_lua,
+    "lua",
+    "local x = nil -- c\nfunction f() end",
+    [("local", K), ("function", K), ("nil", V), ("-- c", C)]
+);
+langue_test!(
+    code_powershell,
+    "powershell",
+    "Function F { $a = \"x\" } # c\n<# bloc #>",
+    [
+        ("Function", K),
+        ("$a", V),
+        ("\"x\"", S),
+        ("# c", C),
+        ("<# bloc #>", C)
+    ]
+);
+langue_test!(
+    code_coffeescript,
+    "coffeescript",
+    "f = (x) -> if x then 1 # c",
+    [("if", K), ("then", K), ("# c", C)]
+);
+langue_test!(
+    code_tcl,
+    "tcl",
+    "proc f {} { set x \"a\" } ;# c",
+    [("proc", K), ("set", K), ("\"a\"", S)]
+);
+langue_test!(
+    code_octave,
+    "octave",
+    "function f(x)\n  y = 1; % c\nendfunction",
+    [("function", K), ("endfunction", K), ("% c", C)]
+);
+langue_test!(
+    code_haskell,
+    "haskell",
+    "module M where\nf :: Int -> Int -- c\nf x = x {- b -}",
+    [
+        ("module", K),
+        ("where", K),
+        ("Int", T),
+        ("-- c", C),
+        ("{- b -}", C)
+    ]
+);
+langue_test!(
+    code_ocaml,
+    "ocaml",
+    "let f x = match x with _ -> 1 (* c *)",
+    [("let", K), ("match", K), ("with", K), ("(* c *)", C)]
+);
+langue_test!(
+    code_fsharp,
+    "fsharp",
+    "let f x = x + 1 // c\nlet s = \"a\"",
+    [("let", K), ("// c", C), ("\"a\"", S)]
+);
+langue_test!(
+    code_sml,
+    "sml",
+    "fun f x = x (* c *)\nval y = true",
+    [("fun", K), ("val", K), ("true", V), ("(* c *)", C)]
+);
+langue_test!(
+    code_erlang,
+    "erlang",
+    "-module(m).\nf(X) -> case X of ok -> true end. % c",
+    [("case", K), ("of", K), ("end", K), ("true", V), ("% c", C)]
+);
+langue_test!(
+    code_clojure,
+    "clojure",
+    "(defn f [x] (if x \"a\" nil)) ; c",
+    [("defn", K), ("if", K), ("nil", V), ("\"a\"", S), ("; c", C)]
+);
+langue_test!(
+    code_lisp,
+    "lisp",
+    "(defun f (x) (if x t nil)) ; c\n#| b |#",
+    [
+        ("defun", K),
+        ("if", K),
+        ("t", V),
+        ("; c", C),
+        ("#| b |#", C)
+    ]
+);
+langue_test!(
+    code_scheme,
+    "scheme",
+    "(define (f x) (if x 1 2)) ; c",
+    [("define", K), ("if", K), ("; c", C)]
+);
+langue_test!(
+    code_vbnet,
+    "vb.net",
+    "Dim x As Integer = 1 ' c\nPublic Sub F()",
+    [
+        ("Dim", K),
+        ("As", K),
+        ("Integer", T),
+        ("' c", C),
+        ("Sub", K)
+    ]
+);
+langue_test!(
+    code_fortran,
+    "fortran",
+    "program p\n  integer :: i ! c\nend program",
+    [("program", K), ("integer", T), ("! c", C), ("end", K)]
+);
+langue_test!(
+    code_pascal,
+    "pascal",
+    "begin x := 1; end. // c\n{ b }",
+    [("begin", K), ("end", K), ("// c", C), ("{ b }", C)]
+);
+langue_test!(
+    code_cobol,
+    "cobol",
+    "PERFORM X *> c\nMOVE 1 TO Y",
+    [("PERFORM", K), ("MOVE", K), ("TO", K), ("*> c", C)]
+);
+langue_test!(
+    code_verilog,
+    "verilog",
+    "module m(input a); wire w; endmodule // c",
+    [
+        ("module", K),
+        ("input", K),
+        ("wire", T),
+        ("endmodule", K),
+        ("// c", C)
+    ]
+);
+langue_test!(
+    code_systemverilog,
+    "systemverilog",
+    "always_ff @(posedge clk) logic x; // c",
+    [("always_ff", K), ("posedge", K), ("logic", T), ("// c", C)]
+);
+langue_test!(
+    code_vhdl,
+    "vhdl",
+    "ENTITY e IS -- c\n  PORT (a : IN std_logic);",
+    [
+        ("ENTITY", K),
+        ("IS", K),
+        ("PORT", K),
+        ("IN", K),
+        ("std_logic", T),
+        ("-- c", C)
+    ]
+);
+langue_test!(
+    code_gas,
+    "gas",
+    ".text\n  movl $1, %eax # c\n  ret",
+    [(".text", K), ("movl", K), ("ret", K), ("# c", C)]
+);
+langue_test!(
+    code_nginx,
+    "nginx",
+    "server { listen 80; gzip on; } # c",
+    [("server", K), ("listen", K), ("on", V), ("# c", C)]
+);
+langue_test!(
+    code_dockerfile,
+    "dockerfile",
+    "FROM rust:1 AS b # c\nRUN echo $HOME",
+    [("FROM", K), ("AS", K), ("RUN", K), ("$HOME", V), ("# c", C)]
+);
+langue_test!(
+    code_cmake,
+    "cmake",
+    "project(p) # c\nif(ON) endif()",
+    [
+        ("project", K),
+        ("if", K),
+        ("endif", K),
+        ("ON", V),
+        ("# c", C)
+    ]
+);
+langue_test!(
+    code_ini,
+    "ini",
+    "[section]\ncle = valeur ; c\n# n",
+    [("[section]", T), ("cle", PR), ("; c", C), ("# n", C)]
+);
+langue_test!(
+    code_puppet,
+    "puppet",
+    "class a { $x = true } # c",
+    [("class", K), ("$x", V), ("true", V), ("# c", C)]
+);
+langue_test!(
+    code_gherkin,
+    "gherkin",
+    "Feature: f\n  Given a \"x\" # c",
+    [("Feature", K), ("Given", K), ("\"x\"", S), ("# c", C)]
+);
+langue_test!(
+    code_sas,
+    "sas",
+    "DATA d; SET e; RUN; /* c */",
+    [("DATA", K), ("SET", K), ("RUN", K), ("/* c */", C)]
+);
+langue_test!(
+    code_webassembly,
+    "webassembly",
+    "(module (func $f (result i32) i32.const 1)) ;; c",
+    [("module", K), ("func", K), ("result", K), (";; c", C)]
+);
+langue_test!(
+    code_cypher,
+    "cypher",
+    "MATCH (n) WHERE n.a = 1 RETURN n // c",
+    [("MATCH", K), ("WHERE", K), ("RETURN", K), ("// c", C)]
+);
+langue_test!(
+    code_sparql,
+    "sparql",
+    "SELECT ?x WHERE { ?x a ?y } # c",
+    [("SELECT", K), ("WHERE", K), ("?x", V), ("a", V), ("# c", C)]
+);
+langue_test!(
+    code_turtle,
+    "turtle",
+    "@prefix a: <b> .\n<x> a <y> . # c",
+    [("prefix", K), ("a", V), ("# c", C)]
+);
+
+#[test]
+fn code_dialectes_de_sql_et_modeles_de_pages() {
+    for info in [
+        "mysql",
+        "mariadb",
+        "mssql",
+        "tsql",
+        "plsql",
+        "postgresql",
+        "cql",
+        "cassandra",
+    ] {
+        let j = jetons(&format!("```{info}\nselect a from t -- c\n```"));
+        assert!(j.contains(&a("select", K)), "{info} : {j:?}");
+        assert!(j.contains(&a("-- c", C)), "{info}");
+    }
+    for info in ["vue", "angular", "jinja", "liquid"] {
+        let j = jetons(&format!("```{info}\n<div class=\"a\"></div>\n```"));
+        assert!(j.contains(&a("div", T)), "{info} : {j:?}");
+        assert!(j.contains(&a("class", PR)), "{info}");
+    }
+    let j = jetons("```json-ld\n{\"@id\": 1}\n```");
+    assert!(j.contains(&a("\"@id\"", PR)), "{j:?}");
+    let j = jetons("```cython\ndef f(): pass\n```");
+    assert!(j.contains(&a("def", K)));
+}
+
+#[test]
+fn code_les_alias_des_langages_de_la_suite() {
+    let alias = [
+        "kt",
+        "kts",
+        "rb",
+        "pl",
+        "jl",
+        "hs",
+        "elm",
+        "ml",
+        "fs",
+        "erl",
+        "clj",
+        "cljs",
+        "edn",
+        "scm",
+        "racket",
+        "ps1",
+        "pwsh",
+        "coffee",
+        "ls",
+        "livescript",
+        "matlab",
+        "gradle",
+        "objc",
+        "objc++",
+        "objective-c++",
+        "proto",
+        "sv",
+        "v",
+        "asm",
+        "docker",
+        "properties",
+        "cfg",
+        "pp",
+        "cucumber",
+        "ttl",
+        "wasm",
+        "vbscript",
+        "vba",
+        "delphi",
+        "cob",
+        "f90",
+        "sc",
+        "hx",
+        "cr",
+        "dlang",
+        "rake",
+        "jruby",
+        "macruby",
+        "rbx",
+        "emacs-lisp",
+        "common",
+        "sparul",
+        "ecmascript",
+        "gss",
+        "ejs",
+        "jinja2",
+        "phtml",
+    ];
+    for info in alias {
+        // Un commentaire de bloc fermé ou une chaîne : au moins un jeton pour chaque alias, quelle
+        // que soit la casse ou la forme `{.info}`.
+        for entete in [info.to_owned(), info.to_uppercase(), format!("{{.{info}}}")] {
+            let doc = format!("```{entete}\n<a b=\"c\"> \"a\" 1\n```\n");
+            assert!(
+                couche(&doc).jetons().count() > 0,
+                "alias `{entete}` non reconnu"
+            );
+        }
+    }
+}
+
+#[test]
+fn code_les_langages_exclus_ne_sont_pas_colores() {
+    // Voir `parite.d/fr-t3.3.toml` : formats sans grammaire de table, ou DSL sans usage.
+    for info in [
+        "diff",
+        "http",
+        "mbox",
+        "markdown",
+        "pug",
+        "sass",
+        "stylus",
+        "textile",
+        "troff",
+        "apl",
+        "brainfuck",
+        "asn.1",
+        "ebnf",
+        "z80",
+        "klingon",
+    ] {
+        let j = jetons(&format!("```{info}\n1 \"a\" // b # c\n```"));
+        assert!(j.is_empty(), "`{info}` ne devrait pas être coloré : {j:?}");
+    }
 }

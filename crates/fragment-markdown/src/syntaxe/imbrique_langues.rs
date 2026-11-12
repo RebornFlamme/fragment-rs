@@ -8,6 +8,9 @@
 //!   générique (`imbrique_code.rs`). Un langage inconnu n'est pas coloré (comme un langage dont le
 //!   chargement échoue). Ajouter un langage = ajouter une table, sans toucher à l'analyseur.
 
+#[path = "imbrique_langues_plus.rs"]
+mod plus;
+
 /// La famille d'analyse : ce que la table seule ne dit pas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Famille {
@@ -626,7 +629,7 @@ pub(super) fn langue(info: &str) -> Option<&'static Langue> {
         "java" => &JAVA,
         "go" | "golang" => &GO,
         "cs" | "csharp" | "c#" => &CSHARP,
-        _ => return None,
+        _ => return plus::langue(nom.as_str()),
     })
 }
 
