@@ -481,3 +481,56 @@ fn document_sans_signets() {
     let doc = ouvrir(&[SpecPage::nue(200.0, 100.0)], &[]);
     assert!(doc.signets().is_empty());
 }
+
+// ───────────── Texte LCD (fr-t4.2, ADR-014) ─────────────
+
+/// Une page de texte noir seul : en niveaux de gris, chaque pixel aurait r = g = b.
+fn page_de_texte() -> SpecPage {
+    let mut p = SpecPage::nue(200.0, 60.0);
+    p.textes.push((10.0, 30.0, "Hamburgefonstiv 0123"));
+    p
+}
+
+/// ★ Le texte est rastérisé en LCD (sous-pixel, comme le canvas de pdf.js chez Fragment) : du texte
+///   NOIR laisse des franges colorées (r ≠ b). Le LCD de pdfium n'agit que sur un bitmap sans alpha.
+#[test]
+fn texte_noir_rendu_en_lcd_avec_franges() {
+    let doc = ouvrir(&[page_de_texte()], &[]);
+    for echelle in [0.5, 1.0, 2.0] {
+        let img = doc.rendre_page(1, echelle).unwrap();
+        let franges = img
+            .octets
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|p| p[0].abs_diff(p[2]) > 16)
+            .count();
+        assert!(franges > 0, "aucune frange LCD à {echelle}");
+        // Fond toujours blanc opaque, alpha opaque partout.
+        assert_eq!(img.pixel(0, 0), [255, 255, 255, 255]);
+        assert!(img.octets.as_chunks::<4>().0.iter().all(|p| p[3] == 255));
+    }
+}
+
+/// Une région rendue en LCD est le recadrage exact du rendu entier, texte compris.
+#[test]
+fn region_de_texte_lcd_egale_au_recadrage() {
+    let doc = ouvrir(&[page_de_texte()], &[]);
+    let entier = doc.rendre_page(1, 2.0).unwrap();
+    let region = RegionPx {
+        x: 17,
+        y: 41,
+        largeur: 150,
+        hauteur: 40,
+    };
+    let morceau = doc.rendre_region(1, 2.0, region).unwrap();
+    for y in 0..40 {
+        for x in 0..150 {
+            assert_eq!(
+                morceau.pixel(x, y),
+                entier.pixel(17 + x, 41 + y),
+                "pixel ({x}, {y})"
+            );
+        }
+    }
+}

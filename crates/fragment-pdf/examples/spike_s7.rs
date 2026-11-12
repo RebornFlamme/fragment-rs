@@ -511,15 +511,22 @@ fn epreuves(dossier: &Path) -> Resultat<()> {
             "
 === échelle {echelle} ==="
         );
-        let cas: [(&str, Vec<u8>); 5] = [
+        let mut cas: Vec<(&str, Vec<u8>)> = vec![
             ("defaut", defaut),
             ("lcd-bgrx", lcd.clone()),
             ("lcd-bgrx +1 px x", decale(&lcd, t, 1, 0)),
             ("lcd-bgrx +1 px y", decale(&lcd, t, 0, 1)),
             ("lcd-bgrx sans H", sans_h(&lcd, t, echelle)),
         ];
+        // Le vrai `Document::rendre_page` (étape `document`), s'il a été rendu : c'est lui que
+        // jugent les garde-fous d'ADR-014 (fr-t4.2).
+        if let Ok(doc) = lire(&dossier.join(format!("pdfium-document-{s}.rgba")), t) {
+            cas.push(("document", doc));
+        }
         for (nom, candidat) in &cas {
             let mut ligne = format!("{nom:<18}");
+            let (p, m) = mesure_categorie(&reference, candidat, t.0, (0, 0, t.0, t.1));
+            let _ = write!(ligne, "  page {p:>5.2} % {m:>5.2}");
             for (z, g, hz, d, b) in ZONES {
                 let (p, m) = mesure_categorie(
                     &reference,

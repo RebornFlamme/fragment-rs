@@ -199,10 +199,14 @@ impl Document {
         // 4 octets par pixel sans marge de fin de ligne : pas = largeur × 4.
         let mut tampon = vec![255u8; l * h * 4];
         {
+            // ★ Bitmap SANS alpha (BGRx) + texte LCD (fr-t4.2, ADR-014) : le canvas de pdf.js est opaque,
+            //   Chromium y rastérise le texte en sous-pixel ; pdfium ne fait de même que sur un bitmap
+            //   sans alpha (en BGRA, l'option LCD est sans effet). Le fond blanc du tampon tient lieu de
+            //   fond opaque, et le 4e octet, inutilisé par pdfium, est forcé à 255 plus bas.
             let mut bitmap = PdfBitmap::from_bytes(
                 region.largeur as i32,
                 region.hauteur as i32,
-                PdfBitmapFormat::BGRA,
+                PdfBitmapFormat::BGRx,
                 &mut tampon,
             )
             .map_err(|e| ErreurPdf::Rendu(e.to_string()))?;
@@ -210,9 +214,10 @@ impl Document {
             // ★ Pas de `render_form_data(false)` : pdfium passerait par le chemin à matrice, qui ignore la
             //   taille fixe (la page sortirait à l'échelle 1).
             let config = PdfRenderConfig::new()
-                .set_format(PdfBitmapFormat::BGRA)
+                .set_format(PdfBitmapFormat::BGRx)
+                .use_lcd_text_rendering(true)
                 // ★ FPDF_REVERSE_BYTE_ORDER (vrai par défaut dans pdfium-render, explicité ici) : le
-                //   tampon BGRA sort déjà en RGBA. Ne pas réinverser les canaux (spike S7, fr-t4-raster).
+                //   tampon BGRx sort déjà en RGBx. Ne pas réinverser les canaux (spike S7, fr-t4-raster).
                 .set_reverse_byte_order(true)
                 .set_fixed_size(pl as i32, ph as i32)
                 .set_origin(-(region.x as i32), -(region.y as i32))
@@ -220,7 +225,7 @@ impl Document {
             p.render_into_bitmap_with_config(&mut bitmap, &config)
                 .map_err(|e| ErreurPdf::Rendu(e.to_string()))?;
         }
-        // Déjà en RGBA (voir plus haut) : seul l'alpha est forcé opaque.
+        // Déjà en RGB (voir plus haut) : seul le 4e octet (alpha) est forcé opaque.
         for px in tampon.as_chunks_mut::<4>().0 {
             px[3] = 255;
         }
