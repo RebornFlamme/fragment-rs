@@ -1,0 +1,19 @@
+{
+  "scene": "t4-toc-reveal",
+  "depuis": "T4",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t4",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"open","path":"cours.pdf"},
+    {"type":"wait-stable"},
+    {"type":"click","x":57,"y":84},
+    {"type":"command","id":"pixels:pdf-page","args":{"page":7}},
+    {"type":"click","x":82,"y":84},
+    {"type":"click","x":194,"y":188},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

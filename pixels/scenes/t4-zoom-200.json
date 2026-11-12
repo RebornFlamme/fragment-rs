@@ -1,0 +1,16 @@
+{
+  "scene": "t4-zoom-200",
+  "depuis": "T4",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t4",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"open","path":"cours.pdf"},
+    {"type":"wait-stable"},
+    {"type":"command","id":"pixels:pdf-zoom","args":{"valeur":2}},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
