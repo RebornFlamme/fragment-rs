@@ -634,3 +634,12 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - ★ Verrou de capture commun ajouté aux règles des équipiers (`mkdir C:/dev/fragment-capture.lock`) : trois tâches capturent Fragment.
   - Lancées (Sonnet) : fr-t2-tranches (diff minimal dans `xtask/src/pixels.rs`), fr-t3-scenes-a et fr-t4-scenes.
   - Actifs : shell6, surface2, t2scenes, langues, t2tranches, t3scenesa, t4scenes. En attente de CI : #75, #76, #77.
+- Battement 12/11 19:21 UTC : fenêtre 5 h à 23 % (reset 22:30), semaine à 50 %, contexte du chef 312k.
+  - Rythme cible : (97 − 50) ÷ 22,7 h ≈ 2,1 points par heure. Réel depuis 17:25 : environ 1,6, EN RETARD, avec 7 places pleines.
+  - Fusionnées, 7 jobs verts et audits à 0 :
+    - #77 (fr-t2-explorateur-actions) ;
+    - #76 (S7 + correction rouge/bleu ; ADR-014 proposé) ;
+    - #75 (fr-t4-recherche-ui + jetons `pdf_find_bg*`).
+  - Beads fermés, worktrees et dossiers cible retirés. fr-t4.2 (texte LCD) est débloquée.
+  - #70 : test-windows rouge, surface2 au travail. #49 en CI.
+  - Actifs (7) : shell6, surface2, t2scenes, langues, t2tranches, t3scenesa, t4scenes.
