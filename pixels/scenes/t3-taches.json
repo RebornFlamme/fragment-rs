@@ -1,0 +1,13 @@
+{
+  "scene": "t3-taches",
+  "depuis": "T3",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t3/a",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0},"left":{"collapsed":true},"right":{"collapsed":true}}},
+    {"type":"open","path":"taches.md"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
