@@ -56,7 +56,16 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
         s.border_widths.top = Some(AbsoluteLength::from(trait_));
         s.border_widths.left = Some(AbsoluteLength::from(trait_));
     }
-    let items = elements.iter().map(|e| {
+    // Les longueurs de Chromium (px d'écran) : rembourrage au 1/64, largeur exacte de chaque texte.
+    let zoom = Echelle::courante(cx).zoom();
+    let pad = geometrie::unite_de_mise_en_page(f64::from(f.size_2_3 * zoom)) as f32;
+    let largeurs: Vec<f32> = elements
+        .iter()
+        .map(|e| largeur_texte(cx, e, FontWeight::NORMAL, ty.font_ui_smaller) * zoom)
+        .collect();
+    let items = elements.iter().enumerate().map(|(i, e)| {
+        // Ce qui suit l'élément à sa droite : le rembourrage de la barre et les éléments suivants.
+        let apres = pad + largeurs[i + 1..].iter().map(|w| w + 2.0 * pad).sum::<f32>() + pad;
         div()
             .flex()
             .flex_none()
@@ -65,7 +74,7 @@ pub fn rendre(elements: &[SharedString], cx: &App) -> AnyElement {
             .px(u(cx, f.size_2_3))
             .whitespace_nowrap()
             .relative()
-            .child(texte_cale(e.clone(), ty.line_height_normal, cx))
+            .child(texte_cale(e.clone(), ty.line_height_normal, apres, cx))
     });
     let barre = texte(barre, cx, ty.font_ui_smaller, ty.line_height_normal)
         .absolute()
@@ -107,8 +116,9 @@ pub const ELEMENT_COIN: &str = "coin de la barre d'état";
 /// (1208,788) ; `t1-zoom-150`, (1147,778) : sonde DOM, haut du texte à 785,906 et 774,125).
 ///
 /// Le texte garde sa place par une copie invisible ; il est peint par-dessus, à l'abscisse de la
-/// copie et sur toute la hauteur de l'élément.
-fn texte_cale(texte: SharedString, interligne: f32, cx: &App) -> impl IntoElement {
+/// copie, à l'abscisse EXACTE de Chromium (`apres` : px d'écran entre la fin du texte et le bord
+/// droit de la fenêtre), sur toute la hauteur de l'élément.
+fn texte_cale(texte: SharedString, interligne: f32, apres: f32, cx: &App) -> impl IntoElement {
     let mut gabarit = div().child(texte.clone());
     gabarit.style().visibility = Some(Visibility::Hidden);
     let _ = cx;
@@ -136,8 +146,12 @@ fn texte_cale(texte: SharedString, interligne: f32, cx: &App) -> impl IntoElemen
                 let base = (ligne_haut + demi + ar + 0.5).floor();
                 // Interligne de peinture = a + d : GPUI pose alors la ligne de base à `y + a`.
                 let y = (base - a) / k;
+                // L'abscisse exacte : la barre est ancrée au bord droit de la fenêtre ; le texte finit
+                // `apres` px avant lui (sonde DOM à 80 % : 1 280 − 2 × 4,796875 − 61,48 = 1 208,92).
+                let droite = f32::from(window.viewport_size().width) * k - apres;
+                let x = (droite - f32::from(ligne.width) * k) / k;
                 let _ = ligne.paint(
-                    point(bornes.origin.x, px(y)),
+                    point(px(x), px(y)),
                     px((a + d) / k),
                     TextAlign::Left,
                     None,
