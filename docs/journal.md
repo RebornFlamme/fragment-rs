@@ -685,3 +685,13 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Fusionnée : #82 (gpui-kit 0.9.1). 7 jobs verts, audit à 0. Le bead reste ouvert pour la PR amont, à soumettre à l'utilisateur.
   - Repris par SendMessage sur leur transcript, sans équipier neuf : fr-t1.5 (#49, pixels encore rouge, run 43298178303), fr-t3.4, fr-t3.5, fr-t3-scenes-a, fr-t4-scenes, fr-t3-scenes-b, fr-t3-scenes-c.
   - fr-t11-scenes attend une place libre (worktree intact, 15 fichiers modifiés).
+- 21:20 UTC : fr-t1.5, 6e équipier arrêté à 360k tokens. **38/42 PNG verts en CI** (run 43298178303).
+  - Fait :
+    - exception « N coupé ClearType » (boîte 7×11, teinte seule) ;
+    - ombre CPU du menu, avec un ajout à `menu.rs` signalé ;
+    - « − » arrondi à l'octet.
+  - Décision : l'exception « ombre du menu » est retirée (étalement 0,020 contre une borne de 0,08), cliquet en baisse.
+  - Reste les 4 PNG de zoom (150 et 80) : 7e équipier Opus, shell7.
+  - Lancées : fr-t3-widgets-blocs (Opus) et fr-t3-widgets-inline (Sonnet), sur des fichiers disjoints d'`editeur/`.
+  - Scènes : t4scenes a poussé fd0cb70 (passe 1) ; t3scenesb (f0fec8f) et t3scenesc (WIP poussé) attendent le verrou, au repos.
+  - Actifs : shell7, incr, interligne, t3scenesa, t4scenes, widgetsblocs, widgetsinline.
