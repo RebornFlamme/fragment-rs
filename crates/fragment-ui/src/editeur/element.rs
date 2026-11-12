@@ -267,6 +267,12 @@ impl EditeurLive {
         self.focus
     }
 
+    /// L'éditeur est-il en lecture seule ? (ajout de `fr-t3-widgets-inline` : une case ne bascule pas)
+    #[must_use]
+    pub fn lecture_seule(&self) -> bool {
+        self.options.lecture_seule
+    }
+
     /// La taille du texte, en pixels logiques.
     #[must_use]
     pub fn taille_texte(&self) -> f32 {

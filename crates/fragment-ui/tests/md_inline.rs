@@ -11,21 +11,23 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, dead_code)]
 
 use std::mem::ManuallyDrop;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use fragment_theme::{Mode, Theme};
-use fragment_ui::editeur::constantes::{INTERLIGNE_TEXTE, MARGE_CONTENU_VERTICALE, debut_texte};
-use fragment_ui::editeur::{EditeurLive, OptionsEditeur, style_projete};
+use fragment_markdown::decorations::{GenreWidget, WidgetEnLigne};
+use fragment_maths::moteur::{Cle, Moteur};
+use fragment_theme::Mode;
+use fragment_ui::editeur::{EditeurLive, OptionsEditeur};
+use fragment_ui::md_inline::{MdInline, installer};
 use fragment_ui::{polices, theme_global};
 use gpui_kit::base::input::EditorState;
 use gpui_kit::platform::current_platform;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
-    AnyWindowHandle, App, AppContext as _, Bounds, Entity, Hsla, IntoElement as _, Point,
-    ScrollDelta, TestAppContext, TestDispatcher, Window, WindowBounds, WindowOptions, point, px,
-    size,
+    AnyWindowHandle, App, AppContext as _, Bounds, Entity, Point, TestAppContext, TestDispatcher,
+    Window, WindowBounds, WindowOptions, px, size,
 };
 
 const LARGEUR: f32 = 1000.;
@@ -43,6 +45,8 @@ struct Banc {
     fenetre: AnyWindowHandle,
     editeur: Entity<EditeurLive>,
     etat: Entity<EditorState>,
+    moteur: Rc<Moteur>,
+    inline: Rc<MdInline>,
     /// Levé à la fin du test (succès ou panique) : arrête le chien de garde.
     fini: Arc<AtomicBool>,
 }
@@ -79,7 +83,16 @@ impl Banc {
         Banc::avec_taille(texte, options, LARGEUR, HAUTEUR)
     }
 
+    /// Sans les widgets de `md_inline` : les largeurs se posent à la main (tests du fork).
+    fn nu(texte: &str, options: OptionsEditeur) -> Banc {
+        Banc::construire(texte, options, LARGEUR, HAUTEUR, false)
+    }
+
     fn avec_taille(texte: &str, options: OptionsEditeur, l: f32, h: f32) -> Banc {
+        Banc::construire(texte, options, l, h, true)
+    }
+
+    fn construire(texte: &str, options: OptionsEditeur, l: f32, h: f32, widgets: bool) -> Banc {
         let mut cx = TestAppContext::build_with_text_system(
             TestDispatcher::new(0),
             None,
@@ -111,7 +124,18 @@ impl Banc {
         let etat = cx.update(|cx| editeur.read(cx).etat().clone());
         let fini = Arc::new(AtomicBool::new(false));
         chien_de_garde(fini.clone());
+        let moteur = Rc::new(Moteur::new(64));
+        let inline = cx.update(|cx| {
+            if widgets {
+                installer(&editeur, moteur.clone(), None, cx)
+            } else {
+                // Sans installation : un état inerte (aucun calque, aucune largeur).
+                Rc::new(MdInline::inerte(moteur.clone()))
+            }
+        });
         let mut b = Banc {
+            moteur,
+            inline,
             fini,
             cx: ManuallyDrop::new(cx),
             fenetre,
@@ -205,7 +229,7 @@ impl Banc {
 #[test]
 fn la_largeur_du_widget_egale_sa_plage() {
     let texte = "ab $x$ cd";
-    let mut b = Banc::new(texte, OptionsEditeur::default());
+    let mut b = Banc::nu(texte, OptionsEditeur::default());
     let sans = b.bornes(6).origin.x;
     b.largeurs(vec![(3..6, 40.0)]);
     let debut = b.bornes(2).right();
@@ -236,8 +260,247 @@ fn la_largeur_du_widget_egale_sa_plage() {
 fn un_widget_sur_un_masque_est_ignore() {
     let texte = "# Titre
 suite";
-    let mut b = Banc::new(texte, OptionsEditeur::default());
+    let mut b = Banc::nu(texte, OptionsEditeur::default());
     let x = b.bornes(2).origin.x;
     b.largeurs(vec![(0..2, 30.0)]);
     assert_eq!(b.bornes(2).origin.x, x);
+}
+
+// ─── Les widgets du live preview ───
+
+impl Banc {
+    fn widgets(&mut self) -> Vec<WidgetEnLigne> {
+        self.lire(|e, _, _| e.projection().decorations.widgets.clone())
+    }
+
+    /// La boîte du widget qui commence à l'octet `debut`.
+    fn boite_du_widget(&mut self, debut: usize) -> Bounds<gpui_kit::Pixels> {
+        let w = self
+            .widgets()
+            .into_iter()
+            .find(|w| w.source.octets.from == debut)
+            .unwrap_or_else(|| panic!("pas de widget en {debut}"));
+        let r = w.source.octets.from..w.source.octets.to;
+        self.lire(|_, e, _| e.range_to_bounds(&r).unwrap())
+    }
+
+    fn texte(&mut self) -> String {
+        self.lire(|_, e, _| e.value().to_string())
+    }
+
+    /// Un clic au centre d'une boîte.
+    fn cliquer_au_centre(&mut self, b: Bounds<gpui_kit::Pixels>) {
+        self.cliquer(b.center());
+    }
+
+    /// Rend la formule AVANT l'éditeur : le cache du moteur est chaud, les largeurs se posent à la
+    /// notification suivante (le moteur travaille sur son fil, hors de l'horloge de test).
+    fn rendre_formule(&mut self, tex: &str, affichage: bool) -> f32 {
+        let c = Mode::Sombre;
+        let _ = c;
+        let couleur = self.lire(|_, _, cx| {
+            let t = theme_global::theme_ou_defaut(cx);
+            [
+                t.palette.text_normal.r,
+                t.palette.text_normal.g,
+                t.palette.text_normal.b,
+            ]
+        });
+        let cle = Cle::new(tex, affichage, 16.0, couleur);
+        let r = self.moteur.rendre(&cle).unwrap();
+        let e = self.editeur.clone();
+        self.cx.update(|cx| e.update(cx, |_, cx| cx.notify()));
+        self.stabiliser();
+        r.largeur as f32
+    }
+}
+
+/// `- [ ] tâche` : cocher puis décocher au clic, la source change d'UN caractère, le curseur ne
+/// bouge pas, et chaque clic est une transaction annulable.
+#[test]
+fn cocher_decocher_au_clic_sans_deplacer_le_texte_undo() {
+    let mut b = Banc::new(
+        "- [ ] tâche
+fin",
+        OptionsEditeur::default(),
+    );
+    let fin = b.texte().len();
+    b.placer(fin);
+    let case = b.boite_du_widget(2);
+    b.cliquer_au_centre(case);
+    assert_eq!(
+        b.texte(),
+        "- [x] tâche
+fin"
+    );
+    assert_eq!(b.curseur(), fin, "le curseur ne bouge pas");
+    let case = b.boite_du_widget(2);
+    b.cliquer_au_centre(case);
+    assert_eq!(
+        b.texte(),
+        "- [ ] tâche
+fin"
+    );
+    // Annuler : une seule transaction par clic.
+    b.touche("ctrl-z");
+    assert_eq!(
+        b.texte(),
+        "- [x] tâche
+fin"
+    );
+}
+
+/// Une case en lecture seule se voit mais ne bascule pas.
+#[test]
+fn la_case_ne_bascule_pas_en_lecture_seule() {
+    let options = OptionsEditeur {
+        lecture_seule: true,
+        ..OptionsEditeur::default()
+    };
+    let mut b = Banc::new(
+        "- [ ] tâche
+fin",
+        options,
+    );
+    let case = b.boite_du_widget(2);
+    b.cliquer_au_centre(case);
+    assert_eq!(
+        b.texte(),
+        "- [ ] tâche
+fin"
+    );
+}
+
+/// `- [ ]` en fin de ligne (sans texte) se rend en case, pas en `[ ]` brut.
+#[test]
+fn tache_en_fin_de_ligne_se_rend_en_case() {
+    let mut b = Banc::new(
+        "- [ ]
+- [x]
+
+autre",
+        OptionsEditeur::default(),
+    );
+    b.placer(15);
+    let cases: Vec<_> = b
+        .widgets()
+        .into_iter()
+        .filter(|w| matches!(w.genre, GenreWidget::Case { .. }))
+        .collect();
+    assert_eq!(cases.len(), 2);
+    assert!(matches!(
+        cases[1].genre,
+        GenreWidget::Case { cochee: true, .. }
+    ));
+    // Chaque case occupe sa largeur : un niveau d'indentation, 1,6 em.
+    for w in &cases {
+        let r = w.source.octets.from..w.source.octets.to;
+        let l = b.lire(|_, e, _| e.range_to_bounds(&r).unwrap().size.width);
+        assert!(pres(f32::from(l), 1.6 * 16.0), "largeur de la case : {l:?}");
+    }
+}
+
+/// Sous-puce décalée d'un vrai niveau, case alignée sur les puces, texte aligné.
+#[test]
+fn alignement_sous_puce_case_texte() {
+    let texte = "- parent
+  - enfant
+- [ ] tache
+
+autre";
+    let mut b = Banc::new(texte, OptionsEditeur::default());
+    b.placer(texte.len());
+    let puces: Vec<_> = b
+        .widgets()
+        .into_iter()
+        .filter(|w| matches!(w.genre, GenreWidget::Puce { .. }))
+        .collect();
+    assert_eq!(puces.len(), 2);
+    let p0 = b.boite_du_widget(puces[0].source.octets.from);
+    let p1 = b.boite_du_widget(puces[1].source.octets.from);
+    assert!(
+        f32::from(p1.origin.x - p0.origin.x) >= 14.0,
+        "décalage de la sous-puce : {:?}",
+        p1.origin.x - p0.origin.x
+    );
+    let debut_case = texte.find("[ ]").unwrap();
+    let c = b.boite_du_widget(debut_case);
+    assert!(
+        (f32::from(c.center().x) - f32::from(p0.center().x)).abs() <= 4.0,
+        "case {:?} contre puce {:?}",
+        c.center().x,
+        p0.center().x
+    );
+    // Le texte : « parent » et « tache » commencent au même x (à 2 px).
+    let x_parent = b.bornes(texte.find("parent").unwrap()).origin.x;
+    let x_tache = b.bornes(texte.find("tache").unwrap()).origin.x;
+    assert!(
+        (f32::from(x_parent) - f32::from(x_tache)).abs() <= 2.0,
+        "parent {x_parent:?} contre tache {x_tache:?}"
+    );
+}
+
+/// Maths en ligne `$x^2$` et `$$y$$` dans la phrase : rendues hors curseur (largeur de la formule,
+/// source remplacée), source au curseur.
+#[test]
+fn math_inline_dans_la_phrase_rendus_hors_curseur() {
+    let texte = "avant
+a $x^2$ b $$y$$ c
+après";
+    let mut b = Banc::new(texte, OptionsEditeur::default());
+    let l1 = b.rendre_formule("x^2", false);
+    let l2 = b.rendre_formule("y", true);
+    b.placer(0);
+    let ws: Vec<_> = b
+        .widgets()
+        .into_iter()
+        .filter(|w| matches!(w.genre, GenreWidget::Maths { .. }))
+        .collect();
+    assert_eq!(ws.len(), 2);
+    assert!(matches!(
+        ws[1].genre,
+        GenreWidget::Maths {
+            affichage: true,
+            ..
+        }
+    ));
+    for (w, attendu) in ws.iter().zip([l1, l2]) {
+        let r = w.source.octets.from..w.source.octets.to;
+        let largeur = b.lire(|_, e, _| e.range_to_bounds(&r).unwrap().size.width);
+        assert!(
+            pres(f32::from(largeur), attendu),
+            "largeur de la formule {largeur:?} contre rendu {attendu}"
+        );
+    }
+    assert!(b.inline.images() >= 2, "les formules sont peintes");
+    assert_eq!(b.texte(), texte);
+    // Le curseur dans la première : sa source revient, plus de largeur dictée.
+    b.placer(
+        "avant
+"
+        .len()
+            + 4,
+    );
+    let restantes: Vec<_> = b.lire(|e, _, _| e.largeurs_widgets().to_vec());
+    assert_eq!(
+        restantes.len(),
+        1,
+        "seule la formule hors curseur reste rendue"
+    );
+}
+
+/// Un clic sur une formule sélectionne son LaTeX, délimiteurs exclus.
+#[test]
+fn clic_sur_une_formule_selectionne_le_latex() {
+    let texte = "avant
+a $x^2$ b
+après";
+    let mut b = Banc::new(texte, OptionsEditeur::default());
+    b.rendre_formule("x^2", false);
+    b.placer(0);
+    let debut = texte.find('$').unwrap();
+    let boite = b.boite_du_widget(debut);
+    b.cliquer_au_centre(boite);
+    let sel = b.lire(|_, e, _| e.selected_range());
+    assert_eq!(sel, debut + 1..debut + 4);
 }

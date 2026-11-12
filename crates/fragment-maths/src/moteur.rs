@@ -141,6 +141,12 @@ impl Moteur {
         let _ = self.envoi.send(cle.clone());
     }
 
+    /// Le nombre de rendus demandés et pas encore terminés.
+    #[must_use]
+    pub fn en_attente(&self) -> usize {
+        verrou(&self.partage.etat).en_file.len()
+    }
+
     /// Le nombre de rendus terminés depuis la création.
     #[must_use]
     pub fn version(&self) -> u64 {
@@ -205,6 +211,18 @@ mod tests {
         assert_eq!(r.largeur, encore.largeur);
         m.demander(&cle);
         assert_eq!(m.version(), v, "pas de second rendu");
+    }
+
+    #[test]
+    fn le_bitmap_a_la_taille_de_la_boite_a_l_echelle() {
+        let m = Moteur::new(8);
+        let r = m
+            .rendre(&Cle::new("x^2", false, 16.0, [255, 255, 255]))
+            .expect("rendu");
+        let b = crate::raster::vers_bitmap(&r, 2.0).expect("bitmap");
+        assert_eq!(b.largeur, (r.largeur * 2.0).ceil() as u32);
+        assert_eq!(b.bgra.len(), (b.largeur * b.hauteur * 4) as usize);
+        assert!(b.bgra.chunks(4).any(|p| p[3] > 0), "de l'encre");
     }
 
     #[test]

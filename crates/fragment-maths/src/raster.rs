@@ -23,6 +23,48 @@ pub fn unite_de_mise_en_page(v: f64) -> f64 {
     (v * 64.0).floor() / 64.0
 }
 
+/// Une formule rastérisée pour l'écran : pixels BGRA à alpha DROIT (le format des images de GPUI),
+/// `largeur` × `hauteur` pixels physiques.
+#[derive(Clone, Debug)]
+pub struct Bitmap {
+    pub largeur: u32,
+    pub hauteur: u32,
+    pub bgra: Vec<u8>,
+}
+
+/// Peint `rendu` sur fond transparent à `echelle` pixels physiques par pixel logique (le facteur
+/// d'échelle de la fenêtre). Le SVG garde sa taille de mise en page ; l'image est de taille
+/// `ceil(boîte × échelle)`.
+///
+/// # Errors
+/// Le SVG n'est pas lisible par usvg, ou la boîte est vide.
+pub fn vers_bitmap(rendu: &RenduSvg, echelle: f32) -> Result<Bitmap, Erreur> {
+    let l = (rendu.largeur as f32 * echelle).ceil().max(1.0) as u32;
+    let h = (rendu.hauteur as f32 * echelle).ceil().max(1.0) as u32;
+    let mut pixmap =
+        tiny_skia::Pixmap::new(l, h).ok_or_else(|| Erreur::Format("pixmap vide".into()))?;
+    let arbre = usvg::Tree::from_str(&rendu.svg, &usvg::Options::default())
+        .map_err(|e| Erreur::Format(format!("usvg : {e}")))?;
+    let taille = arbre.size();
+    let sx = rendu.largeur as f32 / taille.width() * echelle;
+    let sy = rendu.hauteur as f32 / taille.height() * echelle;
+    resvg::render(
+        &arbre,
+        tiny_skia::Transform::from_scale(sx, sy),
+        &mut pixmap.as_mut(),
+    );
+    let mut bgra = Vec::with_capacity(pixmap.pixels().len() * 4);
+    for p in pixmap.pixels() {
+        let c = p.demultiply();
+        bgra.extend_from_slice(&[c.blue(), c.green(), c.red(), c.alpha()]);
+    }
+    Ok(Bitmap {
+        largeur: l,
+        hauteur: h,
+        bgra,
+    })
+}
+
 /// Ligne de base de la référence (depuis le haut du `<svg>`), d'après son `vertical-align`.
 pub fn ligne_de_base_reference(m: &Mesure) -> f64 {
     let profondeur_ex = m

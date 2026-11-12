@@ -1,0 +1,35 @@
+# Parité de fr-t3-widgets-inline (fragment-ui + fragment-maths) : les widgets en ligne du live
+# preview. Schéma `parite.d` : un fichier par tâche. Les cas viennent de la spec e2e editor-hell
+# (traduits en headless, tests/md_inline.rs) ; les unitaires purs sont dans md_inline/geometrie.rs.
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (CheckboxWidget, toogleCheckbox), editor.css (.cm-task-checkbox), e2e/editor-hell.spec.ts"
+rs = "crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 3
+notes = "Portés : cocher_decocher_au_clic_sans_deplacer_le_texte_undo, tache_en_fin_de_ligne_se_rend_en_case, alignement_sous_puce_case_texte. Ajoutés : la_case_ne_bascule_pas_en_lecture_seule + unitaires de la bascule (UTF-16, x/X). Écart : la case de Fragment est un <input type=checkbox> natif de Chromium ; ici un carré de 1,05 em (jetons du thème) avec une coche Lucide. La parité au pixel de la case native est le travail des scènes (fr-t3-livraison)."
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (BulletWidget, IndentBarWidget), editor.css (.cm-ob-bullet, .cm-indent, .cm-indent-line)"
+rs = "crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 4
+notes = "Ajoutés : aspect de la puce (ordinaire, repliable survolée ou pressée, repliée) en unitaires. La puce se relie au repli par LiaisonRepli (repliable, replie, basculer) : le branchement sur le modèle du repli est celui de fr-t3-widgets-blocs. Le trait d'indentation est peint par ligne (GenreLigne::Indentation), continu sur la hauteur de la ligne, au centre de chaque cellule de 1,6 em."
+
+[[module]]
+ts = "app/src/ui/views/markdown/decorationPlugin.ts (MathInlineWidget, selectInside), mathjax.ts, e2e/editor-hell.spec.ts"
+rs = "crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs, crates/fragment-maths/src/"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 3
+notes = "Porté : math_inline_dans_la_phrase_rendus_hors_curseur. Ajoutés : clic_sur_une_formule_selectionne_le_latex, moteur (cache, borne, formule invalide), bitmap. Dette d'ADR-011 inchangée : anticrénelage de resvg contre Skia."
+
+[[module]]
+ts = "(patch du fork n°1, ADR-006) CodeMirror Decoration.widget de largeur libre"
+rs = "vendor/gpui-base (set_widget_ranges), crates/fragment-ui/tests/md_inline.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "la_largeur_du_widget_egale_sa_plage, un_widget_sur_un_masque_est_ignore."
