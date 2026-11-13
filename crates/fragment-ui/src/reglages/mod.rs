@@ -16,10 +16,12 @@ use gpui_kit::{App, WindowAppearance};
 
 pub mod apparence_themes;
 pub mod curseur;
+pub mod editeur;
 pub mod fenetre;
 pub mod selecteur_couleur;
 
 use apparence_themes::{appliquer_schema, definitions_apparence_themes};
+pub use editeur::{ConfigEditeur, ReglagesApp, onglet_editor};
 pub use fenetre::{
     ApresChangement, Definitions, FenetreReglages, OngletReglages, SectionOnglet,
     couleur_depuis_hex, hex_de,
@@ -99,10 +101,20 @@ pub fn onglets_t1_themes(
     apparence: &Rc<Apparence>,
     themes: Option<Rc<ThemesCoffre>>,
 ) -> Vec<OngletReglages> {
+    onglets_t3(apparence, themes, &ReglagesApp::en_memoire())
+}
+
+/// [`onglets_t1_themes`] avec l'onglet « Editor » branché sur les réglages `app.json` du coffre
+/// (`fr-t3-reglages-editeur`).
+pub fn onglets_t3(
+    apparence: &Rc<Apparence>,
+    themes: Option<Rc<ThemesCoffre>>,
+    app: &Rc<ReglagesApp>,
+) -> Vec<OngletReglages> {
     use SectionOnglet::{Core, Options};
     vec![
         OngletReglages::new("general", "General", "settings", Options),
-        OngletReglages::new("editor", "Editor", "pencil", Options),
+        onglet_editor(app),
         OngletReglages::new("files", "Files and links", "folder-open", Options),
         onglet_appearance_themes(apparence, themes),
         OngletReglages::new("hotkeys", "Hotkeys", "keyboard", Options),

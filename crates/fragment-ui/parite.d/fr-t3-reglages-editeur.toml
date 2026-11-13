@@ -1,0 +1,10 @@
+# Parité de fr-t3-reglages-editeur (fragment-ui) : l'onglet Editor des réglages, en définitions
+# déclaratives (crates/fragment-ui/tests/reglages_editeur.rs).
+
+[[module]]
+ts = "app/src/ui/settings/SettingsPlugin.ts (EditorTab), ui/core/editor/editorConfig.ts, ui/core/settings/config.ts (DEFAULT_APP), e2e/chat-column.spec.ts (test « Readable line length coupé »)"
+rs = "crates/fragment-ui/src/reglages/editeur.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 12
+notes = "Porté : « Readable line length » coupé donne la pleine largeur, remis il rend la colonne de lecture. Ajoutés : les cinq lignes dans l'ordre et leurs descriptions, défauts de DEFAULT_APP, chaque bascule écrit sa clé de app.json, curseur de tabulation (entier, 2 à 8), effet à chaud par abonnement (instantané ConfigEditeur), unité d'indentation, app.json relu et modifié à la main, valeurs illisibles, clés des autres tâches préservées, onglet du rail. Écarts : Fragment n'a pas de spec e2e dédiée à l'onglet (la scène reglages-editor le peint), les cas viennent des sources ; l'effet est un instantané lu par la vue, le branchement dans vue_markdown (gouttière, retour à la ligne, correcteur, indentation) et le magasin app.json réel dans fragment-app reviennent à fr-t3-livraison (onglets_t1_themes utilise un magasin en mémoire, onglets_t3 prend le vrai) ; scène reglages-editor passée de T3 à T2 (comparée dès maintenant, T3 n'étant pas active)."
