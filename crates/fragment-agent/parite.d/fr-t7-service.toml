@@ -1,0 +1,43 @@
+# Parité de fr-t7-service (fragment-agent) : le service de l'agent, hors interface. Les cas source
+# sont les specs e2e que le service rend vrais (agent-harness, agent-permissions, agent-chat) ; ils
+# sont portés dans crates/fragment-agent/tests/service.rs SOUS LE MÊME NOM en snake_case, sur le
+# FauxHarness. Aucun appel à `claude`, aucun réseau.
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentPlugin.ts (run, policyFor, retenir, harnessIdOf, defaultModel, openChat, openAnchored, userName) ; app/e2e/{agent-harness,agent-permissions,agent-chat}.spec.ts"
+rs = "crates/fragment-agent/src/service/{mod,vues}.rs ; tests/service.rs"
+cas_source = 15
+cas_portes = 12
+cas_ajoutes = 18
+non_portes = [
+  { cas = "agent-harness : après un rechargement, l'historique est relu chez le moteur", raison = "relecture du transcript = AgentChatProvider (déjà porté, fr-t7-fournisseur) et le harness réel (fr-t7-harness-claude)" },
+  { cas = "agent-permissions : sans réglage, « Coffre ouvert » compile la liste blanche historique", raison = "la compilation pour le binaire est celle de compile_claude (fr-t7-harness-claude) ; le service ne porte que la politique, testée ici (sans_reglage_coffre_ouvert_…)" },
+  { cas = "agent-permissions : les réglages déclaratifs (avertissements, préréglages, matrice, arbre)", raison = "onglet Agent : fr-t7-reglages-agent" },
+  { cas = "agent-permissions : arrêter un tour qui attend une réponse, la carte est refusée et repliée", raison = "le repli de la carte est celui du fournisseur (déjà porté) ; ici : une carte sans personne pour répondre est refusée (run sans chat) et l'interruption passe par le crochet du montage" },
+  { cas = "agent-chat : ribbon, vue chat, historique rouvert, effort, ancienne vue agent-chat", raison = "vue et fournisseur : déjà portés (fournisseur) ou à fr-t7-vue / fr-t7-montage" },
+]
+notes = "Écarts : appels SYNCHRONES (lancer rend la main à la fin du tour ; l'interruption passe par un crochet que le montage branche sur HarnessClaude::interrompre) ; le plugin devient ServiceAgent, qui implémente AgentHote (le trait du fournisseur) et AgentService ; openChat / openAnchored décident les données (conversation, branche, moteur hérité, meta de la session) et demandent le dock et les widgets au trait HoteVues, branché au montage. La session n'est écrite que si le widget existe (pas de session orpheline). Cas ajoutés : index au journal (relu multi-appareils après load, abonnement, tombe), titre et modèle d'une session neuve, fork d'état du parent, moteur absent / hors bureau, mode de la conversation, interdits sans carte, règle « toujours » non dupliquée, garde du dossier de l'agent, relecture des réglages à chaque tour."
+
+[[module]]
+ts = "app/src/ui/views/agent/SessionIndex.ts ; api.ts (AGENT_SESSION_TYPE, AgentSessionState)"
+rs = "crates/fragment-agent/src/service/sessions.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 5
+notes = "Aucun test TS isolé (couvert par les specs agent). Le journal d'artefacts est partagé (Rc<RefCell<ArtefactManager>>) ; le « changed » du TS devient un compteur version() lu par la vue, parce que le rappel du journal tourne pendant une écriture et ne doit jamais le rappeler. Un index lu avant `ready` est vide et se recalcule dès que le journal est prêt."
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentPlugin.ts (AgentSettings, loadSettings, saveSettings, onExternalSettingsChange)"
+rs = "crates/fragment-agent/src/service/reglages.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 6
+notes = "Le data.json est gardé comme un objet JSON (les clés des autres tâches — actions rapides, barre — survivent à une sauvegarde) ; un patch `null` retire la clé (le undefined du TS). La diffusion vers l'autre fenêtre de réglages est un rappel branché au montage."
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentPlugin.ts (dossierAgent, screensDir, attachmentsDir, skillsPlugin) ; skillsPlugin.ts (lireDossier)"
+rs = "crates/fragment-agent/src/service/dossiers.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 3
+notes = "★ Décision de l'orchestrateur : ni prompt.md ni skills de Fragment ne sont livrés ni réécrits ; le dossier de l'agent est LU au lancement (le sien d'abord, puis celui de l'installation de Fragment) et relu à chaque tour. materializeSkillsPlugin et planMirror (écriture d'une version livrée) n'ont donc pas de pendant : le miroir est une lecture. Les tests utilisent un prompt factice. Question ouverte (avec l'utilisateur) : le contenu réel dans un binaire autonome."
