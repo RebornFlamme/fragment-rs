@@ -27,6 +27,7 @@ use fragment_ui::explorateur::{
     self, ActionsExplorateur, ContexteExplorateur, FILE_EXPLORER_VIEW_TYPE, FileExplorerView,
 };
 use fragment_ui::onglets::ContenuDeVue;
+use fragment_ui::vue_markdown;
 
 /// La commande « Nouvelle note » (l'id d'Obsidian, une API : raccourcis, CLI, plugins).
 pub const COMMANDE_NOUVELLE_NOTE: &str = "file-explorer:new-file";
@@ -289,10 +290,19 @@ pub fn activer_explorateur(app: &AppCoeur, coffre: &Coffre) -> Vec<Disposer> {
             }
         });
     retraits.push(Box::new(move || abonnement.off()));
+    // La vue `markdown` (fr-t3-vue) : vue, extension `md`, commandes `editor:*`.
+    retraits.extend(vue_markdown::enregistrer(
+        app,
+        vue_markdown::ContexteMarkdown {
+            vault: coffre.vault.clone(),
+            workspace_events: app.workspace().borrow().events().clone(),
+            horloge: vue_markdown::horloge_systeme(),
+        },
+    ));
     retraits
 }
 
 /// Le contenu des vues que l'application sait dessiner (`ContexteOnglets::contenu_de_vue`).
 pub fn contenu_de_vue() -> ContenuDeVue {
-    Rc::new(explorateur::contenu)
+    Rc::new(|v, cx| explorateur::contenu(v, cx).or_else(|| vue_markdown::contenu(v, cx)))
 }
