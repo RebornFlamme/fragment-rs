@@ -1086,3 +1086,23 @@ Contexte du chef : 510k, seuil de clear 550k.
 - #162 (fr-t7-vue, vue chat, 31 tests) : équipier arrêté à 392k de contexte (plafond 250k), CI suivie par le chef.
 - Équipiers actifs : fr-p3.4 (Sonnet), fr-tep (Sonnet, #160), fr-t6-socle (Sonnet), fr-t9-hote-spike (Opus, S10 + ADR-019), fr-t9-socle (Sonnet).
 - 13/11 ~19:55 UTC — 5h 16 % / semaine 4 %. Fusionnées : #162 (fr-t7-vue, vue chat), #165 (fr-t6-socle), #166 (fr-t9-socle). **Vague 16 : 6 fusions** (#161 à #166). Lancés : fr-t7-barre-agent, fr-t6-service (Opus), fr-t9-pont, fr-t9-vue-hebergee. 7 équipiers : fr-p3.4, fr-tep, fr-t9-hote-spike, fr-t7-barre-agent, fr-t6-service, fr-t9-pont, fr-t9-vue-hebergee.
+
+## ARRÊT 13/11 — 13/11/2026 ~20:30 UTC — usage 5h ~20 % / semaine ~5 %
+**Décision de l'utilisateur, relayée par l'orchestrateur : « fais stop le dev ».** Elle remplace tout, règle « charbonne » comprise. Aucun lancement, aucune capture, aucun Playwright. Reprise UNIQUEMENT sur un message de l'orchestrateur.
+- Arrêt fait : battement et réveils annulés (`CronList` vide). Les 7 équipiers sont arrêtés à un point propre, travail poussé sur leur branche, rien fusionné. Aucun Electron, Vite ni Playwright actif. Verrou de capture absent, pas d'ECHEC.txt. Fragment inchangé (7 chemins déjà sales avant nous).
+- Fusionnées depuis le dernier clear : #151, #156, #157, #158, #159 (vague 15) ; #161, #162, #163, #164, #165, #166 (vague 16).
+- PR ouvertes :
+  - **#160** (fr-tep, icônes peintes comme images) : prête. Le repli svg() en 14 px est vert 8/8 (aucune des 74 scènes ne monte). Le cliquet abaissé est commité sur un rebase dont la CI n'a PAS été lue → lire la CI, puis audit et fusion.
+  - **#105** (fr-p3.4, brouillon, 6690381) : passe B à 100/124 scènes identiques, plus t3-etroite identique en 600×400. Le lot 03 a un seul écart, le PNG de t4-menu-zoom-dark (flake connu, remis depuis git). Le lot 04 (24 scènes) n'est pas joué. CI, audit et `gh pr ready` pas faits.
+  - **#167** (fr-t7-barre-agent, brouillon) : 8 tests sur 9 ; le test Mod+J échoue (agent_barre.rs:705). Clippy, CI et audit pas faits. Ajouts hors liste : `HoteCalques::largeur_pane` et l'icône panel-bottom.svg.
+  - **#168** (fr-t9-hote-spike, brouillon) : sous gpui 0.9.1, la webview enfant est visible ; suivi, rognage, focus, capture et DPI fonctionnent ; isolement par CSP `sandbox allow-scripts` équivalent à l'iframe de Fragment (pas de divergence). Reste : IME réel, S10-hote-webview.md, ADR-019, CI, audit.
+  - #155 (fr-t2-gestionnaire), #128 (fr-p4.1.4) : brouillons inchangés, attendaient les captures.
+- Beads réclamés sans code (branche = main, plan dans les notes) : fr-t6-service, fr-t9-pont, fr-t9-vue-hebergee. Worktrees laissés en place : `../fragment-rs-{glyphes,icones,s10,barre-agent,t6-service,t9-pont,t9-hebergee,invisible,lcd2,gestionnaire,refsci}`.
+- Restent ouverts : extension du mode invisible (fr-9x4, 100 scènes à partir de t1-boutons-fenetre) ; scènes instables fr-hwq (t11-accent, t11-rose light) et fr-914 ; dettes fr-pvd (icônes 14 px) et fr-wcn (icônes gpui-kit).
+- Écart à remonter (non envoyé avant l'arrêt) : T6 livre les objets HTML sans exécuter leurs scripts, qui passeront par le webview de T9.
+
+**Prochaine action exacte en cas de reprise** (sur ordre de l'orchestrateur seulement) :
+1. Lire `docs/brief-reprise.md` puis cette entrée. get_usage, puis reposer le battement.
+2. #160 : lire la CI, audit, fusion. #105 : jouer le lot 04 en mode invisible, puis CI, audit, ready, fusion.
+3. #168 : finir S10 (IME, doc, ADR-019), CI, audit, fusion. #167 : corriger le test Mod+J, clippy, CI.
+4. Relancer fr-t6-service, fr-t9-pont et fr-t9-vue-hebergee depuis leurs notes, puis l'extension fr-9x4, puis #128, #155 et les scènes B.
