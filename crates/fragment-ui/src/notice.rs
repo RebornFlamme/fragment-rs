@@ -223,16 +223,20 @@ pub fn couche(cx: &App) -> AnyElement {
                 .map(|l| largeur_texte(cx, l, FontWeight::NORMAL, t.typo.font_ui_small))
                 .fold(0.0_f32, f32::max);
             let tient = texte_exact <= LARGEUR_MAX;
+            // ★ fr-p4.1.2 : le texte exact seulement pour une notice d'UNE ligne qui tient. Sur la
+            // carte à deux lignes de `t1-notice-empilees`, il faisait déborder la masse 3×3 d'un
+            // glyphe (1,55 pour 1,54) que le texte de GPUI laisse dans la borne.
+            let exact = tient && !e.message.contains('\n');
             let carte = div()
                 .id(("notice", id))
                 .max_w(u(cx, largeur_max))
                 .px(u(cx, f.size_2_7))
                 // ★ Chromium cale la ligne de 16,8 px (12 × 1,4) vers le haut ; GPUI l'arrondit à 17 et la
-                // pose un pixel plus bas. Texte de GPUI (une notice qui passe à la ligne) : un pixel
+                // pose un pixel plus bas. Texte de GPUI (plusieurs lignes) : un pixel
                 // de rembourrage passe du haut vers le bas, la carte garde sa hauteur, le texte
                 // remonte. Le texte exact (`rendu::texte`) pose lui-même la ligne de base de Chromium.
-                .pt(u(cx, f.size_2_5 - if tient { 0.0 } else { 1.0 }))
-                .pb(u(cx, f.size_2_5 + if tient { 0.0 } else { 1.0 }))
+                .pt(u(cx, f.size_2_5 - if exact { 0.0 } else { 1.0 }))
+                .pb(u(cx, f.size_2_5 + if exact { 0.0 } else { 1.0 }))
                 .text_color(couleur(c.text_normal))
                 .cursor_pointer()
                 .on_click(move |_: &ClickEvent, _: &mut Window, app: &mut App| {
@@ -251,7 +255,7 @@ pub fn couche(cx: &App) -> AnyElement {
             );
             // ★ fr-p4.1.2 : la carte est ancrée à droite et suit le texte : Chromium pose le texte à
             // `droite − largeur exacte`, la fraction à gauche ; GPUI le posait à l'arête calée.
-            let carte = if tient {
+            let carte = if exact {
                 let dy = calage
                     .as_ref()
                     .map_or(0.0, |_| residus.get(k).copied().unwrap_or(0.0));
