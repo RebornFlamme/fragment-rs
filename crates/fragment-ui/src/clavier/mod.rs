@@ -20,6 +20,8 @@
 //!   numérique (`NumpadAdd`…) n'est pas distingué par GPUI : n.a. (`parite.toml`).
 //! ★ GPUI ne transmet pas l'auto-répétition à l'intercepteur : `repeat` reste faux.
 
+pub mod balayage;
+
 use std::collections::HashMap;
 use std::rc::Rc;
 
