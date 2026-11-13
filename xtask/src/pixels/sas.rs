@@ -544,9 +544,9 @@ pub struct ResultatBoite {
     pub ecart_bords: Option<[i64; 4]>,
     /// La largeur d'encre diffère d'un pixel (dette T1, `fr-t1.3`).
     pub dette_largeur: bool,
-    /// Dès T2, boîte de texte en échec sur sa SEULE largeur, de [`ECART_PLACEMENT`] px au plus :
-    /// dette nommée « placement des glyphes » (`fr-p4.1.1`), comptée par PNG dans le cliquet.
-    pub dette_placement: bool,
+    /// Dès T2, boîte de texte en échec sur sa SEULE largeur, de [`ECART_RASTERISATION`] px au plus :
+    /// dette nommée « rastérisation des glyphes » (`fr-p4.1.3`), comptée par PNG dans le cliquet.
+    pub dette_rasterisation: bool,
     /// L'exception nommée de teinte qui couvre la boîte (`exceptions::Nature::Teinte`), le cas échéant.
     pub nommee: Option<&'static str>,
     /// Boîte d'encre de la RÉFÉRENCE (x0, y0, x1, y1), dans le repère de `boite`.
@@ -777,7 +777,7 @@ fn juger(
         teinte,
         ecart_bords,
         dette_largeur,
-        dette_placement: false,
+        dette_rasterisation: false,
         nommee: None,
         encre_reference: rf.boite,
         violations,
@@ -850,18 +850,19 @@ const VIOLATION_GLYPHE: &str = "forme : glyphe n° ";
 /// Préfixe de la violation de largeur stricte des tranches ≥ T2 (voir [`juger`]).
 const VIOLATION_LARGEUR: &str = "boîte d'encre : largeur ";
 
-/// Écart de largeur d'encre (px) que la dette « placement des glyphes » couvre.
-pub const ECART_PLACEMENT: i64 = 2;
+/// Écart de largeur d'encre (px) que la dette « rastérisation des glyphes » couvre.
+pub const ECART_RASTERISATION: i64 = 2;
 
-/// Dette nommée « placement des glyphes » (`fr-p4.1.1`, orchestrateur du 13/11, 03:30) : GPUI cale
-/// les glyphes au pixel quand Chromium les étale en sous-pixel, la boîte d'encre d'un libellé perd ou
-/// gagne 1 à 2 px de largeur. Une boîte de TEXTE dont la largeur est le SEUL garde-fou violé, de
-/// [`ECART_PLACEMENT`] px au plus, passe en dette ; toute autre violation la garde stricte.
-fn lever_placement(res: &mut ResultatBoite) {
+/// Dette nommée « rastérisation des glyphes » (`fr-p4.1.3`, orchestrateur du 13/11 ; d'abord nommée
+/// « rastérisation des glyphes », fr-p4.1.3, à 03:30) : origine entière, mais le rastériseur de GPUI
+/// rend une encre plus étroite (ou plus large) DES DEUX CÔTÉS que celle de Chromium, la boîte
+/// d'encre d'un libellé perd ou gagne 1 à 2 px de largeur. Une boîte de TEXTE dont la largeur est le SEUL garde-fou violé, de
+/// [`ECART_RASTERISATION`] px au plus, passe en dette ; toute autre violation la garde stricte.
+fn lever_rasterisation(res: &mut ResultatBoite) {
     let largeur = res.ecart_bords.map_or(0, |e| e[2] - e[0]);
     if res.boite.categorie == Categorie::Texte
         && largeur != 0
-        && largeur.abs() <= ECART_PLACEMENT
+        && largeur.abs() <= ECART_RASTERISATION
         && !res.violations.is_empty()
         && res
             .violations
@@ -869,7 +870,7 @@ fn lever_placement(res: &mut ResultatBoite) {
             .all(|v| v.starts_with(VIOLATION_LARGEUR))
     {
         res.violations.clear();
-        res.dette_placement = true;
+        res.dette_rasterisation = true;
     }
 }
 
@@ -1017,9 +1018,9 @@ impl Sas {
         self.boites.iter().filter(|b| b.dette_largeur).count()
     }
 
-    /// Boîtes en dette « placement des glyphes » (`fr-p4.1.1`), clé du cliquet.
-    pub fn dettes_placement(&self) -> usize {
-        self.boites.iter().filter(|b| b.dette_placement).count()
+    /// Boîtes en dette « rastérisation des glyphes » (`fr-p4.1.3`), clé du cliquet.
+    pub fn dettes_rasterisation(&self) -> usize {
+        self.boites.iter().filter(|b| b.dette_rasterisation).count()
     }
 }
 
@@ -1530,7 +1531,7 @@ pub fn comparer_tranche(
     for b in boites {
         let mut res = juger_boite(reference, candidat, b, glyphes, depuis);
         lever_nommees(&mut res, nommees, b);
-        lever_placement(&mut res);
+        lever_rasterisation(&mut res);
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
             for x in tol.0..=tol.2 {
@@ -2126,39 +2127,39 @@ pub(super) mod tests {
         assert!(largeur_stricte(Some(11)));
     }
 
-    /// ★ fr-p4.1.1 (orchestrateur, 13/11, 03:30) : dès T2, une largeur à ±1 n'est plus la dette de
-    /// T1 mais la dette « placement des glyphes », comptée à part (cliquet par PNG).
+    /// ★ fr-p4.1.3 (orchestrateur, 13/11, 03:30) : dès T2, une largeur à ±1 n'est plus la dette de
+    /// T1 mais la dette « rastérisation des glyphes », comptée à part (cliquet par PNG).
     #[test]
-    fn un_pixel_de_largeur_en_plus_est_la_dette_de_t1_puis_celle_du_placement_des_glyphes() {
+    fn un_pixel_de_largeur_en_plus_est_la_dette_de_t1_puis_celle_de_la_rasterisation_des_glyphes() {
         let r = ligne("panneau", 1.0, ENCRE, 0);
         let c = ligne("panneau", 1.0, ENCRE, 1);
         for t1 in [None, Some(1)] {
             let s = sas_depuis(&r, &c, t1);
             assert_eq!(s.verdict, Verdict::Tolere, "{t1:?} : {}", motifs(&s));
             assert_eq!(s.dettes_largeur(), 1);
-            assert_eq!(s.dettes_placement(), 0);
+            assert_eq!(s.dettes_rasterisation(), 0);
         }
         for t in [2, 4] {
             let s = sas_depuis(&r, &c, Some(t));
             assert_eq!(s.verdict, Verdict::Tolere, "T{t} : {}", motifs(&s));
-            assert_eq!(s.dettes_placement(), 1, "T{t}");
+            assert_eq!(s.dettes_rasterisation(), 1, "T{t}");
         }
     }
 
     /// Contre-épreuve : la dette ne couvre que la largeur SEULE. Un bord à 2 px (au-delà du ±1) ou
     /// une autre violation dans la même boîte la laisse en échec, largeur comprise.
     #[test]
-    fn la_dette_de_placement_ne_couvre_que_la_largeur_seule() {
+    fn la_dette_de_rasterisation_ne_couvre_que_la_largeur_seule() {
         let r = ligne("panneau", 1.0, ENCRE, 0);
         let c2 = ligne("panneau", 1.0, ENCRE, 2);
         let s = sas_depuis(&r, &c2, Some(2));
         assert_eq!(s.verdict, Verdict::Echec, "{}", motifs(&s));
-        assert_eq!(s.dettes_placement(), 0);
+        assert_eq!(s.dettes_rasterisation(), 0);
         assert!(motifs(&s).contains("largeur +2 px"), "{}", motifs(&s));
         let autre = ligne("panneau", 1.0, [200, 40, 40], 1);
         let s = sas_depuis(&r, &autre, Some(2));
         assert_eq!(s.verdict, Verdict::Echec, "{}", motifs(&s));
-        assert_eq!(s.dettes_placement(), 0);
+        assert_eq!(s.dettes_rasterisation(), 0);
     }
 
     /// ★ CONTRE-ÉPREUVE (fr-p3.2) : en T2 la largeur exacte passe, même avec un trait plus fin

@@ -925,7 +925,7 @@ mod tests {
                 ],
                 ecart_bords: Some([0, 0, -1, 0]),
                 dette_largeur: true,
-                dette_placement: false,
+                dette_rasterisation: false,
                 nommee: None,
                 encre_reference: None,
                 violations,
@@ -1422,7 +1422,7 @@ mod tests {
             barycentres: vec![("passage", passage, 0.0)],
             ecart_bords: Some([1, 0, 0, 0]),
             dette_largeur: false,
-            dette_placement: false,
+            dette_rasterisation: false,
             nommee: None,
             encre_reference: None,
             violations: vec![

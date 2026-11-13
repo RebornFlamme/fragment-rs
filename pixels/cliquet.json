@@ -1066,6 +1066,154 @@
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
       "pourcent": 38.6646
+    },
+    "t2-explorateur-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 26.2295,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.8027,
+      "rasterisation_glyphes": 4
+    },
+    "t2-explorateur-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 44.2623,
+      "delta_max": 69,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.6909,
+      "rasterisation_glyphes": 4
+    },
+    "t2-explorateur-menu-dossier-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 35.5172,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 1,
+      "ombre_pourcent": 7.8832,
+      "pourcent": 34.0635,
+      "rasterisation_glyphes": 10
+    },
+    "t2-explorateur-menu-dossier-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 40.4459,
+      "delta_max": 71,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "ombre_delta_max": 2,
+      "ombre_pourcent": 9.0699,
+      "pourcent": 34.0102,
+      "rasterisation_glyphes": 6
+    },
+    "t2-explorateur-ouvert-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 26.2295,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.9297,
+      "rasterisation_glyphes": 8
+    },
+    "t2-explorateur-ouvert-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 44.2623,
+      "delta_max": 69,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.8468,
+      "rasterisation_glyphes": 7
+    },
+    "t2-explorateur-survol-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 25.8824,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.8225,
+      "rasterisation_glyphes": 4
+    },
+    "t2-explorateur-survol-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 31.7647,
+      "delta_max": 69,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 33.6645,
+      "rasterisation_glyphes": 4
     }
   }
 }

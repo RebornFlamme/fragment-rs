@@ -340,9 +340,9 @@ struct Base {
     /// 03:15) : surtout des glyphes étroits (« l », « i », point, virgule : 1 à 3 px de large).
     /// Dette nommée « lettre manquée », comptée par PNG, en cliquet ; à retirer par `fr-p3.4`.
     lettres_manquees: u64,
-    /// Boîtes de texte en dette « placement des glyphes » (`fr-p4.1.1`, dès T2) : largeur seule,
+    /// Boîtes de texte en dette « rastérisation des glyphes » (`fr-p4.1.3`, dès T2) : largeur seule,
     /// ≤ 2 px. Écrit seulement quand il est non nul.
-    placement_glyphes: u64,
+    rasterisation_glyphes: u64,
 }
 
 /// Les valeurs mesurées de l'exception `--shadow-l` d'un PNG (donc d'un thème) : le pire, en valeur
@@ -410,9 +410,9 @@ fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
                     .get("lettres_manquees")
                     .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
-                placement_glyphes: v.get("placement_glyphes").map_or(Ok(0), |d| {
+                rasterisation_glyphes: v.get("rasterisation_glyphes").map_or(Ok(0), |d| {
                     d.as_u64()
-                        .with_context(|| format!("{nom} : placement_glyphes invalide"))
+                        .with_context(|| format!("{nom} : rasterisation_glyphes invalide"))
                 })?,
                 exception: match v.get("shadow_l") {
                     None => None,
@@ -527,8 +527,8 @@ fn ecrire_cliquet(
                     "forts": e.forts,
                 });
             }
-            if b.placement_glyphes > 0 {
-                v["placement_glyphes"] = serde_json::json!(b.placement_glyphes);
+            if b.rasterisation_glyphes > 0 {
+                v["rasterisation_glyphes"] = serde_json::json!(b.rasterisation_glyphes);
             }
             if let Some(n) = nommees.get(nom).filter(|n| !n.is_empty()) {
                 v["exceptions_t1"] = serde_json::json!(n);
@@ -537,7 +537,7 @@ fn ecrire_cliquet(
         })
         .collect();
     let json = serde_json::json!({
-        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes) ou teinte d'une boîte de texte (teinte = 1 − cosinus), en valeur absolue. placement_glyphes : boîtes de texte en dette « placement des glyphes » (fr-p4.1.1, dès T2 : largeur d'encre seule, ≤ 2 px). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+        "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes) ou teinte d'une boîte de texte (teinte = 1 − cosinus), en valeur absolue. rasterisation_glyphes : boîtes de texte en dette « rastérisation des glyphes » (fr-p4.1.3, dès T2 : largeur d'encre seule, ≤ 2 px). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
         "scenes": scenes,
     });
     if let Some(parent) = chemin.parent() {
@@ -607,10 +607,10 @@ fn verifier_cliquet(mesure: Base, base: Option<&Base>) -> Option<String> {
             mesure.lettres_manquees, base.lettres_manquees
         ));
     }
-    if mesure.placement_glyphes > base.placement_glyphes {
+    if mesure.rasterisation_glyphes > base.rasterisation_glyphes {
         raisons.push(format!(
-            "{} boîtes en dette « placement des glyphes » (fr-p4.1.1) > base {}",
-            mesure.placement_glyphes, base.placement_glyphes
+            "{} boîtes en dette « rastérisation des glyphes » (fr-p4.1.3) > base {}",
+            mesure.rasterisation_glyphes, base.rasterisation_glyphes
         ));
     }
     match (mesure.exception, base.exception) {
@@ -765,7 +765,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let mut mesures_contre_epreuve = String::new();
     let (mut essais_contre_epreuve, mut detectes_contre_epreuve) = (0usize, 0usize);
     let mut non_jugeables_total = 0usize;
-    let mut mesures_placement = String::new();
+    let mut mesures_rasterisation = String::new();
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
@@ -830,7 +830,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     arrondi_pourcent: arrondir(s.pourcent_arrondi()),
                     non_jugeables: d.non_jugeables.len() as u64,
                     lettres_manquees: ce.manques.len() as u64,
-                    placement_glyphes: s.dettes_placement() as u64,
+                    rasterisation_glyphes: s.dettes_rasterisation() as u64,
                     exception: s
                         .gardes_exception()
                         .map(|g| BaseException {
@@ -863,20 +863,20 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         .join(", ");
                     writeln!(mesures_nommees, "- {nom} : {e} : {valeurs}")?;
                 }
-                if mesure.placement_glyphes > 0 {
+                if mesure.rasterisation_glyphes > 0 {
                     let boites: Vec<String> = s
                         .boites
                         .iter()
-                        .filter(|b| b.dette_placement)
+                        .filter(|b| b.dette_rasterisation)
                         .map(|b| {
                             let l = b.ecart_bords.map_or(0, |e| e[2] - e[0]);
                             format!("({},{}) {l:+}", b.boite.x, b.boite.y)
                         })
                         .collect();
                     writeln!(
-                        mesures_placement,
+                        mesures_rasterisation,
                         "- {nom} : {} boîtes : {}",
-                        mesure.placement_glyphes,
+                        mesure.rasterisation_glyphes,
                         boites.join(", ")
                     )?;
                 }
@@ -1131,13 +1131,13 @@ Forme par glyphe peint (fr-p3.1, quatre mesures : L1 floutée ≤ {}, masses net
             sas::GLYPHE_RELATIF
         )?;
     }
-    if !mesures_placement.is_empty() {
+    if !mesures_rasterisation.is_empty() {
         write!(
             rapport,
             "
-Dette « placement des glyphes » (fr-p4.1.1), dès T2 : boîtes de texte en échec sur la seule largeur d'encre, ≤ 2 px (en cliquet par PNG) :
+Dette « rastérisation des glyphes » (fr-p4.1.3), dès T2 : boîtes de texte en échec sur la seule largeur d'encre, ≤ 2 px (en cliquet par PNG) :
 
-{mesures_placement}"
+{mesures_rasterisation}"
         )?;
     }
     if !mesures_barycentres.is_empty() {
@@ -1468,7 +1468,7 @@ mod tests {
             arrondi_pourcent: 10.0,
             non_jugeables: 3,
             lettres_manquees: 2,
-            placement_glyphes: 4,
+            rasterisation_glyphes: 4,
             exception: Some(BaseException {
                 etalement: 1.5,
                 encre: 0.3,
@@ -1486,7 +1486,7 @@ mod tests {
             arrondi_pourcent: 9.0,
             non_jugeables: 2,
             lettres_manquees: 1,
-            placement_glyphes: 3,
+            rasterisation_glyphes: 3,
             exception: Some(BaseException {
                 etalement: -1.4,
                 encre: 0.2,
@@ -1541,12 +1541,12 @@ mod tests {
             ..base
         };
         assert!(verifier_cliquet(plus_de_manquees, Some(&base)).is_some());
-        // La dette « placement des glyphes » (fr-p4.1.1) : une boîte de plus fait échouer.
-        let pire_placement = Base {
-            placement_glyphes: 5,
+        // La dette « rastérisation des glyphes » (fr-p4.1.3) : une boîte de plus fait échouer.
+        let pire_rasterisation = Base {
+            rasterisation_glyphes: 5,
             ..base
         };
-        assert!(verifier_cliquet(pire_placement, Some(&base)).is_some());
+        assert!(verifier_cliquet(pire_rasterisation, Some(&base)).is_some());
         // L'exception --shadow-l : chaque valeur mesurée fait cliquet, en valeur absolue.
         let e = base.exception.unwrap_or_default();
         for pire in [
