@@ -1,0 +1,9 @@
+# Parité de fr-t2-lecture (fragment-ui) : la position de lecture aux trois étages.
+
+[[module]]
+ts = "app/src/ui/core/workspace/ItemView.ts (lirePosition, allerAPosition, reprendre, retenirLaLecture, getEphemeralState, setEphemeralState)"
+rs = "crates/fragment-ui/src/lecture/*.rs, crates/fragment-ui/tests/lecture.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 12
+notes = "Porté : défaut générique (défileur en px, reprise réessayée à chaque image, 10 s, abandonnée au geste), rétention (vue cachée ou réinsérée, rendue au retour de la boîte, oubliée au changement de document), état éphémère entier dans e_state, sauvegarde demandée à chaque position retenue, pas d'écriture forcée à la fermeture. Le cas e2e « autre onglet, ←, rebuildView, recharger » est porté en quatre tests, le split en un. Hérités : les cas note ({line, dy}), PDF ({page, fy, fx}) et conversation (onglet et dock) par fr-t3-vue, fr-t4-vue-pdf et T7, qui surchargent la lecture et gardent la rétention ; le cas explorateur (dossiers ouverts) est porté par tests/explorateur.rs. Écarts : (1) la vue de test simule la plateforme (boîte à 0 × 0, défileur remis à zéro) au lieu d'un navigateur ; (2) une vue ne connaît pas le Workspace : `Lecture::image` renvoie vrai quand une position est retenue et l'hôte appelle request_save_layout ; (3) la sauvegarde différée du cœur existe déjà (debounce), sauvegarde.rs n'est pas créé ; (4) aucun branchement GPUI ici (ScrollHandle, observateur de taille) : il est fait par chaque vue montée."
