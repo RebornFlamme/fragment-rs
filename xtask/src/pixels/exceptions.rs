@@ -200,6 +200,26 @@ pub const ECART_BARYCENTRE_GLYPHES: f64 = 0.75;
 /// glyphe). Elles tombent avec le correctif de placement de `fr-p4.1.1`.
 pub const GLYPHE_DEPLACE: &str = "glyphe déplacé (placement des glyphes)";
 
+/// ★ L'élément du libellé « Afficher dans l'explorateur système » des menus sombres de
+/// l'explorateur (chef, 13/11 ~06:25, `fr-t2-montage`, en cliquet sous `fr-p4.1`, rattaché à
+/// `fr-p4.1.2`, qui l'adoptera) : glyphe n° 3 changé (masse 3×3 1,64 pour 1,54, marge 1,06) et
+/// largeur d'encre −1, apparus avec les boîtes exactes de #99. Le texte exact de `rendu::texte`
+/// (#112), essayé sur les libellés de menu, n'y change rien : l'origine y est déjà entière
+/// (150 + 39 px). Même nature que [`GLYPHE_DEPLACE`] : la forme par glyphe jusqu'à
+/// [`MARGE_GLYPHE_PLACEMENT`] ; la largeur seule passe ensuite en dette « rastérisation des glyphes »
+/// (`fr-p4.1.3`). Clé du cliquet : `glyphe`.
+pub const GLYPHE_MENU: &str = "glyphe du libellé de menu (fr-p4.1.2)";
+
+const fn glyphe_menu(png: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element: GLYPHE_MENU,
+        jeton: "--text-normal",
+        nature: Nature::Placement,
+        boite: Some(boite),
+    }
+}
+
 /// La marge du pire glyphe tolérée par une exception [`Nature::Placement`] (1 : la borne).
 pub const MARGE_GLYPHE_PLACEMENT: f64 = 1.10;
 
@@ -228,7 +248,7 @@ const fn icone_svg(png: &'static str, boite: [u32; 4]) -> Exception {
     Exception {
         png,
         element: ICONE_SVG,
-        jeton: "",
+        jeton: "--text-normal",
         nature: Nature::IconeSvg,
         boite: Some(boite),
     }
@@ -455,6 +475,9 @@ pub const EXCEPTIONS: &[Exception] = &[
     // Les glyphes déplacés de texte légitime, sombre seulement (fr-p4.1.1).
     placement("t1-notice-empilees-dark.png", [1162, 30, 86, 10]),
     placement("t1-zoom-80-dark.png", [372, 12, 37, 7]),
+    // Le libellé « Afficher dans l'explorateur système », menus sombres de l'explorateur (fr-p4.1.2).
+    glyphe_menu("t2-explorateur-menu-dossier-dark.png", [189, 306, 210, 13]),
+    glyphe_menu("t2-explorateur-menu-fichier-dark.png", [189, 491, 210, 13]),
     // L'icône `separator-vertical` du menu d'un fichier de l'explorateur, deux thèmes (fr-p4.1.5) :
     // boîte de la tuile 15×15 ; largeur d'encre +1 en sombre, −1 en clair, pointe du chevron.
     icone_svg("t2-explorateur-menu-fichier-dark.png", [165, 315, 15, 15]),
@@ -1179,12 +1202,18 @@ mod tests {
     fn chaque_exception_nomme_un_png_de_t1_et_un_element() {
         for e in EXCEPTIONS {
             // Seuls le contour d'onglet actif et le coin de la barre d'état s'étendent aux scènes de
-            // l'explorateur de T2 (chef, 13/11), le coin en sombre seulement.
+            // l'explorateur de T2 (chef, 13/11), le coin en sombre seulement ; puis (chef, 13/11
+            // ~06:25) l'ombre et l'icône du menu d'un fichier, et le trait de poignée du renommage
+            // clair.
             let tranche_admise = e.png.starts_with("t1-")
                 || (e.element == CONTOUR_ONGLET && e.png.starts_with("t2-explorateur"))
                 || (e.element == COIN_BARRE_ETAT
                     && e.png.starts_with("t2-explorateur")
-                    && e.png.ends_with("-dark.png"));
+                    && e.png.ends_with("-dark.png"))
+                || (e.nature == Nature::Ombre && e.png == "t2-explorateur-menu-fichier-dark.png")
+                || (e.element == ICONE_SVG && e.png.starts_with("t2-explorateur-menu-fichier-"))
+                || (e.element == TRAIT_POIGNEE && e.png == "t2-explorateur-renommer-light.png")
+                || (e.element == GLYPHE_MENU && e.png.starts_with("t2-explorateur-menu-"));
             assert!(tranche_admise && e.png.ends_with(".png"), "{e:?}");
             assert!(!e.element.is_empty() && e.jeton.starts_with("--"), "{e:?}");
         }

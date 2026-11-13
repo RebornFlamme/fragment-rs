@@ -28,7 +28,6 @@ use crate::icones;
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::rendu::melange::{aplat_au_calque, aplat_exact, bord_unique};
 use crate::rendu::ombre::{ombrer_au_calque, voile};
-use crate::rendu::texte::texte_exact;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -611,27 +610,10 @@ fn rendre_niveau(
                                 .flex_none()
                                 .text_color(couleur(couleur_texte))
                         }));
-                    // ★ fr-p4.1.2 (fr-t2-montage) : le libellé est peint à l'origine EXACTE de
-                    // Chromium. La ligne commence à `haut_ligne` (exact, logique) ; son texte, à 5 px
-                    // de rembourrage plus bas, sur un interligne exact. Le résidu vertical est donc
-                    // (haut exact + 5) − haut calé, en px zoomés. Libellé coché : texte de GPUI.
-                    let titre = if it.checked {
-                        div()
-                            .flex_1()
-                            .whitespace_nowrap()
-                            .child(it.title.clone())
-                            .child(div().opacity(0.7).child(" \u{2713}"))
-                    } else {
-                        let zoom = f32::from(u(cx, 1.0));
-                        let haut = haut_ligne * zoom;
-                        let dy = haut + 5.0 * zoom - (haut + 0.5 + 1e-3).floor();
-                        div().flex_1().h_full().whitespace_nowrap().child(
-                            texte_exact(it.title.clone())
-                                .pleine_largeur()
-                                .pleine_hauteur()
-                                .decalage(0.0, dy),
-                        )
-                    };
+                    let mut titre = div().flex_1().whitespace_nowrap().child(it.title.clone());
+                    if it.checked {
+                        titre = titre.child(div().opacity(0.7).child(" \u{2713}"));
+                    }
                     let mut ligne = div()
                         .id(("menu-entree", niveau * 1000 + idx))
                         .relative()

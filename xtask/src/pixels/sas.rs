@@ -1611,7 +1611,7 @@ pub fn comparer_tranche(
                     .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
                     .fold(0.0, f64::max);
                 garder(element, "barycentre", pire);
-            } else if element == exceptions::GLYPHE_DEPLACE {
+            } else if element == exceptions::GLYPHE_DEPLACE || element == exceptions::GLYPHE_MENU {
                 garder(element, "glyphe", b.ecart_glyphe);
             } else if element == exceptions::ICONE_SVG {
                 // L'écart de largeur d'encre, px.
