@@ -693,6 +693,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let mut mesures_ombres = String::new();
     let mut mesures_arrondis = String::new();
     let mut mesures_barycentres = String::new();
+    let mut mesures_glyphes = String::new();
     let mut mesures_nommees = String::new();
     let mut mesures_contre_epreuve = String::new();
     let (mut essais_contre_epreuve, mut detectes_contre_epreuve) = (0usize, 0usize);
@@ -921,6 +922,13 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                         )?;
                     }
                 }
+                if let Some((part, ou)) = s.pire_glyphe() {
+                    writeln!(
+                        mesures_glyphes,
+                        "- {nom} : pire glyphe {:.1} % d'orphelins (boîte {ou})",
+                        100.0 * part
+                    )?;
+                }
                 if let Some((x, y, ou)) = s.pire_barycentre() {
                     writeln!(
                         mesures_barycentres,
@@ -1007,6 +1015,16 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
 Exceptions NOMMÉES temporaires de T1, à retirer par fr-p4.1 (mesures en valeur absolue, en cliquet) :
 
 {mesures_nommees}"
+        )?;
+    }
+    if !mesures_glyphes.is_empty() {
+        write!(
+            rapport,
+            "
+Forme par glyphe peint (fr-p3.1, pire part d'orphelins des boîtes qui passent, borne {:.0} %) :
+
+{mesures_glyphes}",
+            100.0 * sas::ECART_GLYPHE
         )?;
     }
     if !mesures_barycentres.is_empty() {
