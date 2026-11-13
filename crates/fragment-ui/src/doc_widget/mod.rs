@@ -10,6 +10,7 @@
 pub mod api;
 pub mod cadre;
 pub mod icones_vue;
+pub mod pin;
 pub mod rendu;
 pub mod service;
 
