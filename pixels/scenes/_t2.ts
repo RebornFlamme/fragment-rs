@@ -18,6 +18,8 @@ import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } 
 import path from 'path';
 import { attendreLayoutReady, fenetreApp } from '../../../Fragment/app/e2e/harness';
 import { calme, schema, type Theme } from './_commun';
+import { activerModeInvisible } from '../invisible/garde';
+activerModeInvisible(); // ★ fr-9x4 : tout lancement d'Electron passe par le mode invisible (refus sinon).
 
 const RACINE = path.resolve(__dirname, '..');
 const FIXTURE = path.join(RACINE, 'vault-t2');

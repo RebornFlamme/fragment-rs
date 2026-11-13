@@ -1,6 +1,14 @@
 // ★ Le Playwright de Fragment/app/node_modules (jamais un second exemplaire :
 //   le harnais e2e importé de Fragment résout le même paquet).
 import { defineConfig } from '../../Fragment/app/node_modules/@playwright/test';
+import { activerModeInvisible, modeInvisibleActif } from './invisible/garde';
+
+// ★★ MODE INVISIBLE SEUL (fr-9x4, décision de l'utilisateur du 13/11) : Electron ne vient JAMAIS
+//   devant l'utilisateur. La config est chargée par le lanceur ET par chaque processus de test : les
+//   deux enveloppent `_electron.launch` (crochet hors écran + sentinelle de preuves), ou refusent de
+//   démarrer. Il n'existe pas d'autre mode.
+activerModeInvisible();
+if (!modeInvisibleActif()) throw new Error('mode invisible non actif : démarrage refusé.');
 
 /**
  * Config des scènes de référence pixel (Fragment pilotée par son harnais e2e).
