@@ -1,0 +1,12 @@
+# Parité de fr-t7-barre-laterale (fragment-ui). Un fichier par tâche. Spec e2e de Fragment
+# traduite : chat.spec.ts, les 3 tests « cowork » (barre et accueil, recherche, repli), pour la part
+# qui revient à la barre et à l'accueil ; la grille cowork, le seuil de 720 px et le repli de la
+# cellule sont à la vue chat (fr-t7-vue).
+
+[[module]]
+ts = "app/src/ui/views/chat/components/sidebar.ts, sidebar.css, historyModel.ts (salutation, horloge), chat-view.css (.chat-welcome), e2e/chat.spec.ts (3 tests cowork)"
+rs = "crates/fragment-ui/src/chat_barre_laterale/{barre,accueil,horloge,modele}.rs, crates/fragment-ui/tests/chat_barre_laterale.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 6
+notes = "Portés : groupes Aujourd'hui / Hier / date et conversation active (test 1), recherche sans accents, message vide, Échap vide la requête (test 2), largeur 260 px et bouton Replier (test 3, côté barre). Ajoutés : salutation aux bornes d'heure, heure lue dans le fuseau de l'horloge, suivi de la liste par signature, pixels:horloge (deux formes d'arguments), instant_local, montage de l'accueil. Écarts : l'horloge est INJECTABLE (Horloge, commande pixels:horloge publie l'événement que la vue relaie) pour figer les scènes ; la barre émet EvenementBarre (Selectionner, Nouvelle, Replier) au lieu des rappels. Reste à la vue (fr-t7-vue) : grille cowork, cellule 0 à 260 px et inert, data-empty, centrage du composer, bouton Afficher. Pixels : aucune scène livrée ici, la barre et l'accueil se montent dans la vue (scènes de fr-t7-scenes-a)."
