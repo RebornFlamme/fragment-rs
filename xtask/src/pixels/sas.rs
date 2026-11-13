@@ -369,7 +369,7 @@ fn ecarts_barycentres(rf: &Mesure, cd: &Mesure) -> Vec<(&'static str, f64, f64)>
     parties
 }
 
-fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
+fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure, largeur_stricte: bool) -> ResultatBoite {
     let mut violations = Vec::new();
     let ecart_encre = if rf.encre > 0.0 {
         (cd.encre - rf.encre) / rf.encre
@@ -411,6 +411,15 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure) -> ResultatBoite {
                 violations.push(format!(
                     "boîte d'encre : bords gauche {:+}, haut {:+}, droit {:+}, bas {:+} px (borne ±{ECART_BORD})",
                     e[0], e[1], e[2], e[3]
+                ));
+            }
+            // ★ fr-p3.2 : la largeur à ±1 est la dette de T1 SEULEMENT (ADR-009). Dès T2, la largeur
+            // d'encre (bord droit moins bord gauche) doit être celle de la référence ; les bords
+            // gardent leur ±1 en position.
+            if largeur_stricte && e[2] - e[0] != 0 {
+                violations.push(format!(
+                    "boîte d'encre : largeur {:+} px (strict depuis T2, la dette de largeur est réservée à T1)",
+                    e[2] - e[0]
                 ));
             }
             (Some(e), e[2] != 0)
@@ -630,8 +639,18 @@ pub fn comparer(
     comparer_tout(reference, candidat, boites, ombres, &[], &[])
 }
 
+/// Première tranche où la largeur d'encre est stricte (fr-p3.2).
+pub const TRANCHE_LARGEUR_STRICTE: u32 = 2;
+
+/// La largeur d'encre est-elle stricte pour une scène marquée `"depuis": depuis` ? Une scène sans
+/// marque est de T1 : la dette de largeur (`fr-t1.3`) lui reste permise.
+pub fn largeur_stricte(depuis: Option<u32>) -> bool {
+    depuis.is_some_and(|t| t >= TRANCHE_LARGEUR_STRICTE)
+}
+
 /// Compare `reference` et `candidat` avec les `boites`, les `ombres` et les `arrondis` déclarés par
-/// le candidat, sous les exceptions nommées `nommees` du PNG (`exceptions::du_png`).
+/// le candidat, sous les exceptions nommées `nommees` du PNG (`exceptions::du_png`). Scène de T1.
+#[cfg(test)]
 pub fn comparer_tout(
     reference: &RgbaImage,
     candidat: &RgbaImage,
@@ -639,6 +658,20 @@ pub fn comparer_tout(
     ombres: &[OmbreDeclaree],
     arrondis: &[ArrondiDeclare],
     nommees: &[&'static Exception],
+) -> anyhow::Result<Sas> {
+    comparer_tranche(reference, candidat, boites, ombres, arrondis, nommees, None)
+}
+
+/// Comme `comparer_tout`, pour une scène de la tranche `depuis` (`None` = T1) : dès T2 la largeur
+/// d'encre est stricte.
+pub fn comparer_tranche(
+    reference: &RgbaImage,
+    candidat: &RgbaImage,
+    boites: &[BoiteEncre],
+    ombres: &[OmbreDeclaree],
+    arrondis: &[ArrondiDeclare],
+    nommees: &[&'static Exception],
+    depuis: Option<u32>,
 ) -> anyhow::Result<Sas> {
     if reference.dimensions() != candidat.dimensions() {
         anyhow::bail!(
@@ -808,6 +841,7 @@ pub fn comparer_tout(
             b,
             &mesurer(reference, mesure, fond_r, k),
             &mesurer(candidat, mesure, fond_c, k),
+            largeur_stricte(depuis),
         );
         lever_nommees(&mut res, nommees, b);
         let tol = rect(b, PAD_TOL, largeur, hauteur);
@@ -1225,6 +1259,61 @@ pub(super) mod tests {
         // Deux pixels : au-delà du ±1 de l'ADR.
         let c2 = ligne("panneau", 1.0, ENCRE, 2);
         assert_eq!(sas(&r, &c2).verdict, Verdict::Echec);
+    }
+
+    /// Comme `sas`, pour une scène de la tranche `depuis`.
+    fn sas_depuis(reference: &RgbaImage, candidat: &RgbaImage, depuis: Option<u32>) -> Sas {
+        comparer_tranche(
+            reference,
+            candidat,
+            &detecter(candidat),
+            &[],
+            &[],
+            &[],
+            depuis,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn la_largeur_stricte_commence_a_t2() {
+        assert!(!largeur_stricte(None));
+        assert!(!largeur_stricte(Some(1)));
+        assert!(largeur_stricte(Some(2)));
+        assert!(largeur_stricte(Some(11)));
+    }
+
+    #[test]
+    fn un_pixel_de_largeur_en_plus_est_tolere_en_t1_et_refuse_des_t2() {
+        let r = ligne("panneau", 1.0, ENCRE, 0);
+        let c = ligne("panneau", 1.0, ENCRE, 1);
+        for t1 in [None, Some(1)] {
+            let s = sas_depuis(&r, &c, t1);
+            assert_eq!(s.verdict, Verdict::Tolere, "{t1:?} : {}", motifs(&s));
+            assert_eq!(s.dettes_largeur(), 1);
+        }
+        for t in [2, 4] {
+            let s = sas_depuis(&r, &c, Some(t));
+            assert_eq!(s.verdict, Verdict::Echec, "T{t}");
+            assert!(
+                motifs(&s).contains("largeur +1 px"),
+                "T{t} : {}",
+                motifs(&s)
+            );
+        }
+    }
+
+    /// ★ CONTRE-ÉPREUVE (fr-p3.2) : en T2 la largeur exacte passe, même avec un trait plus fin
+    /// (anticrénelage) ; le refus ci-dessus vient donc bien de la largeur seule.
+    #[test]
+    fn une_largeur_exacte_passe_en_t2() {
+        let r = ligne("panneau", 1.0, ENCRE, 0);
+        let s = sas_depuis(&r, &r, Some(2));
+        assert_eq!(s.verdict, Verdict::Strict, "{}", motifs(&s));
+        let fin = ligne("panneau", 0.85, ENCRE, 0);
+        let s = sas_depuis(&r, &fin, Some(2));
+        assert_eq!(s.verdict, Verdict::Tolere, "{}", motifs(&s));
+        assert_eq!(s.dettes_largeur(), 0);
     }
 
     #[test]
