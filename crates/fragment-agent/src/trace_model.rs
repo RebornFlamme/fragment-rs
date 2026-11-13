@@ -590,17 +590,17 @@ pub fn describe_step(step: &TraceStep, running: bool) -> StepView {
 
 // ── Durées et résumé ──────────────────────────────────────────────────────────
 
-/// « 8 s », « 1 min 5 s ».
+/// « 8s », « 1m 5s » : l'unité collée au chiffre (convention US ; le chrono est en chasse fixe).
 pub fn duree(ms: i64) -> String {
     let s = ((ms as f64) / 1000.0).round().max(0.0) as i64;
     if s < 60 {
-        return format!("{s} s");
+        return format!("{s}s");
     }
     let m = s / 60;
     if s % 60 != 0 {
-        format!("{m} min {} s", s % 60)
+        format!("{m}m {}s", s % 60)
     } else {
-        format!("{m} min")
+        format!("{m}m")
     }
 }
 
@@ -608,7 +608,7 @@ fn pluriel(n: usize, un: &str, plusieurs: &str) -> String {
     format!("{n} {}", if n > 1 { plusieurs } else { un })
 }
 
-/// Le résumé d'une trace finie : « A réfléchi 3 s · lu 2 fichiers · 1 recherche · 3 commandes ».
+/// Le résumé d'une trace finie : « A réfléchi 3s · lu 2 fichiers · 1 recherche · 3 commandes ».
 pub fn summarize(trace: &Trace) -> String {
     let outils: Vec<&TraceStep> = trace
         .steps
@@ -811,7 +811,7 @@ mod tests {
                 status: TraceStatus::Done,
                 ..s.clone()
             }),
-            "A réfléchi 12 s · lu 1 fichier"
+            "A réfléchi 12s · lu 1 fichier"
         );
         // La réponse s'écrit : la trace est finie là (son chrono s'arrête), pas à la fin du tour.
         assert_eq!((s.writing, s.ended_at), (Some(true), Some(13000)));
@@ -1095,10 +1095,10 @@ mod tests {
 
     #[test]
     fn duree_formate() {
-        assert_eq!(duree(400), "0 s");
-        assert_eq!(duree(8200), "8 s");
-        assert_eq!(duree(65_000), "1 min 5 s");
-        assert_eq!(duree(120_000), "2 min");
+        assert_eq!(duree(400), "0s");
+        assert_eq!(duree(8200), "8s");
+        assert_eq!(duree(65_000), "1m 5s");
+        assert_eq!(duree(120_000), "2m");
     }
 
     #[test]
@@ -1118,7 +1118,7 @@ mod tests {
         t.finish(4000, false);
         assert_eq!(
             summarize(&t.snapshot()),
-            "A réfléchi 3 s · lu 2 fichiers · 1 recherche · 1 fichier modifié · 1 commande"
+            "A réfléchi 3s · lu 2 fichiers · 1 recherche · 1 fichier modifié · 1 commande"
         );
         let mut e = TraceBuilder::new(0);
         e.tool(out("x", "Bash", None), 1);

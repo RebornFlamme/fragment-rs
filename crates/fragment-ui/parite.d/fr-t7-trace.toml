@@ -1,0 +1,12 @@
+# Parité de fr-t7-trace (fragment-ui). Schéma `parite.d` : un fichier par tâche. La trace d'un tour
+# (traceView.ts, trace.css) n'a pas de test unitaire TS : les cas headless sont ceux de la spec e2e
+# agent-trace.spec.ts, joués sur la poignée pure (crates/fragment-ui/tests/agent_trace.rs), le SDK
+# doublé du test TS devenant un TraceBuilder rythmé à la main.
+
+[[module]]
+ts = "app/src/ui/views/agent/trace/traceView.ts (renderTrace, TexteFondu, Odometre, repliable, geste), trace.css (durées, constantes de mise en page)"
+rs = "crates/fragment-ui/src/agent_trace/{mod,animation,poignee,vue}.rs, crates/fragment-ui/tests/agent_trace.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 7
+notes = "Les cinq tests de agent-trace.spec.ts (en direct, le geste, relue, orbe des réglages, tour sans pensée ni outil), le premier éclaté en trois (trace vide, pensée repliée, pensée seule). Ajoutés : clic sur trace vide, état choisi qui survit à la reconstruction, résultat coupé à six lignes, trace interrompue, et les machines de gestes (courbe, fondu à deux couches, chrono, repli, mode nerveux). Écarts : pas de flou (opacité seule), reflet = couleur du libellé entier, pas de masque dégradé sur la pensée (voile workspace_bg), montée FLIP de la pensée non rejouée ; l'orbe est un emplacement (FournisseurOrbe) rempli par fr-t7-orbe ; l'orbe de data-orb se lit sur Poignee::vue().orbe. Correctif amont signalé : fragment-agent::trace_model::duree rendait « 8 s » / « 1 min 5 s » alors que le TS rend « 8s » / « 1m 5s » (unité collée, chrono en chasse fixe) ; tests de trace_model alignés."
