@@ -16,4 +16,7 @@ rs = "crates/fragment-ui/src/chat_citation/{mod,modele,vue}.rs, crates/fragment-
 cas_source = 4
 cas_portes = 3
 cas_ajoutes = 9
+non_portes = [
+  { cas = "chat-reply : la barre de sélection de l'agent et le clic droit sur une sélection", raison = "T8 : n.a. ici" },
+]
 notes = "Trois des quatre tests de chat-reply.spec.ts : la citation dans le champ puis envoi (citée au fournisseur, part au-dessus du texte, puce retirée), ✕ retire, l'action Répondre d'un message cite tout le message, et without ['quote'] (canReply faux). La barre de sélection de l'agent (« Répondre » par agent:toolbar) et le clic droit sur une sélection sont de T8 : n.a. ici. Ajoutés : extrait, citation en tête du prompt, part au-dessus du texte (rang d'affichage), données du part, estCitation, vue reconstruite, teinte et vignette, rendu cliquable. Écarts : (1) le message doit trier ses parts par rang_d_affichage (quote d'abord, tri stable) : message.rs n'est pas à cette tâche, le crochet est à poser par fr-t7-vue / le montage ; (2) le clic sur la citation appelle un rappel fourni à RenduCitation::new (revealQuote de la vue) ; (3) pas d'activation au clavier du part (Entrée / Espace) : à régler avec fr-t7-vue ; (4) ★ quote.css : `padding: var(--size-2-2) var(--size-2-4)` utilise un jeton qui n'existe pas dans Fragment, la déclaration est invalide et le remplissage vaut 0 : reproduit tel quel ; (5) taille de l'icône « reply » = icon_s, à confirmer par la scène t7-citation ; l'icône reply.svg (Lucide, ISC) est ajoutée à assets/icons."

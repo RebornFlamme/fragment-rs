@@ -9,6 +9,10 @@ rs = "crates/fragment-ui/src/mode_marge/{mod,etat,geometrie,commandes}.rs, crate
 cas_source = 11
 cas_portes = 9
 cas_ajoutes = 4
+non_portes = [
+  { cas = "margin-mode : le bouton de l'en-tête s'allume quand le mode est actif", raison = "bouton de l'en-tête de la vue : montage, fr-t5-montage-note" },
+  { cas = "margin-mode : la carte du lecteur se place dans la marge élargie", raison = "carte du lecteur dans la marge : montage, fr-t5-montage-note" },
+]
 notes = "Portés : géométrie (colonne qui ne s'élargit pas, relevée dans la mise en page GPUI et égale au modèle pur), élargir puis rétrécir aussitôt, < 150 ms sans saut (échantillons par image à 60 Hz, aller = retour), un seul déclenchement, Ctrl et vertical ignorés, tableau large qui défile encore (faux défileur qui se déclare par `absorber`), toggle-margin, liaisons SwipeRight/SwipeLeft et portée de vue, PDF 40 % (modèle : réserve sans transition, largeur utile ; l'application à la vue PDF est au montage). Non portés (montage, fr-t5-montage-note) : bouton de l'en-tête allumé, carte du lecteur dans la marge élargie. Ajoutés : marge par feuille, indisponible sans document, pixels:marge sans transition, retrait qui ferme tout. Écart : l'état est une table par feuille (pas de classe CSS) ; une vue embarquée lit SA feuille, jamais ouverte, ce qui remplace le `:not(.workspace-leaf .workspace-leaf *)`."
 
 [[module]]
