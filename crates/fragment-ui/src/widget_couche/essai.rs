@@ -284,10 +284,16 @@ impl Dessin {
                     .bg(couleur(p.color_red.melange(15.0, Couleur::TRANSPARENT)))
                     .child(contour)
             }
-            SorteEssai::Vue => boite
-                .bg(couleur(p.background_primary_alt))
-                .border_1()
-                .border_color(couleur(p.background_modifier_border)),
+            // Le bord est un calque posé par-dessus : la boîte relevée reste la boîte entière.
+            SorteEssai::Vue => boite.bg(couleur(p.background_primary_alt)).child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .size_full()
+                    .border_1()
+                    .border_color(couleur(p.background_modifier_border)),
+            ),
         };
         if actif && self.sorte == SorteEssai::Vue {
             // L'anneau de l'actif : par-dessus le contenu, il ne prend pas de place.

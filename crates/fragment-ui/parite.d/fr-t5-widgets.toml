@@ -19,7 +19,7 @@ rs = "crates/fragment-ui/src/widget_couche/{mod,couche,paresseux,essai,scene}.rs
 cas_source = 9
 cas_portes = 6
 cas_ajoutes = 3
-notes = "« Aller à » : l'activation attend la construction (WidgetDeclare::au_prochain_montage). Ajoutés : appui dans un menu (pas dehors), clic droit sans effet, actif seulement après le geste (et le clic reçu)."
+notes = "« Aller à » : l'activation attend la construction (WidgetDeclare::au_prochain_montage). Ajoutés : appui dans un menu (pas dehors), clic droit dehors sans effet, actif seulement après le geste (et le clic reçu)."
 
 [[module.non_portes]]
 cas = "setOpen d’une conversation non montée : écrit au record"

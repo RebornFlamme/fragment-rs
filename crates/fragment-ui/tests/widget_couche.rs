@@ -233,9 +233,9 @@ impl Banc {
             SpecEssai::marge(sorte, pos, None, GutterSide::Right, h),
         )
     }
-    /// Le début du « paragraphe » `n` (1 = le premier) : une ligne sur deux.
+    /// Le début du « paragraphe » `n` (1 = le premier) : une ligne sur trois (60 px).
     fn p(&self, n: usize) -> usize {
-        self.surface.pos(2 * (n - 1), 0)
+        self.surface.pos(3 * (n - 1), 0)
     }
     fn voulu(&self, w: &WidgetEssai) -> f64 {
         let a = w.handle.get_anchor();
@@ -1073,30 +1073,19 @@ fn un_appui_dans_un_menu_n_est_pas_dehors_l_actif_reste() {
 }
 
 #[test]
-fn le_clic_droit_ne_change_pas_l_actif() {
+fn le_clic_droit_dehors_ne_relache_pas_l_actif() {
     let mut cx = TestAppContext::single();
     let (b, vcx) = banc(&mut cx);
     let c = b.calque();
     let w = widget_de_marge(&b, &c, vcx);
-    let r = b.rect(&w);
-    vcx.simulate_mouse_down(
-        point(
-            px(((r.left + r.right) / 2.0) as f32),
-            px((r.top + 10.0) as f32),
-        ),
-        MouseButton::Right,
-        Modifiers::default(),
-    );
-    vcx.simulate_mouse_up(
-        point(
-            px(((r.left + r.right) / 2.0) as f32),
-            px((r.top + 10.0) as f32),
-        ),
-        MouseButton::Right,
-        Modifiers::default(),
-    );
+    cliquer_widget(&b, vcx, &w);
+    assert!(w.handle.is_active());
+    // Un clic droit dans le texte (menu contextuel) : rien ne change.
+    let p = point(px(500.0), px(30.0));
+    vcx.simulate_mouse_down(p, MouseButton::Right, Modifiers::default());
+    vcx.simulate_mouse_up(p, MouseButton::Right, Modifiers::default());
     images(vcx);
-    assert!(!w.handle.is_active());
+    assert!(w.handle.is_active());
 }
 
 #[test]
