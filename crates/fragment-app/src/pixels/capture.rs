@@ -90,6 +90,7 @@ fn sprites_peints(
     let mut sprites = Vec::new();
     let mut rognes = Vec::new();
     let mut identites = Vec::new();
+    let mut deja_releves = Vec::new();
     let glyphes = scene.subpixel_sprites.iter().map(|s| {
         (
             &s.tile,
@@ -170,10 +171,23 @@ fn sprites_peints(
             (bornes.origin.x.0 + bornes.size.width.0).ceil(),
             (bornes.origin.y.0 + bornes.size.height.0).ceil(),
         );
-        if categorie == boites::Categorie::Texte {
-            if entier != rect {
-                rognes.push(boite);
-            }
+        if categorie == boites::Categorie::Texte && entier != rect {
+            rognes.push(boite);
+        }
+        // ★ Une même tuile (même glyphe, même police, même taille) posée deux fois à la même
+        // origine est UN glyphe à l'écran : le « ↵ » de la palette arrive deux fois dans la scène
+        // sans changer un pixel hors des boîtes. L'identité n'en garde qu'un ; les boîtes ne
+        // changent pas.
+        if categorie == boites::Categorie::Texte
+            && premiere_fois(
+                &mut deja_releves,
+                (
+                    *atlas,
+                    bornes.origin.x.0.to_bits(),
+                    bornes.origin.y.0.to_bits(),
+                ),
+            )
+        {
             identites.push(identite::Glyphe::new(
                 &caractere(fenetre, atlas).unwrap_or_else(|| INCONNU.to_owned()),
                 boite.x as f32,
@@ -187,6 +201,16 @@ fn sprites_peints(
     ROGNES.with(|r| *r.borrow_mut() = rognes);
     IDENTITE.with(|i| *i.borrow_mut() = Some(identites));
     Some(sprites)
+}
+
+/// Vrai la première fois que `cle` est vue (et la retient) ; faux pour un doublon.
+#[cfg_attr(not(feature = "pixels"), allow(dead_code))]
+fn premiere_fois<T: PartialEq>(vus: &mut Vec<T>, cle: T) -> bool {
+    if vus.contains(&cle) {
+        return false;
+    }
+    vus.push(cle);
+    true
 }
 
 /// Le caractère du glyphe peint avec la tuile `tuile` (plateforme enveloppée, Windows seulement).
@@ -417,6 +441,23 @@ mod tests {
         assert!(e.contains("(2, 1)"), "{e}");
         let dehors = PixelAttendu { x: 9, ..ok };
         assert!(verifier_pixels(&img, "s", &[dehors]).is_err());
+    }
+
+    #[test]
+    fn un_glyphe_pose_deux_fois_au_meme_endroit_n_est_releve_qu_une_fois() {
+        let mut vus = Vec::new();
+        let fleche = ("↵", 396.0f32.to_bits(), 242.0f32.to_bits());
+        assert!(premiere_fois(&mut vus, fleche));
+        assert!(!premiere_fois(&mut vus, fleche));
+        // Même glyphe ailleurs, ou autre glyphe au même endroit : deux glyphes.
+        assert!(premiere_fois(
+            &mut vus,
+            ("↵", 396.0f32.to_bits(), 199.0f32.to_bits())
+        ));
+        assert!(premiere_fois(
+            &mut vus,
+            ("a", 396.0f32.to_bits(), 242.0f32.to_bits())
+        ));
     }
 
     #[test]
