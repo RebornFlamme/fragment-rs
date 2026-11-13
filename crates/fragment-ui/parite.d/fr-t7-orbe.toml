@@ -1,0 +1,12 @@
+# Parité de fr-t7-orbe (fragment-ui). L'orbe de la trace : orb.ts (la boucle, sans test TS) et le
+# moteur tiers « Thinking Orbs » (Jakub Antalik, MIT, commit bad63221), traduit en Rust. Les cas de
+# orbStateOf (traceModel.test.ts) sont portés côté fragment-agent ; ici ils sont rejoués jusqu'à la
+# forme peinte.
+
+[[module]]
+ts = "app/src/ui/views/agent/trace/orb.ts (createOrb, ORB_LABELS), trace/orbs/{presets,types}.ts et trace/orbs/engine/* (moteur tiers MIT)"
+rs = "crates/fragment-ui/src/orbe/{mod,noyau,reglages,sphere,formes,echarpe,morph,vue}.rs, crates/fragment-ui/tests/orbe.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 10
+notes = "orb.ts n'a pas de test TS. Ajoutés : moteur comparé valeur pour valeur au moteur TypeScript (36 vecteurs dorés : 9 états × tailles 20 et 64 × deux instants), état d'après l'étape (orbStateOf → forme), horloge partagée, image fixe identique deux fois, image animée qui bouge, arrêt hors écran, encre sur la teinte (sombre / clair), réglages livrés, noms, toile peinte en headless. Écarts : pas d'arrêt sur onglet caché (GPUI ne peint pas une fenêtre cachée) ; la densité n'est pas plafonnée à 2 (GPUI peint à l'échelle de la fenêtre) ; le thème se lit au Mode du ThemeGlobal (body.theme-dark) ; la toile de l'orbe redemande une image seulement si elle croise le masque de contenu (IntersectionObserver)."
