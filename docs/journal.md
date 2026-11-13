@@ -785,3 +785,12 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - Rythme cible : (97 − 61) ÷ 17,7 h ≈ 2 points par heure.
   - #92 (fr-t3-scenes-b, 22 PNG, MD5 identiques) et #91 (fr-p3.2) en CI.
   - Actifs : t3scenesc, t11scenes, t4recherche, tableaux, proprietes, saslargeur. « Prêt pour le clear » quand ils auront rendu compte.
+- 00:38 UTC : fusionnées, 8 jobs verts et audits à 0 :
+  - #91 (fr-p3.2, largeur stricte à partir de T2) ;
+  - #92 (fr-t3-scenes-b, 11 scènes) ;
+  - #93 (fr-t3-proprietes, 14 tests ; le crochet « avant saisie » reste à faire après #95).
+- En CI :
+  - #94 (fr-t3-scenes-c, 7 scènes, MD5 stables) ;
+  - #95 (fr-t3-tableaux) : l'écart « frappe en cellule sans réalignement » est accepté provisoirement, à réaligner au blur.
+- ★ Les JSON des scènes T3 ne sont JOUÉS par aucune CI tant que T3 est inactive dans `pixels/tranches.json`. Le vert du job pixels ne prouve rien pour eux. Activer T3 dès la vue Markdown montée (fr-t3-vue).
+- Actifs : t11scenes (passe E). t3scenesc, tableaux et proprietes ont fini.
