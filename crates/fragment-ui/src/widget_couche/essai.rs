@@ -3,10 +3,13 @@
 //! Écrits pour ce dépôt d'après le contrat qu'ils éprouvent :
 //!
 //! - RIGIDE : ignore la place annoncée (le « globe » d'un autre calque) — il est seulement décalé et
-//!   réduit la place du suivant ;
+//!   réduit la place du suivant ; c'est une ELLIPSE à dégradé radial ([`super::globe`]) ;
 //! - FLEX : se plie à sa place (sa hauteur ne la dépasse pas) ;
 //! - SEUIL : SES seuils — sous [`SEUIL`] px de place, il passe en compact ([`COMPACT`] px) ;
 //! - VUE : une vue nue (une « carte » où l'on tape) ; active, elle porte l'anneau.
+//!
+//! ★ Couleurs et formes sont celles des fixtures de Fragment (`e2e-room`, `e2e-globe`, la vue nue
+//! de `doc-widget`) : la palette de FIXTURE de `fragment_theme::fixture`, pas les jetons du thème.
 //!
 //! Tous sont DÉCLARÉS (`WidgetDeclare`) : construits dans la bande, détruits hors d'elle. Tous
 //! prennent le focus à l'appui et comptent leurs clics. Chacun compte les annonces de place qu'il
@@ -14,16 +17,19 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 use fragment_layers::types::{ElementId, GutterSide};
 use fragment_layers::widget_layer::{WidgetAnchor, WidgetHandle, WidgetOptions, WidgetSource};
-use fragment_theme::Couleur;
+use fragment_theme::fixture::{FIXTURE_BLEU_VUE, FIXTURE_ROUGE, FIXTURE_ROUGE_FOND};
 use gpui_kit::{
-    AnyElement, App, Bounds, FocusHandle, InteractiveElement as _, IntoElement, MouseButton,
-    ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, Window, canvas, div,
+    AnyElement, App, Bounds, Corners, FocusHandle, InteractiveElement as _, IntoElement,
+    MouseButton, ParentElement as _, Pixels, RenderImage, StatefulInteractiveElement as _,
+    Styled as _, Window, canvas, div,
 };
 
 use super::couche::{CalqueWidgets, CoucheWidgets};
+use super::globe::globe_bgra;
 use super::paresseux::{Fabrique, WidgetDeclare};
 use crate::calques::{Contenu, HoteCalques};
 use crate::echelle::u;
@@ -37,6 +43,12 @@ pub const COMPACT: f64 = 40.0;
 pub const LARGEUR_LIBRE: f64 = 240.0;
 /// Le décalage vertical du rigide sous son ancre (le globe se pose un peu sous sa ligne).
 pub const DY_RIGIDE: f64 = 6.0;
+
+/// Le globe mis en image : sa taille en pixels de l'écran et l'image.
+type ImageGlobe = ((u32, u32), Arc<RenderImage>);
+
+/// Le rayon des coins de la vue nue (px).
+pub const RAYON_VUE: f64 = 8.0;
 
 /// La sorte d'un widget de test.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,6 +123,8 @@ struct Etat {
     focus: RefCell<Option<FocusHandle>>,
     /// La dernière boîte où GPUI l'a posé.
     pose: RefCell<Option<Bounds<Pixels>>>,
+    /// L'image du globe du rigide, avec sa taille en pixels de l'écran (refaite si elle change).
+    globe: RefCell<Option<ImageGlobe>>,
 }
 
 /// Un widget de test posé : son handle (vivant toujours) et ce qu'il a relevé.
@@ -269,9 +283,10 @@ impl Dessin {
             boite.w(u(cx, LARGEUR_LIBRE as f32))
         };
         boite = match self.sorte {
-            SorteEssai::Rigide => boite.rounded_full().bg(couleur(p.color_blue)),
+            SorteEssai::Rigide => boite.child(self.globe(cx)),
             SorteEssai::Flex | SorteEssai::Seuil => {
-                // Un fond teinté et un contour d'un pixel posé DEHORS (il ne prend pas de place).
+                // Le fond rouge à 15 % et un contour d'un pixel posé DEHORS (il ne prend pas de
+                // place, comme l'`outline` de la fixture).
                 let contour = div()
                     .absolute()
                     .top(u(cx, -1.0))
@@ -279,21 +294,13 @@ impl Dessin {
                     .right(u(cx, -1.0))
                     .bottom(u(cx, -1.0))
                     .border_1()
-                    .border_color(couleur(p.color_red));
-                boite
-                    .bg(couleur(p.color_red.melange(15.0, Couleur::TRANSPARENT)))
-                    .child(contour)
+                    .border_color(couleur(FIXTURE_ROUGE));
+                boite.bg(couleur(FIXTURE_ROUGE_FOND)).child(contour)
             }
-            // Le bord est un calque posé par-dessus : la boîte relevée reste la boîte entière.
-            SorteEssai::Vue => boite.bg(couleur(p.background_primary_alt)).child(
-                div()
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .size_full()
-                    .border_1()
-                    .border_color(couleur(p.background_modifier_border)),
-            ),
+            // La vue nue complète : un bleu à 15 %, coins de 8 px.
+            SorteEssai::Vue => boite
+                .rounded(u(cx, RAYON_VUE as f32))
+                .bg(couleur(FIXTURE_BLEU_VUE)),
         };
         if actif && self.sorte == SorteEssai::Vue {
             // L'anneau de l'actif : par-dessus le contenu, il ne prend pas de place.
@@ -303,11 +310,47 @@ impl Dessin {
                     .top_0()
                     .left_0()
                     .size_full()
+                    .rounded(u(cx, RAYON_VUE as f32))
                     .border_2()
                     .border_color(couleur(p.interactive_accent)),
             );
         }
         boite.into_any_element()
+    }
+
+    /// Le globe du rigide : une image calculée à la taille exacte de la boîte, posée 1:1.
+    fn globe(&self, _cx: &mut App) -> AnyElement {
+        let etat = self.etat.clone();
+        canvas(
+            |_, _, _| {},
+            move |b, _, window, cx| {
+                let echelle = window.scale_factor();
+                let l = (f32::from(b.size.width) * echelle).round().max(1.0) as u32;
+                let h = (f32::from(b.size.height) * echelle).round().max(1.0) as u32;
+                let image = {
+                    let mut g = etat.globe.borrow_mut();
+                    match g.as_ref() {
+                        Some((t, i)) if *t == (l, h) => i.clone(),
+                        ancien => {
+                            if let Some((_, vieille)) = ancien {
+                                cx.drop_image(vieille.clone(), Some(window));
+                            }
+                            let Some(tampon) = image::RgbaImage::from_raw(l, h, globe_bgra(l, h))
+                            else {
+                                return;
+                            };
+                            let i = Arc::new(RenderImage::new(vec![image::Frame::new(tampon)]));
+                            *g = Some(((l, h), i.clone()));
+                            i
+                        }
+                    }
+                };
+                let _ = window.paint_image(b, b, Corners::default(), image, 0, false);
+            },
+        )
+        .absolute()
+        .size_full()
+        .into_any_element()
     }
 
     /// La poignée de focus du widget (une par widget de test, gardée d'une construction à

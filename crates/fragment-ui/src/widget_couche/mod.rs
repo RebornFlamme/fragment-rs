@@ -15,6 +15,7 @@
 
 pub mod couche;
 pub mod essai;
+pub mod globe;
 pub mod paresseux;
 pub mod scene;
 

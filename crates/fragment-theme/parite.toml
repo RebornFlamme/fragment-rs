@@ -47,3 +47,12 @@ tests_ts = ""
 source = 0
 portes = 0
 non_portes = []
+
+# fr-t5.1 : palette de FIXTURE (valeurs des fixtures e2e gutter-room / gutter-globe / doc-widget-view),
+# sans test TS d'origine ; deux tests ajoutés.
+[fixture]
+ts = "app/e2e/fixtures/gutter-room-plugin.cjs"
+tests_ts = ""
+source = 0
+portes = 0
+non_portes = []
