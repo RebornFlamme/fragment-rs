@@ -13,10 +13,13 @@
 
 use crate::doc_widget::icones_vue::Pastille;
 use crate::doc_widget::icones_vue::{
-    self, BULLES, DECALAGE_BULLE, HAUTEUR_BULLES, Motif, PASTILLE,
+    self, BULLES, DECALAGE_BULLE, DISQUE, HAUTEUR_BULLES, Motif, PASTILLE, layout_unit_k,
 };
 
 /// L'échelle de la maquette du disque : la plus grande bulle (Ø 240 unités) = une icône de vue.
+/// ★ Non quantifiée : seule la police (`font-size: calc(d * k * 0.45)`) la garde telle quelle. Les
+/// boîtes (`left`, `top`, `width`, `height` en `calc(… * var(--k))`) passent par [`layout_unit_k`]
+/// (1/64 px vers le bas, LayoutUnit de Chromium), comme [`DISQUE`].
 pub const K: f32 = PASTILLE / 240.0;
 /// Le diamètre du disque, en unités de la maquette (la boîte entière : rien ne dépasse dessous).
 pub const DISQUE_MAQUETTE: f32 = 522.0;
@@ -53,13 +56,17 @@ impl Emplacement {
         }
     }
 
-    /// Le diamètre et le coin haut-gauche (unités de la maquette) d'une bulle du DISQUE.
+    /// Le diamètre et le coin haut-gauche (unités de la maquette) d'une bulle du DISQUE, avec leur
+    /// ligne de view-icons.css (`left`/`top` = `calc(x * var(--k))`, largeur = `calc(var(--d) * var(--k))`).
+    /// Quantifiés ensuite : 237,5 → 21,765625 · 228 → 20,890625 · 14,5 → 1,328125 · 203,5 → 18,640625
+    /// · 149,5 → 13,703125 · 44,5 → 4,078125 · 354 → 32,4375 · 105 → 9,625 · Ø 216 → 19,796875 ·
+    /// Ø 192 → 17,59375 · Ø 136 → 12,453125 · Ø 240 → 22.
     fn maquette(self) -> (f32, f32, f32) {
         match self {
-            Self::A => (240.0, 237.5, 228.0),
-            Self::B => (216.0, 14.5, 203.5),
-            Self::C => (192.0, 149.5, 44.5),
-            Self::D => (136.0, 354.0, 105.0),
+            Self::A => (240.0, 237.5, 228.0), // l.135
+            Self::B => (216.0, 14.5, 203.5),  // l.136
+            Self::C => (192.0, 149.5, 44.5),  // l.137
+            Self::D => (136.0, 354.0, 105.0), // l.138
         }
     }
 }
@@ -81,7 +88,7 @@ impl Disposition {
     pub fn cote(self) -> f32 {
         match self {
             Self::Carre => BULLES,
-            Self::Disque => DISQUE_MAQUETTE * K,
+            Self::Disque => DISQUE, // view-icons.css:97-98, calc(522 * var(--k)) = 47,84375
         }
     }
 
@@ -103,12 +110,18 @@ pub struct Bulle {
 }
 
 impl Bulle {
+    /// Le diamètre en unités de la maquette (`--d`).
+    fn d_maquette(&self) -> f32 {
+        self.emplacement.maquette().0
+    }
+
     /// La taille du texte de la bulle : la normale d'une icône de vue au carré, relative au disque.
     pub fn taille_texte(&self, normale: f32, disposition: Disposition) -> f32 {
         match (disposition, &self.pastille) {
             (Disposition::Carre, _) => normale,
-            (Disposition::Disque, Pastille::Plus(_)) => self.d * TEXTE_PLUS,
-            (Disposition::Disque, _) => self.d * TEXTE_BULLE,
+            // ★ La police n'est pas en LayoutUnit : on repart du diamètre non quantifié.
+            (Disposition::Disque, Pastille::Plus(_)) => self.d_maquette() * K * TEXTE_PLUS,
+            (Disposition::Disque, _) => self.d_maquette() * K * TEXTE_BULLE,
         }
     }
 }
@@ -139,7 +152,7 @@ pub fn bulles(icones: &[String]) -> Vec<Bulle> {
         let (x, y, d) = match disposition {
             Disposition::Disque => {
                 let (d, x, y) = emplacement.maquette();
-                (x * K, y * K, d * K)
+                (layout_unit_k(x), layout_unit_k(y), layout_unit_k(d))
             }
             Disposition::Carre => {
                 let (x, y) = match emplacement {

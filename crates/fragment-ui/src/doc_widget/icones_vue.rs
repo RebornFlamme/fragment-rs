@@ -25,6 +25,14 @@ pub const DECALAGE_BULLE: f32 = 19.0;
 /// bas) : 3062/64 = 47,84375. La largeur du bouton (18 + disque) reste fractionnaire, seule la peinture
 /// du disque est calée au pixel. 48 décalait de 0,16 px tout ce qui suit le bouton.
 pub const DISQUE: f32 = 47.84375;
+
+/// `calc(unités * var(--k))` tel que Chromium le tient en mise en page : `--k` = 22px/240, produit
+/// ramené à la grille de 1/64 px (LayoutUnit), arrondi vers le bas. Calculé en f64 pour que 1/64 soit
+/// exact et que les produits tombant juste (240 · k = 22) ne perdent pas un cran.
+pub fn layout_unit_k(unites: f32) -> f32 {
+    let px = f64::from(unites) * f64::from(PASTILLE) / 240.0;
+    ((px * 64.0 + 1e-9).floor() / 64.0) as f32
+}
 /// La ligne normale du bandeau d'icônes (`--doc-widget-icons-height`).
 pub const HAUTEUR_LIGNE: f32 = 38.0;
 /// Le bandeau d'une grappe : le carré des bulles plus 7 px de marge en haut et en bas.
@@ -164,6 +172,7 @@ mod tests {
     fn disque_est_en_layout_unit() {
         let attendu = (522.0_f32 * 22.0 / 240.0 * 64.0).floor() / 64.0;
         assert_eq!(DISQUE, attendu);
+        assert_eq!(layout_unit_k(522.0), DISQUE);
         assert_eq!(largeur_boite(5, Motif::Bulles), 18.0 + 47.84375);
     }
 }
