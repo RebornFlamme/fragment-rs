@@ -12,6 +12,8 @@ import { test, expect, type Page } from '../../../Fragment/app/node_modules/@pla
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
 import { lancerLecteur, type Harnais } from '../../../Fragment/app/e2e/readerHarness';
+import { activerModeInvisible } from '../invisible/garde';
+activerModeInvisible(); // ★ fr-9x4 : tout lancement d'Electron passe par le mode invisible (refus sinon).
 
 const RACINE = path.resolve(__dirname, '..');
 const COFFRE = path.join(RACINE, 'vault');

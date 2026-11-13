@@ -19,7 +19,12 @@
     fait échouer le script.
   - Écrit pixels/reference/PROVENANCE.txt (commit et branche de Fragment, serveur, date).
 #>
-param([string]$Scene = '')
+param([string]$Scene = '', [switch]$VerrouDejaPris)
+# ★★ MODE INVISIBLE SEUL (fr-9x4, décision de l'utilisateur du 13/11) : Electron ne vient jamais devant
+#   l'utilisateur. Le script refuse de démarrer si le mode invisible n'est pas complet (crochet, sentinelle,
+#   garde), si son auto-test Win32 échoue, si une preuve a échoué au run précédent, ou si l'on demande un
+#   autre mode (FRAGMENT_PIXELS_MODE). Il prend lui-même le verrou de capture (C:/dev/fragment-capture.lock)
+#   et le rend à la fin, même en cas d'échec ; -VerrouDejaPris : l'appelant le tient déjà.
 
 $ErrorActionPreference = 'Stop'
 $racine   = Split-Path -Parent $PSScriptRoot
@@ -38,6 +43,47 @@ if (-not (Test-Path $pw))     { throw "Playwright introuvable : $pw (node_module
 if (-not (Test-Path $viteJs)) { throw "Vite introuvable : $viteJs" }
 if (-not (Test-Path (Join-Path $fragment 'dist-electron\main.js'))) { throw "Build Electron manquant : $fragment\dist-electron\main.js" }
 New-Item -ItemType Directory -Force -Path $ref, $sortie, $cache | Out-Null
+
+# --- Mode invisible : conditions de démarrage (aucun Electron n'est lancé ici) ----------------------
+$invisible = Join-Path $racine 'pixels\invisible'
+$sortieInv = Join-Path $sortie 'invisible'
+$drapeau   = Join-Path $sortieInv 'ECHEC.txt'
+if ($env:FRAGMENT_PIXELS_MODE -and $env:FRAGMENT_PIXELS_MODE -ne 'invisible') {
+    throw "Mode invisible seul : FRAGMENT_PIXELS_MODE=$($env:FRAGMENT_PIXELS_MODE) refusé (fr-9x4). Démarrage refusé."
+}
+foreach ($f in 'crochet.cjs', 'sentinelle.ps1', 'garde.ts') {
+    if (-not (Test-Path (Join-Path $invisible $f))) { throw "Mode invisible incomplet : pixels/invisible/$f absent. Démarrage refusé." }
+}
+if (-not (Select-String -Path $config -SimpleMatch 'activerModeInvisible();' -Quiet)) {
+    throw "Mode invisible : $config n'active pas le garde. Démarrage refusé."
+}
+if (Test-Path $drapeau) {
+    throw "Mode invisible : une preuve a échoué au run précédent ($drapeau : $((Get-Content $drapeau -Raw).Trim())). Analyser pixels/.out/invisible/*.jsonl, puis supprimer ce fichier."
+}
+New-Item -ItemType Directory -Force -Path $sortieInv | Out-Null
+Get-ChildItem $sortieInv -Filter *.jsonl -ErrorAction SilentlyContinue | Remove-Item -Force
+& powershell -NoProfile -NonInteractive -File (Join-Path $invisible 'sentinelle.ps1') -AutoTest -Journal (Join-Path $sortieInv 'autotest.jsonl') | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Mode invisible : auto-test de la sentinelle en échec (pixels/.out/invisible/autotest.jsonl). Démarrage refusé." }
+Write-Host 'Mode invisible : auto-test de la sentinelle réussi.'
+$env:FRAGMENT_PIXELS_MODE = 'invisible'
+
+# --- Verrou de capture (mkdir atomique) ------------------------------------------------------------
+$verrou = 'C:\dev\fragment-capture.lock'
+$verrouPris = $false
+if ($VerrouDejaPris) {
+    if (-not (Test-Path $verrou)) { throw "-VerrouDejaPris : $verrou n'existe pas." }
+} else {
+    $finAttente = (Get-Date).AddMinutes(30)
+    while ($true) {
+        & cmd /c mkdir "$verrou" 2>$null
+        if ($LASTEXITCODE -eq 0) { $verrouPris = $true; break }
+        if ((Get-Date) -gt $finAttente) { throw "Verrou de capture tenu depuis plus de 30 min : $verrou ($((Get-Content (Join-Path $verrou 'qui.txt') -Raw -ErrorAction SilentlyContinue)))" }
+        Write-Host "Verrou de capture tenu ; nouvel essai dans 1 min."
+        Start-Sleep -Seconds 60
+    }
+    Set-Content -Path (Join-Path $verrou 'qui.txt') -Value "pixels-reference.ps1 (PID $PID), $(Get-Date -Format s)" -Encoding UTF8
+}
+try {
 
 function Test-Port([int]$p) {
     # ★ « localhost » peut n'écouter qu'en IPv6 (::1) : on essaie les deux adresses explicitement.
@@ -162,4 +208,28 @@ foreach ($f in $pngs) {
     $img = [System.Drawing.Image]::FromFile($f.FullName)
     try { Write-Host ("  {0,-48} {1}x{2}  {3} Ko" -f $f.Name, $img.Width, $img.Height, [int]($f.Length / 1KB)) } finally { $img.Dispose() }
 }
+
+# --- Preuves du mode invisible ----------------------------------------------------------------------
+# ★ La sentinelle fait foi (le processus de test peut finir avant d'avoir lu sa dernière réponse).
+$journalSent = Join-Path $sortieInv 'sentinelle.jsonl'
+$lignes = @(if (Test-Path $journalSent) { Get-Content $journalSent -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json } })
+$idsAvant = @($lignes | Where-Object { $_.type -eq 'avant' } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$idsApres = @($lignes | Where-Object { $_.type -eq 'apres' -and $_.ok } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$gestes   = @($lignes | Where-Object { $_.type -eq 'premier-plan-utilisateur' }).Count
+$lances = $idsAvant.Count
+$apres  = @($idsAvant | Where-Object { $idsApres -contains $_ }).Count
+Write-Host ''
+# Règle du 13/11 : échec seulement si Electron prend le premier plan, touche un moniteur ou gagne un
+# bouton de barre des tâches ; les gestes de l'utilisateur entre SES fenêtres sont comptés, pas sanctionnés.
+Write-Host ("Mode invisible : {0} lancement(s) d'Electron, {1} sans premier plan à Electron, sans fenêtre sur un moniteur ni bouton de barre des tâches ; {2} changement(s) de premier plan de l'utilisateur (informatif)." -f $lances, $apres, $gestes)
+if (Test-Path $drapeau) {
+    Write-Host ("PREUVE EN ÉCHEC : {0}" -f (Get-Content $drapeau -Raw).Trim()) -ForegroundColor Red
+    $code = 1
+} elseif ($lances -ne $apres) {
+    Write-Host 'PREUVES INCOMPLÈTES : un lancement sans relevé « après ».' -ForegroundColor Red
+    $code = 1
+}
 exit $code
+} finally {
+    if ($verrouPris) { Remove-Item -Recurse -Force $verrou -ErrorAction SilentlyContinue; Write-Host "Verrou de capture rendu." }
+}
