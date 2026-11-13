@@ -20,6 +20,7 @@ pub mod commandes;
 pub mod espace;
 pub mod feuille;
 pub mod layout;
+pub mod menu_pane;
 pub mod pile;
 pub mod redimension;
 pub mod restauration;

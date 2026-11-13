@@ -587,3 +587,34 @@ fn mesure_memoire_pdf_300_pages(cx: &mut TestAppContext) {
         apres - avant
     );
 }
+
+// ─── Le menu « ⋯ » de l'en-tête (PdfView.onPaneMenu) : le hook de menu de pane du cœur ───
+
+/// La vue PDF contribue « Zoom avant » / « Zoom arrière » dans la section `view`, après celles de
+/// l'ouvreur ; un choix dépose le raccourci de zoom dans la file de la vue.
+#[test]
+fn le_menu_plus_d_options_contient_zoom_avant_et_arriere_dans_la_section_view() {
+    use fragment_core::{MenuPane, menu_de_pane};
+    let b = banc();
+    let vue = b.vue();
+    let modele = menu_de_pane(&vue, "more-options", |m: &mut MenuPane| {
+        m.add_item(|i| {
+            i.set_title("Diviser à droite").set_section("pane");
+        });
+    });
+    let mut menu = fragment_ui::menu::Menu::new();
+    fragment_ui::entete::remplir_depuis_pane(&mut menu, &modele);
+    assert_eq!(
+        menu.forme(),
+        ["Diviser à droite", "|", "Zoom avant", "Zoom arrière"]
+    );
+    let e = &modele.entrees()[1];
+    assert_eq!((e.section.as_str(), e.icone.as_str()), ("view", "zoom-in"));
+    (e.action.clone().unwrap())();
+    assert_eq!(
+        vue.liens().touches.borrow().back().copied(),
+        Some(fragment_ui::vue_pdf::Touche::Zoom(
+            fragment_pdf::vue_modele::Raccourci::ZoomPlus
+        ))
+    );
+}
