@@ -546,6 +546,8 @@ pub struct ResultatBoite {
     pub dette_largeur: bool,
     /// L'exception nommée de teinte qui couvre la boîte (`exceptions::Nature::Teinte`), le cas échéant.
     pub nommee: Option<&'static str>,
+    /// Boîte d'encre de la RÉFÉRENCE (x0, y0, x1, y1), dans le repère de `boite`.
+    pub encre_reference: Option<Rect>,
     /// Garde-fous violés, en clair.
     pub violations: Vec<String>,
 }
@@ -708,7 +710,7 @@ fn juger(
         && let Some((i, m)) = glyphe
     {
         violations.push(format!(
-            "forme : glyphe n° {} changé (L1 {:.3}/{GLYPHE_L1}, masse 3×3 {:.2}/{GLYPHE_NET3}, 2×2 {:.2}/{GLYPHE_NET2}, relatif {:.2}/{GLYPHE_RELATIF})",
+            "{VIOLATION_GLYPHE}{} changé (L1 {:.3}/{GLYPHE_L1}, masse 3×3 {:.2}/{GLYPHE_NET3}, 2×2 {:.2}/{GLYPHE_NET2}, relatif {:.2}/{GLYPHE_RELATIF})",
             i + 1,
             m.l1,
             m.net3,
@@ -773,6 +775,7 @@ fn juger(
         ecart_bords,
         dette_largeur,
         nommee: None,
+        encre_reference: rf.boite,
         violations,
     }
 }
@@ -790,9 +793,21 @@ pub(crate) fn lever_nommees(
         res.violations.retain(|v| !v.starts_with(VIOLATION_TEINTE));
         res.nommee = Some(element);
     }
+    // ★ fr-p3.1 : la boîte peinte d'une icône est sa TUILE (marge d'anticrénelage comprise), plus
+    // large que l'encre ; l'exception garde sa boîte d'encre et vise la boîte qui la contient.
+    let encre = res.encre_reference.map(|(x0, y0, x1, y1)| {
+        let (dx, dy) = (
+            i64::from(b.x) - i64::from(res.boite.x),
+            i64::from(b.y) - i64::from(res.boite.y),
+        );
+        let p = |v: u32, d: i64| u32::try_from(i64::from(v) + d).unwrap_or(0);
+        (p(x0, dx), p(y0, dy), p(x1, dx), p(y1, dy))
+    });
     // Exception nommée d'encre (fr-t1.5, « icône en hairline ») : ne lève QUE le garde-fou
     // d'encre totale, jusqu'à `ECART_ENCRE_HAIRLINE`.
-    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Encre) {
+    if let Some(element) =
+        exceptions::pour_boite_ou_encre(nommees, b, encre, exceptions::Nature::Encre)
+    {
         if res.ecart_encre.abs() <= exceptions::ECART_ENCRE_HAIRLINE {
             res.violations.retain(|v| !v.starts_with(VIOLATION_ENCRE));
         }
@@ -815,7 +830,29 @@ pub(crate) fn lever_nommees(
         }
         res.nommee = Some(element);
     }
+    // Exception nommée d'un mot (fr-p3.1, « fermer » de la palette) : la forme par glyphe jusqu'à
+    // la marge `MARGE_GLYPHE_MOT` et le barycentre du passage jusqu'à `ECART_BARYCENTRE_MOT`.
+    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Mot) {
+        if res.ecart_glyphe <= exceptions::MARGE_GLYPHE_MOT {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_GLYPHE));
+        }
+        let passage_ok = res.barycentres.iter().all(|&(partie, dx, dy)| {
+            partie != "passage"
+                || (dx.abs() <= exceptions::ECART_BARYCENTRE_MOT
+                    && dy.abs() <= exceptions::ECART_BARYCENTRE_MOT)
+        });
+        if passage_ok {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_PASSAGE));
+        }
+        res.nommee = Some(element);
+    }
 }
+
+/// Préfixe de la violation du garde-fou de forme par glyphe (voir [`juger`]).
+const VIOLATION_GLYPHE: &str = "forme : glyphe n° ";
+
+/// Préfixe de la violation du barycentre du passage (voir [`juger`]).
+const VIOLATION_PASSAGE: &str = "origine : barycentre (passage)";
 
 /// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
 const VIOLATION_TEINTE: &str = "teinte : ";
@@ -1024,10 +1061,17 @@ fn contraste(img: &RgbaImage, r: Rect, fond: Rgba<u8>) -> f64 {
 pub const ESSAIS_PAR_BOITE: usize = 12;
 pub const ESSAIS_PAR_PNG: usize = 200;
 
-/// Écart sous lequel deux glyphes sont la même lettre (voir [`ecart_lettres`]). ★ Provisoire (chef,
-/// 13/11), calé sur les captures réelles : deux « o » à deux phases sous le pixel sont à 0,073,
-/// « e » et « a » à 0,085. Testé aux deux bords.
-pub const MEME_LETTRE: f64 = 0.08;
+/// Écart sous lequel deux glyphes sont la même lettre (voir [`ecart_substitution`]). ★ Orchestrateur,
+/// 13/11 03:15 : 0,086, calé sur les captures réelles. Les mêmes lettres à deux phases sous le pixel
+/// montent jusqu'à 0,085 (« d », « e », « m », « r ») : 0,08 en faisait des lettres changées. Le prix :
+/// « a » remplacé par « e » (0,085) sort aussi du banc ; « e » remplacé par « a » (0,090) y reste.
+/// Testé aux deux bords sur la même fixture réelle.
+pub const MEME_LETTRE: f64 = 0.086;
+
+/// Part minimale des lettres changées que la contre-épreuve doit détecter, tous PNG confondus
+/// (orchestrateur, 13/11 03:15 : fusion à 99,2 %). Les manquées sont une dette nommée, comptée par
+/// PNG en cliquet ; la cible reste 100 % (`fr-p3.4`).
+pub const DETECTION_MIN: f64 = 0.992;
 
 /// La contre-épreuve d'une lettre changée sur du texte RÉEL (fr-p3.1, ADR-009 point 2).
 #[derive(Debug, Default)]
@@ -1530,6 +1574,15 @@ pub fn comparer_tranche(
                     .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
                     .fold(0.0, f64::max);
                 garder(element, "barycentre", pire);
+            } else if element == exceptions::MOT_FERMER {
+                garder(element, "glyphe", b.ecart_glyphe);
+                let passage = b
+                    .barycentres
+                    .iter()
+                    .filter(|(partie, _, _)| *partie == "passage")
+                    .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
+                    .fold(0.0, f64::max);
+                garder(element, "barycentre", passage);
             } else if element == exceptions::ICONE_HAIRLINE {
                 // L'écart d'encre relatif, en valeur absolue.
                 garder(element, "encre", b.ecart_encre);
@@ -1790,6 +1843,15 @@ pub(super) mod tests {
         ecart_substitution(&flouee(&img), &flouee(&mute), &gl, gl[i].x, x1)
     }
 
+    /// Les glyphes de la fixture réelle `a-e-0085.png`.
+    const GLYPHES_A_E: [(u32, u32, u32, u32); 5] = [
+        (0, 6, 8, 11),
+        (8, 6, 8, 9),
+        (17, 6, 7, 8),
+        (25, 6, 7, 8),
+        (33, 6, 8, 9),
+    ];
+
     #[test]
     fn deux_o_a_deux_phases_sont_la_meme_lettre() {
         // Bord bas du seuil (chef, 13/11) : « Zoom », le premier « o » remplacé par le second.
@@ -1803,21 +1865,29 @@ pub(super) mod tests {
     }
 
     #[test]
-    fn un_e_pour_un_a_est_une_autre_lettre() {
-        // Bord haut du seuil : un « a » remplacé par un « e » du même passage.
+    fn un_a_pour_un_e_est_sous_le_seuil() {
+        // Bord bas du seuil 0,086 : un « a » remplacé par un « e » du même passage (0,085) passe
+        // pour la même lettre ; le banc ne génère pas cet essai.
         let e = ecart_fixture(
             include_bytes!("../../fixtures/a-e-0085.png"),
-            &[
-                (0, 6, 8, 11),
-                (8, 6, 8, 9),
-                (17, 6, 7, 8),
-                (25, 6, 7, 8),
-                (33, 6, 8, 9),
-            ],
+            &GLYPHES_A_E,
             1,
             4,
         );
-        assert!((MEME_LETTRE..0.090).contains(&e), "{e}");
+        assert!((0.080..MEME_LETTRE).contains(&e), "{e}");
+    }
+
+    #[test]
+    fn un_e_pour_un_a_est_une_autre_lettre() {
+        // Bord haut du seuil : l'essai inverse, « e » remplacé par « a » (0,090), est une lettre
+        // changée.
+        let e = ecart_fixture(
+            include_bytes!("../../fixtures/a-e-0085.png"),
+            &GLYPHES_A_E,
+            4,
+            1,
+        );
+        assert!((MEME_LETTRE..0.095).contains(&e), "{e}");
     }
 
     #[test]

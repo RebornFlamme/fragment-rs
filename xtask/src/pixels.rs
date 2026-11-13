@@ -336,6 +336,10 @@ struct Base {
     /// Glyphes NON JUGEABLES (fr-p3.1, décision du 13/11) : rognés par un rectangle de découpe à
     /// 3×2 px visibles ou moins. Dette nommée (`docs/parite-pixels.md`), en cliquet.
     non_jugeables: u64,
+    /// Lettres changées que la contre-épreuve n'a PAS détectées (fr-p3.1, orchestrateur 13/11
+    /// 03:15) : surtout des glyphes étroits (« l », « i », point, virgule : 1 à 3 px de large).
+    /// Dette nommée « lettre manquée », comptée par PNG, en cliquet ; à retirer par `fr-p3.4`.
+    lettres_manquees: u64,
 }
 
 /// Les valeurs mesurées de l'exception `--shadow-l` d'un PNG (donc d'un thème) : le pire, en valeur
@@ -397,6 +401,10 @@ fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
                 arrondi_pourcent: part("arrondi_pourcent")?,
                 non_jugeables: v
                     .get("non_jugeables")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0),
+                lettres_manquees: v
+                    .get("lettres_manquees")
                     .and_then(serde_json::Value::as_u64)
                     .unwrap_or(0),
                 exception: match v.get("shadow_l") {
@@ -500,6 +508,9 @@ fn ecrire_cliquet(
             if b.non_jugeables > 0 {
                 v["non_jugeables"] = serde_json::json!(b.non_jugeables);
             }
+            if b.lettres_manquees > 0 {
+                v["lettres_manquees"] = serde_json::json!(b.lettres_manquees);
+            }
             if let Some(e) = b.exception {
                 v["shadow_l"] = serde_json::json!({
                     "etalement": e.etalement,
@@ -578,6 +589,12 @@ fn verifier_cliquet(mesure: Base, base: Option<&Base>) -> Option<String> {
         raisons.push(format!(
             "{} glyphes non jugeables (rognés à 3×2 px) > base {}",
             mesure.non_jugeables, base.non_jugeables
+        ));
+    }
+    if mesure.lettres_manquees > base.lettres_manquees {
+        raisons.push(format!(
+            "{} lettres manquées par la contre-épreuve > base {}",
+            mesure.lettres_manquees, base.lettres_manquees
         ));
     }
     match (mesure.exception, base.exception) {
@@ -776,9 +793,13 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     )?;
                 }
                 non_jugeables_total += d.non_jugeables.len();
+                // ★ Une lettre manquée n'échoue plus seule : c'est une dette nommée, comptée par
+                // PNG en cliquet (orchestrateur, 13/11 03:15), sous un taux global de détection.
                 for m in &ce.manques {
-                    ok = false;
-                    writeln!(details, "- {nom} : contre-épreuve MANQUÉE : {m}")?;
+                    writeln!(
+                        details,
+                        "- {nom} : contre-épreuve : lettre manquée (dette nommée, fr-p3.4) : {m}"
+                    )?;
                 }
                 essais_contre_epreuve += ce.essais;
                 detectes_contre_epreuve += ce.detectes;
@@ -791,6 +812,7 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     arrondi_delta_max: s.delta_max_arrondi,
                     arrondi_pourcent: arrondir(s.pourcent_arrondi()),
                     non_jugeables: d.non_jugeables.len() as u64,
+                    lettres_manquees: ce.manques.len() as u64,
                     exception: s
                         .gardes_exception()
                         .map(|g| BaseException {
@@ -1086,10 +1108,21 @@ Barycentres d'encre (pire écart absolu des passages et de leurs moitiés, borne
     }
     if essais_contre_epreuve > 0 {
         let ligne = format!(
-            "contre-épreuve (fr-p3.1) : {essais_contre_epreuve} lettres changées sur le texte réel des candidats, {detectes_contre_epreuve} détectées ({:.1} % des glyphes jugeables) ; {non_jugeables_total} glyphes non jugeables (rognés par un rectangle de découpe à 3×2 px visibles ou moins, dette nommée, en cliquet)",
-            100.0 * detectes_contre_epreuve as f64 / essais_contre_epreuve as f64
+            "contre-épreuve (fr-p3.1) : {essais_contre_epreuve} lettres changées sur le texte réel des candidats, {detectes_contre_epreuve} détectées ({:.1} % des glyphes jugeables, minimum {:.1} %) ; {} lettres manquées (dette nommée par PNG, en cliquet) ; {non_jugeables_total} glyphes non jugeables (rognés par un rectangle de découpe à 3×2 px visibles ou moins, dette nommée, en cliquet)",
+            100.0 * detectes_contre_epreuve as f64 / essais_contre_epreuve as f64,
+            100.0 * sas::DETECTION_MIN,
+            essais_contre_epreuve - detectes_contre_epreuve
         );
         println!("{ligne}");
+        let taux = detectes_contre_epreuve as f64 / essais_contre_epreuve as f64;
+        if taux < sas::DETECTION_MIN {
+            ok = false;
+            println!(
+                "xtask pixels : contre-épreuve à {:.1} % < {:.1} % (détection minimale)",
+                100.0 * taux,
+                100.0 * sas::DETECTION_MIN
+            );
+        }
         write!(
             rapport,
             "
@@ -1390,6 +1423,7 @@ mod tests {
             arrondi_delta_max: 6,
             arrondi_pourcent: 10.0,
             non_jugeables: 3,
+            lettres_manquees: 2,
             exception: Some(BaseException {
                 etalement: 1.5,
                 encre: 0.3,
@@ -1406,6 +1440,7 @@ mod tests {
             arrondi_delta_max: 5,
             arrondi_pourcent: 9.0,
             non_jugeables: 2,
+            lettres_manquees: 1,
             exception: Some(BaseException {
                 etalement: -1.4,
                 encre: 0.2,
@@ -1454,6 +1489,12 @@ mod tests {
             ..base
         };
         assert!(verifier_cliquet(plus_de_fragments, Some(&base)).is_some());
+        // Les lettres manquées par la contre-épreuve (fr-p3.1, 13/11 03:15) : idem.
+        let plus_de_manquees = Base {
+            lettres_manquees: 3,
+            ..base
+        };
+        assert!(verifier_cliquet(plus_de_manquees, Some(&base)).is_some());
         // L'exception --shadow-l : chaque valeur mesurée fait cliquet, en valeur absolue.
         let e = base.exception.unwrap_or_default();
         for pire in [

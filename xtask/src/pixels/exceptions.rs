@@ -39,6 +39,10 @@ pub enum Nature {
     /// PARTIES (moitiés) jusqu'à [`ECART_BARYCENTRE_GLYPHES`] d'une boîte ; l'origine (barycentre du
     /// passage), les bords, la forme et la teinte restent exigés.
     Glyphes,
+    /// Le garde-fou de forme PAR GLYPHE jusqu'à la marge [`MARGE_GLYPHE_MOT`] ET celui du
+    /// barycentre du passage (l'origine) jusqu'à [`ECART_BARYCENTRE_MOT`] d'une boîte de texte
+    /// ([`Exception::boite`]) : encre, bords, moitiés et teinte restent exigés.
+    Mot,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -182,6 +186,29 @@ pub const GLYPHES_8_8: &str = "glyphes à 8,8 px en clair";
 
 /// L'écart de barycentre toléré sur les PARTIES d'une boîte par une exception [`Nature::Glyphes`].
 pub const ECART_BARYCENTRE_GLYPHES: f64 = 0.75;
+
+/// ★ L'élément du mot « fermer » de la palette sombre (orchestrateur, 13/11 03:15, en cliquet sous
+/// `fr-p4.1`) : les glyphes y sont placés par GPUI de −0,02 à −0,60 px de ceux de Chromium (avances
+/// et arrondi de position dans le mot, pas la capture) ; le barycentre du passage glisse à −0,57 px
+/// et le « m » déplacé porte sa masse 3×3 à 1,58 (borne 1,54). Le clair passe. Clés du cliquet :
+/// `glyphe` (marge du pire glyphe), `barycentre` (passage, px).
+pub const MOT_FERMER: &str = "mot « fermer » de la palette";
+
+/// La marge du pire glyphe tolérée par une exception [`Nature::Mot`] (1 : la borne).
+pub const MARGE_GLYPHE_MOT: f64 = 1.05;
+
+/// L'écart de barycentre du passage toléré par une exception [`Nature::Mot`].
+pub const ECART_BARYCENTRE_MOT: f64 = 0.6;
+
+const fn mot(png: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element: MOT_FERMER,
+        jeton: "--text-muted",
+        nature: Nature::Mot,
+        boite: Some(boite),
+    }
+}
 
 /// L'élément des arcs du contour de l'onglet actif (haut convexe, pieds concaves, raccords
 /// compris), déclarés sans ombre par `fragment_ui::onglets` : son nom EST la clé du cliquet.
@@ -338,19 +365,26 @@ pub const EXCEPTIONS: &[Exception] = &[
     poignee("t1-split-proportions-light.png"),
     poignee("t1-split-vertical-light.png"),
     // Le « N » coupé du titre étroit, sombre seulement (le clair passe dans la borne).
-    teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1183, 14, 7, 11]),
+    // Boîte exacte du glyphe peint (fr-p3.1) : 5×9 au lieu des 7×11 déduits de l'image.
+    teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1184, 15, 5, 9]),
     // La ligne 52 de la barre à 150 %, clair seulement : la ligne de base y couvre 0,5 exactement.
     demi("t1-zoom-150-light.png", [54, 52, 1226, 1]),
-    // La croix de l'onglet actif et le chevron de la liste à 80 %, sombre seulement.
+    // La croix de l'onglet actif et le chevron de la liste à 80 %, sombre seulement. Boîtes d'ENCRE
+    // (la boîte peinte est la tuile : 11×11 et 13×13 depuis fr-p3.1, voir `pour_boite_ou_encre`).
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [345, 11, 9, 9]),
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [1127, 13, 11, 7]),
+    // Le mot « fermer » du pied de la palette, sombre seulement (trois scènes de la palette).
+    mot("t1-palette-dark.png", [503, 241, 37, 10]),
+    mot("t1-palette-selection-dark.png", [503, 241, 37, 10]),
+    mot("t1-palette-aucun-resultat-dark.png", [503, 220, 37, 10]),
     // Le texte de la barre d'état à 80 %, clair seulement.
     Exception {
         png: "t1-zoom-80-light.png",
         element: GLYPHES_8_8,
         jeton: "--text-muted",
         nature: Nature::Glyphes,
-        boite: Some([1208, 787, 63, 11]),
+        // Boîte exacte des glyphes peints (fr-p3.1) : 61×9 au lieu des 63×11 déduits de l'image.
+        boite: Some([1209, 788, 61, 9]),
     },
 ];
 
@@ -382,6 +416,38 @@ pub fn pour_boite_de(
             })
         })
         .map(|e| e.element)
+}
+
+/// L'élément nommé de nature `nature` qui vise la boîte `b` (à [`TOLERANCE_BOITE`] près), ou dont
+/// la boîte contient l'encre de la référence `encre` (x0, y0, x1, y1) en restant dans `b`. ★ fr-p3.1 :
+/// la boîte peinte d'une icône est sa tuile, plus large que son encre ; l'exception garde la boîte
+/// de l'encre (même aire), et ne couvre pas une autre icône de la même tuile.
+pub fn pour_boite_ou_encre(
+    liste: &[&'static Exception],
+    b: &BoiteEncre,
+    encre: Option<(u32, u32, u32, u32)>,
+    nature: Nature,
+) -> Option<&'static str> {
+    pour_boite_de(liste, b, nature).or_else(|| {
+        let (x0, y0, x1, y1) = encre?;
+        liste
+            .iter()
+            .filter(|e| e.nature == nature)
+            .find(|e| {
+                e.boite.is_some_and(|[x, y, l, h]| {
+                    let (ex1, ey1) = (x + l - 1, y + h - 1);
+                    x <= x0
+                        && y <= y0
+                        && ex1 >= x1
+                        && ey1 >= y1
+                        && x >= b.x
+                        && y >= b.y
+                        && ex1 < b.x + b.largeur
+                        && ey1 < b.y + b.hauteur
+                })
+            })
+            .map(|e| e.element)
+    })
 }
 
 /// L'élément nommé d'ombre qui couvre `o`, parmi `liste`.
@@ -740,6 +806,33 @@ mod tests {
         }
         let s = juger(png, 400, &croix(400, 0), &croix(400, 6));
         assert!(s.boites.iter().any(|b| !b.ok()), "autre boîte");
+        // fr-p3.1 : la boîte peinte est la TUILE (11×11 autour de l'encre) ; l'exception, boîte
+        // d'encre 9×9, la vise si elle contient l'encre de la référence et tient dans la tuile.
+        let tuile = BoiteEncre {
+            categorie: super::super::boites::Categorie::Icone,
+            x: 344,
+            y: 10,
+            largeur: 11,
+            hauteur: 11,
+        };
+        let liste = du_png(png);
+        let vise = |encre| pour_boite_ou_encre(&liste, &tuile, encre, Nature::Encre);
+        assert_eq!(vise(Some((346, 12, 352, 18))), Some(ICONE_HAIRLINE));
+        // Encre qui déborde de la boîte de l'exception, ou pas d'encre : rien n'est levé.
+        assert_eq!(vise(Some((344, 12, 352, 18))), None);
+        assert_eq!(vise(None), None);
+        // Une tuile plus petite que la boîte de l'exception : rien n'est levé.
+        let petite = BoiteEncre {
+            x: 346,
+            y: 12,
+            largeur: 7,
+            hauteur: 7,
+            ..tuile
+        };
+        assert_eq!(
+            pour_boite_ou_encre(&liste, &petite, Some((346, 12, 352, 18)), Nature::Encre),
+            None
+        );
     }
 
     /// Contre-épreuve des glyphes à 8,8 px : encre ≤ 30 % et barycentres des moitiés ≤ 0,75 px
@@ -751,9 +844,9 @@ mod tests {
         let boite = |x: u32| BoiteEncre {
             categorie: super::super::boites::Categorie::Texte,
             x,
-            y: 787,
-            largeur: 63,
-            hauteur: 11,
+            y: 788,
+            largeur: 61,
+            hauteur: 9,
         };
         let resultat = |encre: f64, gauche: f64, passage: f64| {
             let bary = |p: &str, d: f64| {
@@ -773,7 +866,7 @@ mod tests {
                 violations.push(bary("passage", passage));
             }
             ResultatBoite {
-                boite: boite(1208),
+                boite: boite(1209),
                 differents: 0,
                 delta_max: 0,
                 ecart_encre: encre,
@@ -788,6 +881,7 @@ mod tests {
                 ecart_bords: Some([0, 0, -1, 0]),
                 dette_largeur: true,
                 nommee: None,
+                encre_reference: None,
                 violations,
             }
         };
@@ -797,46 +891,107 @@ mod tests {
         };
         let png = "t1-zoom-80-light.png";
         // La mesure de CI : encre +25,8 %, moitié gauche −0,58, passage −0,31 : levée.
-        let r = leve(png, 1208, resultat(0.258, -0.58, -0.31));
+        let r = leve(png, 1209, resultat(0.258, -0.58, -0.31));
         assert!(r.violations.is_empty(), "{:?}", r.violations);
         assert_eq!(r.nommee, Some(GLYPHES_8_8));
         // À 1 px près sur la boîte.
         assert!(
-            leve(png, 1209, resultat(0.258, -0.58, -0.31))
+            leve(png, 1210, resultat(0.258, -0.58, -0.31))
                 .violations
                 .is_empty()
         );
         // Au-delà : encre > 30 %, moitié > 0,75, passage (origine) > 0,5.
         assert!(
-            !leve(png, 1208, resultat(0.31, -0.58, -0.31))
+            !leve(png, 1209, resultat(0.31, -0.58, -0.31))
                 .violations
                 .is_empty()
         );
         assert!(
-            !leve(png, 1208, resultat(0.258, -0.8, -0.31))
+            !leve(png, 1209, resultat(0.258, -0.8, -0.31))
                 .violations
                 .is_empty()
         );
         assert!(
-            !leve(png, 1208, resultat(0.258, -0.58, -0.6))
+            !leve(png, 1209, resultat(0.258, -0.58, -0.6))
                 .violations
                 .is_empty()
         );
         // Décalé d'1 px : passage et moitiés à ≈ −1.
         assert!(
-            !leve(png, 1208, resultat(0.258, -1.58, -1.31))
+            !leve(png, 1209, resultat(0.258, -1.58, -1.31))
                 .violations
                 .is_empty()
         );
         // Sombre, autre PNG, autre boîte : rien n'est levé.
         for (autre, x) in [
-            ("t1-zoom-80-dark.png", 1208),
-            ("t1-onglets-light.png", 1208),
+            ("t1-zoom-80-dark.png", 1209),
+            ("t1-onglets-light.png", 1209),
             (png, 1100),
         ] {
             let r = leve(autre, x, resultat(0.258, -0.58, -0.31));
             assert_eq!(r.violations.len(), 2, "{autre} {x}");
         }
+    }
+
+    /// Contre-épreuve du mot « fermer » : la forme par glyphe (marge ≤ 1,05) et le passage
+    /// (≤ 0,6 px) levés dans SA boîte de SES PNG sombres ; au-delà, en clair ou ailleurs : rien.
+    #[test]
+    fn le_mot_fermer_ne_leve_que_la_forme_et_le_passage() {
+        use crate::pixels::sas::{ResultatBoite, lever_nommees};
+        let boite = |y: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Texte,
+            x: 503,
+            y,
+            largeur: 37,
+            hauteur: 10,
+        };
+        let resultat = |y: u32, marge: f64, passage: f64| ResultatBoite {
+            boite: boite(y),
+            differents: 0,
+            delta_max: 0,
+            ecart_encre: -0.027,
+            ecart_forme: 0.0,
+            ecart_glyphe: marge,
+            teinte: 1.0,
+            barycentres: vec![("passage", passage, -0.06)],
+            ecart_bords: Some([0, 0, -1, 0]),
+            dette_largeur: false,
+            nommee: None,
+            encre_reference: None,
+            violations: vec![
+                format!("forme : glyphe n° 4 changé (marge {marge})"),
+                format!(
+                    "origine : barycentre (passage) décalé de ({passage:+.2}, -0.06) px (borne ±0.5)"
+                ),
+            ],
+        };
+        let leve = |png: &str, y: u32, marge: f64, passage: f64| {
+            let mut r = resultat(y, marge, passage);
+            lever_nommees(&mut r, &du_png(png), &boite(y));
+            r
+        };
+        // La mesure de CI : marge 1,03 (masse 3×3 1,58 / 1,54), passage −0,57 : levée.
+        for (png, y) in [
+            ("t1-palette-dark.png", 241),
+            ("t1-palette-selection-dark.png", 241),
+            ("t1-palette-aucun-resultat-dark.png", 220),
+        ] {
+            let r = leve(png, y, 1.03, -0.57);
+            assert!(r.violations.is_empty(), "{png} {:?}", r.violations);
+            assert_eq!(r.nommee, Some(MOT_FERMER));
+        }
+        let png = "t1-palette-dark.png";
+        // Au-delà : marge > 1,05, passage > 0,6.
+        assert_eq!(leve(png, 241, 1.06, -0.57).violations.len(), 1);
+        assert_eq!(leve(png, 241, 1.03, -0.61).violations.len(), 1);
+        // Le clair, une autre boîte : rien n'est levé.
+        assert_eq!(
+            leve("t1-palette-light.png", 241, 1.03, -0.57)
+                .violations
+                .len(),
+            2
+        );
+        assert_eq!(leve(png, 200, 1.03, -0.57).violations.len(), 2);
     }
 
     /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON
@@ -847,9 +1002,9 @@ mod tests {
         let boite = |x: u32| BoiteEncre {
             categorie: super::super::boites::Categorie::Texte,
             x,
-            y: 14,
-            largeur: 7,
-            hauteur: 11,
+            y: 15,
+            largeur: 5,
+            hauteur: 9,
         };
         let reference = glyphe_n(1184, [100, 100, 100]);
         // Cosinus 0,9926 (< 0,995), encre totale à 1 % près.
@@ -866,20 +1021,20 @@ mod tests {
             .unwrap()
         };
         let png = "t1-boutons-fenetre-dark.png";
-        let s = juger(png, 1183, &glyphe_n(1184, franges));
+        let s = juger(png, 1184, &glyphe_n(1184, franges));
         assert!(s.boites.iter().all(|b| b.ok()), "{:?}", s.boites);
         let mesure = s.nommees[N_COUPE]["teinte"];
         assert!(mesure > 0.005 && mesure < 0.01, "{mesure}");
         // Teinte identique : rien à mesurer.
-        let s = juger(png, 1183, &glyphe_n(1184, [100, 100, 100]));
+        let s = juger(png, 1184, &glyphe_n(1184, [100, 100, 100]));
         assert!(s.nommees[N_COUPE]["teinte"].abs() < 1e-9);
         // Le glyphe décalé d'1 px : barycentre hors borne, toujours un échec.
-        let s = juger(png, 1183, &glyphe_n(1185, franges));
+        let s = juger(png, 1184, &glyphe_n(1185, franges));
         assert!(s.boites.iter().any(|b| !b.ok()), "décalé d'1 px");
         // Le même écart de teinte dans le clair, ou dans une autre boîte, reste un échec.
         let s = juger(
             "t1-boutons-fenetre-light.png",
-            1183,
+            1184,
             &glyphe_n(1184, franges),
         );
         assert!(s.boites.iter().any(|b| !b.ok()), "autre PNG");
