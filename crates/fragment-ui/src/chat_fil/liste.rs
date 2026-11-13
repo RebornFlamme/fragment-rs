@@ -42,6 +42,8 @@ pub struct ListeMessages {
     /// Combien de messages ont été (re)construits : les tests vérifient que seul le message en flux
     /// bouge.
     constructions: usize,
+    /// Le rapport des boîtes des messages après mise en page (le défileur, `fr-t7-defilement`).
+    mesure: Option<crate::chat_defilement::MesureColonne>,
 }
 
 impl ListeMessages {
@@ -52,7 +54,18 @@ impl ListeMessages {
             rendus: HashMap::new(),
             ordre: Vec::new(),
             constructions: 0,
+            mesure: None,
         }
+    }
+
+    /// Branche le rapport des boîtes des messages (le défileur, `fr-t7-defilement`).
+    pub fn poser_mesure(
+        &mut self,
+        mesure: crate::chat_defilement::MesureColonne,
+        cx: &mut Context<Self>,
+    ) {
+        self.mesure = Some(mesure);
+        cx.notify();
     }
 
     /// Les dépendances (participants, contributions) ont changé : tout sera redessiné.
@@ -172,7 +185,12 @@ impl Render for ListeMessages {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         // La colonne : les messages à 14 px les uns des autres, 12 px au-dessus, 14 px de côté
         // (`.chat-column`, thread.css:28-34 : `gap: --size-2-7`, `padding: --size-4-3 --size-2-7`).
-        let mut colonne = div()
+        let mut colonne = div();
+        // Le rapport des boîtes passe sur la `Div` (avant `id`) : `Stateful` ne l'offre pas.
+        if let Some(m) = self.mesure.clone() {
+            colonne = colonne.on_children_prepainted(move |b, w, cx| m(b, w, cx));
+        }
+        let mut colonne = colonne
             .id(ElementId::from(ID_COLONNE))
             .flex()
             .flex_col()
