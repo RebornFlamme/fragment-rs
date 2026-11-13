@@ -5,9 +5,12 @@
 //! - `parite` : lit `crates/*/parite.toml`, écrit `docs/parite-tests.md`.
 //! - `audit-sources [--rev R] [--historique] [--fragment D]` : cherche les copies de sources de
 //!   Fragment (ADR-007).
+//! - `mesure-glyphes --releves D [--reference D] [--candidate D] [--report F] [--csv F] [--prefixe P]` :
+//!   écart de placement des glyphes, candidat contre relevé Chromium (fr-p4.1.1).
 //! - `bench` : à venir (phase 4).
 
 mod audit_sources;
+mod mesure_glyphes;
 mod parite;
 mod pixels;
 
@@ -18,6 +21,7 @@ fn main() -> ExitCode {
     let resultat = match args.first().map(String::as_str) {
         Some("pixels") => pixels::run(&args[1..]),
         Some("parite") => parite::run(&args[1..]),
+        Some("mesure-glyphes") => mesure_glyphes::run(&args[1..]),
         Some("audit-sources") => audit_sources::run(&args[1..]),
         Some("bench") => {
             eprintln!("xtask : `bench` arrive en phase 4");
