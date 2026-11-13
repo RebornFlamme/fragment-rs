@@ -34,7 +34,7 @@ use crate::icones;
 /// diagonales : géométrie, pas couverture ; une courbe alpha^g n'y change rien sans empirer 303
 /// boîtes sur 614) et deux scènes (`t1-boutons-fenetre-dark`, `t1-toolbar-sections-light`)
 /// dépassaient leur cliquet. À retirer par fr-pvd.
-const REPLI_14_PX: &[&str] = &["x", "grip-vertical", "grip-horizontal"];
+const REPLI_14_PX: &[&str] = &["x", "x-fin", "grip-vertical", "grip-horizontal"];
 
 /// Vrai si cette icône, à cette tuile (2x la boîte), reste peinte par `svg()` de GPUI.
 fn reste_sur_svg(nom: &str, tuile: (i32, i32)) -> bool {
@@ -464,6 +464,7 @@ mod tests {
     #[test]
     fn la_croix_et_les_grips_de_14_px_restent_sur_svg() {
         assert!(reste_sur_svg("x", (28, 28)));
+        assert!(reste_sur_svg("x-fin", (28, 28)));
         assert!(reste_sur_svg("grip-vertical", (28, 28)));
         assert!(!reste_sur_svg("x", (32, 32)));
         assert!(!reste_sur_svg("chevron-right", (28, 28)));
