@@ -17,7 +17,7 @@ use std::rc::Rc;
 use fragment_markdown::blocs::{BlocCalcule, ContenuBloc, ModeBloc};
 use fragment_markdown::decorations::curseur_actif;
 use fragment_markdown::syntaxe::Etendue;
-use fragment_markdown::syntaxe::modele_rangees::ModeleRangees;
+use fragment_markdown::syntaxe::modele_rangees::{Bloc, GenreBloc, ModeleRangees, Placement};
 use fragment_text::utf16::utf16_to_byte;
 use gpui_kit::base::input::{TextDecoration, TextDecorationCollection};
 use gpui_kit::{
@@ -42,6 +42,8 @@ pub struct HoteHtml {
     hauteurs: Rc<RefCell<HashMap<usize, f32>>>,
     /// Le HTML en ligne de la dernière projection.
     en_ligne: Rc<RefCell<EnLigne>>,
+    /// Les éléments entiers SEULS sur leur ligne : rendus comme des blocs (voir `new`).
+    seuls: Rc<RefCell<Vec<Seul>>>,
     marques: TextDecorationCollection,
     marques_posees: Vec<TextDecoration>,
     lecture_seule: bool,
@@ -53,6 +55,15 @@ fn estimation(b: &BlocCalcule, taille: f32) -> f32 {
     #[allow(clippy::cast_precision_loss)]
     let lignes = (b.derniere_ligne - b.premiere_ligne + 1) as f32;
     lignes * taille * INTERLIGNE_TEXTE
+}
+
+/// Un élément entier (`svg`, `img`…) seul sur sa ligne : un paragraphe qui ne contient que lui se
+/// rend comme un bloc (même hauteur, même place), faute de widget en ligne dans le fork.
+#[derive(Clone)]
+struct Seul {
+    source: String,
+    debut: usize,
+    ligne: usize,
 }
 
 impl HoteHtml {
@@ -82,6 +93,9 @@ impl HoteHtml {
         let editeur = blocs.read(cx).editeur().clone();
         let en_ligne: Rc<RefCell<EnLigne>> = Rc::default();
         let el = en_ligne.clone();
+        let seuls: Rc<RefCell<Vec<Seul>>> = Rc::default();
+        let sl = seuls.clone();
+        let hauteurs_aval = hauteurs.clone();
         let aval: ComplementRangees =
             Rc::new(move |e: &EntreeComplement<'_>, m: &mut ModeleRangees| {
                 let sel = e
@@ -94,6 +108,39 @@ impl HoteHtml {
                     && curseur_actif(e.ctx.revelation, e.curseur.focus, e.curseur.a_eu_le_focus);
                 let r = en_ligne::analyser(e.texte, e.arbre, sel, actif);
                 m.masques.extend(r.masques.iter().copied());
+                let mut liste = Vec::new();
+                for ent in &r.entiers {
+                    let l = e
+                        .lignes
+                        .partition_point(|p| p.octets.to < ent.plage.octets.from);
+                    let Some(ligne) = e.lignes.get(l) else {
+                        continue;
+                    };
+                    let reste = e.texte[ligne.octets.range()]
+                        .replace(&e.texte[ent.plage.octets.range()], "");
+                    if !reste.trim().is_empty() {
+                        continue;
+                    }
+                    let hauteur = hauteurs_aval
+                        .borrow()
+                        .get(&l)
+                        .copied()
+                        .unwrap_or(e.ctx.taille_texte * INTERLIGNE_TEXTE);
+                    m.blocs.push(Bloc {
+                        genre: GenreBloc::Html,
+                        source: *ligne,
+                        premiere_ligne: l,
+                        derniere_ligne: l,
+                        placement: Placement::ALaPlace,
+                        hauteur,
+                    });
+                    liste.push(Seul {
+                        source: e.texte[ent.plage.octets.range()].to_owned(),
+                        debut: ent.plage.utf16.from,
+                        ligne: l,
+                    });
+                }
+                *sl.borrow_mut() = liste;
                 *el.borrow_mut() = r;
             });
         blocs.update(cx, |b, cx| b.poser_complement_aval(Some(aval), cx));
@@ -109,6 +156,7 @@ impl HoteHtml {
             widgets: Vec::new(),
             hauteurs,
             en_ligne,
+            seuls,
             marques,
             marques_posees: Vec::new(),
             lecture_seule: options.lecture_seule,
@@ -160,13 +208,23 @@ impl HoteHtml {
 
     /// Un widget par bloc rendu (mis à jour en place, créés, retirés), puis les styles en ligne.
     fn synchroniser(&mut self, cx: &mut Context<Self>) {
-        let rendus = self.blocs_rendus(cx);
+        let mut rendus: Vec<Seul> = self
+            .blocs_rendus(cx)
+            .into_iter()
+            .filter_map(|b| match b.contenu {
+                ContenuBloc::Html { source } => Some(Seul {
+                    source,
+                    debut: b.source.utf16.from,
+                    ligne: b.premiere_ligne,
+                }),
+                _ => None,
+            })
+            .collect();
+        rendus.extend(self.seuls.borrow().iter().cloned());
+        rendus.sort_by_key(|r| r.ligne);
         self.widgets.truncate(rendus.len());
-        for (i, b) in rendus.iter().enumerate() {
-            let ContenuBloc::Html { source } = &b.contenu else {
-                continue;
-            };
-            let (debut, ligne) = (b.source.utf16.from, b.premiere_ligne);
+        for (i, r) in rendus.iter().enumerate() {
+            let (source, debut, ligne) = (&r.source, r.debut, r.ligne);
             if let Some(w) = self.widgets.get(i) {
                 w.update(cx, |w, cx| {
                     w.poser_source(source);

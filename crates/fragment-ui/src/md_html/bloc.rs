@@ -608,9 +608,13 @@ impl BlocHtml {
                 )
                 .collect();
             let geo = self.geo.clone();
+            // ★ Le canvas absolu est calé sur la boîte de remplissage (dedans la bordure) : la boîte
+            // d'un élément, en CSS, englobe sa bordure ; on la lui rend.
+            let bord = st.bordure.map_or(0.0, |(l, _)| l);
             boite = boite.relative().child(
                 canvas(
                     move |bornes, _, _| {
+                        let bornes = bornes.dilate(px(bord));
                         let mut g = geo.borrow_mut();
                         for c in &cles {
                             g.elements.insert(c.clone(), bornes);
