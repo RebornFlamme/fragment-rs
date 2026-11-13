@@ -16,15 +16,17 @@
 //! ★ Toute action sur le zoom ou la page passe par `PagesPdf::agir`, qui possède le modèle.
 
 use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 
-use fragment_core::View;
+use fragment_core::{KeyEvent, KeymapContext, Scope, View};
 use fragment_pdf::laterale::ModeBarre as ModeLaterale;
 use fragment_pdf::vue_modele::{PlanRendu, PositionLecture, Reprise, VueModele};
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Bounds, Context, Element, ElementId, Entity, FocusHandle,
-    GlobalElementId, InspectorElementId, InteractiveElement as _, IntoElement, LayoutId,
-    ParentElement as _, Pixels, Render, Styled as _, Subscription, Task, Window, div,
+    AnyElement, App, AppContext as _, Bounds, Context, Div, Element, ElementId, Entity,
+    FocusHandle, GlobalElementId, InspectorElementId, InteractiveElement as _, IntoElement,
+    KeyDownEvent, LayoutId, MouseButton, MouseDownEvent, ParentElement as _, Pixels, Render,
+    Stateful, Styled as _, Subscription, Task, Window, div,
 };
 use serde_json::{Map, Value, json};
 
@@ -32,12 +34,19 @@ use super::document::DocumentPartage;
 use super::vue::{LiensPdf, Touche, VuePdf};
 use crate::lecture::CLE_SCROLL;
 use crate::pdf_barre::rendu::SurBouton;
-use crate::pdf_barre::{BarrePdf, Bouton, ModeBarre, rendre_barre};
+use crate::pdf_barre::{BarrePdf, Bouton, ModeBarre, rendre_barre_avec_champ};
 use crate::pdf_laterale::{EvenementLaterale, LateralePdf};
 use crate::pdf_pages::PagesPdf;
 use crate::pdf_recherche::RecherchePdf;
 use crate::pdf_texte::TextePdf;
 use crate::theme_global::{couleur, theme_ou_defaut};
+
+/// Ce que fait la portée du champ de page : Entrée valide, Échap restaure et rend le focus.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CommandeChamp {
+    Valider,
+    Echap,
+}
 
 /// La cellule où une vue garde son montage.
 pub type CelluleMontage = Rc<RefCell<Option<Entity<MontagePdf>>>>;
@@ -68,12 +77,37 @@ pub struct MontagePdf {
     laterale_en_attente: Option<(Option<String>, Option<f64>)>,
     reprise: Option<Reprise>,
     focus: FocusHandle,
+    /// Le champ de page : sa poignée de focus, sa portée de clavier (Entrée, Échap), empilée tant
+    /// qu'il a le focus, et la file de ce que la portée a demandé.
+    focus_champ: FocusHandle,
+    portee_champ: Scope,
+    portee_champ_empilee: bool,
+    commandes_champ: Rc<RefCell<VecDeque<CommandeChamp>>>,
     _toc: Option<Task<()>>,
     _abonnements: Vec<Subscription>,
 }
 
 impl MontagePdf {
     pub fn new(liens: LiensPdf, cx: &mut Context<Self>) -> Self {
+        // ★ Le clavier du champ passe par une portée empilée au focus (comme la recherche) :
+        //   Entrée et Échap ne valent que quand on tape dans le champ ; le texte arrive par
+        //   l'écouteur de frappes. Chaînée à la racine : les globaux restent joignables.
+        let commandes_champ: Rc<RefCell<VecDeque<CommandeChamp>>> = Rc::default();
+        let portee_champ = Scope::pour_vue(liens.keymap.root_scope());
+        for (touche, c) in [
+            ("Enter", CommandeChamp::Valider),
+            ("Escape", CommandeChamp::Echap),
+        ] {
+            let file = commandes_champ.clone();
+            portee_champ.register(
+                None,
+                Some(touche),
+                move |_: &KeyEvent, _: &KeymapContext| {
+                    file.borrow_mut().push_back(c);
+                    Some(false)
+                },
+            );
+        }
         Self {
             liens,
             revision: 0,
@@ -86,6 +120,10 @@ impl MontagePdf {
             laterale_en_attente: None,
             reprise: None,
             focus: cx.focus_handle(),
+            focus_champ: cx.focus_handle(),
+            portee_champ,
+            portee_champ_empilee: false,
+            commandes_champ,
             _toc: None,
             _abonnements: Vec::new(),
         }
@@ -133,6 +171,74 @@ impl MontagePdf {
             menu.show_at_position(x, y, &self.liens.keymap);
         }
         cx.notify();
+    }
+
+    // ── Le champ de page ─────────────────────────────────────────────────
+
+    /// Le focus du champ de page (tests, calques).
+    pub fn focus_champ(&self) -> &FocusHandle {
+        &self.focus_champ
+    }
+
+    /// Une frappe dans le champ : du texte ou un retour arrière (Entrée et Échap sont dans la
+    /// portée). Les raccourcis (Ctrl, Alt, Cmd) ne sont pas du texte.
+    fn sur_touche_champ(&mut self, ev: &KeyDownEvent, cx: &mut Context<Self>) {
+        let k = &ev.keystroke;
+        let (touche, texte) = if k.key == "backspace" {
+            ("backspace", None)
+        } else if k.modifiers.control || k.modifiers.alt || k.modifiers.platform {
+            return;
+        } else {
+            match &k.key_char {
+                Some(c) => ("texte", Some(c.clone())),
+                None => return,
+            }
+        };
+        let barre = self.barre.clone();
+        self.agir(cx, |m| {
+            barre.borrow().touche_champ(m, touche, texte.as_deref())
+        });
+        cx.stop_propagation();
+        cx.notify();
+    }
+
+    /// Le focus du champ et le modèle s'accordent : prendre le focus sélectionne tout, le perdre
+    /// après une saisie vaut validation (l'événement `change` du navigateur). La portée du champ
+    /// est empilée tant qu'il a le focus.
+    fn synchroniser_champ(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let focus = self.focus_champ.is_focused(window);
+        let barre = self.barre.clone();
+        let modele_focus = self
+            .pages
+            .as_ref()
+            .is_some_and(|p| p.read(cx).modele().champ().focus);
+        if focus && !modele_focus {
+            self.agir(cx, |m| {
+                barre.borrow().champ_focus(m);
+                PlanRendu::vide()
+            });
+        } else if !focus && modele_focus {
+            self.agir(cx, |m| barre.borrow().champ_perdre_focus(m));
+        }
+        if focus && !self.portee_champ_empilee {
+            self.liens.keymap.push_scope(&self.portee_champ);
+        } else if !focus && self.portee_champ_empilee {
+            self.liens.keymap.pop_scope(&self.portee_champ);
+        }
+        self.portee_champ_empilee = focus;
+        let commandes: Vec<CommandeChamp> = self.commandes_champ.borrow_mut().drain(..).collect();
+        for c in commandes {
+            match c {
+                CommandeChamp::Valider => {
+                    self.agir(cx, |m| barre.borrow().touche_champ(m, "enter", None));
+                }
+                CommandeChamp::Echap => {
+                    // Le focus rend la main à la vue AVANT que le modèle ne lâche le champ.
+                    window.focus(&self.focus, cx);
+                    self.agir(cx, |m| barre.borrow().touche_champ(m, "escape", None));
+                }
+            }
+        }
     }
 
     // ── Le document ──────────────────────────────────────────────────────
@@ -335,6 +441,7 @@ impl MontagePdf {
                 Touche::Zoom(z) => self.agir(cx, |m| m.executer_raccourci(z)),
             }
         }
+        self.synchroniser_champ(window, cx);
         // Les menus de la barre d'outils, puis la barre latérale qui la suit.
         let barre = self.barre.clone();
         self.agir(cx, |m| barre.borrow_mut().traiter(m));
@@ -375,9 +482,35 @@ impl Render for MontagePdf {
         let sur_bouton: SurBouton = Rc::new(move |b, x, y, cx: &mut App| {
             let _ = entite.update(cx, |m, cx| m.cliquer(b, x, y, cx));
         });
+        let focus_champ = self.focus_champ.clone();
+        let entite = cx.entity().downgrade();
+        let habiller = move |c: Stateful<Div>| {
+            let e = entite.clone();
+            let f2 = focus_champ.clone();
+            c.track_focus(&focus_champ)
+                .on_key_down(move |ev: &KeyDownEvent, _, cx| {
+                    let _ = e.update(cx, |m, cx| m.sur_touche_champ(ev, cx));
+                })
+                .on_mouse_down(MouseButton::Left, move |_: &MouseDownEvent, window, cx| {
+                    window.focus(&f2, cx);
+                    cx.stop_propagation();
+                })
+        };
         let barre = match &self.pages {
-            Some(p) => rendre_barre(&self.barre.borrow(), p.read(cx).modele(), cx, &sur_bouton),
-            None => rendre_barre(&self.barre.borrow(), &VueModele::new(), cx, &sur_bouton),
+            Some(p) => rendre_barre_avec_champ(
+                &self.barre.borrow(),
+                p.read(cx).modele(),
+                cx,
+                &sur_bouton,
+                &habiller,
+            ),
+            None => rendre_barre_avec_champ(
+                &self.barre.borrow(),
+                &VueModele::new(),
+                cx,
+                &sur_bouton,
+                &habiller,
+            ),
         };
         let mut rangee = div().flex().flex_row().flex_1().min_h_0().w_full();
         if let Some(l) = &self.laterale
@@ -393,7 +526,19 @@ impl Render for MontagePdf {
             .flex_col()
             .flex_1()
             .min_w_0()
-            .h_full();
+            .h_full()
+            // Le menu contextuel de la vue : Zoom avant, Zoom arrière.
+            .on_mouse_down(MouseButton::Right, {
+                let liens = self.liens.clone();
+                move |ev: &MouseDownEvent, _, cx| {
+                    let zoom = crate::echelle::Echelle::courante(cx).zoom();
+                    super::menu::menu_contextuel(&liens.touches).show_at_position(
+                        f32::from(ev.position.x) / zoom,
+                        f32::from(ev.position.y) / zoom,
+                        &liens.keymap,
+                    );
+                }
+            });
         if let Some(r) = &self.recherche {
             zone = zone.child(r.clone());
         }
@@ -482,5 +627,13 @@ impl Element for ElementMontage {
         cx: &mut App,
     ) {
         e.paint(window, cx);
+    }
+}
+
+impl Drop for MontagePdf {
+    fn drop(&mut self) {
+        if self.portee_champ_empilee {
+            self.liens.keymap.pop_scope(&self.portee_champ);
+        }
     }
 }
