@@ -767,3 +767,8 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - CI et build de main (7b72884) en cours. Livraison de T1 dès l'artefact disponible.
   - fr-t3-tableaux reçoit editeur/{element,surface}.rs pour les options `marges` et `interligne` des éditeurs imbriqués.
   - t4recherche a trouvé la cause : `Workspace.setActiveLeaf` de Fragment sort tôt quand la feuille est déjà active, donc la portée PDF n'est pas empilée.
+- 00:10 UTC : ★ **T1 LIVRÉE.** build.yml de main vert (run 43333269037, b719789).
+  - Artefact fragment-rs-win-x64 : https://github.com/RebornFlamme/fragment-rs/actions/runs/43333269037/artifacts/13995947274
+  - fr-t1-binaire fermée. Le message de livraison est envoyé à l'orchestrateur, avec : dettes ADR-009, 011, 012 et 013 ; 8 exceptions nommées ; ADR-014 (divergence) ; textes des PR amont, en attente de l'accord de l'utilisateur.
+  - ★ `build.yml` a `cancel-in-progress` : chaque push sur main annule le build en cours. Ne pas pousser le journal pendant un build de livraison.
+  - t3scenesc : 10 PNG identiques entre les passes ; `t3-html-source` passe au vrai bouton « </> ».
