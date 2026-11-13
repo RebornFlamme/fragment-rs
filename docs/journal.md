@@ -976,3 +976,9 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 4. Ne pas pousser le journal pendant un build de livraison.
 5. Rien à remonter à l'orchestrateur. L'utilisateur est prévenu du refus de la sonde COM (fr-p4.1.3 s'en est passée).
 **Rythme** : (97 − 79) ÷ 10,2 h ≈ 1,8 point par heure.
+
+## Décision utilisateur — 13/11/2026 : pas de PR amont
+- **AUCUNE PR amont**, ni chez longbridge/gpui-kit ni chez GPUI (« ok on fait pas ça »). Question classée. Les textes restent en archive dans ADR-006 et ADR-015.
+- Le fork de `vendor/gpui-base` reste maintenu chez nous, et le job `fork-patch` reste obligatoire sur chaque PR.
+- Aux prochaines montées de gpui-kit (rebase du fork), ne PAS rouvrir la question : seul l'utilisateur peut la rouvrir.
+- fr-p3-gpui-kit-0.9 fermé (montée et rebase fusionnés en #82 le 12/11 ; seule la PR amont restait).

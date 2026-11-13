@@ -46,7 +46,7 @@ La montée de gpui-kit est déjà une PR dédiée (ADR-001). Le fork en fait une
 - Fichiers : `row_model.rs` (champs `hidden`, `widgets`, `set_widget_ranges`), `display_map.rs` (fusion en métriques, `refresh_inline_metrics`), `base/element.rs` (largeur et avance dans `layout_hidden_lines`). Aucun fichier nouveau dans `NOTICE`. Tests headless : `crates/fragment-ui/tests/md_inline.rs`.
 - Hôte : `EditeurLive::poser_largeurs_widgets` (la largeur de chaque widget en ligne vient de `md_inline`).
 
-PR amont, texte prêt (à ouvrir avec l'accord de l'utilisateur, non ouverte) :
+PR amont, texte archivé (jamais ouverte, décision du 13/11/2026 ci-dessous) :
 
 > **PR 4 — input: inline widgets of host-dictated width**
 >
@@ -54,7 +54,12 @@ PR amont, texte prêt (à ouvrir avec l'accord de l'utilisateur, non ouverte) :
 
 ## PR amont
 
-**Non ouverte, texte prêt (12/11/2026, après le rebase sur 0.9.1).** C'est une publication externe : le chef l'ouvre avec l'accord de l'utilisateur, puis note le lien ici (`program.md` §10). Les obstacles du 05/11 sont levés ou contournés : (1) le fork est maintenant sur la même base que le tag amont `v0.9.1`, et le patch s'applique tel quel au dépôt amont avec le préfixe `crates/base/` (`patch -p1 -d crates/base < gpui-base-fork.patch`, artefact du job `fork-patch`) ; (2) « une PR, une chose » (`CONTRIBUTING.md`) : le patch se découpe en trois PR empilées, dans cet ordre, chacune avec ses tests headless ; (3) DirectWrite : le patch tourne sous Windows dans la CI de fragment-rs (`spike_s1.rs`, `spike_s1b.rs`, scènes pixels).
+**Décision de l'utilisateur, 13/11/2026 : AUCUNE PR amont**, ni chez longbridge/gpui-kit ni chez GPUI (« ok on fait pas ça »). Question classée.
+- Le fork de `vendor/gpui-base` reste maintenu chez nous, et le job `fork-patch` reste obligatoire sur chaque PR.
+- Aux prochaines montées de gpui-kit (rebase du fork), ne PAS rouvrir la question : seul l'utilisateur peut la rouvrir.
+- Les textes ci-dessous (et ceux d'ADR-015) restent comme archive, sans suite.
+
+Archive — état du 12/11/2026, après le rebase sur 0.9.1 : C'est une publication externe : le chef l'ouvre avec l'accord de l'utilisateur, puis note le lien ici (`program.md` §10). Les obstacles du 05/11 sont levés ou contournés : (1) le fork est maintenant sur la même base que le tag amont `v0.9.1`, et le patch s'applique tel quel au dépôt amont avec le préfixe `crates/base/` (`patch -p1 -d crates/base < gpui-base-fork.patch`, artefact du job `fork-patch`) ; (2) « une PR, une chose » (`CONTRIBUTING.md`) : le patch se découpe en trois PR empilées, dans cet ordre, chacune avec ses tests headless ; (3) DirectWrite : le patch tourne sous Windows dans la CI de fragment-rs (`spike_s1.rs`, `spike_s1b.rs`, scènes pixels).
 
 Découpage proposé : PR 1 = `row_model.rs` + `row_top`/`row_at_y` + points d'accroche `element.rs`/`state.rs`/`movement.rs` (hauteurs et blocs) ; PR 2 = plages masquées (largeur 0, `layout_hidden_lines`) + `previous_boundary_over_hidden`/`next_boundary_over_hidden` ; PR 3 = `set_line_font_sizes`. Textes prêts à coller (titre, puis corps) :
 
