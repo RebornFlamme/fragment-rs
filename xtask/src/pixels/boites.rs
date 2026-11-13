@@ -580,14 +580,16 @@ pub fn regrouper(sprites: &[BoiteEncre]) -> Vec<BoiteEncre> {
 
 /// Le fichier de déclaration voisin du PNG candidat, sans ombres.
 pub fn serialiser(boites: &[BoiteEncre]) -> String {
-    serialiser_tout(boites, &[], &[], &[])
+    serialiser_tout(boites, &[], &[], &[], &[])
 }
 
 /// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, glyphes peints,
-/// surfaces ombrées et boîtes arrondies (version 4).
+/// glyphes ROGNÉS par un rectangle de découpe (`rognes`, sous-liste des glyphes), surfaces ombrées et
+/// boîtes arrondies (version 4).
 pub fn serialiser_tout(
     boites: &[BoiteEncre],
     glyphes: &[BoiteEncre],
+    rognes: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
     arrondis: &[ArrondiDeclare],
 ) -> String {
@@ -602,6 +604,10 @@ pub fn serialiser_tout(
         .collect();
     // Un glyphe par ligne du fichier, [x, y, largeur, hauteur] : la liste est longue.
     let glyphes: Vec<Value> = glyphes
+        .iter()
+        .map(|g| json!([g.x, g.y, g.largeur, g.hauteur]))
+        .collect();
+    let rognes: Vec<Value> = rognes
         .iter()
         .map(|g| json!([g.x, g.y, g.largeur, g.hauteur]))
         .collect();
@@ -642,15 +648,25 @@ pub fn serialiser_tout(
         })
         .collect();
     let json = json!({
-        "version": 4, "boites": liste, "glyphes": glyphes, "ombres": ombres, "arrondis": arrondis,
+        "version": 4, "boites": liste, "glyphes": glyphes, "rognes": rognes, "ombres": ombres, "arrondis": arrondis,
     });
     serde_json::to_string_pretty(&json).unwrap_or_default() + "\n"
 }
 
 /// Relit les glyphes peints d'un fichier de déclaration (aucun avant la version 4 : boîtes déduites).
 pub fn deserialiser_glyphes(texte: &str) -> Option<Vec<BoiteEncre>> {
+    deserialiser_rects(texte, "glyphes")
+}
+
+/// Relit les glyphes rognés par un rectangle de découpe (aucun dans un fichier sans la clé).
+pub fn deserialiser_rognes(texte: &str) -> Option<Vec<BoiteEncre>> {
+    deserialiser_rects(texte, "rognes")
+}
+
+/// Une liste de rectangles [x, y, largeur, hauteur] de glyphes, sous la clé `cle`.
+fn deserialiser_rects(texte: &str, cle: &str) -> Option<Vec<BoiteEncre>> {
     let json: Value = serde_json::from_str(texte).ok()?;
-    let Some(liste) = json.get("glyphes") else {
+    let Some(liste) = json.get(cle) else {
         return Some(Vec::new());
     };
     liste
@@ -1073,8 +1089,10 @@ mod tests {
             sprite(Categorie::Texte, 10, 20, 6, 9),
             sprite(Categorie::Texte, 17, 18, 6, 11),
         ];
-        let texte = serialiser_tout(&regrouper(&glyphes), &glyphes, &[], &[]);
+        let rognes = vec![glyphes[0]];
+        let texte = serialiser_tout(&regrouper(&glyphes), &glyphes, &rognes, &[], &[]);
         assert_eq!(deserialiser_glyphes(&texte), Some(glyphes));
+        assert_eq!(deserialiser_rognes(&texte), Some(rognes));
         // Avant la version 4 : aucun glyphe déclaré.
         assert_eq!(
             deserialiser_glyphes(r#"{"version": 3, "boites": []}"#),
@@ -1119,7 +1137,7 @@ mod tests {
                 element: "contour d'onglet actif".to_owned(),
             },
         ];
-        let texte = serialiser_tout(&[], &[], &ombres, &arrondis);
+        let texte = serialiser_tout(&[], &[], &[], &ombres, &arrondis);
         assert_eq!(deserialiser_ombres(&texte), Some(ombres));
         assert_eq!(deserialiser_arrondis(&texte), Some(arrondis));
         assert_eq!(

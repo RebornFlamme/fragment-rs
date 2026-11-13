@@ -27,6 +27,9 @@ thread_local! {
     /// Les sprites de glyphes et d'icônes de la dernière capture, lus dans SA scène peinte
     /// (`None` : scène illisible, sans la feature `pixels` ; les boîtes sont alors déduites).
     static SPRITES: RefCell<Option<Vec<boites::BoiteEncre>>> = const { RefCell::new(None) };
+    /// Les glyphes de la dernière capture ROGNÉS par un rectangle de découpe (`content_mask`) : un
+    /// fragment de 3×2 px visibles ou moins n'y est pas jugeable (fr-p3.1, décision du 13/11).
+    static ROGNES: RefCell<Vec<boites::BoiteEncre>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
@@ -72,6 +75,7 @@ fn sprites_peints(
 ) -> Option<Vec<boites::BoiteEncre>> {
     let scene = window.rendered_scene();
     let mut sprites = Vec::new();
+    let mut rognes = Vec::new();
     let glyphes = scene.subpixel_sprites.iter().map(|s| {
         (
             s.order,
@@ -136,14 +140,26 @@ fn sprites_peints(
         if couvert {
             continue;
         }
-        sprites.push(boites::BoiteEncre {
+        let boite = boites::BoiteEncre {
             categorie,
             x: x0 as u32,
             y: y0 as u32,
             largeur: (x1 - x0) as u32,
             hauteur: (y1 - y0) as u32,
-        });
+        };
+        // Rogné : le rectangle de découpe (ou le bord de l'image) coupe la tuile.
+        let entier = (
+            bornes.origin.x.0.floor(),
+            bornes.origin.y.0.floor(),
+            (bornes.origin.x.0 + bornes.size.width.0).ceil(),
+            (bornes.origin.y.0 + bornes.size.height.0).ceil(),
+        );
+        if categorie == boites::Categorie::Texte && entier != rect {
+            rognes.push(boite);
+        }
+        sprites.push(boite);
     }
+    ROGNES.with(|r| *r.borrow_mut() = rognes);
     Some(sprites)
 }
 
@@ -291,11 +307,12 @@ pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyh
         }
         None => (boites::detecter(image), Vec::new(), "déduites de l'image"),
     };
+    let rognes = ROGNES.with(|r| r.borrow().clone());
     let ombres = OMBRES.with(|o| o.borrow().clone());
     let arrondis = ARRONDIS.with(|a| a.borrow().clone());
     std::fs::write(
         dossier.join(format!("{nom}-{theme}.boites.json")),
-        boites::serialiser_tout(&boites, &glyphes, &ombres, &arrondis),
+        boites::serialiser_tout(&boites, &glyphes, &rognes, &ombres, &arrondis),
     )?;
     println!(
         "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes ({source}, {} glyphes), {} surfaces ombrées, {} boîtes arrondies)",
