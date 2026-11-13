@@ -58,6 +58,9 @@ for (const s of ['disable-backgrounding-occluded-windows', 'disable-renderer-bac
 const Orig = electron.BrowserWindow;
 const proto = Orig.prototype;
 const vrai = {
+    setSize: proto.setSize,
+    setContentSize: proto.setContentSize,
+    getContentSize: proto.getContentSize,
     showInactive: proto.showInactive,
     setBounds: proto.setBounds,
     setContentBounds: proto.setContentBounds,
@@ -98,6 +101,25 @@ function ramener(w, quand) {
     verifier(w, quand);
 }
 
+/**
+ * ★ Hors de tout moniteur, Chromium calcule autrement la zone cliente (WM_NCCALCSIZE sans moniteur) :
+ *   une fenêtre SANS CADRE y reçoit 16 × 8 px de plus que ses bornes (mesuré : setContentSize(1280, 800)
+ *   → contenu 1296 × 808 ; à cheval sur l'écran, 1280 × 800). Pour une fenêtre sans cadre, Electron promet
+ *   contenu = bornes : on vise donc le CONTENU demandé, et on corrige les bornes de l'écart mesuré.
+ */
+function ajusterContenu(w, largeur, hauteur) {
+    if (w.isDestroyed() || !w.fragmentSansCadre) return;
+    vrai.setSize.call(w, largeur, hauteur);
+    for (let i = 0; i < 3; i++) {
+        const [cw, ch] = vrai.getContentSize.call(w);
+        if (cw === largeur && ch === hauteur) return;
+        const b = vrai.getBounds.call(w);
+        vrai.setSize.call(w, b.width - (cw - largeur), b.height - (ch - hauteur));
+    }
+    const [cw, ch] = vrai.getContentSize.call(w);
+    noter({ type: 'contenu-inexact', id: w.id, voulu: [largeur, hauteur], obtenu: [cw, ch] });
+}
+
 class FenetreInvisible extends Orig {
     constructor(options = {}) {
         const voulueVisible = options.show !== false;
@@ -118,6 +140,13 @@ class FenetreInvisible extends Orig {
         for (const ev of ['move', 'resize', 'show', 'restore', 'maximize', 'enter-full-screen']) {
             this.on(ev, () => ramener(this, ev));
         }
+        // Marque contrôlée par le garde (le nom de classe, lui, doit rester « BrowserWindow », voir plus bas).
+        Object.defineProperty(this, 'fragmentInvisible', { value: true, enumerable: false });
+        Object.defineProperty(this, 'fragmentSansCadre', { value: options.frame === false, enumerable: false });
+        if (options.frame === false) {
+            const b = vrai.getBounds.call(this);
+            ajusterContenu(this, b.width, b.height);
+        }
         neutraliserWebContents(this.webContents);
         if (voulueVisible) {
             vrai.showInactive.call(this);
@@ -125,6 +154,12 @@ class FenetreInvisible extends Orig {
         }
     }
 }
+
+// ★ Electron filtre BrowserWindow.getAllWindows() (et getFocusedWindow) sur
+//   `constructor.name === 'BrowserWindow'` : une sous-classe nommée autrement y devient INVISIBLE, et le
+//   harnais (setSize, setContentSize sur getAllWindows) ne la redimensionne plus — capture en 1200 × 800
+//   au lieu de 1280 × 800 au premier essai. La sous-classe garde donc le nom d'origine.
+Object.defineProperty(FenetreInvisible, 'name', { value: 'BrowserWindow' });
 
 // ---- Méthodes neutralisées (toutes les fenêtres, même celles d'une autre provenance) -------------
 const refus = (nom, faire) => function (...args) {
@@ -143,8 +178,22 @@ proto.setSkipTaskbar = refus('setSkipTaskbar');
 proto.setFocusable = refus('setFocusable');
 proto.setBounds = function (b, ...reste) {
     const h = horsEcran();
-    const r = vrai.setBounds.call(this, { ...vrai.getBounds.call(this), ...b, x: h.x, y: h.y }, ...reste);
+    const cible = { ...vrai.getBounds.call(this), ...b, x: h.x, y: h.y };
+    const r = vrai.setBounds.call(this, cible, ...reste);
+    ajusterContenu(this, cible.width, cible.height);
     verifier(this, 'setBounds');
+    return r;
+};
+proto.setSize = function (largeur, hauteur, ...reste) {
+    const r = vrai.setSize.call(this, largeur, hauteur, ...reste);
+    ajusterContenu(this, largeur, hauteur);
+    ramener(this, 'setSize');
+    return r;
+};
+proto.setContentSize = function (largeur, hauteur, ...reste) {
+    const r = vrai.setContentSize.call(this, largeur, hauteur, ...reste);
+    ajusterContenu(this, largeur, hauteur);
+    ramener(this, 'setContentSize');
     return r;
 };
 proto.setContentBounds = function (b, ...reste) {

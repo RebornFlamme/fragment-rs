@@ -151,11 +151,16 @@ async function brancherPage(app: ElectronApplication, page: Page, id: string): P
     } catch (e) {
         noter({ type: 'focus-emulation-impossible', id, erreur: String(e).slice(0, 300) });
     }
-    // Chaque fenêtre doit être une FenetreInvisible (le crochet a bien intercepté BrowserWindow).
+    // Chaque fenêtre doit porter la marque du crochet (BrowserWindow bien intercepté). On compte les
+    // fenêtres par BaseWindow : BrowserWindow.getAllWindows() filtre sur le nom de classe.
     try {
-        const classes = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().map((w) => w.constructor.name));
-        noter({ type: 'fenetres', id, classes });
-        if (classes.some((c) => c !== 'FenetreInvisible')) declarerEchec(`fenêtre hors crochet : ${classes.join(', ')}`);
+        let marques: boolean[] = [];
+        for (let essai = 0; essai < 10 && marques.length === 0; essai++) {
+            if (essai) await new Promise((f) => setTimeout(f, 300));
+            marques = await app.evaluate(({ BaseWindow }) => BaseWindow.getAllWindows().map((w) => (w as any).fragmentInvisible === true));
+        }
+        noter({ type: 'fenetres', id, marques });
+        if (marques.some((m) => !m)) declarerEchec(`fenêtre hors crochet (${marques.filter((m) => !m).length} sur ${marques.length})`);
     } catch (e) {
         if (!String(e).includes('closed')) noter({ type: 'controle-classes-impossible', id, erreur: String(e).slice(0, 300) });
     }
@@ -177,13 +182,16 @@ async function lancerInvisible(lancer: (o: any) => Promise<ElectronApplication>,
         FRAGMENT_INVISIBLE_Y: String(s.horsEcran[1]),
         FRAGMENT_INVISIBLE_JOURNAL: JOURNAL_CROCHET,
     };
-    let fini = false;
-    const terminer = async (): Promise<void> => {
-        if (fini) return;
-        fini = true;
-        const apres = await s.commande('APRES', id);
-        noter({ type: 'apres', id, identique: apres.identique, balayages: apres.balayages, fenetresMax: apres.fenetresMax });
-        console.log(`[invisible] ${id} : premier plan identique avant/pendant/après, ${String(apres.balayages)} balayages, aucune fenêtre sur un moniteur.`);
+    // ★ Une seule demande APRÈS, partagée : l'événement « close » et app.close() attendent LA MÊME
+    //   réponse (sinon close() rendait la main tout de suite et le processus de test sortait avant la
+    //   réponse de la sentinelle).
+    let fin: Promise<void> | null = null;
+    const terminer = (): Promise<void> => {
+        fin ??= s.commande('APRES', id).then((apres) => {
+            noter({ type: 'apres', id, identique: apres.identique, balayages: apres.balayages, fenetresMax: apres.fenetresMax });
+            console.log(`[invisible] ${id} : premier plan identique avant/pendant/après, ${String(apres.balayages)} balayages, aucune fenêtre sur un moniteur.`);
+        });
+        return fin;
     };
     let app: ElectronApplication;
     try {

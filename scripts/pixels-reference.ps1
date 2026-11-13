@@ -210,10 +210,13 @@ foreach ($f in $pngs) {
 }
 
 # --- Preuves du mode invisible ----------------------------------------------------------------------
-$journalGarde = Join-Path $sortieInv 'garde.jsonl'
-$lignes = @(if (Test-Path $journalGarde) { Get-Content $journalGarde -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json } })
-$lances = @($lignes | Where-Object { $_.type -eq 'lance' }).Count
-$apres  = @($lignes | Where-Object { $_.type -eq 'apres' -and $_.identique }).Count
+# ★ La sentinelle fait foi (le processus de test peut finir avant d'avoir lu sa dernière réponse).
+$journalSent = Join-Path $sortieInv 'sentinelle.jsonl'
+$lignes = @(if (Test-Path $journalSent) { Get-Content $journalSent -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json } })
+$idsAvant = @($lignes | Where-Object { $_.type -eq 'avant' } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$idsApres = @($lignes | Where-Object { $_.type -eq 'apres' -and $_.identique } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$lances = $idsAvant.Count
+$apres  = @($idsAvant | Where-Object { $idsApres -contains $_ }).Count
 Write-Host ''
 Write-Host ("Mode invisible : {0} lancement(s) d'Electron, {1} avec premier plan identique avant/pendant/après et aucune fenêtre sur un moniteur." -f $lances, $apres)
 if (Test-Path $drapeau) {

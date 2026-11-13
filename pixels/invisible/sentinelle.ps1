@@ -119,9 +119,10 @@ public static class SentinelleInvisible
         lock (verrou)
         {
             string ligne = "{\"t\":" + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + "," + json.Substring(1);
-            Console.Out.WriteLine(ligne);
-            Console.Out.Flush();
+            // ★ Journal D'ABORD : quand le processus de test sort, stdout devient un tube rompu et
+            //   l'écriture console lève — sans ce try, la sentinelle mourait avant de journaliser APRÈS.
             if (!string.IsNullOrEmpty(journal)) { try { File.AppendAllText(journal, ligne + "\n"); } catch { } }
+            try { Console.Out.WriteLine(ligne); Console.Out.Flush(); } catch { }
         }
     }
 
@@ -380,7 +381,13 @@ public static class SentinelleInvisible
                     if (echec) break;
                 }
                 if (quitter || echec) break;
-                if (finEntree) { Balayer(); break; } // le processus de test a disparu : dernier contrôle, puis fin
+                if (finEntree)
+                {
+                    // Le processus de test a disparu (fin du run) : dernier contrôle, et relevé APRÈS du
+                    // lancement encore ouvert — le garde n'a pas toujours le temps de le demander.
+                    if (idActif != null) Commande("APRES " + idActif); else Balayer();
+                    break;
+                }
                 if (scanDemande || montre.ElapsedMilliseconds - dernier >= 50)
                 {
                     scanDemande = false;
