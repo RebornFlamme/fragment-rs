@@ -944,3 +944,35 @@ Reprise du chef après le clear, sur le brief de l'orchestrateur et non sur le r
 1. Revue de #102 et de #105 à leur compte rendu.
 2. fr-p4.1.4 dès la fusion de #102.
 3. Après 08:30 : fr-t5-surlignages, fr-t7-moteur, fr-t5-scenes-b, fr-t7-scenes-b (SANS --disable-lcd-text).
+
+## Vague 13 (fin, avant clear du chef) — 13/11/2026 07:50 UTC — usage 5h 87 % (reset 08:30) / semaine 79 %
+Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipiers rentrés.
+- Fusionnées depuis 06:45 :
+  - #118 (fil du chat) ;
+  - #119 (trace de l'agent ; correction de duree conforme à traceModel.ts) ;
+  - #117 (WidgetLayer) ;
+  - #120 (DocWidget) ;
+  - **#102 (fr-t2-montage, T2 ACTIVE dans tranches.json)** : exceptions nommées en cliquet, chacune avec sa tâche de fermeture (dette (b) d'ADR-013, fr-p4.1.5, fr-p4.1.2, trait de poignée étendu).
+- Vague 13 en tout : 18 PR fusionnées (#99, #102, #106 à #120, sauf #105).
+- Équipiers actifs : AUCUN. PR ouverte : #105 (fr-p3.4, brouillon, worktree `../fragment-rs-glyphes`, e83ddcd).
+- Disque : 105 Go libres. Les dossiers cible des tâches finies sont retirés.
+- Nouveaux beads :
+  - fr-t5.1 : palette de fixture pour les widgets de test ;
+  - fr-p3.6 : parité de md_tableau et de mode_marge ;
+  - fr-p4.1.5 : mesure de l'anticrénelage SVG.
+
+**Prochaine action exacte** (après le clear, sur le réveil ou le brief de l'orchestrateur) :
+1. get_usage, puis le battement CronCreate (minute 17), vérifié par CronList. Règle du clear : 550k/750k jusqu'au reset hebdo de 18:00 UTC, puis 300k (§10). Après 18:00, relire §2 : la règle « charbonne » visait ce reset.
+2. Après le reset de la fenêtre 5 h (08:30), remplir jusqu'à 7 places depuis `bd ready`, sans fichiers partagés, dans cet ordre :
+   - fr-p3.4, reprise : son bead donne la prochaine étape (CI de e83ddcd, deux passes sous verrou, deux écarts dans t1-boutons-fenetre, flake de t1-glisser-zone-light) ;
+   - fr-p4.1.4 (Opus, P1) : mode de texte par surface ; conditions de l'orchestrateur dans le bead ; retirer --disable-lcd-text de _t2, _t5a, _t7a et recapturer en LCD ;
+   - fr-t2-lecture (débloque fr-t3-vue et fr-t4-vue-pdf) ;
+   - fr-t11.3 ;
+   - fr-t5.1 ;
+   - fr-t5-surlignages ;
+   - fr-t7-moteur ;
+   - fr-t5-scenes-b et fr-t7-scenes-b, SANS --disable-lcd-text, APRÈS fr-p4.1.4.
+3. Briefs : renvoyer à `C:/dev/fragment-rs-regles-equipier.md`. Arrêt à 180k tokens. Tu n'écris QUE dans ton worktree. Un seul dossier cible, et df avant un gros build.
+4. Ne pas pousser le journal pendant un build de livraison.
+5. Rien à remonter à l'orchestrateur. L'utilisateur est prévenu du refus de la sonde COM (fr-p4.1.3 s'en est passée).
+**Rythme** : (97 − 79) ÷ 10,2 h ≈ 1,8 point par heure.
