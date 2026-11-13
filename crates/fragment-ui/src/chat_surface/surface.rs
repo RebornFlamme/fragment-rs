@@ -161,8 +161,8 @@ impl ChatSurface {
     // ── synchronisation avec le fil ─────────────────────────────────────────
 
     /// Relit les unités du fil, après chaque `ListeMessages::mettre_a_jour`. `messages` est ce que
-    /// le fil vient de recevoir : il donne le texte des parts rendus par un tiers, que la surface ne
-    /// sait pas lire dans leur vue. `loaded` : le transcript est chargé.
+    /// le fil vient de recevoir : il donne le texte des parts (y compris ceux rendus par un tiers,
+    /// que la surface ne sait pas lire dans leur vue). `loaded` : le transcript est chargé.
     pub fn sync(&mut self, loaded: bool, messages: &[LiveMessage], cx: &mut Context<Self>) {
         let par_id: HashMap<&str, &LiveMessage> =
             messages.iter().map(|m| (m.id.as_str(), m)).collect();
@@ -181,14 +181,16 @@ impl ChatSurface {
                     "{id}#{}",
                     p.id.clone().unwrap_or_else(|| p.index.to_string())
                 );
-                let text = match &p.editeur {
-                    Some(e) => e.read(cx).texte().to_owned(),
-                    None => par_id
-                        .get(id.as_str())
-                        .and_then(|m| m.parts.get(p.index))
-                        .and_then(|part| part.text.clone())
-                        .unwrap_or_default(),
-                };
+                // ★ Le texte vient du message REÇU, pas de l'éditeur : `EditeurLive::texte` suit
+                //   l'événement de changement de son état, qui n'arrive qu'au cycle d'effets
+                //   suivant — lu ici, il rendrait le texte d'AVANT le jeton et le diff ne verrait
+                //   rien. L'éditeur ne sert de repli que pour un message absent de `messages`.
+                let text = par_id
+                    .get(id.as_str())
+                    .and_then(|m| m.parts.get(p.index))
+                    .and_then(|part| part.text.clone())
+                    .or_else(|| p.editeur.as_ref().map(|e| e.read(cx).texte().to_owned()))
+                    .unwrap_or_default();
                 editeurs.insert(key.clone(), p.editeur.clone());
                 specs.push(UnitSpec {
                     msg,
@@ -262,10 +264,9 @@ impl ChatSurface {
     }
 
     /// Relevé d'une image (appelé par [`plan_observe`] au peint) : le plan, la boîte de chaque
-    /// part, l'éditeur qui porte la sélection, le champ qui a le focus. Vrai si la géométrie a
+    /// part, l'éditeur qui porte la sélection. Vrai si la géométrie a
     /// changé depuis l'image précédente.
     fn relever(&self, plan: Bounds<Pixels>, window: &Window, cx: &App) -> bool {
-        self.garde.actualiser(window);
         let mut geo = self.geo.borrow_mut();
         geo.plan = Some(plan);
         let mut signature = vec![
@@ -335,6 +336,11 @@ pub fn plan_observe(surface: &Entity<ChatSurface>, plan: impl IntoElement) -> im
             |_, _, _| {},
             move |bounds, (), window, cx| {
                 let Some(s) = faible.upgrade() else { return };
+                // ★ La garde lit la pile des contextes de l'image RENDUE : pendant le peint, la
+                //   première image n'existe pas encore (l'arbre de répartition est vide et GPUI
+                //   panique). On la relève donc juste après l'image, une fois celle-ci publiée.
+                let garde = s.read(cx).garde.clone();
+                window.defer(cx, move |window, _| garde.actualiser(window));
                 if s.read(cx).relever(bounds, window, cx) {
                     let s = s.downgrade();
                     cx.defer(move |cx| {

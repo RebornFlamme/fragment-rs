@@ -321,7 +321,7 @@ impl Banc {
         })
     }
 
-    /// L'origine du plan dans la fenêtre : le coin de la colonne moins son décalage.
+    /// Prend ce que les abonnés ont reçu depuis le dernier relevé.
     fn vider(&mut self) -> Vec<Recu> {
         std::mem::take(&mut *self.recus.borrow_mut())
     }
@@ -528,6 +528,7 @@ fn en_flux_les_ancres_au_dessus_ne_bougent_pas() {
         false,
     ));
     let mut texte_flux = String::new();
+    b.vider();
     for rev in 0..6 {
         texte_flux.push_str("Une phrase de plus dans la suite. ");
         let mut m = fil.clone();
