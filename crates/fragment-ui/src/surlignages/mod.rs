@@ -1,8 +1,16 @@
 //! Les rangeHighlights dessinés sous le texte, un calque par surface (tâche `fr-t5-surlignages`).
 //!
-//! Squelette posé par `fr-p3-socle-t5t7` : la tâche propriétaire le remplit sans toucher à `lib.rs`.
+//! - [`CalqueSurlignages`] : la table d'une surface (celle de `fragment-text`), sa géométrie et son
+//!   dessin ; le crochet [`SousLeTexte`] est ce que l'élément d'une surface appelle avant ses
+//!   glyphes. Le branchement réel (éditeur, pages PDF) est fait au montage (`fr-t5-montage-note`,
+//!   `fr-t5-montage-pdf`) ; ici, il n'existe que le crochet et une fausse surface en test.
+//! - [`style`] : les classes (passage, actif, survol) résolues en jetons de thème.
+//! - Commande de scène `pixels:survol` `{id, from, to, active?}` : pose le surlignage d'un passage
+//!   survolé sur le calque exposé aux scènes ([`exposer_aux_scenes`]).
 
-use fragment_core::CommandManager;
+mod calque;
+mod scene;
+pub mod style;
 
-/// Enregistre les commandes de scène `pixels:surlignages` : vide jusqu'à la tâche propriétaire.
-pub fn commandes_de_scene(_commandes: &CommandManager) {}
+pub use calque::{CalqueSurlignages, ModeCalque, Rectangle, SousLeTexte};
+pub use scene::{commandes_de_scene, exposer_aux_scenes};
