@@ -136,14 +136,10 @@ portes = 11
 non_portes = []
 
 [engine]
-ts = "engine/engine.ts (E/S : disque, processus, réseau — non porté)"
+ts = "engine/engine.ts (E/S : disque, processus, réseau) — porté par fr-t7-moteur"
+rs = "src/moteur/{mod,resolution,telechargement}.rs ; tests/moteur.rs"
 tests_ts = "engine/engine.test.ts"
-source = 5
-portes = 0
-non_portes = [
-  { cas = "extrait le SEUL binaire, vérifié, et le retrouve ensuite sans réseau", raison = "faux registre npm HTTP + gunzip + sha512 + disque : transport et E/S, hors des modèles purs ; appartient au harness `claude` (processus enfant)" },
-  { cas = "empreinte fausse → refusé, rien posé", raison = "idem (téléchargement réel contre un faux serveur)" },
-  { cas = "archive sans binaire → refusé", raison = "idem" },
-  { cas = "une nouvelle version efface les anciennes", raison = "idem (disque)" },
-  { cas = "registre sans cette version → erreur claire", raison = "idem (HTTP 404)" },
-]
+source = 8
+portes = 8
+non_portes = []
+notes = "Faux registre npm = petit serveur HTTP local (fil de la crate de test), vraie pile ureq + gunzip + sha512. « un moteur déjà téléchargé → trouvé » est couvert par les deux cas qui retrouvent le binaire sans réseau (registre injoignable). Écarts : plus de SDK Node, donc versions épinglées en constantes (moteur::info_epinglee) et pas d'étape « paquet de plateforme à côté du SDK » ; la sonde `--version` est injectable. Cas ajoutés (9) : installé à jour / trop ancien / shim npm / sonde muette, PATH sans casse, réglage « jamais l'installé », téléchargé puis retrouvé hors ligne, registre injoignable, plateforme sans paquet."

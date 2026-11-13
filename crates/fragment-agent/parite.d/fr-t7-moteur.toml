@@ -1,0 +1,11 @@
+# Parité de fr-t7-moteur (fragment-agent) : le diagnostic des erreurs du moteur. Le reste du
+# moteur (résolution, téléchargement) est la section [engine] de parite.toml.
+
+[[module]]
+ts = "app/src/ui/views/agent/engine/diagnostic.ts ; engine/diagnostic.test.ts"
+rs = "crates/fragment-agent/src/moteur/diagnostic.rs ; tests/moteur.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 0
+non_portes = []
+notes = "Messages réels relevés par Fragment sur Claude Code, réécrits en fixtures. Ajout propre au Rust : les formules de ureq (dns error, connection failed, timed out) rejoignent celles de Node dans le cas réseau (test registre_injoignable_est_un_message_de_reseau)."
