@@ -39,6 +39,11 @@ html5ever = "0.27"
 markup5ever_rcdom = "0.3.0"
 time = { version = "0.3", default-features = false, features = ["std", "local-offset"] }
 
+# La boîte de couleur native (fr-t11.4, ADR-018) : `ChooseColorW`. Même version (0.62.2) que celle que
+# `gpui-pre` tire déjà : aucune crate nouvelle au lock, seulement deux features.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_Foundation", "Win32_UI_Controls_Dialogs", "Win32_UI_WindowsAndMessaging"] }
+
 [dev-dependencies]
 # Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.
 gpui-kit = { workspace = true, features = ["test-support"] }

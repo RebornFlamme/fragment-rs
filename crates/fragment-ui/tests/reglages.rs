@@ -18,6 +18,7 @@ use fragment_core::{
     enregistrer_commandes_zoom,
 };
 use fragment_ui::reglages::curseur::Curseur;
+use fragment_ui::reglages::selecteur_couleur::{BoiteCouleur, choisir_et_appliquer};
 
 struct FauxHote(Cell<f64>);
 
@@ -176,12 +177,18 @@ fn fenetre_de_reglages_slider_applique_au_relache_reset_resynchronise() {
     assert_eq!(ligne_zoom(&a).etiquette(), "125 %");
 }
 
-/// Fr-t11.4 : le sélecteur libre rend un `#rrggbb` quelconque, que la ligne « Accent color »
+/// Une boîte de couleur factice : rend toujours la même valeur, sans fenêtre système.
+struct BoiteFausse(&'static str);
+impl BoiteCouleur for BoiteFausse {
+    fn choisir(&self, _: &str) -> Option<String> {
+        Some(self.0.to_owned())
+    }
+}
+
+/// Fr-t11.4 : la boîte de couleur (native en vrai) rend un `#rrggbb` quelconque, que la ligne « Accent color »
 /// applique et enregistre (Fragment : `input type=color`, `appearance.set('accentColor', v)`).
 #[test]
 fn accent_libre_choisi_au_selecteur_est_applique_et_enregistre() {
-    use fragment_ui::reglages::selecteur_couleur::{Hsv, dans_carre};
-
     let stockage = Rc::new(StockageMemoire::new());
     let a = Apparence::new(stockage.clone(), Rc::new(|| 0));
     a.charger();
@@ -198,9 +205,14 @@ fn accent_libre_choisi_au_selecteur_est_applique_et_enregistre() {
         .expect("la ligne Accent color a un sélecteur");
     assert_eq!(couleur.value, "#646cff");
 
-    // Un geste au milieu du carré, sur la teinte de la valeur affichée : une couleur hors des huit.
-    let choisie = dans_carre(Hsv::depuis_hex(&couleur.value).teinte, 0.4, 0.3).en_hex();
-    (couleur.on_change.as_ref().expect("on_change"))(choisie.clone());
+    // Un clic sur la pastille : la (fausse) boîte rend une couleur hors des huit nommées.
+    let choisie = "#12ab34".to_owned();
+    let rappel = couleur.on_change.as_ref().expect("on_change");
+    assert!(choisir_et_appliquer(
+        &BoiteFausse("#12ab34"),
+        &couleur.value,
+        Some(rappel.as_ref())
+    ));
     assert_eq!(a.accent(), choisie);
 
     // Écrit au vidage (la sauvegarde est différée), puis rechargé depuis le même stockage.

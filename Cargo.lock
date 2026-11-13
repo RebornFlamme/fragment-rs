@@ -2929,6 +2929,7 @@ dependencies = [
  "markup5ever_rcdom",
  "serde_json",
  "time",
+ "windows 0.62.2",
 ]
 
 [[package]]

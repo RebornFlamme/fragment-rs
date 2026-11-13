@@ -10,7 +10,7 @@
 //!   liste déroulante et le sélecteur de couleur natif, les définitions page / liste / arbre / action /
 //!   libre.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -28,7 +28,7 @@ use gpui_kit::{
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
-use super::selecteur_couleur::{Appliquer, zones};
+use super::selecteur_couleur::{BoiteCouleur, BoiteNative, choisir_et_appliquer};
 use crate::echelle::{Echelle, calees, u};
 use crate::flottant::{arrondir, arrondir_coins, bordure, texte};
 use crate::icones;
@@ -115,8 +115,8 @@ pub struct FenetreReglages {
     largeur: f32,
     /// La clé du contrôle dont la fenêtre flottante (liste, couleurs) est ouverte.
     ouverte: Option<String>,
-    /// La teinte choisie au sélecteur libre (un gris n'en garde pas dans son hex).
-    teinte: Rc<Cell<Option<f32>>>,
+    /// La boîte de couleur (native ; une fausse en test).
+    boite: Rc<dyn BoiteCouleur>,
 }
 
 /// Un bloc du contenu, mesuré : ses marges verticales (qui se FUSIONNENT entre voisins, comme en
@@ -356,8 +356,14 @@ impl FenetreReglages {
             bornes: Rc::default(),
             largeur: 0.0,
             ouverte: None,
-            teinte: Rc::default(),
+            boite: Rc::new(BoiteNative),
         }
+    }
+
+    /// Remplace la boîte de couleur (tests : une fausse, sans fenêtre système).
+    pub fn avec_boite_couleur(mut self, boite: Rc<dyn BoiteCouleur>) -> Self {
+        self.boite = boite;
+        self
     }
 
     /// Active l'onglet `id` (sans effet s'il n'existe pas).
@@ -949,8 +955,12 @@ impl FenetreReglages {
             SettingControl::Slider(s) => Some(self.curseur(cle, s, y, t, cx)),
             SettingControl::Dropdown(d) => Some(self.liste(cle, d, y, t, cx)),
             SettingControl::Color(k) => {
-                let ouvert = self.ouverte.as_deref() == Some(cle);
-                let cle_s = cle.to_owned();
+                let (boite, rappel, hook, valeur) = (
+                    self.boite.clone(),
+                    k.on_change.clone(),
+                    self.hook(),
+                    k.value.clone(),
+                );
                 let pastille = div()
                     .id(SharedString::from(format!("couleur-{cle}")))
                     .size(u(cx, f.size_4_7))
@@ -970,72 +980,17 @@ impl FenetreReglages {
                 );
                 let pastille = bordure(pastille, u(cx, f.border_width))
                     .border_color(couleur(p.tab_outline_color))
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                        this.basculer(&cle_s);
-                        cx.notify();
-                    }));
-                if !ouvert {
-                    return Some(pastille.into_any_element());
-                }
-                // ★ Pas de sélecteur natif en GPUI : les huit couleurs nommées du thème en tiennent
-                //   lieu (l'accent reste libre dans `appearance.json`, un hex quelconque).
-                let hook = self.hook();
-                let mut rangee = div().flex().gap(u(cx, f.size_4_2)).p(u(cx, f.size_4_2));
-                for (i, c) in [
-                    p.color_red,
-                    p.color_orange,
-                    p.color_yellow,
-                    p.color_green,
-                    p.color_cyan,
-                    p.color_blue,
-                    p.color_purple,
-                    p.color_pink,
-                ]
-                .into_iter()
-                .enumerate()
-                {
-                    let (hex, rappel, hook) = (hex_de(c), k.on_change.clone(), hook.clone());
-                    let pastille_choix = div()
-                        .id(SharedString::from(format!("choix-{cle}-{i}")))
-                        .size(u(cx, f.size_4_7))
-                        .flex_none()
-                        .rounded_full()
-                        .cursor_pointer()
-                        .bg(couleur(c))
-                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
-                            if let Some(r) = &rappel {
-                                r(hex.clone());
-                            }
-                            this.ouverte = None;
+                    .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
+                        // ★ Fragment : `input type=color`, la boîte NATIVE du système (fr-t11.4,
+                        //   ADR-018). Pas de sélecteur dessiné : la pastille seule ouvre la boîte.
+                        if choisir_et_appliquer(boite.as_ref(), &valeur, rappel.as_deref()) {
                             if let Some(h) = &hook {
                                 h(cx);
                             }
                             cx.refresh_windows();
-                        }));
-                    rangee = rangee.child(pastille_choix);
-                }
-                // Le sélecteur libre (fr-t11.4) : carré + teinte sous la rangée nommée, sans fermer.
-                let appliquer: Appliquer<Self> = {
-                    let (rappel, hook) = (k.on_change.clone(), hook.clone());
-                    Rc::new(move |hex, cx| {
-                        if let Some(r) = &rappel {
-                            r(hex);
                         }
-                        if let Some(h) = &hook {
-                            h(cx);
-                        }
-                        cx.refresh_windows();
-                    })
-                };
-                let libre = zones(cle, &k.value, &self.teinte, &self.bornes, &appliquer, cx);
-                let rangee = div().flex().flex_col().child(rangee).child(libre);
-                Some(Self::avec_fenetre(
-                    pastille.into_any_element(),
-                    rangee,
-                    u(cx, f.size_4_7),
-                    t,
-                    cx,
-                ))
+                    }));
+                Some(pastille.into_any_element())
             }
             SettingControl::ExtraButton(b) => {
                 let action = b.on_click.clone();
