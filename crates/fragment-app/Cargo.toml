@@ -44,5 +44,9 @@ thiserror.workspace = true
 # Vue jouet : TestAppContext et render_to_image dans les tests du lecteur.
 gpui-kit = { workspace = true, features = ["test-support"] }
 
+# ★ Déjà dans l'arbre (gpui la tire) : aucune nouvelle crate, seulement une dépendance directe.
+[target.'cfg(windows)'.build-dependencies]
+embed-resource = "3"
+
 [lints]
 workspace = true

@@ -30,6 +30,7 @@ fn main() {
             if let Err(erreur) = fragment_ui::polices::enregistrer(cx.text_system()) {
                 eprintln!("fragment : polices : {erreur:#}");
             }
+            fragment_app::identite::signaler_replis(cx.text_system());
             let application = match fragment_app::monter(
                 cx,
                 &options,

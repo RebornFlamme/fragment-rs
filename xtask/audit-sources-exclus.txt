@@ -1,3 +1,8 @@
 # Copies légitimes pour cargo xtask audit-sources : « chemin # raison ».
 LICENSE # texte standard de la licence MIT, aucune source de Fragment
 crates/fragment-ui/assets/icons/LICENSE-LUCIDE # licence ISC de Lucide et notice MIT de Feather : texte standard obligatoire, aucune source de Fragment
+# EXCLUSION NOMMÉE DES ACTIFS DE MARQUE (orchestrateur, 11/11, fr-t11-identite) : les fichiers EXPORTÉS de la marque,
+# déjà publics par usefragment.org et l'installeur. Ce sont des images, pas des sources ; droits réservés (NOTICE).
+crates/fragment-app/assets/brand/favicon.svg # logo exporté de la marque, déjà public (usefragment.org)
+crates/fragment-app/assets/brand/favicon-32.svg # logo exporté de la marque, déjà public (usefragment.org)
+crates/fragment-app/assets/brand/app-icon-small.svg # icône exportée de la marque, déjà publique (installeur)
