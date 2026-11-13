@@ -18,6 +18,7 @@
 import { test, type Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
+import { avecGlyphes } from './_glyphes';
 import { lancerLecteur, type Harnais } from '../../../Fragment/app/e2e/readerHarness';
 import { calme, schema, type Theme } from './_commun';
 import { activerModeInvisible } from '../invisible/garde';
@@ -135,8 +136,9 @@ export function sceneT3b(nom: string, fichier: string, corps: (c: ContexteT3b) =
                 await corps({
                     h, p, theme, act,
                     capturer: async () => {
-                        const png = await p.screenshot({ animations: 'disabled', caret: 'hide' });
-                        writeFileSync(path.join(REFERENCE, `${nom}-${theme}.png`), png);
+                        const fichier = path.join(REFERENCE, `${nom}-${theme}.png`);
+                        const png = await avecGlyphes(p, fichier, () => p.screenshot({ animations: 'disabled', caret: 'hide' }));
+                        writeFileSync(fichier, png);
                     },
                     sonde: async (label, selecteur, n = 0) => {
                         const b = await p.locator(selecteur).nth(n).boundingBox();

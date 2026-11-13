@@ -13,6 +13,7 @@
 mod arrondis;
 mod boites;
 mod exceptions;
+mod identite;
 mod ombres;
 mod sas;
 
