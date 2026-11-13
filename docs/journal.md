@@ -781,3 +781,7 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - ADR-014 : accordé PROVISOIREMENT, remonté à l'utilisateur. Seul l'intérieur des pages est concerné. Restent stricts : la géométrie des pages, le chrome, les surlignages, la sélection et la couche de texte.
   - PR amont : NE PAS ouvrir avant la réponse de l'utilisateur.
   - Clear : « prêt pour le clear » quand les équipiers auront rendu compte, puis `clear_session("self")`. L'orchestrateur renvoie le brief.
+- Battement 13/11 00:18 UTC : fenêtre 5 h à 32 % (reset 03:30), semaine à 61 %, **contexte du chef 551k : plus aucun lancement** (règle de l'orchestrateur).
+  - Rythme cible : (97 − 61) ÷ 17,7 h ≈ 2 points par heure.
+  - #92 (fr-t3-scenes-b, 22 PNG, MD5 identiques) et #91 (fr-p3.2) en CI.
+  - Actifs : t3scenesc, t11scenes, t4recherche, tableaux, proprietes, saslargeur. « Prêt pour le clear » quand ils auront rendu compte.
