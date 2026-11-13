@@ -8,22 +8,32 @@ use fragment_markdown::commandes::menu::{
 };
 use fragment_text::TextSurface as _;
 
-use super::vue::VueMarkdown;
+use super::vue::{Liens, VueMarkdown};
 
 /// Ce qui grise les entrées : la sélection, la lecture seule. L'éditeur principal n'est jamais
 /// imbriqué (une cellule de tableau l'est, c'est son propre menu).
 pub fn contexte_menu(vue: &VueMarkdown) -> ContexteMenu {
-    let sel = vue.editeur_interne().get_selection();
+    contexte_menu_de(vue.liens())
+}
+
+/// Le même contexte, depuis les poignées que le rendu possède.
+pub fn contexte_menu_de(liens: &Liens) -> ContexteMenu {
+    let sel = liens.editeur_interne().get_selection();
     ContexteMenu {
         selection_vide: sel.from == sel.to,
-        lecture_seule: vue.lecture_seule(),
+        lecture_seule: liens.lecture_seule(),
         imbrique: false,
     }
 }
 
 /// Les entrées du menu contextuel de la note, dans l'ordre et par section.
 pub fn menu_contextuel(vue: &VueMarkdown) -> Vec<ItemMenu> {
-    modele_menu_editeur(contexte_menu(vue))
+    menu_contextuel_de(vue.liens())
+}
+
+/// Les mêmes entrées, depuis les poignées que le rendu possède.
+pub fn menu_contextuel_de(liens: &Liens) -> Vec<ItemMenu> {
+    modele_menu_editeur(contexte_menu_de(liens))
 }
 
 /// Une action ne modifie-t-elle pas le document ? (Seules celles-là passent en lecture seule.)
@@ -41,8 +51,17 @@ pub fn executer_entree(
     action: ActionMenu,
     texte_brut: &str,
 ) -> Option<DemandeHote> {
-    if vue.lecture_seule() && !action_sans_ecriture(action) {
+    executer_entree_de(vue.liens(), action, texte_brut)
+}
+
+/// [`executer_entree`], depuis les poignées que le rendu possède.
+pub fn executer_entree_de(
+    liens: &Liens,
+    action: ActionMenu,
+    texte_brut: &str,
+) -> Option<DemandeHote> {
+    if liens.lecture_seule() && !action_sans_ecriture(action) {
         return None;
     }
-    executer_action(&vue.editeur_interne(), action, texte_brut)
+    executer_action(&liens.editeur_interne(), action, texte_brut)
 }

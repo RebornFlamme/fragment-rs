@@ -15,6 +15,7 @@ use std::rc::Rc;
 
 use fragment_core::View;
 use fragment_text::{TextSurface as _, utf16_to_byte};
+use gpui_kit::base::input::Paste;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Bounds, Element, ElementId, Entity, GlobalElementId,
     InspectorElementId, InteractiveElement as _, IntoElement, LayoutId, ParentElement as _, Pixels,
@@ -115,6 +116,9 @@ impl CarteNote for CarteFork {
 
 /// Crée l'éditeur, ou y recopie la révision du document.
 fn synchroniser(liens: &Liens, cellule: &CelluleMontage, window: &mut Window, cx: &mut App) {
+    // Ce que le menu et les commandes ont posté passe AVANT la recopie : le document change,
+    // l'éditeur le suit dans la même image.
+    super::interaction::traiter(liens, cx);
     let (revision, neuf, lecture_seule, texte, selection) = {
         let n = liens.note.borrow();
         (
@@ -235,6 +239,7 @@ impl Element for ElementNote {
             return (id, vide);
         };
         let (l1, l2) = (self.liens.clone(), self.liens.clone());
+        let (l3, l4) = (self.liens.clone(), self.liens.clone());
         let mut e = div()
             .id("vue-markdown")
             .size_full()
@@ -243,6 +248,22 @@ impl Element for ElementNote {
                 l1.defilement();
             })
             .on_mouse_down(gpui_kit::MouseButton::Left, move |_, _, _| l2.geste())
+            .on_mouse_down(gpui_kit::MouseButton::Right, move |e, _, cx| {
+                super::interaction::montrer_menu(
+                    &l3,
+                    f32::from(e.position.x),
+                    f32::from(e.position.y),
+                );
+                cx.refresh_windows();
+            })
+            // ★ Une image dans le presse-papiers va au coffre ; le texte reste à l'éditeur (la
+            //   capture passe avant lui, et ne consomme que s'il y a une image).
+            .capture_action(move |_: &Paste, _, cx| {
+                if super::interaction::coller_images(&l4, cx.read_from_clipboard().as_ref()) {
+                    cx.stop_propagation();
+                    cx.refresh_windows();
+                }
+            })
             .child(editeur)
             .into_any_element();
         let id = e.request_layout(window, cx);

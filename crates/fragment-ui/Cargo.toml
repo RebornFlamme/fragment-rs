@@ -37,6 +37,7 @@ image = { workspace = true, features = ["jpeg"] }
 # versions que celles que `gpui-base` tire déjà (aucune crate nouvelle au lock).
 html5ever = "0.27"
 markup5ever_rcdom = "0.3.0"
+time = { version = "0.3", default-features = false, features = ["std", "local-offset"] }
 
 [dev-dependencies]
 # Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.

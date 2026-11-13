@@ -14,9 +14,7 @@ use fragment_markdown::coller_image::{
 };
 use fragment_text::{Editor, TextSurface as _};
 
-use fragment_core::workspace::vue_fichier::FileView;
-
-use super::vue::VueMarkdown;
+use super::vue::{Liens, VueMarkdown};
 
 /// Ce que le collage a fait.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,16 +75,26 @@ pub fn coller(
     reglage: &ReglageAttachements,
     horloge: impl Fn() -> LocalDateTime,
 ) -> IssueCollage {
-    if vue.lecture_seule() {
+    coller_dans(vue.liens(), fichiers, elements, reglage, horloge)
+}
+
+/// [`coller`], depuis les poignées que le rendu possède.
+pub fn coller_dans(
+    liens: &Liens,
+    fichiers: &[FichierPresse],
+    elements: &[ElementPresse],
+    reglage: &ReglageAttachements,
+    horloge: impl Fn() -> LocalDateTime,
+) -> IssueCollage {
+    if liens.lecture_seule() {
         return IssueCollage::LectureSeule;
     }
     let images = images_du_presse_papiers(fichiers, elements);
     if images.is_empty() {
         return IssueCollage::PasDImage;
     }
-    let vault = vue.file_base().vault();
-    let note = vue.file().map(|f| f.path.clone());
-    let mut coffre = CoffreDeLaVue(vault);
+    let note = liens.chemin();
+    let mut coffre = CoffreDeLaVue(liens.vault());
     let embeds = match enregistrer_images_collees(
         &mut coffre,
         &images,
@@ -101,9 +109,7 @@ pub fn coller(
             return IssueCollage::Echec(NOTICE_ECHEC_COLLAGE.to_owned());
         }
     };
-    let Some(editeur) = vue.editeur() else {
-        return IssueCollage::LectureSeule;
-    };
+    let editeur = liens.editeur_interne();
     let spec = transaction_de_collage(&editeur.get_value(), editeur.get_selection(), &embeds);
     editeur.transaction(spec);
     IssueCollage::Insere(embeds)
