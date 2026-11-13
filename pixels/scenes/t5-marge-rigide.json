@@ -1,0 +1,19 @@
+{
+  "scene": "t5-marge-rigide",
+  "depuis": "T5",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t5/a",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"open","path":"note.md"},
+    {"type":"wait-stable"},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"rigide","from":0,"side":"right","height":330}},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"seuil","from":266,"side":"right","height":200}},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"flex","from":718,"side":"right","height":20}},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
