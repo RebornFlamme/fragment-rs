@@ -66,6 +66,13 @@ pub struct OptionsEditeur {
     pub taille_texte: f32,
     /// Sans fond : l'éditeur laisse voir ce qui est dessous (une cellule, un bloc imbriqué).
     pub fond_transparent: bool,
+    /// Marges intérieures FIXES `[haut, droite, bas, gauche]` en px, à la place de la colonne de
+    /// lecture et de [`MARGE_CONTENU_VERTICALE`] (une cellule de tableau :
+    /// `.cm-table-cell .cm-editor .cm-content { padding: 4px 8px }`). Ajout de `fr-t3-tableaux`.
+    pub marges: Option<[f32; 4]>,
+    /// Interligne en multiple de `taille_texte` ; `None` : [`INTERLIGNE_TEXTE`] (1,4). Une cellule :
+    /// 1,5 (`--line-height-normal`). Ajout de `fr-t3-tableaux`.
+    pub interligne: Option<f32>,
 }
 
 impl Default for OptionsEditeur {
@@ -76,6 +83,8 @@ impl Default for OptionsEditeur {
             unite_indentation: 4,
             taille_texte: fragment_markdown::decorations::styles::TAILLE_TEXTE_DEFAUT,
             fond_transparent: false,
+            marges: None,
+            interligne: None,
         }
     }
 }
@@ -282,7 +291,15 @@ impl EditeurLive {
     /// L'interligne de base (une rangée de texte courant), en pixels logiques.
     #[must_use]
     pub fn interligne(&self) -> f32 {
-        self.options.taille_texte * INTERLIGNE_TEXTE
+        self.options.taille_texte * self.options.interligne.unwrap_or(INTERLIGNE_TEXTE)
+    }
+
+    /// La marge haute du contenu : [`MARGE_CONTENU_VERTICALE`], ou celle de `OptionsEditeur::marges`.
+    #[must_use]
+    pub fn marge_haute(&self) -> f32 {
+        self.options
+            .marges
+            .map_or(MARGE_CONTENU_VERTICALE, |m| m[0])
     }
 
     /// La surface de texte (`TextSurface`, UTF-16) de cet éditeur, lue dans `cx`.
@@ -496,10 +513,19 @@ impl Render for EditeurLive {
         } else {
             f32::from(window.viewport_size().width)
         };
-        self.marges_posees = (debut_texte(largeur) - GOUTTIERE_DU_FORK, fin_texte(largeur));
+        let (haut, bas) = match self.options.marges {
+            Some([h, d, b, g]) => {
+                self.marges_posees = ((g - GOUTTIERE_DU_FORK).max(0.0), d);
+                (h, b)
+            }
+            None => {
+                self.marges_posees = (debut_texte(largeur) - GOUTTIERE_DU_FORK, fin_texte(largeur));
+                (MARGE_CONTENU_VERTICALE, MARGE_CONTENU_VERTICALE)
+            }
+        };
         let marges = Edges {
-            top: px(MARGE_CONTENU_VERTICALE),
-            bottom: px(MARGE_CONTENU_VERTICALE),
+            top: px(haut),
+            bottom: px(bas),
             left: px(self.marges_posees.0),
             right: px(self.marges_posees.1),
         };
@@ -529,7 +555,7 @@ impl Render for EditeurLive {
             .text_color(couleur(theme.palette.text_normal))
             .font_family(FAMILLE_INTERFACE)
             .text_size(px(taille))
-            .line_height(px(taille * INTERLIGNE_TEXTE))
+            .line_height(px(self.interligne()))
             .child(EditeurDeBase::new(&self.etat))
             .children(calque)
             .child(
