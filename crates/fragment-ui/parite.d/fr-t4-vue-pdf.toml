@@ -1,0 +1,19 @@
+# Parité de fr-t4-vue-pdf (fragment-ui) : la vue PDF montée. PdfView.ts n'a pas de test unitaire
+# côté TS : les cas viennent du bead et des e2e pdf-toolbar (test 1, Page width) et
+# scroll-persistence (cas PDF).
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (getViewType, canAcceptExtension, onLoadFile, getEphemeralState, setEphemeralState, lirePosition, allerAPosition)"
+rs = "crates/fragment-ui/src/vue_pdf/vue.rs, montage.rs (appliquer_etat, instantane)"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 3
+notes = "scroll-persistence, cas PDF : pdf_autre_onglet_puis_retour_rebuildview_recharger (l'état éphémère d'une vue appliqué à une vue neuve ; ← et rebuildView passent par le même état, core). Ajoutés : état éphémère complet et getState réduit au fichier, taille 0 ignorée, garde d'extension."
+
+[[module]]
+ts = "app/src/ui/views/pdf/PdfView.ts (onOpen, construireBarreOutils, ResizeObserver des modes), app/src/ui/core/workspace/ItemView.ts (overlayPane)"
+rs = "crates/fragment-ui/src/vue_pdf/montage.rs, document.rs"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 0
+notes = "pdf-toolbar : le_header_ne_porte_plus_le_zoom_la_barre_d_outils_est_sous_lui, page_width_suit_la_largeur_de_la_zone_barre_laterale_ouverte. Document partagé : un seul Document pdfium par vue (fil dédié, mandataires pour pages, vignettes, texte, recherche). Dettes : champ de page sans caret ni frappe routée ; mesure mémoire avant/après non faite ; menu contextuel de la vue (Zoom avant/arrière) non porté."

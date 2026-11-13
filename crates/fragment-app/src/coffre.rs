@@ -28,6 +28,7 @@ use fragment_ui::explorateur::{
 };
 use fragment_ui::onglets::ContenuDeVue;
 use fragment_ui::vue_markdown;
+use fragment_ui::vue_pdf;
 
 /// La commande « Nouvelle note » (l'id d'Obsidian, une API : raccourcis, CLI, plugins).
 pub const COMMANDE_NOUVELLE_NOTE: &str = "file-explorer:new-file";
@@ -299,10 +300,23 @@ pub fn activer_explorateur(app: &AppCoeur, coffre: &Coffre) -> Vec<Disposer> {
             horloge: vue_markdown::horloge_systeme(),
         },
     ));
+    // La vue `pdf` (fr-t4-vue-pdf) : vue, extension `pdf`.
+    retraits.extend(vue_pdf::enregistrer(
+        app,
+        vue_pdf::ContextePdf {
+            vault: coffre.vault.clone(),
+            workspace_events: app.workspace().borrow().events().clone(),
+            keymap: app.keymap().clone(),
+        },
+    ));
     retraits
 }
 
 /// Le contenu des vues que l'application sait dessiner (`ContexteOnglets::contenu_de_vue`).
 pub fn contenu_de_vue() -> ContenuDeVue {
-    Rc::new(|v, cx| explorateur::contenu(v, cx).or_else(|| vue_markdown::contenu(v, cx)))
+    Rc::new(|v, cx| {
+        explorateur::contenu(v, cx)
+            .or_else(|| vue_markdown::contenu(v, cx))
+            .or_else(|| vue_pdf::contenu(v, cx))
+    })
 }
