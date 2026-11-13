@@ -29,6 +29,8 @@ fragment-agent = { path = "../fragment-agent" }
 fragment-artefacts = { path = "../fragment-artefacts" }
 # La marge de lecture (fr-t5-mode-marge) : le tableau des trois commandes, déjà porté là.
 fragment-plugins = { path = "../fragment-plugins" }
+# Socle T9 (fr-t9-socle) : les pages HTML et leur pont.
+fragment-html = { path = "../fragment-html" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true

@@ -84,6 +84,15 @@ pub mod orbe;
 pub mod surlignages;
 pub mod widget_couche;
 
+// Socle T9 (fr-t9-socle) : coquilles vides, une par tâche aval.
+pub mod chat_origine;
+pub mod embed;
+pub mod html_surface;
+pub mod md_embed;
+pub mod vue_hebergee;
+pub mod vue_html;
+pub mod vue_image;
+
 /// Les fichiers de `assets/` embarqués (écrit par `build.rs`).
 pub(crate) mod embarque {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));
