@@ -17,7 +17,9 @@ use std::sync::{Arc, Mutex};
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use fragment_agent::attachment_blocks::base64;
-use fragment_agent::engine_model::{EngineMode, EngineSource, ResolvedEngine, SdkInfo};
+use fragment_agent::engine_model::{
+    EngineMode, EngineSource, ResolvedEngine, SdkInfo, nom_dossier_version,
+};
 use fragment_agent::moteur::resolution::resoudre_avec;
 use fragment_agent::moteur::{
     EngineNeed, EnvMoteur, OptionsResolution, diagnose, info_epinglee, raw_message, resoudre,
@@ -39,7 +41,16 @@ struct FauxRegistre {
     etat: Arc<Mutex<Etat>>,
 }
 
-const PKG_URL: &str = "/@anthropic-ai%2fclaude-agent-sdk-win32-x64/0.3.295";
+/// Le faux registre répond pour le paquet de n'importe quelle plateforme : les tests suivent la machine qui les joue.
+fn est_meta(chemin: &str) -> bool {
+    chemin.starts_with("/@anthropic-ai%2fclaude-agent-sdk-") && chemin.ends_with("/0.3.295")
+}
+
+/// Le nom du binaire de la machine courante (`claude.exe` ou `claude`).
+fn exe() -> String {
+    fragment_agent::engine_model::binary_name(&EnvMoteur::courant(PathBuf::new()).platform)
+        .to_string()
+}
 
 impl FauxRegistre {
     fn demarrer() -> Self {
@@ -63,7 +74,7 @@ impl FauxRegistre {
                 let chemin = texte.split_whitespace().nth(1).unwrap_or("").to_string();
                 let etat = partage.lock().expect("verrou");
                 let (statut, entetes, corps): (&str, Vec<String>, Vec<u8>) = match chemin.as_str() {
-                    PKG_URL => {
+                    p if est_meta(p) => {
                         let json = format!(
                             r#"{{"dist":{{"tarball":"{racine}/archive.tgz","integrity":"{}"}}}}"#,
                             etat.integrity
@@ -155,23 +166,21 @@ fn binaire() -> Vec<u8> {
 // ── L'environnement des tests ──
 
 fn env(dir: &Path, registre: &str) -> EnvMoteur {
+    // La plateforme est celle de la machine : les chemins, séparateurs et noms de binaire suivent.
     EnvMoteur {
-        platform: "win32".into(),
-        arch: "x64".into(),
-        musl: false,
         env: HashMap::new(),
         home: dir.to_string_lossy().into_owned(),
-        dir: dir.to_path_buf(),
         registre: registre.to_string(),
+        ..EnvMoteur::courant(dir.to_path_buf())
     }
 }
 
 fn info(env: &EnvMoteur) -> SdkInfo {
-    info_epinglee(env).expect("paquet win32-x64")
+    info_epinglee(env).expect("paquet de cette plateforme")
 }
 
 fn dossier_version(dir: &Path) -> PathBuf {
-    dir.join("claude-agent-sdk-win32-x64-0.3.295")
+    dir.join(nom_dossier_version(&info(&env(dir, ""))))
 }
 
 fn noms(dossier: &Path) -> Vec<String> {
@@ -196,7 +205,7 @@ fn extrait_le_seul_binaire_verifie_et_le_retrouve_ensuite_sans_reseau() {
     let bin = binaire();
     faux.servir(&[
         ("package/README.md", b"r"),
-        ("package/claude.exe", &bin),
+        (&format!("package/{}", exe()), &bin),
         ("package/LICENSE.md", b"l"),
     ]);
     let tmp = TempDir::new().expect("tmp");
@@ -207,10 +216,11 @@ fn extrait_le_seul_binaire_verifie_et_le_retrouve_ensuite_sans_reseau() {
     assert_eq!(fs::read(&r.path).expect("lu"), bin);
     let taille_archive = faux.etat.lock().expect("verrou").archive.len() as u64;
     assert_eq!(vus.last().copied(), Some(taille_archive));
-    assert_eq!(
-        noms(&dossier_version(tmp.path())),
-        vec!["claude.exe", "engine.json"]
-    );
+    assert_eq!(noms(&dossier_version(tmp.path())), {
+        let mut v = vec![exe(), "engine.json".to_string()];
+        v.sort();
+        v
+    });
     // Retrouvé sans réseau : un registre injoignable ne gêne pas.
     let hors_ligne = env(tmp.path(), "http://127.0.0.1:1");
     assert_eq!(
@@ -227,7 +237,7 @@ fn extrait_le_seul_binaire_verifie_et_le_retrouve_ensuite_sans_reseau() {
 #[test]
 fn empreinte_fausse_refuse_rien_pose() {
     let faux = FauxRegistre::demarrer();
-    faux.servir(&[("package/claude.exe", &binaire())]);
+    faux.servir(&[(&format!("package/{}", exe()), &binaire())]);
     faux.etat.lock().expect("verrou").integrity = integrite(b"autre chose");
     let tmp = TempDir::new().expect("tmp");
     let e = env(tmp.path(), &faux.base);
@@ -251,11 +261,16 @@ fn archive_sans_binaire_refusee() {
 #[test]
 fn une_nouvelle_version_efface_les_anciennes() {
     let faux = FauxRegistre::demarrer();
-    faux.servir(&[("package/claude.exe", &binaire())]);
+    faux.servir(&[(&format!("package/{}", exe()), &binaire())]);
     let tmp = TempDir::new().expect("tmp");
-    let ancien = tmp.path().join("claude-agent-sdk-win32-x64-0.3.200");
+    let ancien = tmp.path().join(format!(
+        "{}-0.3.200",
+        nom_dossier_version(&info(&env(tmp.path(), "")))
+            .rsplit_once('-')
+            .map_or("", |(a, _)| a)
+    ));
     fs::create_dir_all(&ancien).expect("mkdir");
-    fs::write(ancien.join("claude.exe"), "vieux").expect("écrit");
+    fs::write(ancien.join(exe()), "vieux").expect("écrit");
     let e = env(tmp.path(), &faux.base);
     telecharger(&e, &info(&e), &mut sans_progres()).expect("téléchargé");
     assert!(!ancien.exists());
@@ -288,7 +303,7 @@ fn registre_injoignable_est_un_message_de_reseau() {
 fn poser_installe(home: &Path, entete: &[u8]) -> PathBuf {
     let dossier = home.join(".local").join("bin");
     fs::create_dir_all(&dossier).expect("mkdir");
-    let chemin = dossier.join("claude.exe");
+    let chemin = dossier.join(exe());
     fs::write(&chemin, entete).expect("écrit");
     chemin
 }
@@ -349,19 +364,19 @@ fn le_path_est_cherche_sans_tenir_compte_de_la_casse() {
     let tmp = TempDir::new().expect("tmp");
     let dossier = tmp.path().join("outils");
     fs::create_dir_all(&dossier).expect("mkdir");
-    fs::write(dossier.join("claude.exe"), b"MZ\x90\x00").expect("écrit");
+    fs::write(dossier.join(exe()), b"MZ\x90\x00").expect("écrit");
     let mut e = env(tmp.path(), "http://127.0.0.1:1");
     e.env
         .insert("Path".into(), dossier.to_string_lossy().into_owned());
     let r = trouver_installe(&e, "2.1.295", &sonde_fixe("2.1.316")).expect("trouvé");
-    assert!(r.path.ends_with("claude.exe") && r.path.contains("outils"));
+    assert!(r.path.ends_with(&exe()) && r.path.contains("outils"));
 }
 
 #[test]
 fn le_reglage_fragment_n_utilise_jamais_l_installe() {
     let faux = FauxRegistre::demarrer();
     let bin = binaire();
-    faux.servir(&[("package/claude.exe", &bin)]);
+    faux.servir(&[(&format!("package/{}", exe()), &bin)]);
     let tmp = TempDir::new().expect("tmp");
     let home = tmp.path().join("home");
     poser_installe(&home, b"MZ\x90\x00");
@@ -383,7 +398,7 @@ fn le_reglage_fragment_n_utilise_jamais_l_installe() {
 #[test]
 fn rien_d_installe_le_moteur_est_telecharge_puis_retrouve() {
     let faux = FauxRegistre::demarrer();
-    faux.servir(&[("package/claude.exe", &binaire())]);
+    faux.servir(&[(&format!("package/{}", exe()), &binaire())]);
     let tmp = TempDir::new().expect("tmp");
     let e = env(tmp.path(), &faux.base);
     let r = resoudre_avec(
