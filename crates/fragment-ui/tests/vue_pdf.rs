@@ -334,3 +334,256 @@ fn n_accepte_que_l_extension_pdf() {
     assert!(!vue.can_accept_extension("md"));
     assert_eq!(vue.get_view_type(), "pdf");
 }
+
+// ─── Le champ de page : caret et frappe routée (pdf-toolbar.spec.ts, `.pdf-page-input`) ───
+
+/// Monte la vue avec le pont clavier de la fenêtre (Entrée et Échap passent par le Keymap).
+fn monter_clavier<'a>(
+    cx: &'a mut TestAppContext,
+    b: &Banc,
+    vue: &VuePdf,
+) -> (Entity<MontagePdf>, &'a mut VisualTestContext) {
+    let (m, vcx) = monter(cx, vue, 1000.0);
+    let km = b.keymap.clone();
+    vcx.update(|w, cx| fragment_ui::clavier::brancher(w, cx, km, None));
+    (m, vcx)
+}
+
+fn champ(m: &Entity<MontagePdf>, vcx: &mut VisualTestContext) -> (String, bool, bool) {
+    m.read_with(vcx, |m, cx| {
+        let c = m.pages().unwrap().read(cx).modele().champ().clone();
+        (c.valeur, c.focus, c.tout_selectionne)
+    })
+}
+
+fn focaliser_champ(m: &Entity<MontagePdf>, vcx: &mut VisualTestContext) {
+    let f = m.read_with(vcx, |m, _| m.focus_champ().clone());
+    vcx.update(|w, cx| w.focus(&f, cx));
+    stabiliser(vcx, m);
+}
+
+/// `fill('4')` puis `Enter` : la vue va à la page 4 (le champ rend la page courante).
+#[gpui_kit::test]
+fn saisir_un_numero_puis_entree_va_a_la_page(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    let b = banc();
+    let vue = b.vue();
+    let (m, vcx) = monter_clavier(cx, &b, &vue);
+    focaliser_champ(&m, vcx);
+    // Au focus, tout est sélectionné : la frappe remplace, puis le caret suit le texte.
+    assert_eq!(champ(&m, vcx), ("1".to_string(), true, true));
+    vcx.simulate_input("4");
+    assert_eq!(champ(&m, vcx), ("4".to_string(), true, false));
+    vcx.simulate_keystrokes("enter");
+    stabiliser(vcx, &m);
+    assert_eq!(page_vue(&m, vcx), 4);
+    assert_eq!(champ(&m, vcx).0, "4");
+}
+
+/// Un numéro hors bornes est ramené à `1..=N` ; retour arrière efface.
+#[gpui_kit::test]
+fn un_numero_hors_bornes_est_borne_et_retour_arriere_efface(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    let b = banc();
+    let vue = b.vue();
+    let (m, vcx) = monter_clavier(cx, &b, &vue);
+    focaliser_champ(&m, vcx);
+    vcx.simulate_input("99");
+    vcx.simulate_keystrokes("backspace");
+    assert_eq!(champ(&m, vcx).0, "9");
+    vcx.simulate_input("9");
+    vcx.simulate_keystrokes("enter");
+    stabiliser(vcx, &m);
+    assert_eq!(page_vue(&m, vcx), N);
+}
+
+/// Échap restaure la page courante et rend le focus à la vue.
+#[gpui_kit::test]
+fn echap_restaure_la_page_et_rend_le_focus(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    let b = banc();
+    let vue = b.vue();
+    let (m, vcx) = monter_clavier(cx, &b, &vue);
+    focaliser_champ(&m, vcx);
+    vcx.simulate_input("7");
+    vcx.simulate_keystrokes("escape");
+    stabiliser(vcx, &m);
+    assert_eq!(champ(&m, vcx), ("1".to_string(), false, false));
+    let a_le_focus = m.update_in(vcx, |m, w, _| m.focus_champ().is_focused(w));
+    assert!(!a_le_focus);
+    assert_eq!(page_vue(&m, vcx), 1);
+}
+
+/// Perdre le focus après une saisie vaut validation (l'événement `change` du navigateur).
+#[gpui_kit::test]
+fn perdre_le_focus_apres_une_saisie_valide(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    let b = banc();
+    let vue = b.vue();
+    let (m, vcx) = monter_clavier(cx, &b, &vue);
+    focaliser_champ(&m, vcx);
+    vcx.simulate_input("3");
+    vcx.update(|w, cx| w.blur(cx));
+    stabiliser(vcx, &m);
+    assert_eq!(page_vue(&m, vcx), 3);
+    assert!(!champ(&m, vcx).1);
+}
+
+// ─── Le menu contextuel de la vue (PdfView.onPaneMenu : Zoom avant / Zoom arrière) ───
+
+/// Clic droit sur les pages : « Zoom avant » et « Zoom arrière » ; chacun zoome d'un palier.
+#[gpui_kit::test]
+fn le_menu_de_la_vue_propose_zoom_avant_et_arriere(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    let b = banc();
+    let vue = b.vue();
+    let (m, vcx) = monter_clavier(cx, &b, &vue);
+    let avant = echelle(&m, vcx);
+    vcx.simulate_mouse_down(
+        gpui_kit::point(px(500.0), px(400.0)),
+        gpui_kit::MouseButton::Right,
+        gpui_kit::Modifiers::default(),
+    );
+    assert!(fragment_ui::menu::menu_ouvert());
+    assert_eq!(
+        fragment_ui::menu::forme_ouverte(0),
+        ["Zoom avant", "Zoom arrière"]
+    );
+    let i = fragment_ui::menu::index_ouvert(0, "Zoom avant").unwrap();
+    assert!(fragment_ui::menu::cliquer(0, i));
+    stabiliser(vcx, &m);
+    let plus = echelle(&m, vcx);
+    assert!(plus > avant, "zoom avant ({avant} → {plus})");
+    vcx.simulate_mouse_down(
+        gpui_kit::point(px(500.0), px(400.0)),
+        gpui_kit::MouseButton::Right,
+        gpui_kit::Modifiers::default(),
+    );
+    let i = fragment_ui::menu::index_ouvert(0, "Zoom arrière").unwrap();
+    assert!(fragment_ui::menu::cliquer(0, i));
+    stabiliser(vcx, &m);
+    assert!(echelle(&m, vcx) < plus);
+    fragment_ui::menu::fermer_menu();
+}
+
+// ─── La mesure mémoire (fr-7va) : un Document pdfium par vue, ouvert sur son fil ───
+
+/// Le jeu de travail du processus, en Mo (PowerShell sous Windows, `/proc` ailleurs).
+fn memoire_mo() -> f64 {
+    #[cfg(windows)]
+    {
+        let sortie = std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!("(Get-Process -Id {}).WorkingSet64", std::process::id()),
+            ])
+            .output()
+            .expect("powershell");
+        let o: f64 = String::from_utf8_lossy(&sortie.stdout)
+            .trim()
+            .parse()
+            .expect("octets");
+        o / 1_048_576.0
+    }
+    #[cfg(not(windows))]
+    {
+        let s = std::fs::read_to_string("/proc/self/status").expect("proc");
+        let ko: f64 = s
+            .lines()
+            .find_map(|l| l.strip_prefix("VmRSS:"))
+            .and_then(|l| l.trim().trim_end_matches("kB").trim().parse().ok())
+            .expect("VmRSS");
+        ko / 1024.0
+    }
+}
+
+/// Un PDF de 300 pages : mémoire avant l'ouverture, après l'ouverture, après un défilement
+/// complet. Lancé à la main (`-- --ignored --nocapture`) ; les chiffres vont dans
+/// `docs/mesures/memoire-pdf.md`. Le seuil large n'attrape qu'une fuite grossière.
+#[gpui_kit::test]
+#[ignore = "mesure, pas un test : cargo test -p fragment-ui --test vue_pdf mesure -- --ignored --nocapture"]
+fn mesure_memoire_pdf_300_pages(cx: &mut TestAppContext) {
+    if !pdfium() {
+        return;
+    }
+    const PAGES: usize = 300;
+    let disque = Rc::new(MemoryAdapter::new());
+    let contenu = pdf(PAGES, 420.0, 600.0);
+    let taille_pdf = contenu.len() as f64 / 1_048_576.0;
+    disque.put("long.pdf", &contenu);
+    let a: Rc<dyn DataAdapter> = disque;
+    let vault = Vault::new(a);
+    vault.load().unwrap();
+    let b = Banc {
+        vault,
+        app: AppCoeur::new(),
+        keymap: Keymap::new(),
+    };
+    let leaf = b
+        .app
+        .workspace()
+        .borrow_mut()
+        .get_leaf(NouvelleFeuille::Onglet)
+        .unwrap();
+    let mut vue = VuePdf::new(
+        b.keymap.root_scope(),
+        ContexteFichier {
+            leaf,
+            vault: b.vault.clone(),
+            workspace_events: Events::new(),
+        },
+        b.keymap.clone(),
+    );
+    vue.on_open();
+    let avant = memoire_mo();
+    vue.load_file(Some(b.vault.get_file_by_path("long.pdf").unwrap()));
+    let liens = vue.liens().clone();
+    let (m, vcx) = cx.add_window_view(move |_, cx| MontagePdf::new(liens.clone(), cx));
+    vcx.simulate_resize(size(px(1000.0), px(800.0)));
+    for _ in 0..200 {
+        std::thread::sleep(Duration::from_millis(2));
+        vcx.executor().advance_clock(Duration::from_millis(5));
+        vcx.run_until_parked();
+        image(vcx);
+    }
+    let n = m.read_with(vcx, |m, cx| {
+        m.pages().map_or(0, |p| p.read(cx).modele().nombre_pages())
+    });
+    assert_eq!(n, PAGES);
+    let ouvert = memoire_mo();
+    // Un défilement complet : on saute de page en page jusqu'à la dernière.
+    let mut pic = ouvert;
+    for p in (1..=PAGES).step_by(5) {
+        m.update(vcx, |m, cx| m.agir(cx, |v| v.aller_a_la_page(p, None)));
+        for _ in 0..10 {
+            std::thread::sleep(Duration::from_millis(2));
+            vcx.executor().advance_clock(Duration::from_millis(10));
+            vcx.run_until_parked();
+            image(vcx);
+        }
+        if p % 50 == 1 {
+            pic = pic.max(memoire_mo());
+        }
+    }
+    let apres = memoire_mo();
+    eprintln!(
+        "MESURE pdf {taille_pdf:.2} Mo, {PAGES} pages : avant {avant:.1} Mo, ouvert {ouvert:.1} Mo, \
+         pic échantillonné {pic:.1} Mo, après défilement complet {apres:.1} Mo"
+    );
+    assert!(
+        apres - avant < 2000.0,
+        "fuite grossière : {} Mo",
+        apres - avant
+    );
+}

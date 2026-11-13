@@ -16,7 +16,7 @@ pub mod rendu;
 use fragment_core::CommandManager;
 
 pub use modele::{ActionBarre, BarrePdf, Bouton, LIBELLES_BOUTONS, ModeBarre};
-pub use rendu::rendre_barre;
+pub use rendu::{rendre_barre, rendre_barre_avec_champ};
 
 /// Enregistre les commandes de scène `pixels:pdf_barre` : vide jusqu'aux scènes de la tâche aval.
 pub fn commandes_de_scene(_commandes: &CommandManager) {}

@@ -8,8 +8,8 @@ use std::rc::Rc;
 
 use fragment_pdf::vue_modele::VueModele;
 use gpui_kit::{
-    AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement as _, Styled as _, div, svg,
+    AnyElement, App, Div, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
+    ParentElement as _, Stateful, Styled as _, div, svg,
 };
 
 use super::modele::{BarrePdf, Bouton};
@@ -36,12 +36,29 @@ pub const CHAMP_HAUTEUR: f32 = 24.0;
 /// pixels LOGIQUES (déjà divisée par le zoom de l'app) pour placer le menu sous lui.
 pub type SurBouton = Rc<dyn Fn(Bouton, f32, f32, &mut App)>;
 
-/// La barre d'outils de la vue.
+/// Le caret du champ : 1 px de large, 14 px de haut (le curseur de texte d'un `<input>`).
+pub const CARET_LARGEUR: f32 = 1.0;
+pub const CARET_HAUTEUR: f32 = 14.0;
+
+/// La barre d'outils de la vue, champ de page inerte (sans focus ni frappe : les scènes et les
+/// tests de la barre seule).
 pub fn rendre_barre(
     barre: &BarrePdf,
     vue: &VueModele,
     cx: &App,
     sur_bouton: &SurBouton,
+) -> AnyElement {
+    rendre_barre_avec_champ(barre, vue, cx, sur_bouton, &|c| c)
+}
+
+/// La barre d'outils de la vue. `habiller_champ` équipe le champ de page (poignée de focus,
+/// écouteur de frappes, clic) : la barre dessine, la vue montée route le clavier.
+pub fn rendre_barre_avec_champ(
+    barre: &BarrePdf,
+    vue: &VueModele,
+    cx: &App,
+    sur_bouton: &SurBouton,
+    habiller_champ: &dyn Fn(Stateful<Div>) -> Stateful<Div>,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
     let (c, f) = (&t.palette, &t.forme);
@@ -103,7 +120,20 @@ pub fn rendre_barre(
     let [bas, options_barre, moins, plus, options_zoom] = Bouton::TOUS;
 
     let champ = vue.champ();
+    // Tout sélectionné : fond d'accent sur le texte ; sinon un caret après lui (au focus).
+    let valeur = {
+        let v = div().child(champ.valeur.clone());
+        if champ.focus && champ.tout_selectionne && !champ.valeur.is_empty() {
+            v.bg(couleur(
+                c.color_accent
+                    .melange(35.0, fragment_theme::Couleur::TRANSPARENT),
+            ))
+        } else {
+            v
+        }
+    };
     let mut saisie = div()
+        .id("pdf-page-input")
         .flex()
         .items_center()
         .justify_end()
@@ -116,10 +146,20 @@ pub fn rendre_barre(
         .border_color(fragment_theme_transparent())
         .bg(couleur(c.background_modifier_hover))
         .text_color(couleur(c.text_normal))
-        .child(champ.valeur.clone());
+        .child(valeur);
     if champ.focus {
         saisie = saisie.border_color(couleur(c.color_accent));
+        if !champ.tout_selectionne {
+            saisie = saisie.child(
+                div()
+                    .flex_none()
+                    .w(u(cx, CARET_LARGEUR))
+                    .h(u(cx, CARET_HAUTEUR))
+                    .bg(couleur(c.text_normal)),
+            );
+        }
     }
+    let saisie = habiller_champ(saisie);
 
     let pages = div()
         .flex()

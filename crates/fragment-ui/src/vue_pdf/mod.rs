@@ -7,6 +7,7 @@
 //! - [`montage`] : [`MontagePdf`], l'assemblage GPUI (barre d'outils, barre latérale, overlayPane).
 
 pub mod document;
+pub mod menu;
 pub mod montage;
 pub mod vue;
 
