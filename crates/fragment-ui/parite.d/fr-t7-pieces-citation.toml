@@ -1,0 +1,19 @@
+# Parité de fr-t7-pieces-citation (fragment-ui). Schéma `parite.d` : un fichier par tâche. attachments.ts,
+# attachmentData.ts et quote.ts n'ont pas de test unitaire TS : les cas headless suivent les cas de
+# app/e2e/chat-attachments.spec.ts (6) et app/e2e/chat-reply.spec.ts (4).
+
+[[module]]
+ts = "app/src/ui/views/chat/components/attachments.ts, attachmentData.ts, attachments.css (extension `attachments` du champ, part `attachment`)"
+rs = "crates/fragment-ui/src/chat_pieces/{mod,donnees,etat,vue}.rs, crates/fragment-ui/tests/chat_pieces.rs, crates/fragment-ui/assets/icons/reply.svg (partagé avec la citation)"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 9
+notes = "Les six tests de chat-attachments.spec.ts : coller une image (puce, ✕, bouton suit, collage de texte normal), envoi image + PDF + texte + zip (octets relus par fragment-agent::EnvoiAgent, un part par pièce, une seule vignette), image seule, relecture (part rendu, URL data: décodée), reconstruction de la vue (save / restore), registre ouvert (without, extension tierce, même id = remplace, priorité −100). Ajoutés : nom par défaut, mime par extension, taille de vignette, aller-retour d'URL data:, appliesTo. Écarts : (1) pas d'URL d'objet, l'image d'un part est une URL data: ; (2) les octets voyagent dans SendOpts en base64, le format de fragment-agent::fournisseur ; (3) seules les images PNG sont décodées en vignette (la crate image n'a que la fonctionnalité png) : un JPEG garde l'icône et le nom jusqu'à ce que le chef ouvre la fonctionnalité ; (4) la zone des puces et la poignée lisent l'état du DERNIER champ monté de l'extension, un registre par vue ; (5) le collage et le dépôt sont fournis en fonctions (pieces_du_presse_papiers, pieces_de_chemins, ExtensionPieces::ajouter) que le montage branche sur le champ (le Champ de fr-t7-fil ne les expose pas) ; (6) dans un message, une pièce occupe sa ligne (pas de flux en ligne des puces) : à régler avec les scènes (fr-t7-scenes-b)."
+
+[[module]]
+ts = "app/src/ui/views/chat/components/quote.ts, quote.css (RÉPONDRE : extension `quote` du champ, part `quote`)"
+rs = "crates/fragment-ui/src/chat_citation/{mod,modele,vue}.rs, crates/fragment-ui/tests/chat_citation.rs"
+cas_source = 4
+cas_portes = 3
+cas_ajoutes = 9
+notes = "Trois des quatre tests de chat-reply.spec.ts : la citation dans le champ puis envoi (citée au fournisseur, part au-dessus du texte, puce retirée), ✕ retire, l'action Répondre d'un message cite tout le message, et without ['quote'] (canReply faux). La barre de sélection de l'agent (« Répondre » par agent:toolbar) et le clic droit sur une sélection sont de T8 : n.a. ici. Ajoutés : extrait, citation en tête du prompt, part au-dessus du texte (rang d'affichage), données du part, estCitation, vue reconstruite, teinte et vignette, rendu cliquable. Écarts : (1) le message doit trier ses parts par rang_d_affichage (quote d'abord, tri stable) : message.rs n'est pas à cette tâche, le crochet est à poser par fr-t7-vue / le montage ; (2) le clic sur la citation appelle un rappel fourni à RenduCitation::new (revealQuote de la vue) ; (3) pas d'activation au clavier du part (Entrée / Espace) : à régler avec fr-t7-vue ; (4) ★ quote.css : `padding: var(--size-2-2) var(--size-2-4)` utilise un jeton qui n'existe pas dans Fragment, la déclaration est invalide et le remplissage vaut 0 : reproduit tel quel ; (5) taille de l'icône « reply » = icon_s, à confirmer par la scène t7-citation ; l'icône reply.svg (Lucide, ISC) est ajoutée à assets/icons."
