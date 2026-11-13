@@ -43,6 +43,10 @@ pub enum Nature {
     /// boîte de texte ([`Exception::boite`]) : encre, bords, barycentres (passage compris) et
     /// teinte restent exigés.
     Placement,
+    /// Le SEUL garde-fou de largeur d'encre stricte (tranches ≥ T2) d'une boîte d'ICÔNE
+    /// ([`Exception::boite`], boîte d'encre), jusqu'à [`ECART_LARGEUR_ICONE_SVG`] px : encre, forme,
+    /// bords, barycentres et teinte restent exigés.
+    IconeSvg,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -209,6 +213,27 @@ const fn placement(png: &'static str, boite: [u32; 4]) -> Exception {
     }
 }
 
+/// ★ L'élément de l'anticrénelage SVG d'une icône (chef, 13/11 ~06:25, `fr-t2-montage`, en cliquet
+/// sous `fr-p4.1`, fermé par `fr-p4.1.5`, mesure du rastériseur SVG) : l'icône `separator-vertical`
+/// du menu de l'explorateur a la MÊME géométrie des deux côtés, mais resvg (GPUI) et Skia (Chromium)
+/// n'anticrénèlent pas de même la pointe du chevron : un pixel (166,322) de delta 16 en sombre, 14
+/// en clair, qui fait gagner (sombre) ou perdre (clair) une colonne d'encre. Clé du cliquet :
+/// `largeur` (écart de largeur d'encre, px).
+pub const ICONE_SVG: &str = "anticrénelage SVG d'icône (rastériseur)";
+
+/// L'écart de largeur d'encre (px) toléré par une exception [`Nature::IconeSvg`].
+pub const ECART_LARGEUR_ICONE_SVG: i64 = 1;
+
+const fn icone_svg(png: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element: ICONE_SVG,
+        jeton: "",
+        nature: Nature::IconeSvg,
+        boite: Some(boite),
+    }
+}
+
 /// ★ L'élément de l'arc de la pastille d'accent des réglages (chef, 13/11 04:30, en cliquet sous
 /// `fr-p4.1`, comme le contour d'onglet) : la pastille ronde de 28 px (bordure 1 px) a le MÊME centre
 /// (910, 242) et le même rayon déclaré (14 px) des deux côtés ; seules les cellules que coupent les
@@ -291,6 +316,15 @@ pub const EXCEPTIONS: &[Exception] = &[
         "t1-notice-empilees-light.png",
         "ombre des notices",
         "--shadow-s",
+    ),
+    // L'ombre du menu d'un fichier de l'explorateur, sombre (chef, 13/11 ~06:25, fr-t2-montage) :
+    // étalement −0,12 px (borne 0,08), déjà ombrée au calque émulé. La simulation gaussienne
+    // reproduit le candidat à 100 % et la référence à 95 % : c'est la forme du flou de Skia, la
+    // dette (b) d'ADR-013, étendue à cette ombre.
+    ombre(
+        "t2-explorateur-menu-fichier-dark.png",
+        "ombre du menu",
+        "--menu-shadow",
     ),
     // Palette et modale claires (bordure opaque, bord unique de fr-p4.1) : 20 à 22 px de delta 7 à 8
     // à la jonction de l'arc et du côté droit, l'anticrénelage propre à Skia (mire de S8 : 8 au pire,
@@ -405,6 +439,10 @@ pub const EXCEPTIONS: &[Exception] = &[
     poignee("t1-split-horizontal-light.png"),
     poignee("t1-split-proportions-light.png"),
     poignee("t1-split-vertical-light.png"),
+    // Le trait d'accent de la poignée du dock gauche (x 295, survolé après le clic du renommage),
+    // en clair (chef, 13/11 ~06:25, fr-t2-montage) : demi-couverture exacte (bleu 223,5), 223 et 224
+    // en bandes de 127 lignes chez Chromium ; 392 px de delta 1. Même cause que les poignées de T1.
+    poignee("t2-explorateur-renommer-light.png"),
     // Le « N » coupé du titre étroit, sombre seulement (le clair passe dans la borne).
     // Boîte exacte du glyphe peint (fr-p3.1) : 5×9 au lieu des 7×11 déduits de l'image.
     teinte("t1-boutons-fenetre-dark.png", N_COUPE, [1184, 15, 5, 9]),
@@ -417,6 +455,10 @@ pub const EXCEPTIONS: &[Exception] = &[
     // Les glyphes déplacés de texte légitime, sombre seulement (fr-p4.1.1).
     placement("t1-notice-empilees-dark.png", [1162, 30, 86, 10]),
     placement("t1-zoom-80-dark.png", [372, 12, 37, 7]),
+    // L'icône `separator-vertical` du menu d'un fichier de l'explorateur, deux thèmes (fr-p4.1.5) :
+    // boîte de la tuile 15×15 ; largeur d'encre +1 en sombre, −1 en clair, pointe du chevron.
+    icone_svg("t2-explorateur-menu-fichier-dark.png", [165, 315, 15, 15]),
+    icone_svg("t2-explorateur-menu-fichier-light.png", [165, 315, 15, 15]),
     // L'arc de la pastille d'accent des réglages, deux scènes, deux thèmes.
     pastille("t1-reglages-appearance-dark.png"),
     pastille("t1-reglages-appearance-light.png"),
@@ -977,6 +1019,70 @@ mod tests {
             let r = leve(autre, x, resultat(0.258, -0.58, -0.31));
             assert_eq!(r.violations.len(), 2, "{autre} {x}");
         }
+    }
+
+    /// Contre-épreuve de l'anticrénelage SVG d'icône : la SEULE largeur stricte (±1 px) levée dans
+    /// SA boîte de SES PNG ; 2 px, une autre violation, une autre boîte ou un autre PNG : rien.
+    #[test]
+    fn l_anticrenelage_svg_ne_leve_que_la_largeur_de_son_icone() {
+        use crate::pixels::sas::{ResultatBoite, lever_nommees};
+        let boite = |x: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Icone,
+            x,
+            y: 315,
+            largeur: 15,
+            hauteur: 15,
+        };
+        let resultat = |x: u32, largeur: i64, autre: bool| {
+            let mut violations = vec![format!(
+                "boîte d'encre : largeur {largeur:+} px (strict depuis T2, la dette de largeur est réservée à T1)"
+            )];
+            if autre {
+                violations.push("encre : +25 % (borne ±20 %)".to_owned());
+            }
+            ResultatBoite {
+                boite: boite(x),
+                differents: 0,
+                delta_max: 16,
+                ecart_encre: 0.173,
+                ecart_forme: 0.0,
+                ecart_glyphe: 0.0,
+                teinte: 1.0,
+                barycentres: vec![("passage", -0.02, 0.03)],
+                ecart_bords: Some([0, 0, largeur, 0]),
+                dette_largeur: false,
+                dette_rasterisation: false,
+                nommee: None,
+                encre_reference: None,
+                violations,
+            }
+        };
+        let leve = |png: &str, x: u32, largeur: i64, autre: bool| {
+            let mut r = resultat(x, largeur, autre);
+            lever_nommees(&mut r, &du_png(png), &boite(x));
+            r
+        };
+        for (png, l) in [
+            ("t2-explorateur-menu-fichier-dark.png", 1),
+            ("t2-explorateur-menu-fichier-light.png", -1),
+        ] {
+            let r = leve(png, 165, l, false);
+            assert!(r.violations.is_empty(), "{png} {:?}", r.violations);
+            assert_eq!(r.nommee, Some(ICONE_SVG));
+            // Une autre violation reste.
+            assert_eq!(leve(png, 165, l, true).violations.len(), 1);
+        }
+        let png = "t2-explorateur-menu-fichier-dark.png";
+        // 2 px : au-delà de la borne.
+        assert_eq!(leve(png, 165, 2, false).violations.len(), 1);
+        // Une autre boîte, un autre PNG : rien n'est levé.
+        assert_eq!(leve(png, 300, 1, false).violations.len(), 1);
+        assert_eq!(
+            leve("t2-explorateur-menu-dossier-dark.png", 165, 1, false)
+                .violations
+                .len(),
+            1
+        );
     }
 
     /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON

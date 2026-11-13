@@ -842,6 +842,17 @@ pub(crate) fn lever_nommees(
         }
         res.nommee = Some(element);
     }
+    // Exception nommée de l'anticrénelage SVG d'une icône (fr-p4.1.5) : la SEULE largeur stricte,
+    // jusqu'à `ECART_LARGEUR_ICONE_SVG` px ; tout le reste demeure.
+    if let Some(element) =
+        exceptions::pour_boite_ou_encre(nommees, b, encre, exceptions::Nature::IconeSvg)
+    {
+        let largeur = res.ecart_bords.map_or(0, |e| e[2] - e[0]);
+        if largeur.abs() <= exceptions::ECART_LARGEUR_ICONE_SVG {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_LARGEUR));
+        }
+        res.nommee = Some(element);
+    }
 }
 
 /// Préfixe de la violation du garde-fou de forme par glyphe (voir [`juger`]).
@@ -1602,6 +1613,13 @@ pub fn comparer_tranche(
                 garder(element, "barycentre", pire);
             } else if element == exceptions::GLYPHE_DEPLACE {
                 garder(element, "glyphe", b.ecart_glyphe);
+            } else if element == exceptions::ICONE_SVG {
+                // L'écart de largeur d'encre, px.
+                garder(
+                    element,
+                    "largeur",
+                    b.ecart_bords.map_or(0.0, |e| (e[2] - e[0]) as f64),
+                );
             } else if element == exceptions::ICONE_HAIRLINE {
                 // L'écart d'encre relatif, en valeur absolue.
                 garder(element, "encre", b.ecart_encre);

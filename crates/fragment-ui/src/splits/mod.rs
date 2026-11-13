@@ -758,7 +758,11 @@ const ELEMENT_TRAIT_POIGNEE: &str = "trait de poignée";
 /// physiques, comme des boîtes sans coin arrondi nommées [`ELEMENT_TRAIT_POIGNEE`] : seules leurs
 /// cellules de bord (couverture fractionnaire) relèvent de l'exception (décision du chef, fr-t1.5 :
 /// en clair, Skia arrondit ces bords d'un niveau, sans règle constante).
-fn declarer_traits(traits: [Cadre; 2], zoom: f64, cx: &App) -> impl IntoElement {
+pub(crate) fn declarer_traits<const N: usize>(
+    traits: [Cadre; N],
+    zoom: f64,
+    cx: &App,
+) -> impl IntoElement {
     canvas(
         move |_, window: &mut Window, _: &mut App| {
             let k = zoom * f64::from(window.scale_factor());
