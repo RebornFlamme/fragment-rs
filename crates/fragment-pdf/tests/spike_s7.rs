@@ -41,11 +41,22 @@ fn pdf_une_page(l: f64, h: f64, flux: &str) -> Vec<u8> {
     pdf
 }
 
-fn ouvrir(octets: Vec<u8>) -> Document {
-    if std::env::var_os("PDFIUM_LIB_DIR").is_none() {
+/// ★ Une seule liaison pdfium par processus : les tests tournent en parallèle, et deux
+///   `initialiser` simultanés font échouer le second (`PdfiumLibraryBindingsAlreadyInitialized`).
+///   Le `Once` sérialise ; `initialiser(None)` lit `PDFIUM_LIB_DIR` lui-même.
+fn charger_pdfium() {
+    static UNE_FOIS: std::sync::Once = std::sync::Once::new();
+    UNE_FOIS.call_once(|| {
         let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
-        initialiser(Some(defaut)).expect("pdfium : lancer scripts/pdfium.ps1");
-    }
+        let dossier = std::env::var_os("PDFIUM_LIB_DIR")
+            .is_none()
+            .then_some(defaut);
+        initialiser(dossier).expect("pdfium : lancer scripts/pdfium.ps1");
+    });
+}
+
+fn ouvrir(octets: Vec<u8>) -> Document {
+    charger_pdfium();
     Document::ouvrir(octets).expect("PDF généré lisible")
 }
 
