@@ -827,3 +827,33 @@ Contexte du chef : 574k, au-delà du seuil de 550k fixé par l'orchestrateur. Cl
 5. ★ Ne pas pousser le journal sur main pendant un build de livraison : `build.yml` annule le run en cours.
 6. Rien à remonter : les décisions de l'orchestrateur sur T1 sont appliquées. PR amont et ADR-014 sont chez l'utilisateur.
 **Rythme** : (97 − 62) ÷ 16,7 h ≈ 2,1 points par heure.
+
+## Vague 12 — 13/11/2026 01:26 UTC — usage 5h 41 % (reset 03:30) / semaine 62 %
+Reprise du chef après le clear, sur le brief de l'orchestrateur et non sur le réveil (le réveil d'après-clear n'est donc pas éprouvé). Contexte du chef : 110k.
+- program.md §4 : la correction était déjà commitée (529660a) et poussée. Rien à commiter.
+- Décisions de l'orchestrateur du 13/11, prises en compte :
+  - ADR-012 : la dette est rouverte en T9 (fr-zdx) ;
+  - ADR-013 : échange de cliquets permis si la dette totale n'augmente pas ;
+  - les exceptions nommées passent en cliquet, sous fr-p4.1 ;
+  - ADR-014, raster PDF : provisoire, strict hors des pages, pas de fork de pdfium ;
+  - les 4 PR amont attendent l'accord de l'utilisateur et ne sont pas ouvertes.
+- Lancés : 7 équipiers locaux, en worktrees frères, avec `CARGO_TARGET_DIR=C:/dev/fragment-rs-target-<nom>`. Beads réclamés.
+  - fr-t2-montage : Opus, `../fragment-rs-montage`. Possède boot.rs ; fr-t11-identite y ajoute une seule ligne.
+  - fr-t3-html-rendu : Opus, `../fragment-rs-htmlrendu`.
+  - fr-p3.1 : Opus, `../fragment-rs-boites`. Déclare son crochet de fragment-ui dans les notes du bead avant de coder.
+  - fr-t11-identite : Sonnet, `../fragment-rs-identite`.
+  - fr-t11-clair : Sonnet, `../fragment-rs-clair`.
+  - fr-t11.1 : Sonnet, `../fragment-rs-apparence`.
+  - fr-t4.3 : Sonnet, `../fragment-rs-t4recherche`, rebasé sur main (58f0643, sonde).
+- Battement horaire reposé (CronCreate e32a0c0c, minute 17), vérifié par CronList.
+**Rythme** : (97 − 62) ÷ 16,5 h ≈ 2,1 points par heure.
+**Prochaine action exacte** : revue habituelle à chaque compte rendu.
+  1. diff ;
+  2. audit à 0 ;
+  3. CI ;
+  4. fusion ;
+  5. `bd close` ;
+  6. export ;
+  7. retrait du worktree et du dossier cible.
+  Places libérées : fr-t3-vue et fr-t4-vue-pdf dès qu'ils sont prêts.
+  Fenêtre 5 h : pas de lancement au-dessus de 80 %, pause à 90 % (reset à 03:30).
