@@ -1,0 +1,61 @@
+# Parité de fr-t5-widgets (fragment-ui). Schéma `parite.d` : un fichier par tâche. Pas de test unitaire TS
+# pour la moitié DOM de WidgetLayer.ts : la source est e2e (viewport, gutter-arbiter, gutter-room,
+# widget-anchor), portée en headless (tests/widget_couche.rs) sur une FAUSSE surface de texte et les
+# widgets de TEST réécrits (rigide = le globe, flex, seuil, vue nue = les cartes).
+#
+# Présentation : un WidgetLayer par calque sur l'hôte (arbitre et actif partagés) ; pilote avant les plans
+# (microtâches, essais, focus relevé), pilote après (empreinte des éléments : une image suit tant qu'elle
+# bouge) ; appui / relâché en capture sur la fenêtre, cible par boîte, actif au tour suivant. Ajout minimal à
+# calques/hote.rs : poser_taille invalide l'arbitre pour un élément de marge (le ResizeObserver du TS).
+# Écarts : la cible d'un appui est la boîte du widget le plus haut (pas l'arbre DOM ; un widget pass_through
+# compte comme cible) ; « dans un menu » = un menu de fragment-ui ouvert (les modales n'ont pas d'état
+# global : le montage le branche par poser_ephemere) ; le focus est relevé par FocusHandle confiée
+# (suivre_focus) ; le rigide est un disque plein (pas de dégradé radial), les couleurs des widgets de test
+# sont des jetons (color_red à 15 %, color_blue), pas les littéraux des fixtures.
+
+[[module]]
+ts = "app/e2e/viewport.spec.ts (WidgetLayer.ts : LazyWidget toDOM / destroy, focusout ; WidgetActivation.ts)"
+rs = "crates/fragment-ui/src/widget_couche/{mod,couche,paresseux,essai,scene}.rs, crates/fragment-ui/tests/widget_couche.rs"
+cas_source = 9
+cas_portes = 6
+cas_ajoutes = 3
+notes = "« Aller à » : l'activation attend la construction (WidgetDeclare::au_prochain_montage). Ajoutés : appui dans un menu (pas dehors), clic droit dehors sans effet, actif seulement après le geste (et le clic reçu)."
+
+[[module.non_portes]]
+cas = "setOpen d’une conversation non montée : écrit au record"
+raison = "record doc-widget:pin et service doc-widget:host@1 (fr-t5-doc-widget, persistance T6)"
+
+[[module.non_portes]]
+cas = "même règle dans la vue PDF : seule celle du viewport est montée"
+raison = "vue PDF montée par fr-t5-montage-pdf"
+
+[[module.non_portes]]
+cas = "zoom (pinch) : la bande suit, les conversations du viewport restent"
+raison = "vue PDF montée par fr-t5-montage-pdf"
+
+[[module]]
+ts = "app/e2e/gutter-arbiter.spec.ts (GutterArbiter.ts branché, tous calques confondus)"
+rs = "crates/fragment-ui/tests/widget_couche.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 0
+notes = "Globe = widget RIGIDE d'un autre calque, cartes = VUES (focus = « on y tape »). La carte qui grandit (flux) est une vue dont la hauteur change, vérifiée à CHAQUE image. « repli compris » (grappe de DocWidget) relève de fr-t5-grappes."
+
+[[module]]
+ts = "app/e2e/gutter-room.spec.ts (computeRooms branché, --gutter-room)"
+rs = "crates/fragment-ui/tests/widget_couche.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 0
+
+[[module]]
+ts = "app/e2e/widget-anchor.spec.ts (ancres document / marge / viewport, remappage, repli)"
+rs = "crates/fragment-ui/tests/widget_couche.rs"
+cas_source = 13
+cas_portes = 12
+cas_ajoutes = 0
+notes = "anchorInDocument / placeInGutter / shiftAnchor = document_anchor_at / gutter_anchor_at / set_anchor du calque."
+
+[[module.non_portes]]
+cas = "un widget ancré déborde de la colonne de lecture sans être rogné"
+raison = "vérifié par la scène t5-widget-document (fr-t5-scenes-b)"
