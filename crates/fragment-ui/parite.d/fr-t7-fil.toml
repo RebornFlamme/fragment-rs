@@ -1,0 +1,11 @@
+# Parité de fr-t7-fil (fragment-ui). Schéma `parite.d` : un fichier par tâche. thread.ts et primitives.ts
+# n'ont pas de test unitaire TS ; les cas headless suivent les cas de app/e2e/chat.spec.ts (envoi, flux avec
+# le MÊME éditeur, Arrêter, slots tiers, accessibilité de base) et le contrat de thread.ts.
+
+[[module]]
+ts = "app/src/ui/views/chat/components/thread.ts (renderMessage, MessageList, Composer) et primitives.ts (iconButton, avatar, renderSlots)"
+rs = "crates/fragment-ui/src/chat_fil/{mod,modele,registre,texte,primitives,message,liste,champ}.rs, crates/fragment-ui/tests/chat_fil.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 25
+notes = "Message : forme mémorisée en chaîne, mise à jour EN PLACE tant qu'elle ne change pas (le texte passe par l'éditeur de la note en lecture seule, remplacé par replace_all : l'entité reste la même), « ••• » sans part, barre d'actions (Copier + slots), part non-texte par registre chat:part@1 avec poignée update / destroy (point de branchement de fr-t7-trace), chat:text@1 prioritaire. Liste : révision par message, ordre du DOM suivi, ne défile jamais. Champ : TextareaState auto_grow, Entrée envoie / Maj+Entrée à la ligne, Envoyer ↔ Arrêter, zones, extensions chat:composer@1 (pending, take, save, restore, without, priorité). Écarts : (1) le texte est l'éditeur SEUL, pas l'hôte complet (HoteHtml, HoteBlocs : leur géométrie est posée sur la colonne de 720 px) — tableaux, maths en bloc et fonds de code d'un message viennent avec fr-t7-vue ; (2) `take` est appelé par le champ à l'envoi et voyage dans l'événement ; (3) le curseur de flux et l'animation de « ••• » ne sont pas peints (scènes) ; (4) l'avatar est l'icône de vue des initiales, refaite en OKLCH faute d'équivalent de renderViewIcon dans fragment-ui."
