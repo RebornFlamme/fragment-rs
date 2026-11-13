@@ -12,7 +12,7 @@ use gpui_kit::platform::current_platform;
 /// ★ `current_platform(true)` (sans tête) donne un système de texte VIDE : il faut `false`.
 fn systeme() -> TextSystem {
     let systeme = TextSystem::new(current_platform(false).text_system());
-    enregistrer(&systeme).expect("polices enregistrées");
+    enregistrer(&systeme).unwrap_or_else(|e| panic!("polices non enregistrées : {e}"));
     systeme
 }
 
