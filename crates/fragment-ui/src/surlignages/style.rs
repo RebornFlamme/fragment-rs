@@ -32,6 +32,21 @@ fn a_la_classe(cls: &str, nom: &str) -> bool {
 /// Le style des classes `cls` (la chaîne complète d'une `HighlightBox`, `range-highlight` compris).
 pub fn style_de(cls: &str, theme: &Theme) -> StyleSurlignage {
     let p = &theme.palette;
+    // ★ La recherche du chat (`fr-t7-rail-recherche`) : `.range-highlight.chat-search-match` pose
+    //   `--text-highlight-bg` ; le courant lit `--text-highlight-bg-active`, que Fragment ne définit
+    //   NULLE PART : la déclaration est invalide à l'usage et le fond redevient transparent. Rendu
+    //   tel que l'utilisateur le voit (écart signalé au chef, voir la parité de la tâche).
+    if a_la_classe(cls, "chat-search-match") {
+        return StyleSurlignage {
+            fond: if a_la_classe(cls, "is-current") {
+                Couleur::TRANSPARENT
+            } else {
+                p.text_highlight_bg
+            },
+            rayon: theme.forme.radius_xs,
+            trait_bas: None,
+        };
+    }
     let passage = a_la_classe(cls, "is-passage") || a_la_classe(cls, "is-hover");
     let actif = a_la_classe(cls, "is-active");
     let part = match (passage, actif) {
