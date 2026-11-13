@@ -1019,3 +1019,8 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - Lancés : fr-p3.4 (reprise, Opus), fr-3t0, fr-t7-post, fr-9n1, fr-t3-vue (Opus), fr-t7-rail-recherche (+ reprise), fr-t5-menu-calques, fr-t11.5 (Opus). Disque 57 Go.
 - ★ La capture locale a réécrit Fragment/app/dist-cli/fragment.cjs (sortie de build:cli, ignorée par git) : signalé à fr-p3.4 ; disparaît avec les références en CI.
 - ★ 13/11 ~11:50 UTC — GEL des références en CI (orchestrateur ; l'utilisateur craint une fuite de Fragment). #132 était DÉJÀ fusionnée : workflow références désactivé par `gh workflow disable` (aucun run n'avait tourné, réactivation possible). Note de gel en tête du paragraphe « Côté Fragment (référence) » de program.md. Les références restent capturées en local.
+- Battement 13/11 12:40 UTC — usage 5h 64 % (reset 13:30) / semaine 87 % ; contexte du chef 427k. Fusionnées depuis 11:40 (8 jobs verts, audit 0) : #137 (7 icônes, DISQUE en LayoutUnit), #141 (rail et recherche), #142 (vue Markdown montée), #143 (parité), #144 (interlettrage des réglages, dérive −0,003 px/lettre), #145 (menu Calques rendu, icônes eye/eye-off identiques à lucide-static 1.25.0), #146 (bulles en LayoutUnit). Vague 14 : 26 fusions.
+- GEL des références en CI (orchestrateur) : #132 déjà fusionnée → workflow désactivé, aucun run. Références en local.
+- Nouveaux beads : fr-8q1 (active_editor du cœur, #147 en CI), fr-c8n (suite de la vue Markdown, après #147).
+- Lancés : fr-t4-vue-pdf (Opus), fr-t7-reglages-agent, fr-t7-orbe (Opus), fr-p4.1.5 (Opus, mesure des icônes), fr-t11.4. Attendent : fr-t2-gestionnaire (coffre.rs pris par vue-pdf), fr-t11-livraison (cliquet.json pris par #105 et #128).
+- Rythme : 1 point par heure ; 7 places occupées. Disque 76 Go.
