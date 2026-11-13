@@ -986,8 +986,14 @@ fn largeur_des_icones_replie_comme_ouvert() {
     assert_eq!(icones_vue::largeur_pile(2), 55.0);
     assert_eq!(icones_vue::largeur_pile(3), 70.0);
     assert_eq!(icones_vue::largeur_pile(5), 85.0); // 3 + « +N »
+    // Carré des bulles : `width: 41px` littéral (view-icons.css:64), aucun `--k`, donc entier.
     assert_eq!(icones_vue::largeur_boite(3, Motif::Bulles), 18.0 + 41.0);
-    assert_eq!(icones_vue::largeur_boite(7, Motif::Bulles), 18.0 + 48.0);
+    // Disque : 522 · --k, --k = 22px/240 → 47,85 px ; Chromium le tient en LayoutUnit (1/64 px, vers le
+    // bas) : floor(47,85 · 64) / 64 = 3062/64 = 47,84375.
+    assert_eq!(
+        icones_vue::largeur_boite(7, Motif::Bulles),
+        18.0 + 3062.0 / 64.0
+    );
     assert_eq!(icones_vue::hauteur_bandeau(Motif::Pile), 38.0);
     assert_eq!(icones_vue::hauteur_bandeau(Motif::Bulles), 55.0);
 }
