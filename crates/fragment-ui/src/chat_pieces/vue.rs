@@ -42,7 +42,7 @@ pub const PUCE_MIN_H: f32 = 56.0;
 pub const COTE_RETRAIT: f32 = 20.0;
 pub const DECALAGE_RETRAIT: f32 = 2.0;
 
-/// La vignette décodée d'une image (PNG ; les autres formats ne sont pas décodés ici : la pièce
+/// La vignette décodée d'une image (PNG ou JPEG ; les autres formats ne sont pas décodés ici : la pièce
 /// garde alors l'icône et le nom). GPUI peint du BGRA.
 #[must_use]
 pub fn vignette_de(att: &ChatAttachment) -> Option<Arc<RenderImage>> {
@@ -230,12 +230,15 @@ impl Render for PieceVue {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = theme_ou_defaut(cx);
         let f = &theme.forme;
-        // `.chat-part[data-part='attachment']` : marge 2-3 2-3 0 0, au début de la ligne.
+        let nom = self.data.name.clone();
+        // `.chat-part[data-part='attachment']` : `inline-flex`, marge 2-3 2-3 0 0 ; la rangée qui
+        // les enchaîne est posée par le message (`chat_fil/message.rs`).
         div()
             .id(SharedString::from(format!("chat-piece-{}", self.data.name)))
-            .self_start()
             .mt(u(cx, f.size_2_3))
             .mr(u(cx, f.size_2_3))
+            .flex_none()
+            .debug_selector(move || format!("chat-piece/{nom}"))
             .aria_label(self.data.name.clone())
             .child(dessiner(
                 &self.data,
