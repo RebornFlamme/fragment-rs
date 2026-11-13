@@ -6,6 +6,6 @@ crates/fragment-ui/assets/icons/LICENSE-LUCIDE # licence ISC de Lucide et notice
 crates/fragment-app/assets/brand/favicon.svg # logo exporté de la marque, déjà public (usefragment.org)
 crates/fragment-app/assets/brand/favicon-32.svg # logo exporté de la marque, déjà public (usefragment.org)
 crates/fragment-app/assets/brand/app-icon-small.svg # icône exportée de la marque, déjà publique (installeur)
-# EXCLUSION NOMMÉE (orchestrateur, 13/11, fr-t7-orbe) : la notice MIT du moteur tiers « Thinking Orbs » (Jakub Antalik),
+# EXCLUSION NOMMÉE (chef, 13/11, fr-t7-orbe) : la notice MIT du moteur tiers « Thinking Orbs » (Jakub Antalik),
 # texte de licence obligatoire, même texte que la copie qu'en garde Fragment ; aucune source de Fragment.
 crates/fragment-ui/src/orbe/LICENSE-THINKING-ORBS # notice MIT du moteur tiers Thinking Orbs (Jakub Antalik, commit bad63221)
