@@ -2913,6 +2913,7 @@ version = "0.0.1"
 dependencies = [
  "fragment-agent",
  "fragment-annotation",
+ "fragment-artefacts",
  "fragment-chat",
  "fragment-cli",
  "fragment-core",

@@ -63,6 +63,8 @@ pub mod agent_barre;
 pub mod agent_controles;
 pub mod agent_reglages;
 pub mod agent_trace;
+// Socle T6 (fr-t6-socle).
+pub mod artefacts;
 pub mod calques;
 pub mod chat_barre_laterale;
 pub mod chat_citation;
