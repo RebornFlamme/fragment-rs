@@ -204,6 +204,12 @@ pub fn monter(
         echeance_layout: Cell::new(None),
     });
 
+    // Les thèmes du coffre : les réglages les proposent, l'écran les suit à chaud.
+    if let Some(themes) = application.noyau.themes.clone() {
+        fragment_ui::themes::monter(cx, &themes);
+        application.brancher_themes(themes);
+    }
+
     let faible: Weak<Application> = Rc::downgrade(&application);
     cx.spawn(async move |cx| {
         loop {

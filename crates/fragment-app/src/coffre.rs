@@ -152,6 +152,25 @@ fn lancer(programme: &str, arguments: &[&str]) {
     }
 }
 
+/// Ouvre un dossier DU COFFRE (chemin relatif à sa racine) dans l'explorateur du système : c'est
+/// le « Open themes folder » des réglages. ★ Le programme n'est pas attendu (`explorer` rend un
+/// code non nul même quand il a réussi) ; seul l'échec du lancement est une erreur.
+pub fn ouvrir_dossier_du_coffre(racine: &str, relatif: &str) -> std::io::Result<()> {
+    let chemin = std::path::Path::new(racine).join(relatif);
+    let chemin = chemin.to_string_lossy();
+    let programme = if cfg!(windows) {
+        "explorer"
+    } else if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(programme)
+        .arg(&*chemin)
+        .spawn()
+        .map(|_| ())
+}
+
 /// Ce que l'explorateur demande à l'application (onglets, système).
 fn actions(app: &AppCoeur, coffre: &Coffre) -> ActionsExplorateur {
     let mut a = ActionsExplorateur::new(app.keymap().clone(), &coffre.racine);

@@ -237,3 +237,24 @@ fn en_session_montrer_ou_fermer_un_onglet_ne_laisse_jamais_l_active_cachee() {
     let visible = w.arbre().active_leaf(pile).unwrap();
     assert_eq!(active, visible, "l'active est l'onglet montré");
 }
+
+// ─── thèmes du coffre (fr-t11.3) ───
+
+#[test]
+fn un_coffre_ouvert_construit_les_themes_et_sans_coffre_il_n_y_en_a_pas() {
+    use fragment_app::coffre::SourceCoffre;
+    use fragment_core::MemoryAdapter;
+    use fragment_theme::ThemeManager;
+
+    assert!(boot::demarrer(&Options::memoire("0.0.0")).themes.is_none());
+
+    let disque = Rc::new(MemoryAdapter::new());
+    disque.put(".fragment/themes/Nuit/theme.json", "{}");
+    let mut options = Options::memoire("0.0.0");
+    options.coffre = Some(SourceCoffre::Memoire(disque));
+    let n = boot::demarrer(&options);
+    let themes = n.themes.expect("thèmes du coffre");
+    themes.refresh().unwrap();
+    // ★ `.fragment` est caché : le coffre ne l'indexe pas, mais les thèmes le lisent par l'adaptateur.
+    assert_eq!(themes.list(), vec!["Nuit".to_owned()]);
+}
