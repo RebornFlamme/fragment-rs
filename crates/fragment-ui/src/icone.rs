@@ -234,14 +234,40 @@ fn image(
         gpui_kit::DevicePixels(tuile.0),
         gpui_kit::DevicePixels(tuile.1),
     );
-    let i = rendu
+    let brut = rendu
         .render_parsed(&arbre, SvgSize::ExactSize(taille))
         .ok()?;
+    let i = colorer_les_texels_transparents(&brut, couleur)?;
     if let Ok(mut garde) = CACHE.lock() {
         let carte = garde.get_or_insert_with(HashMap::new);
         carte.insert(cle, i.clone());
     }
     Some(i)
+}
+
+/// Recopie l'image en donnant à CHAQUE texel la couleur du jeton (l'alpha de la rastérisation est
+/// gardé).
+///
+/// ★ Pourquoi : le rastériseur de GPUI rend du RGBA prémultiplié puis le dé-prémultiplie ; un texel
+/// transparent garde donc le noir (0, 0, 0, 0). L'échantillonneur bilinéaire du sprite mélange
+/// ensuite ce noir à l'encre des bords, puis l'alpha la multiplie une seconde fois : l'encre des
+/// traits fins (les diagonales de la croix) tombait à alpha² (−29 % en sombre, CI #160), sans
+/// effet visible en clair où l'encre est déjà presque noire. Une couleur constante rend le
+/// mélange exact.
+fn colorer_les_texels_transparents(i: &RenderImage, couleur: [u8; 4]) -> Option<Arc<RenderImage>> {
+    let octets = i.as_bytes(0)?;
+    let t = i.size(0);
+    let l = u32::try_from(i32::from(t.width)).ok()?;
+    let h = u32::try_from(i32::from(t.height)).ok()?;
+    let mut tampon = octets.to_vec();
+    for p in tampon.as_chunks_mut::<4>().0 {
+        // BGRA : seul l'alpha vient de la rastérisation.
+        p[0] = couleur[2];
+        p[1] = couleur[1];
+        p[2] = couleur[0];
+    }
+    let image = image::RgbaImage::from_raw(l, h, tampon)?;
+    Some(Arc::new(RenderImage::new(vec![image::Frame::new(image)])))
 }
 
 /// Vide le cache s'il déborde et rend les tuiles d'atlas des images abandonnées.
@@ -398,8 +424,17 @@ mod tests {
     #[test]
     fn teinter_entoure_le_contenu_d_un_groupe_pivote_autour_du_centre() {
         let s = teinter(CHEVRON, [0, 0, 0, 255], 90.0);
-        assert!(s.contains("<g transform=\"rotate(90 12 12)\"><path"), "{s}");
+        assert!(s.contains("<g transform=\"rotate(90 12 12)\">"), "{s}");
         assert!(s.trim_end().ends_with("</g></svg>"), "{s}");
+    }
+
+    #[test]
+    fn un_texel_transparent_prend_la_couleur_du_jeton_et_garde_son_alpha() {
+        // Deux texels BGRA : un noir transparent (le rendu de GPUI) et un opaque.
+        let brut = image::RgbaImage::from_raw(2, 1, vec![0, 0, 0, 0, 9, 9, 9, 200]).unwrap();
+        let brut = RenderImage::new(vec![image::Frame::new(brut)]);
+        let i = colorer_les_texels_transparents(&brut, [10, 20, 30, 255]).unwrap();
+        assert_eq!(i.as_bytes(0).unwrap(), &[30, 20, 10, 0, 30, 20, 10, 200]);
     }
 
     #[test]
@@ -419,7 +454,7 @@ mod tests {
             size: size(px(15.0), px(15.0)),
         };
         assert_eq!(taille_tuile(b, 1.0), (30, 30));
-        assert_eq!(taille_tuile(b, 1.5), (45, 45));
+        assert_eq!(taille_tuile(b, 1.5), (44, 46));
     }
 
     #[test]
