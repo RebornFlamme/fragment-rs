@@ -1,0 +1,30 @@
+# Parité de fr-t7-controles (fragment-ui). Schéma `parite.d` : un fichier par tâche. Les contrôles
+# du champ (controls.ts) et la carte de permission (permissionCard.ts) n'ont pas de test unitaire TS
+# propre : les cas headless sont ceux des specs e2e agent-permissions (partie carte), agent-chat
+# (effort) et agent-bar (contrôles de la barre, anneau absent, puce de contexte), joués sur les
+# modèles purs (crates/fragment-ui/tests/agent_controles.rs). Le double du SDK devient une
+# SourceControles en mémoire et un rappel de décisions.
+
+[[module]]
+ts = "app/src/ui/views/agent/controls/controls.ts (listes moteur / modèle / effort / mode, anneau d'usage, emplacements composer-tools), controls.css"
+rs = "crates/fragment-ui/src/agent_controles/{modele,vue}.rs, crates/fragment-ui/tests/agent_controles.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 14
+notes = "Cas portés : l'effort Approfondi de agent-chat (liste du modèle, gardé dans la session), les contrôles de la barre qui valent pour la suivante (modèle + effort) et l'anneau d'usage absent de la barre de agent-bar ; le mode Plan choisi dans le champ de agent-permissions. Ajoutés : moteur figé, listes sœurs qui suivent, mode grisé pour un moteur qui ne sait pas demander, paliers de l'anneau, applicabilité des emplacements par mode. Écarts : le DOM rafraîchissait les listes sœurs par un événement, ici la source est relue à chaque image ; pas d'infobulle sur les boutons (le nom accessible porte le texte, la couche d'infobulle est à l'hôte) ; l'anneau d'usage est peint au canvas sans bout arrondi ; le fournisseur est branché par la SourceControles (trait local, le service de l'agent l'implémentera au montage)."
+
+[[module]]
+ts = "app/src/ui/views/agent/controls/controls.ts (la puce de contexte `agent-context`, contextExtension)"
+rs = "crates/fragment-ui/src/agent_controles/{contexte,vue}.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 9
+notes = "Le cas porté est celui de agent-bar (puce « article », contexte du fichier en tête du prompt à l'envoi). Ajoutés : passage retenu puis consommé, coupé à 40 caractères, refusé au-delà de 4000, croix, changement de document, absence de document, applicabilité (barre seulement), options d'envoi. Écarts : la sélection et l'onglet actif arrivent de l'hôte (selection / document_change) au lieu de document.selectionchange et des événements du workspace."
+
+[[module]]
+ts = "app/src/ui/views/agent/policy/permissionCard.ts (la carte), permission.css"
+rs = "crates/fragment-ui/src/agent_controles/{carte,vue}.rs, crates/fragment-ui/tests/agent_controles.rs"
+cas_source = 6
+cas_portes = 6
+cas_ajoutes = 6
+notes = "Les six cas de agent-permissions touchant la carte : une carte dans la réponse (Autoriser une fois, repliée), Toujours dans cette conversation, Refuser avec un pourquoi, Toujours dans ce coffre, mode plan (Lancer), arrêt d'un tour (refusée, « Tour arrêté. »). Ajoutés : pas de « Toujours » sans règle, Modifier sans commentaire, mise à jour sans changement qui garde le pourquoi tapé, lecture du part, raison du moteur. La réponse part par un rappel (Reponse) que le fournisseur branche au montage. Écart : le plan s'affiche en texte brut tant que l'hôte ne fournit pas de rendu Markdown (RenduPermission::avec_rendu_plan)."
