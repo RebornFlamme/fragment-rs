@@ -257,17 +257,35 @@ impl Bilan {
 /// La lettre de référence à la place du glyphe peint : celle qui contient le centre de son encre,
 /// la plus proche de ce centre s'il y en a plusieurs.
 pub fn a_la_place(reference: &[Glyphe], peint: &Glyphe) -> Option<usize> {
+    a_la_place_libre(reference, peint, |_| false)
+}
+
+/// Comme [`a_la_place`], mais la plus proche lettre encore LIBRE d'abord : deux glyphes
+/// identiques peints au même endroit vont à deux lettres superposées, pas deux fois à la première.
+/// Si toutes sont prises, la plus proche (le glyphe sera de trop).
+fn a_la_place_libre(
+    reference: &[Glyphe],
+    peint: &Glyphe,
+    prise: impl Fn(usize) -> bool,
+) -> Option<usize> {
     let centre = peint.centre();
     let distance = |g: &Glyphe| {
         let (x, y) = g.centre();
         (x - centre.0).powi(2) + (y - centre.1).powi(2)
     };
-    reference
+    let mut places: Vec<(usize, f32)> = reference
         .iter()
         .enumerate()
         .filter(|(_, g)| g.contient(centre))
-        .min_by(|(_, a), (_, b)| distance(a).total_cmp(&distance(b)))
-        .map(|(i, _)| i)
+        .map(|(i, g)| (i, distance(g)))
+        .collect();
+    // ★ tri stable : à distance égale, l'ordre du relevé décide (la première lettre d'abord).
+    places.sort_by(|a, b| a.1.total_cmp(&b.1));
+    places
+        .iter()
+        .find(|(i, _)| !prise(*i))
+        .or(places.first())
+        .map(|(i, _)| *i)
 }
 
 /// Compare les glyphes peints du candidat aux lettres de la référence, caractère contre caractère.
@@ -275,24 +293,27 @@ pub fn comparer(reference: &[Glyphe], candidat: &[Glyphe]) -> Bilan {
     let mut prises = vec![false; reference.len()];
     let mut liens = Vec::with_capacity(candidat.len());
     for peint in candidat {
-        let Some(k) = a_la_place(reference, peint) else {
+        let Some(k) = a_la_place_libre(reference, peint, |i| prises[i]) else {
             liens.push(Lien::EnTrop);
             continue;
         };
         let n = peint.c.chars().count().max(1);
-        // Les fenêtres de `n` lettres consécutives du DOM qui contiennent `k`, libres, dont les
-        // caractères mis bout à bout sont ceux du glyphe peint (une ligature couvre ses lettres).
-        let fenetre = (k.saturating_sub(n - 1)..=k)
-            .filter(|&debut| debut + n <= reference.len())
-            .find(|&debut| {
-                let lettres = &reference[debut..debut + n];
-                !prises[debut..debut + n].iter().any(|&p| p)
+        // Les fenêtres de lettres consécutives de la référence qui contiennent `k`, libres, dont les
+        // caractères mis bout à bout sont ceux du glyphe peint : une ligature couvre ses lettres
+        // du DOM (n entrées d'un caractère), ou UNE entrée de plusieurs caractères quand la
+        // référence est elle-même lue dans une scène (preuve candidat contre candidat-2).
+        let fenetre = (1..=n)
+            .flat_map(|m| (k.saturating_sub(m - 1)..=k).map(move |debut| (debut, m)))
+            .filter(|&(debut, m)| debut + m <= reference.len())
+            .find(|&(debut, m)| {
+                let lettres = &reference[debut..debut + m];
+                !prises[debut..debut + m].iter().any(|&p| p)
                     && lettres.iter().map(|g| g.c.as_str()).collect::<String>() == peint.c
             });
         match fenetre {
-            Some(debut) => {
-                prises[debut..debut + n].iter_mut().for_each(|p| *p = true);
-                liens.push(Lien::Identique((debut..debut + n).collect()));
+            Some((debut, m)) => {
+                prises[debut..debut + m].iter_mut().for_each(|p| *p = true);
+                liens.push(Lien::Identique((debut..debut + m).collect()));
             }
             None if !prises[k] => {
                 prises[k] = true;
@@ -402,6 +423,27 @@ mod tests {
         let bilan = comparer(&reference, &candidat);
         assert!(bilan.parfait(), "{bilan:?}");
         assert_eq!(bilan.liens[1], Lien::Identique(vec![1, 2]));
+    }
+
+    #[test]
+    fn une_ligature_lue_dans_une_scene_des_deux_cotes_est_identique() {
+        // Preuve candidat contre candidat-2 : la référence porte « fi » en UNE entrée.
+        let reference = vec![Glyphe::new("fi", 9.0, 4.0, 14.0, 9.0)];
+        let bilan = comparer(&reference, &reference.clone());
+        assert!(bilan.parfait(), "{bilan:?}");
+        assert_eq!(bilan.liens, vec![Lien::Identique(vec![0])]);
+    }
+
+    #[test]
+    fn deux_glyphes_identiques_superposes_vont_a_deux_lettres_superposees() {
+        // Deux « ↵ » peints au même endroit des deux côtés : chacun trouve la sienne.
+        let reference = vec![encre("↵", 0.0, 0.0), encre("↵", 0.0, 0.0)];
+        let bilan = comparer(&reference, &reference.clone());
+        assert!(bilan.parfait(), "{bilan:?}");
+        assert_eq!(
+            bilan.liens,
+            vec![Lien::Identique(vec![0]), Lien::Identique(vec![1])]
+        );
     }
 
     #[test]
