@@ -78,6 +78,13 @@ fn trait_reduire(
                 f32::from(bornes.origin.x) * k,
                 f32::from(bornes.origin.y) * k,
             );
+            // ★ Peint en quads, le « − » n'est pas un sprite de la scène : il se déclare (fr-p3.1).
+            crate::boites::declarer_icone(crate::boites::IconePeinte {
+                x: ox,
+                y: oy,
+                largeur: s,
+                hauteur: s,
+            });
             let w = 1.5 / 24.0 * s;
             let yc = oy + 12.0 / 24.0 * s;
             let (x0, x1) = (

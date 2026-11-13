@@ -38,6 +38,7 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
     cx.update(|cx| {
         fenetre.update(cx, |_, window, cx| {
             flottant::vider_ombres();
+            fragment_ui::boites::vider_icones();
             window.draw(cx).clear(cx);
             let ombres = flottant::ombres_peintes().iter().map(declarer).collect();
             OMBRES.with(|o| *o.borrow_mut() = ombres);
@@ -47,7 +48,10 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
                 .collect();
             ARRONDIS.with(|a| *a.borrow_mut() = arrondis);
             let image = window.render_to_image()?;
-            let sprites = sprites_peints(window, image.width(), image.height());
+            let sprites = sprites_peints(window, image.width(), image.height()).map(|mut s| {
+                s.extend(icones_declarees(image.width(), image.height()));
+                s
+            });
             SPRITES.with(|s| *s.borrow_mut() = sprites);
             Ok(image)
         })
@@ -141,6 +145,26 @@ fn sprites_peints(
         });
     }
     Some(sprites)
+}
+
+/// Les icônes peintes à la main (quads), déclarées par leur dessin pendant la peinture : la scène
+/// ne les montre pas comme des sprites (`fragment_ui::boites`, le « − » des boutons de fenêtre).
+fn icones_declarees(largeur: u32, hauteur: u32) -> Vec<boites::BoiteEncre> {
+    fragment_ui::boites::icones_peintes()
+        .into_iter()
+        .filter_map(|i| {
+            let (x0, y0) = (i.x.max(0.0).floor(), i.y.max(0.0).floor());
+            let x1 = (i.x + i.largeur).min(largeur as f32).ceil();
+            let y1 = (i.y + i.hauteur).min(hauteur as f32).ceil();
+            (x1 > x0 && y1 > y0).then_some(boites::BoiteEncre {
+                categorie: boites::Categorie::Icone,
+                x: x0 as u32,
+                y: y0 as u32,
+                largeur: (x1 - x0) as u32,
+                hauteur: (y1 - y0) as u32,
+            })
+        })
+        .collect()
 }
 
 /// Sans la feature `pixels` (cible de test du lecteur), la scène peinte n'est pas lisible.

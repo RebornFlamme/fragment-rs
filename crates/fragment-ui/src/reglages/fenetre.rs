@@ -921,10 +921,12 @@ impl FenetreReglages {
                     .id(SharedString::from(format!("couleur-{cle}")))
                     .size(u(cx, f.size_4_7))
                     .flex_none()
-                    .rounded_full()
                     .overflow_hidden()
                     .cursor_pointer()
                     .bg(couleur(couleur_depuis_hex(&k.value)));
+                // ★ Ronde = rayon de la demi-taille, DÉCLARÉ pour le sas (fr-p3.1, bord d'arrondi).
+                let pastille =
+                    arrondir(pastille, cx, u(cx, f.size_4_7 / 2.0), u(cx, f.border_width));
                 let pastille = bordure(pastille, u(cx, f.border_width))
                     .border_color(couleur(p.tab_outline_color))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
