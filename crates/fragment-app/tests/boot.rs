@@ -273,7 +273,7 @@ fn un_schema_light_enregistre_donne_le_theme_clair_apres_le_boot() {
     let n = boot::demarrer(&options);
     let themes = n.themes.clone().expect("thèmes du coffre");
 
-    let mut cx = TestAppContext::single();
+    let cx = TestAppContext::single();
     cx.update(|cx| {
         fragment_ui::themes::monter(cx, &themes);
         assert_eq!(fragment_ui::theme_global::theme(cx).mode, Mode::Sombre);
