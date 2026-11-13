@@ -5,7 +5,7 @@
 //! Licences du binaire : BSD-3 (pdfium) et Apache-2 (pdfium-binaries), voir la PR de fr-t4-pdfium.
 
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 use pdfium_render::prelude::Pdfium;
 
@@ -15,6 +15,10 @@ use super::ErreurPdf;
 pub const VARIABLE_DOSSIER: &str = "PDFIUM_LIB_DIR";
 
 static MOTEUR: OnceLock<Pdfium> = OnceLock::new();
+
+/// ★ Sérialise le chargement : pdfium refuse une seconde liaison dans le processus
+///   (`PdfiumLibraryBindingsAlreadyInitialized`), donc deux fils ne doivent jamais lier ensemble.
+static VERROU: Mutex<()> = Mutex::new(());
 
 /// Le moteur chargé, ou une erreur claire s'il ne l'est pas.
 pub(super) fn moteur() -> Result<&'static Pdfium, ErreurPdf> {
@@ -32,6 +36,13 @@ pub(super) fn moteur() -> Result<&'static Pdfium, ErreurPdf> {
 pub fn initialiser(dossier: Option<&Path>) -> Result<(), ErreurPdf> {
     if MOTEUR.get().is_some() {
         return Ok(());
+    }
+    // Un verrou empoisonné ne protège aucune donnée : on le reprend tel quel.
+    let _garde = VERROU
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if MOTEUR.get().is_some() {
+        return Ok(()); // un autre fil a chargé pendant l'attente
     }
     let demande: Option<PathBuf> = dossier
         .map(Path::to_path_buf)
@@ -57,7 +68,7 @@ pub fn initialiser(dossier: Option<&Path>) -> Result<(), ErreurPdf> {
         }
     }
     let liaison = liaison.ok_or(ErreurPdf::Chargement(dernier))?;
-    // Deux fils peuvent initialiser en même temps : le premier gagne, l'autre jette sa liaison.
+    // Sous verrou : aucun autre fil ne peut avoir posé le moteur entre-temps.
     let _ = MOTEUR.set(Pdfium::new(liaison));
     Ok(())
 }

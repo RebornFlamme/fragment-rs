@@ -199,12 +199,18 @@ fn fabriquer_pdf(pages: &[SpecPage], signets: &[Item]) -> Vec<u8> {
     pdf
 }
 
+/// Charge pdfium : `initialiser` est sérialisé par la crate, les tests parallèles peuvent l'appeler.
+fn charger_pdfium() {
+    let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
+    let dossier = std::env::var_os("PDFIUM_LIB_DIR")
+        .is_none()
+        .then_some(defaut);
+    initialiser(dossier).expect("pdfium : lancer scripts/pdfium.ps1");
+}
+
 /// Charge pdfium : `PDFIUM_LIB_DIR`, sinon le dossier par défaut de `scripts/pdfium.ps1`.
 fn ouvrir(pages: &[SpecPage], signets: &[Item]) -> Document {
-    if std::env::var_os("PDFIUM_LIB_DIR").is_none() {
-        let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
-        initialiser(Some(defaut)).expect("pdfium : lancer scripts/pdfium.ps1");
-    }
+    charger_pdfium();
     Document::ouvrir(fabriquer_pdf(pages, signets)).expect("PDF généré lisible")
 }
 

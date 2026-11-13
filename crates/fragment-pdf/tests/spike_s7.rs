@@ -41,11 +41,17 @@ fn pdf_une_page(l: f64, h: f64, flux: &str) -> Vec<u8> {
     pdf
 }
 
+/// Charge pdfium : `initialiser` est sérialisé par la crate, les tests parallèles peuvent l'appeler.
+fn charger_pdfium() {
+    let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
+    let dossier = std::env::var_os("PDFIUM_LIB_DIR")
+        .is_none()
+        .then_some(defaut);
+    initialiser(dossier).expect("pdfium : lancer scripts/pdfium.ps1");
+}
+
 fn ouvrir(octets: Vec<u8>) -> Document {
-    if std::env::var_os("PDFIUM_LIB_DIR").is_none() {
-        let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
-        initialiser(Some(defaut)).expect("pdfium : lancer scripts/pdfium.ps1");
-    }
+    charger_pdfium();
     Document::ouvrir(octets).expect("PDF généré lisible")
 }
 
@@ -118,4 +124,13 @@ fn taille_raster_egale_au_canvas_de_pdfjs() {
     // Arrondi au plus proche sur une page fractionnaire (595,28 × 841,89 pt, A4).
     let a4 = ouvrir(pdf_une_page(595.28, 841.89, ""));
     assert_eq!(a4.taille_raster(1, 1.25).unwrap(), (744, 1052));
+}
+
+/// ★ Régression fr-9n1 : des initialisations simultanées ne doivent pas se disputer la liaison.
+#[test]
+fn initialisations_paralleles_sans_conflit() {
+    let fils: Vec<_> = (0..8).map(|_| std::thread::spawn(charger_pdfium)).collect();
+    for f in fils {
+        f.join().expect("aucun fil ne panique");
+    }
 }
