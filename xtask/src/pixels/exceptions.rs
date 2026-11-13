@@ -778,6 +778,7 @@ mod tests {
                 delta_max: 0,
                 ecart_encre: encre,
                 ecart_forme: 0.0,
+                ecart_glyphe: 0.0,
                 teinte: 1.0,
                 barycentres: vec![
                     ("passage", passage, 0.0),

@@ -632,12 +632,14 @@ fn boites_du_candidat(dossier: &Path, nom: &str, image: &RgbaImage) -> anyhow::R
             let illisible = || format!("{} illisible", chemin.display());
             Ok(Declaration {
                 boites: boites::deserialiser(&texte).with_context(illisible)?,
+                glyphes: boites::deserialiser_glyphes(&texte).with_context(illisible)?,
                 ombres: boites::deserialiser_ombres(&texte).with_context(illisible)?,
                 arrondis: boites::deserialiser_arrondis(&texte).with_context(illisible)?,
             })
         }
         Err(_) => Ok(Declaration {
             boites: boites::detecter(image),
+            glyphes: Vec::new(),
             ombres: Vec::new(),
             arrondis: Vec::new(),
         }),
@@ -647,6 +649,8 @@ fn boites_du_candidat(dossier: &Path, nom: &str, image: &RgbaImage) -> anyhow::R
 /// Ce que le candidat déclare d'une capture (ADR-009) : boîtes, surfaces ombrées, boîtes arrondies.
 struct Declaration {
     boites: Vec<BoiteEncre>,
+    /// Les glyphes peints (version 4) : le garde-fou de forme par glyphe et la contre-épreuve.
+    glyphes: Vec<BoiteEncre>,
     ombres: Vec<OmbreDeclaree>,
     arrondis: Vec<ArrondiDeclare>,
 }
@@ -690,6 +694,8 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let mut mesures_arrondis = String::new();
     let mut mesures_barycentres = String::new();
     let mut mesures_nommees = String::new();
+    let mut mesures_contre_epreuve = String::new();
+    let (mut essais_contre_epreuve, mut detectes_contre_epreuve) = (0usize, 0usize);
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
@@ -699,15 +705,39 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                 &r,
                 &c,
                 &d.boites,
+                &d.glyphes,
                 &d.ombres,
                 &d.arrondis,
                 &exceptions::du_png(nom),
                 scene_depuis(&meta, nom),
             )
-            .map(|s| (d.boites, s))
+            .map(|s| (d, s))
         }) {
-            Ok((boites, s)) => {
+            Ok((d, s)) => {
                 s.diff.save(o.diff.join(nom))?;
+                // fr-p3.1 : une lettre changée sur le texte réel du candidat doit faire échouer le sas.
+                let ce = sas::contre_epreuve(
+                    &r,
+                    &c,
+                    &d.boites,
+                    &d.glyphes,
+                    &exceptions::du_png(nom),
+                    scene_depuis(&meta, nom),
+                );
+                if ce.essais > 0 {
+                    writeln!(
+                        mesures_contre_epreuve,
+                        "- {nom} : {} lettres changées, {} détectées",
+                        ce.essais, ce.detectes
+                    )?;
+                }
+                for m in &ce.manques {
+                    ok = false;
+                    writeln!(details, "- {nom} : contre-épreuve MANQUÉE : {m}")?;
+                }
+                essais_contre_epreuve += ce.essais;
+                detectes_contre_epreuve += ce.detectes;
+                let boites = d.boites;
                 let mesure = Base {
                     delta_max: s.delta_max_boites,
                     pourcent: arrondir(s.pourcent_boites()),
@@ -987,6 +1017,20 @@ Barycentres d'encre (pire écart absolu des passages et de leurs moitiés, borne
 
 {mesures_barycentres}",
             sas::ECART_BARYCENTRE
+        )?;
+    }
+    if essais_contre_epreuve > 0 {
+        let ligne = format!(
+            "contre-épreuve (fr-p3.1) : {essais_contre_epreuve} lettres changées sur le texte réel des candidats, {detectes_contre_epreuve} détectées ({:.1} %)",
+            100.0 * detectes_contre_epreuve as f64 / essais_contre_epreuve as f64
+        );
+        println!("{ligne}");
+        write!(
+            rapport,
+            "
+Contre-épreuve d'une lettre changée (fr-p3.1, ADR-009) : dans chaque boîte de texte qui passe, un glyphe peint du candidat remplacé par un autre glyphe du même passage doit faire échouer la boîte. {ligne}.
+
+{mesures_contre_epreuve}"
         )?;
     }
     if plan.paires.is_empty() && !o.exiger_references {

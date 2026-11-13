@@ -64,6 +64,11 @@ pub const ECART_BARYCENTRE: f64 = 0.5;
 /// chacun), sinon la masse d'un glyphe coupé par le milieu fait bouger le barycentre de la moitié
 /// sans qu'aucun trait ne se déplace. Mesure : voir `docs/parite-pixels.md`.
 pub const LONGUEUR_MOITIES: u32 = 28;
+/// Part maximale d'orphelins dans UN glyphe peint (fr-p3.1, garde-fou [`ecart_glyphes`]).
+pub const ECART_GLYPHE: f64 = 0.25;
+/// Coeurs (au moins) d'un glyphe jugé seul : en dessous (point, virgule, apostrophe), un pixel
+/// d'anticrénelage pèse trop ; le glyphe reste jugé avec son mot.
+pub const COEURS_GLYPHE_MIN: usize = 4;
 /// Couverture de colonne qui fait le coeur d'un glyphe, pour découper un passage en glyphes : sous
 /// ce seuil des deux côtés, la colonne est un creux entre deux lettres (franges d'anticrénelage).
 pub const COUPURE: f64 = 0.4;
@@ -158,21 +163,35 @@ fn mesurer(img: &RgbaImage, r: Rect, fond: Rgba<u8>, k: f64) -> Mesure {
 /// décale les mots d'un pixel ou deux le long d'une ligne) et de ±[`DECALAGE_V`] px en y, au meilleur
 /// décalage. Rend la part d'orphelins du pire segment (orphelins des deux sens / cœurs du candidat).
 fn ecart_forme(rf: &Mesure, cd: &Mesure) -> f64 {
+    formes(rf, cd).iter().map(|s| s.part).fold(0.0, f64::max)
+}
+
+/// Un mot du garde-fou de forme : ses colonnes `[sa, sb]` dans la région, le décalage (dx, dy) de la
+/// référence qui l'explique le mieux et la part d'orphelins à ce décalage.
+#[derive(Debug, Clone, Copy)]
+struct Segment {
+    sa: i64,
+    sb: i64,
+    dx: i64,
+    dy: i64,
+    part: f64,
+}
+
+/// Couverture de `m` en (x, y) de sa région, 0 hors de la région.
+fn lire(m: &Mesure, x: i64, y: i64) -> f64 {
+    let l = m.largeur as i64;
+    let h = m.couverture.len() as i64 / l.max(1);
+    if x < 0 || x >= l || y < 0 || y >= h {
+        0.0
+    } else {
+        m.couverture[(y * l + x) as usize]
+    }
+}
+
+/// Les mots du candidat et, pour chacun, son meilleur décalage (voir [`ecart_forme`]).
+fn formes(rf: &Mesure, cd: &Mesure) -> Vec<Segment> {
     let l = cd.largeur as i64;
     let h = cd.couverture.len() as i64 / l.max(1);
-    let lire = |m: &Mesure, x: i64, y: i64| -> f64 {
-        if x < 0 || x >= l || y < 0 || y >= h {
-            0.0
-        } else {
-            m.couverture[(y * l + x) as usize]
-        }
-    };
-    let voisin_max = |m: &Mesure, x: i64, y: i64| -> f64 {
-        (-VOISINAGE..=VOISINAGE)
-            .flat_map(|u| (-VOISINAGE..=VOISINAGE).map(move |v| (u, v)))
-            .map(|(u, v)| lire(m, x + u, y + v))
-            .fold(0.0, f64::max)
-    };
     let encre_col = |x: i64| (0..h).any(|y| lire(cd, x, y) >= 0.15);
     let mut segments: Vec<(i64, i64)> = Vec::new();
     for x in (0..l).filter(|&x| encre_col(x)) {
@@ -181,33 +200,107 @@ fn ecart_forme(rf: &Mesure, cd: &Mesure) -> f64 {
             _ => segments.push((x, x)),
         }
     }
-    let mut pire = 0.0f64;
+    let mut resultat = Vec::with_capacity(segments.len());
     for (sa, sb) in segments {
         let coeurs = (0..h)
             .flat_map(|y| (sa..=sb).map(move |x| (x, y)))
             .filter(|&(x, y)| lire(cd, x, y) >= COEUR)
             .count()
             .max(1) as f64;
-        let meilleur = (-DECALAGE..=DECALAGE)
-            .flat_map(|dx| (-DECALAGE_V..=DECALAGE_V).map(move |dy| (dx, dy)))
-            .map(|(dx, dy)| {
-                let mut orphelins = 0u32;
-                for y in 0..h {
-                    for x in sa..=sb {
-                        // Coeur du candidat sans trait de la référence alentour.
-                        if lire(cd, x, y) >= COEUR && voisin_max(rf, x + dx, y + dy) < PRESENCE {
-                            orphelins += 1;
-                        }
-                        // Coeur de la référence sans trait du candidat alentour.
-                        if lire(rf, x + dx, y + dy) >= COEUR && voisin_max(cd, x, y) < PRESENCE {
-                            orphelins += 1;
-                        }
-                    }
+        let mut meilleur = Segment {
+            sa,
+            sb,
+            dx: 0,
+            dy: 0,
+            part: f64::INFINITY,
+        };
+        for dx in -DECALAGE..=DECALAGE {
+            for dy in -DECALAGE_V..=DECALAGE_V {
+                let part = f64::from(orphelins(rf, cd, (sa, 0, sb, h - 1), dx, dy)) / coeurs;
+                if part < meilleur.part {
+                    meilleur = Segment {
+                        dx,
+                        dy,
+                        part,
+                        ..meilleur
+                    };
                 }
-                f64::from(orphelins) / coeurs
+            }
+        }
+        resultat.push(meilleur);
+    }
+    resultat
+}
+
+/// Orphelins des deux sens dans la région `(x0, y0, x1, y1)` (bords compris) du candidat, la
+/// référence décalée de (dx, dy) : coeurs d'une image sans trait de l'autre au même endroit.
+fn orphelins(rf: &Mesure, cd: &Mesure, r: (i64, i64, i64, i64), dx: i64, dy: i64) -> u32 {
+    let voisin_max = |m: &Mesure, x: i64, y: i64| -> f64 {
+        (-VOISINAGE..=VOISINAGE)
+            .flat_map(|u| (-VOISINAGE..=VOISINAGE).map(move |v| (u, v)))
+            .map(|(u, v)| lire(m, x + u, y + v))
+            .fold(0.0, f64::max)
+    };
+    let mut n = 0u32;
+    for y in r.1..=r.3 {
+        for x in r.0..=r.2 {
+            // Coeur du candidat sans trait de la référence alentour.
+            if lire(cd, x, y) >= COEUR && voisin_max(rf, x + dx, y + dy) < PRESENCE {
+                n += 1;
+            }
+            // Coeur de la référence sans trait du candidat alentour.
+            if lire(rf, x + dx, y + dy) >= COEUR && voisin_max(cd, x, y) < PRESENCE {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+/// Garde-fou de forme PAR GLYPHE (fr-p3.1), sur les glyphes peints déclarés par le candidat
+/// (rectangles dans la région). Chaque glyphe se compare au décalage de son mot (voir [`formes`]),
+/// à ±1 px près en x : la part d'orphelins est celle du GLYPHE, rapportée à ses coeurs, pas à ceux
+/// du mot. ★ Rapportée au mot (garde-fou [`ecart_forme`]), une lettre changée dans un mot de dix ne
+/// laissait que 2 à 4 % d'orphelins quand les deux lettres partagent leurs traits (« e » pour
+/// « c », « n » pour « h ») : environ un cas sur trois passait sur du texte réel de 13 px.
+/// Rend la pire part et le rang du glyphe qui la porte.
+fn ecart_glyphes(rf: &Mesure, cd: &Mesure, glyphes: &[Rect]) -> (f64, Option<usize>) {
+    let mots = formes(rf, cd);
+    let mut pire = (0.0f64, None);
+    for (i, g) in glyphes.iter().enumerate() {
+        let r = (
+            i64::from(g.0),
+            i64::from(g.1),
+            i64::from(g.2),
+            i64::from(g.3),
+        );
+        let coeurs = |m: &Mesure, dx: i64, dy: i64| {
+            (r.1..=r.3)
+                .flat_map(|y| (r.0..=r.2).map(move |x| (x, y)))
+                .filter(|&(x, y)| lire(m, x + dx, y + dy) >= COEUR)
+                .count()
+        };
+        let centre = (r.0 + r.2) / 2;
+        let mot = mots
+            .iter()
+            .find(|s| s.sa <= centre && centre <= s.sb)
+            .or_else(|| {
+                mots.iter()
+                    .min_by_key(|s| (s.sa - centre).abs().min((s.sb - centre).abs()))
+            });
+        let (mdx, mdy) = mot.map_or((0, 0), |s| (s.dx, s.dy));
+        let part = (mdx - 1..=mdx + 1)
+            .map(|dx| {
+                let n = coeurs(cd, 0, 0).max(coeurs(rf, dx, mdy));
+                if n < COEURS_GLYPHE_MIN {
+                    return 0.0;
+                }
+                f64::from(orphelins(rf, cd, r, dx, mdy)) / n as f64
             })
             .fold(f64::INFINITY, f64::min);
-        pire = pire.max(meilleur);
+        if part > pire.0 {
+            pire = (part, Some(i));
+        }
     }
     pire
 }
@@ -233,6 +326,8 @@ pub struct ResultatBoite {
     pub ecart_encre: f64,
     /// Plus grand écart de couverture sur une cellule.
     pub ecart_forme: f64,
+    /// Pire part d'orphelins d'un glyphe peint (0 sans glyphe déclaré).
+    pub ecart_glyphe: f64,
     /// Cosinus des teintes.
     pub teinte: f64,
     /// Écarts (candidat moins référence) des barycentres d'encre : (partie, x, y).
@@ -261,9 +356,10 @@ impl ResultatBoite {
             .collect::<Vec<_>>()
             .join(" ; ");
         format!(
-            "encre {:+.1} %, forme {:.1} %, teinte {:.4}, bords {bords}, barycentres {barycentres}",
+            "encre {:+.1} %, forme {:.1} %, glyphe {:.1} %, teinte {:.4}, bords {bords}, barycentres {barycentres}",
             100.0 * self.ecart_encre,
             100.0 * self.ecart_forme,
+            100.0 * self.ecart_glyphe,
             self.teinte
         )
     }
@@ -369,7 +465,13 @@ fn ecarts_barycentres(rf: &Mesure, cd: &Mesure) -> Vec<(&'static str, f64, f64)>
     parties
 }
 
-fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure, largeur_stricte: bool) -> ResultatBoite {
+fn juger(
+    b: &BoiteEncre,
+    rf: &Mesure,
+    cd: &Mesure,
+    largeur_stricte: bool,
+    glyphes: &[Rect],
+) -> ResultatBoite {
     let mut violations = Vec::new();
     let ecart_encre = if rf.encre > 0.0 {
         (cd.encre - rf.encre) / rf.encre
@@ -391,6 +493,15 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure, largeur_stricte: bool) -> Res
             "forme : {:.0} % des traits sans équivalent dans un mot (borne {:.0} %)",
             100.0 * ecart_forme,
             100.0 * ECART_FORME
+        ));
+    }
+    let (ecart_glyphe, glyphe) = ecart_glyphes(rf, cd, glyphes);
+    if ecart_glyphe > ECART_GLYPHE {
+        violations.push(format!(
+            "forme : {:.0} % des traits du glyphe n° {} sans équivalent (borne {:.0} %)",
+            100.0 * ecart_glyphe,
+            glyphe.map_or(0, |i| i + 1),
+            100.0 * ECART_GLYPHE
         ));
     }
     let teinte = cosinus(rf.teinte, cd.teinte);
@@ -445,6 +556,7 @@ fn juger(b: &BoiteEncre, rf: &Mesure, cd: &Mesure, largeur_stricte: bool) -> Res
         delta_max: 0,
         ecart_encre,
         ecart_forme,
+        ecart_glyphe,
         teinte,
         ecart_bords,
         dette_largeur,
@@ -628,6 +740,218 @@ impl Sas {
     }
 }
 
+/// Les glyphes peints de la boîte de texte `b` (centre dans la boîte), en rectangles de la région `r`.
+fn glyphes_dans(b: &BoiteEncre, glyphes: &[BoiteEncre], r: Rect) -> Vec<Rect> {
+    if b.categorie != Categorie::Texte {
+        return Vec::new();
+    }
+    glyphes
+        .iter()
+        .filter(|g| contient(b, g))
+        .map(|g| {
+            (
+                g.x.saturating_sub(r.0),
+                g.y.saturating_sub(r.1),
+                (g.x + g.largeur - 1).min(r.2).saturating_sub(r.0),
+                (g.y + g.hauteur - 1).min(r.3).saturating_sub(r.1),
+            )
+        })
+        .collect()
+}
+
+/// Le centre du glyphe `g` est dans la boîte `b`.
+fn contient(b: &BoiteEncre, g: &BoiteEncre) -> bool {
+    let (cx, cy) = (g.x + g.largeur / 2, g.y + g.hauteur / 2);
+    b.x <= cx && cx < b.x + b.largeur && b.y <= cy && cy < b.y + b.hauteur
+}
+
+/// Les garde-fous d'une boîte, sans exception nommée ni compte des pixels divergents.
+pub fn juger_boite(
+    reference: &RgbaImage,
+    candidat: &RgbaImage,
+    b: &BoiteEncre,
+    glyphes: &[BoiteEncre],
+    depuis: Option<u32>,
+) -> ResultatBoite {
+    let (largeur, hauteur) = reference.dimensions();
+    let mesure = rect(b, PAD_MESURE, largeur, hauteur);
+    let region_fond = rect(b, PAD_FOND, largeur, hauteur);
+    let (fond_r, fond_c) = (fond(reference, region_fond), fond(candidat, region_fond));
+    let k = contraste(reference, mesure, fond_r);
+    juger(
+        b,
+        &mesurer(reference, mesure, fond_r, k),
+        &mesurer(candidat, mesure, fond_c, k),
+        largeur_stricte(depuis),
+        &glyphes_dans(b, glyphes, mesure),
+    )
+}
+
+/// Le contraste de `img` dans `r` : la plus grande distance L1 au fond (1 au moins).
+fn contraste(img: &RgbaImage, r: Rect, fond: Rgba<u8>) -> f64 {
+    let k = (r.1..=r.3)
+        .flat_map(|y| (r.0..=r.2).map(move |x| (x, y)))
+        .map(|(x, y)| l1(*img.get_pixel(x, y), fond))
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    f64::from(k)
+}
+
+/// Essais au plus par boîte, et par PNG, de la contre-épreuve (temps du job `pixels`).
+pub const ESSAIS_PAR_BOITE: usize = 12;
+pub const ESSAIS_PAR_PNG: usize = 200;
+
+/// Écart moyen de couverture sous lequel deux glyphes sont la même lettre (voir [`meme_lettre`]).
+pub const MEME_LETTRE: f64 = 0.08;
+
+/// La contre-épreuve d'une lettre changée sur du texte RÉEL (fr-p3.1, ADR-009 point 2).
+#[derive(Debug, Default)]
+pub struct ContreEpreuve {
+    /// Lettres changées essayées, et combien le sas en a fait échouer.
+    pub essais: usize,
+    pub detectes: usize,
+    /// Les essais passés inaperçus, en clair.
+    pub manques: Vec<String>,
+}
+
+/// Deux glyphes peints du candidat sont-ils la MÊME lettre ? Même taille à 1 px près et, au meilleur
+/// alignement (±1 px), un écart moyen de couverture sous [`MEME_LETTRE`] : la même lettre à une
+/// autre position sous le pixel. Sinon, c'est une autre lettre.
+fn meme_lettre(img: &RgbaImage, fond: Rgba<u8>, k: f64, a: &BoiteEncre, b: &BoiteEncre) -> bool {
+    if a.largeur.abs_diff(b.largeur) > 1 || a.hauteur.abs_diff(b.hauteur) > 1 {
+        return false;
+    }
+    let couv = |x: i64, y: i64| -> f64 {
+        if x < 0 || y < 0 || x >= i64::from(img.width()) || y >= i64::from(img.height()) {
+            return 0.0;
+        }
+        (f64::from(l1(*img.get_pixel(x as u32, y as u32), fond)) / k).min(1.0)
+    };
+    let (l, h) = (
+        i64::from(a.largeur.max(b.largeur)),
+        i64::from(a.hauteur.max(b.hauteur)),
+    );
+    let meilleur = (-1..=1)
+        .flat_map(|dx| (-1..=1).map(move |dy| (dx, dy)))
+        .map(|(dx, dy)| {
+            let mut somme = 0.0;
+            for v in 0..h {
+                for u in 0..l {
+                    let ca = couv(i64::from(a.x) + u, i64::from(a.y) + v);
+                    let cb = couv(i64::from(b.x) + u + dx, i64::from(b.y) + v + dy);
+                    somme += (ca - cb).abs();
+                }
+            }
+            somme / (l * h).max(1) as f64
+        })
+        .fold(f64::INFINITY, f64::min);
+    meilleur < MEME_LETTRE
+}
+
+/// Pour chaque boîte de texte qui PASSE le sas, change une lettre du candidat (le glyphe peint `i`
+/// remplacé par un autre glyphe `j` du même passage, d'une autre forme, collé à l'abscisse de `i`
+/// sur la même ligne de base) et vérifie que la boîte échoue alors. Sur des captures réelles, c'est
+/// la contre-épreuve d'ADR-009 sur du vrai texte de 13 px, et non sur des glyphes agrandis.
+pub fn contre_epreuve(
+    reference: &RgbaImage,
+    candidat: &RgbaImage,
+    boites: &[BoiteEncre],
+    glyphes: &[BoiteEncre],
+    nommees: &[&'static Exception],
+    depuis: Option<u32>,
+) -> ContreEpreuve {
+    let mut ce = ContreEpreuve::default();
+    if glyphes.is_empty() || reference.dimensions() != candidat.dimensions() {
+        return ce;
+    }
+    let (largeur, hauteur) = reference.dimensions();
+    for b in boites.iter().filter(|b| b.categorie == Categorie::Texte) {
+        if ce.essais >= ESSAIS_PAR_PNG {
+            break;
+        }
+        let mut gl: Vec<BoiteEncre> = glyphes.iter().filter(|g| contient(b, g)).copied().collect();
+        if gl.len() < 2 {
+            continue;
+        }
+        gl.sort_by_key(|g| (g.x, g.y));
+        let mut base = juger_boite(reference, candidat, b, glyphes, depuis);
+        lever_nommees(&mut base, nommees, b);
+        if !base.ok() {
+            continue;
+        }
+        // Le travail se fait sur un extrait (la boîte et sa marge de fond) : la boîte y est jugée
+        // comme dans l'image entière, ses régions y étant rognées de la même façon.
+        let r = rect(b, PAD_FOND, largeur, hauteur);
+        let extrait = |img: &RgbaImage| {
+            image::imageops::crop_imm(img, r.0, r.1, r.2 - r.0 + 1, r.3 - r.1 + 1).to_image()
+        };
+        let (ref_e, cd_e) = (extrait(reference), extrait(candidat));
+        let local = |g: &BoiteEncre| BoiteEncre {
+            x: g.x - r.0,
+            y: g.y - r.1,
+            ..*g
+        };
+        let b_local = local(b);
+        let gl_local: Vec<BoiteEncre> = gl.iter().map(local).collect();
+        let tout = (0, 0, cd_e.width() - 1, cd_e.height() - 1);
+        let fond_c = fond(&cd_e, tout);
+        let k = contraste(&cd_e, tout, fond_c);
+        // Les essais, répartis sur le passage.
+        let pas = gl.len().div_ceil(ESSAIS_PAR_BOITE).max(1);
+        for i in (0..gl.len()).step_by(pas) {
+            if ce.essais >= ESSAIS_PAR_PNG {
+                break;
+            }
+            let gi = gl_local[i];
+            let Some(gj) = (1..gl.len())
+                .map(|d| gl_local[(i + d) % gl.len()])
+                .find(|gj| !meme_lettre(&cd_e, fond_c, k, &gi, gj))
+            else {
+                continue;
+            };
+            let mut mute = cd_e.clone();
+            for y in gi.y..gi.y + gi.hauteur {
+                for x in gi.x..gi.x + gi.largeur {
+                    mute.put_pixel(x, y, fond_c);
+                }
+            }
+            for v in 0..gj.hauteur {
+                for u in 0..gj.largeur {
+                    let (x, y) = (gi.x + u, gj.y + v);
+                    if x < mute.width() && y < mute.height() {
+                        mute.put_pixel(x, y, *cd_e.get_pixel(gj.x + u, gj.y + v));
+                    }
+                }
+            }
+            let mut res = juger_boite(&ref_e, &mute, &b_local, &gl_local, depuis);
+            lever_nommees(&mut res, nommees, b);
+            ce.essais += 1;
+            if res.ok() {
+                ce.manques.push(format!(
+                    "boîte ({},{}) {}×{} : glyphe ({},{}) {}×{} remplacé par ({},{}) {}×{} sans échec [{}]",
+                    b.x,
+                    b.y,
+                    b.largeur,
+                    b.hauteur,
+                    gi.x + r.0,
+                    gi.y + r.1,
+                    gi.largeur,
+                    gi.hauteur,
+                    gj.x + r.0,
+                    gj.y + r.1,
+                    gj.largeur,
+                    gj.hauteur,
+                    res.mesures()
+                ));
+            } else {
+                ce.detectes += 1;
+            }
+        }
+    }
+    ce
+}
+
 /// Compare `reference` et `candidat` avec les `boites` et les `ombres` déclarées, sans arrondis.
 #[cfg(test)]
 pub fn comparer(
@@ -659,15 +983,26 @@ pub fn comparer_tout(
     arrondis: &[ArrondiDeclare],
     nommees: &[&'static Exception],
 ) -> anyhow::Result<Sas> {
-    comparer_tranche(reference, candidat, boites, ombres, arrondis, nommees, None)
+    comparer_tranche(
+        reference,
+        candidat,
+        boites,
+        &[],
+        ombres,
+        arrondis,
+        nommees,
+        None,
+    )
 }
 
 /// Comme `comparer_tout`, pour une scène de la tranche `depuis` (`None` = T1) : dès T2 la largeur
 /// d'encre est stricte.
+#[allow(clippy::too_many_arguments)] // les déclarations du candidat, une par catégorie
 pub fn comparer_tranche(
     reference: &RgbaImage,
     candidat: &RgbaImage,
     boites: &[BoiteEncre],
+    glyphes: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
     arrondis: &[ArrondiDeclare],
     nommees: &[&'static Exception],
@@ -827,22 +1162,7 @@ pub fn comparer_tranche(
     let zones_hors = zones_connexes(&masque_hors, largeur, hauteur);
     let mut resultats = Vec::with_capacity(boites.len());
     for b in boites {
-        let mesure = rect(b, PAD_MESURE, largeur, hauteur);
-        let region_fond = rect(b, PAD_FOND, largeur, hauteur);
-        let (fond_r, fond_c) = (fond(reference, region_fond), fond(candidat, region_fond));
-        let k = (mesure.1..=mesure.3)
-            .flat_map(|y| (mesure.0..=mesure.2).map(move |x| (x, y)))
-            .map(|(x, y)| l1(*reference.get_pixel(x, y), fond_r))
-            .max()
-            .unwrap_or(0)
-            .max(1);
-        let k = f64::from(k);
-        let mut res = juger(
-            b,
-            &mesurer(reference, mesure, fond_r, k),
-            &mesurer(candidat, mesure, fond_c, k),
-            largeur_stricte(depuis),
-        );
+        let mut res = juger_boite(reference, candidat, b, glyphes, depuis);
         lever_nommees(&mut res, nommees, b);
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
@@ -1267,6 +1587,7 @@ pub(super) mod tests {
             reference,
             candidat,
             &detecter(candidat),
+            &[],
             &[],
             &[],
             &[],

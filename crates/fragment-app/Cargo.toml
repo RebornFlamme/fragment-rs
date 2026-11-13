@@ -26,10 +26,15 @@ path = "src/pixels/mod.rs"
 
 [features]
 # `Window::render_to_image` n'existe que sous la feature de test de GPUI.
-pixels = ["gpui-kit/test-support"]
+# ★ `bench-support` de GPUI expose `Window::rendered_scene` (lecture seule de la scène peinte) : les
+# boîtes exactes des glyphes et des icônes (fr-p3.1). Elle n'ajoute que des accesseurs et le journal du
+# profileur (incrustation de débogage masquée par défaut) : ni le rastériseur, ni l'atlas, ni le
+# cadencement des images ne changent.
+pixels = ["gpui-kit/test-support", "dep:gpui-pre"]
 
 [dependencies]
 gpui-kit.workspace = true
+gpui-pre = { workspace = true, optional = true, features = ["bench-support"] }
 anyhow.workspace = true
 # Le lecteur de scènes : schéma JSON, erreurs typées, commandes `pixels:*`, thème, PNG.
 fragment-core = { path = "../fragment-core" }
