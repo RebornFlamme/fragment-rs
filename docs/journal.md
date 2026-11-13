@@ -982,3 +982,17 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - Le fork de `vendor/gpui-base` reste maintenu chez nous, et le job `fork-patch` reste obligatoire sur chaque PR.
 - Aux prochaines montées de gpui-kit (rebase du fork), ne PAS rouvrir la question : seul l'utilisateur peut la rouvrir.
 - fr-p3-gpui-kit-0.9 fermé (montée et rebase fusionnés en #82 le 12/11 ; seule la PR amont restait).
+## Vague 14 — 13/11/2026 08:40 UTC — usage 5h 0 % (reset 13:30) / semaine 79 % (reset 18:00)
+- Reprise du chef après le clear : relancé par un message de l'orchestrateur, PAS par le réveil d'après-clear (§10 : le réveil n'a pas survécu, ou n'a pas été posé). Battement reposé : CronCreate ac52228e, minute 17, vérifié par CronList.
+- Décisions en vigueur : mode de texte par surface (règle par propriété, crochet GPUI à chiffrer avant code) ; aucune PR amont (ADR-006) ; prompt et skills de l'agent lus en local.
+- Lancés, 7 équipiers locaux en worktrees frères, arrêt à 180k tokens, beads réclamés :
+  - fr-p3.4 (Opus, reprise, `../fragment-rs-glyphes`, #105) : premier au verrou de capture ;
+  - fr-p4.1.4 (Opus, `../fragment-rs-lcd2`) : chiffrage du crochet GPUI d'abord ; s'arrête et remonte s'il faut un fork ; deuxième au verrou ;
+  - fr-t2-lecture (Sonnet, `../fragment-rs-lecture`) ;
+  - fr-t11.3 (Sonnet, `../fragment-rs-themesboot`, boot.rs) ;
+  - fr-t5.1 (Sonnet, `../fragment-rs-palette`) ;
+  - fr-t5-surlignages (Sonnet, `../fragment-rs-surlignages`) ;
+  - fr-t7-moteur (Sonnet, `../fragment-rs-moteur`).
+- Disque : 112 Go libres au lancement.
+**Rythme** : (97 − 79) ÷ 9,3 h ≈ 1,9 point par heure ; cible 90 % = 11 points.
+**Prochaine action exacte** : revue à chaque compte rendu (diff, audit à 0, CI, fusion, `bd close`, export, retrait du worktree et du dossier cible) ; places libérées → fr-t5-scenes-b et fr-t7-scenes-b APRÈS fr-p4.1.4, sinon fr-t7-surface, fr-t7-defilement, fr-t5-menu-modele.
