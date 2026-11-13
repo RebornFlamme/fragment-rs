@@ -1,0 +1,12 @@
+# Parité de fr-t7-barre-agent (fragment-ui). AgentBar.ts, registerBar.ts et bar.css n'ont pas de test
+# unitaire TS ; les cas headless suivent app/e2e/agent-bar.spec.ts (neuf tests), le SDK étant doublé
+# par le fournisseur de test de la vue chat (la barre ne parle qu'à `FournisseurBarre`).
+
+[[module]]
+ts = "app/src/ui/views/agent/bar/AgentBar.ts (l'état, le lanceur, la conversation modèle, l'écran partagé réutilisé, rendre le clavier), registerBar.ts (Bars, vueCible, la commande agent:toggle-bar, la ligne du menu Calques, les boutons du champ) et bar.css (la bande, la pastille, le champ)"
+rs = "crates/fragment-ui/src/agent_barre/{mod,modele,hote,registre,rendu}.rs, crates/fragment-ui/tests/agent_barre.rs"
+cas_source = 9
+cas_portes = 9
+cas_ajoutes = 0
+notes = """Cœur sans GPUI : BarreAgent (état repliée / ouverte, conversation modèle, écran partagé, Entrée = conversation neuve avec copy_pending et {bar, origin: {doc}}, Échap, rendre le clavier) sur deux traits, HoteBarre (le workspace : HoteWorkspace) et FournisseurBarre (le fournisseur agent) ; Barres (montage par vue, Mod+J, vue cible, masquage partout, ligne du menu). Présentation : un widget DÉCLARÉ posé par add_widget (ancre Viewport BottomLeft x=0 y=0, pass_through), la pastille et le champ occultent la souris, la bande a la largeur du pane (HoteCalques::largeur_pane, ajout minimal).
+Écarts : (1) pas d'animation d'entrée agent-bar-in (coupée dans les scènes, T7.md §5) ; (2) l'œil de la barre n'est pas sur sa propre ligne (LayerMenuChild n'en a pas) : c'est une action de la ligne « Agent » ; la ligne est la première des enfants que renvoie Barres::contribuer, le montage range les conversations après ; (3) le clic qui traverse et la pastille au pixel sont des scènes (t7-barre-agent, t7-barre-pastille), le test headless les mesure par clics et par la boîte de la bande ; (4) Échap et le calque masqué sur PDF : la part headless (Échap replie, l'actif est relâché, la barre est démontée) ; Ctrl+F du PDF répond tout de suite, c'est le montage ; (5) le champ est la vue chat hébergée en mode bar : le montage la fournit (ChampBarre), la barre la lit par poignées et par l'EtatChat (soumissions, echappe) ; (6) la puce de contexte (« article ») et l'anneau d'usage absent sont ceux de fr-t7-controles, branchés par le montage ; (7) icône panel-bottom ajoutée aux assets (Lucide, ISC) pour la ligne du menu."""

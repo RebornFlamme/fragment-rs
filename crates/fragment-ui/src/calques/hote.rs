@@ -368,6 +368,12 @@ impl HoteCalques {
         self.partage.registre.borrow().fiches.get(&el).cloned()
     }
 
+    /// La largeur du pane que les plans couvrent (px CSS), une fois mesuré : une bande « de bord à
+    /// bord » (la barre de l'agent) en a besoin, un `Viewport` n'ayant que la taille de son contenu.
+    pub fn largeur_pane(&self) -> Option<f64> {
+        self.partage.pane().map(|p| p.right - p.left)
+    }
+
     /// Le coin d'un élément relatif au coin du pane (px CSS), s'il est placé.
     pub fn coin_dans_le_pane(&self, el: ElementId) -> Option<Point> {
         self.partage.coin_dans_le_pane(el)
