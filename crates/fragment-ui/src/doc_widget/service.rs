@@ -257,14 +257,11 @@ impl DocWidgetHost for ServiceDocWidget {
     fn set_open(&self, id: &str, open: bool) {
         let change = {
             let mut e = self.etat.borrow_mut();
-            e.records
-                .iter_mut()
-                .find(|r| r.id == id)
-                .is_some_and(|r| {
-                    let change = r.ouvert != open;
-                    r.ouvert = open;
-                    change
-                })
+            e.records.iter_mut().find(|r| r.id == id).is_some_and(|r| {
+                let change = r.ouvert != open;
+                r.ouvert = open;
+                change
+            })
         };
         if change {
             self.annoncer(&EvenementService::Bascule {

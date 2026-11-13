@@ -49,7 +49,7 @@ impl Default for SceneCadre {
             replie: false,
             actif: false,
             titre: "Vue de test".to_owned(),
-            icones: vec!["message-circle".to_owned()],
+            icones: vec!["search".to_owned()],
             actions: Vec::new(),
         }
     }
@@ -192,12 +192,7 @@ pub fn cadre(cx: &App, s: &SceneCadre) -> AnyElement {
         )
     };
     let mut actions = div().flex().items_center().gap(u(cx, f.size_2_1));
-    for nom in s
-        .actions
-        .iter()
-        .map(String::as_str)
-        .chain(["chevron-up"])
-    {
+    for nom in s.actions.iter().map(String::as_str).chain(["minus"]) {
         actions = actions.child(
             div()
                 .flex()
@@ -262,6 +257,7 @@ pub fn cadre(cx: &App, s: &SceneCadre) -> AnyElement {
         u(cx, f.radius_ml),
         u(cx, largeur_bord),
     );
+    // ★ « Réduire » (minimize-2 chez Fragment) n'est pas dans le jeu embarqué : « minus » en attendant (dette d'icônes).
     // La pile d'icônes est posée AU-DESSUS de l'en-tête, à sa place (11 px de marge, centre à 19).
     let pile_posee = div()
         .absolute()

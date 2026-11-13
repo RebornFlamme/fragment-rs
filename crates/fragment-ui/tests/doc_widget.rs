@@ -12,7 +12,9 @@ use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use fragment_core::{App, AppCoeur, DocumentKey, ContexteVue, ItemId, NouvelleFeuille, View, ViewState};
+use fragment_core::{
+    App, AppCoeur, ContexteVue, DocumentKey, ItemId, NouvelleFeuille, View, ViewState,
+};
 use fragment_layers::overlay_host::Disposer;
 use fragment_layers::types::{CompactInfo, GutterSide, LeafId};
 use fragment_layers::widget_layer::{WidgetAnchor, WidgetBox, WidgetHandle};
@@ -86,6 +88,8 @@ impl View for VueDeTest {
 
 // ─── Le faux handle de widget ───
 
+type Rappel<T> = Box<dyn Fn(T)>;
+
 #[derive(Default)]
 struct FauxHandle {
     ancre: Cell<Option<WidgetAnchor>>,
@@ -96,9 +100,9 @@ struct FauxHandle {
     fits: Cell<bool>,
     retire: Cell<bool>,
     nb_set_compact: Cell<u32>,
-    cb_actif: RefCell<Vec<Box<dyn Fn(bool)>>>,
-    cb_room: RefCell<Vec<Box<dyn Fn(Option<f64>)>>>,
-    cb_fit: RefCell<Vec<Box<dyn Fn(bool)>>>,
+    cb_actif: RefCell<Vec<Rappel<bool>>>,
+    cb_room: RefCell<Vec<Rappel<Option<f64>>>>,
+    cb_fit: RefCell<Vec<Rappel<bool>>>,
 }
 
 impl FauxHandle {
@@ -199,9 +203,9 @@ struct Decor {
 fn decor() -> Decor {
     let app = AppCoeur::new();
     let vue = Rc::new(VueEtat::default());
-    *vue.icones.borrow_mut() = vec!["🙂".to_owned(), "message-circle".to_owned()];
+    *vue.icones.borrow_mut() = vec!["🙂".to_owned(), "search".to_owned()];
     let etat = vue.clone();
-    app.view_registry().register(
+    let _ = app.view_registry().register(
         TYPE_VUE,
         Rc::new(move |_: &ContexteVue| Box::new(VueDeTest { etat: etat.clone() }) as Box<dyn View>),
         "test",
@@ -225,7 +229,12 @@ fn widget_nu(d: &Decor, from: usize, to: usize) -> (Rc<DocWidget>, Rc<FauxHandle
     widget(d, from, to, None)
 }
 
-fn widget(d: &Decor, from: usize, to: usize, taille: Option<(f64, f64)>) -> (Rc<DocWidget>, Rc<FauxHandle>) {
+fn widget(
+    d: &Decor,
+    from: usize,
+    to: usize,
+    taille: Option<(f64, f64)>,
+) -> (Rc<DocWidget>, Rc<FauxHandle>) {
     let dw = DocWidget::new(
         d.app.workspace().clone(),
         OptionsCadre {
@@ -235,7 +244,12 @@ fn widget(d: &Decor, from: usize, to: usize, taille: Option<(f64, f64)>) -> (Rc<
         },
     );
     dw.poser_id("dw-1");
-    let placement = DocWidgetPlacement { id: "dw-1".to_owned(), file: NOTE.to_owned(), from, to };
+    let placement = DocWidgetPlacement {
+        id: "dw-1".to_owned(),
+        file: NOTE.to_owned(),
+        from,
+        to,
+    };
     let leaf = dw.ouvrir_vue(
         ViewState::new(TYPE_VUE),
         OptionsOuverture {
@@ -283,27 +297,48 @@ fn ouverte_par_le_service_ancree_au_passage_dans_la_marge_droite() {
         .unwrap();
     let liste = s.list(NOTE);
     assert_eq!(liste.len(), 1);
-    assert_eq!((liste[0].id.as_str(), liste[0].from, liste[0].to), (id.as_str(), Some(12), Some(18)));
+    assert_eq!(
+        (liste[0].id.as_str(), liste[0].from, liste[0].to),
+        (id.as_str(), Some(12), Some(18))
+    );
     let r = s.enregistrement(&id).unwrap();
     assert!(r.ouvert, "une vue qu'on vient de demander se montre");
-    assert!(matches!(r.anchor, WidgetAnchor::Gutter { side: GutterSide::Right, pos: 12, to: Some(18), .. }));
+    assert!(matches!(
+        r.anchor,
+        WidgetAnchor::Gutter {
+            side: GutterSide::Right,
+            pos: 12,
+            to: Some(18),
+            ..
+        }
+    ));
     assert!(s.list("autre.md").is_empty());
 }
 
 #[test]
 fn ouvrir_sans_document_hote_ouvert_rend_rien() {
     let s = service(false, Rc::new(Cell::new(0.0)));
-    assert_eq!(s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 0, 3)), None);
+    assert_eq!(
+        s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 0, 3)),
+        None
+    );
     assert!(s.list(NOTE).is_empty());
 }
 
 #[test]
 fn le_passage_suit_les_editions_dans_list() {
     let s = service(true, Rc::new(Cell::new(0.0)));
-    let id = s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 12, 18)).unwrap();
+    let id = s
+        .open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 12, 18))
+        .unwrap();
     // Le widget monté tient l'ancre remappée : « Une ligne de plus.\n\n » (19 car.) au-dessus,
     // puis une frappe de 3 car. dans le mot.
-    s.suivre_ancre(&id, || WidgetAnchor::Gutter { side: GutterSide::Right, pos: 31, to: Some(40), dy: 0.0 });
+    s.suivre_ancre(&id, || WidgetAnchor::Gutter {
+        side: GutterSide::Right,
+        pos: 31,
+        to: Some(40),
+        dy: 0.0,
+    });
     let e = &s.list(NOTE)[0];
     assert_eq!((e.from, e.to), (Some(31), Some(40)));
     // Démonté (hors de la bande) : le record garde sa dernière ancre.
@@ -317,13 +352,18 @@ fn fermer_par_le_service_une_tombe_le_widget_part() {
     let vus = Rc::new(RefCell::new(Vec::new()));
     let v = vus.clone();
     s.on(move |e| v.borrow_mut().push(e.clone()));
-    let id = s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 1, 4)).unwrap();
+    let id = s
+        .open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 1, 4))
+        .unwrap();
     s.close(&id);
     assert!(s.enregistrement(&id).is_none());
     assert!(s.list(NOTE).is_empty());
     assert_eq!(
         *vus.borrow(),
-        vec![EvenementService::Ouvert(id.clone()), EvenementService::Ferme(id)]
+        vec![
+            EvenementService::Ouvert(id.clone()),
+            EvenementService::Ferme(id)
+        ]
     );
 }
 
@@ -332,7 +372,9 @@ fn set_open_bascule_et_n_annonce_que_le_changement() {
     let s = service(true, Rc::new(Cell::new(0.0)));
     let vus = Rc::new(RefCell::new(Vec::new()));
     let v = vus.clone();
-    let id = s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 1, 4)).unwrap();
+    let id = s
+        .open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 1, 4))
+        .unwrap();
     s.on(move |e| v.borrow_mut().push(e.clone()));
     s.set_open(&id, true); // déjà ouvert : rien
     s.set_open(&id, false);
@@ -342,7 +384,10 @@ fn set_open_bascule_et_n_annonce_que_le_changement() {
     assert_eq!(
         *vus.borrow(),
         vec![
-            EvenementService::Bascule { id: id.clone(), ouvert: false },
+            EvenementService::Bascule {
+                id: id.clone(),
+                ouvert: false
+            },
             EvenementService::Revele(id),
         ]
     );
@@ -353,7 +398,10 @@ fn le_focus_d_une_creation_n_est_valable_que_deux_secondes() {
     let mut e = Map::new();
     e.insert("focus".to_owned(), json!(true));
     e.insert("draft".to_owned(), json!("Bonjour"));
-    let a = Attente { e_state: e, ne_ms: 1000.0 };
+    let a = Attente {
+        e_state: e,
+        ne_ms: 1000.0,
+    };
     // À l'écran (Ask, Entourer) : la construction suit la création de quelques ms.
     let tot = etat_d_ouverture(Some(&a), 1000.0 + 50.0).unwrap();
     assert_eq!(tot.get("focus"), Some(&json!(true)));
@@ -392,14 +440,22 @@ fn ouverte_par_le_service_vue_nue_en_marge_ouverte_son_passage_surligne_au_survo
     assert_eq!(dw.titre(), "Vue de test");
     assert_eq!(
         titres(&dw),
-        ["Ouvrir à droite", "Ouvrir dans un nouvel onglet", "Ouvrir dans le panneau", "Réduire"]
+        [
+            "Ouvrir à droite",
+            "Ouvrir dans un nouvel onglet",
+            "Ouvrir dans le panneau",
+            "Réduire"
+        ]
     );
     assert!(dw.actions_entete().iter().all(|a| a.icone != "x"));
     // Aucun lien dessiné, aucun passage surligné tant que rien ne survole.
     assert!(plages(&d).is_empty());
     // Survol : le passage (et lui seul) se surligne, à la plage de l'ancre.
     dw.poser_survol(true);
-    assert_eq!(plages(&d), vec![(12, 18, "doc-widget-passage is-passage is-hover".to_owned())]);
+    assert_eq!(
+        plages(&d),
+        vec![(12, 18, "doc-widget-passage is-passage is-hover".to_owned())]
+    );
     dw.poser_survol(false);
     assert!(plages(&d).is_empty());
     // La vue a reçu son placement (état éphémère d'ouverture).
@@ -408,7 +464,10 @@ fn ouverte_par_le_service_vue_nue_en_marge_ouverte_son_passage_surligne_au_survo
     assert_eq!((p["from"].as_u64(), p["to"].as_u64()), (Some(12), Some(18)));
     // Nu : activation par la vue hôte (non manuelle) ; sa feuille est confiée à l'actif.
     assert_eq!(h.manuel.get(), Some(false));
-    assert_eq!(h.feuille.get(), dw.leaf().map(fragment_ui::doc_widget::cadre::leaf_id));
+    assert_eq!(
+        h.feuille.get(),
+        dw.leaf().map(fragment_ui::doc_widget::cadre::leaf_id)
+    );
 }
 
 #[test]
@@ -422,7 +481,11 @@ fn la_vue_garde_ses_actions_de_widget_et_ouvrir_dans_le_panneau_la_met_dans_le_d
     assert_eq!(titres(&dw), ["Ouvrir dans le panneau"]);
     assert!(dw.actions_entete().iter().all(|a| a.cle != "collapse"));
     dw.poser_crochets(Crochets::default());
-    let dock = dw.actions_entete().into_iter().find(|a| a.cle == "dock").unwrap();
+    let dock = dw
+        .actions_entete()
+        .into_iter()
+        .find(|a| a.cle == "dock")
+        .unwrap();
     (dock.action)();
     let w = d.app.workspace().borrow();
     let droite = w.right_split();
@@ -458,7 +521,14 @@ fn supprimer_est_clic_droit_fermer_le_plugin_supprime_le_record() {
     (fermer.action)();
     assert_eq!(ferme.get(), 1);
     assert!(dw.est_ferme() && h.retire.get());
-    assert!(d.app.workspace().borrow().get_leaves_of_type(TYPE_VUE).is_empty(), "la feuille hébergée est détachée");
+    assert!(
+        d.app
+            .workspace()
+            .borrow()
+            .get_leaves_of_type(TYPE_VUE)
+            .is_empty(),
+        "la feuille hébergée est détachée"
+    );
     // Fermer deux fois ne ferme qu'une fois.
     dw.fermer();
     assert_eq!(ferme.get(), 1);
@@ -487,20 +557,32 @@ fn ouvrir_a_droite_une_nouvelle_pile_du_centre_ouvrir_dans_un_nouvel_onglet_la_p
     {
         let w = d.app.workspace().borrow();
         assert_eq!(w.arbre().children(racine).len(), piles_avant + 1);
-        let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
+        let l = w
+            .get_leaves_of_type(TYPE_VUE)
+            .into_iter()
+            .find(|&l| w.arbre().parent(l).is_some())
+            .unwrap();
         assert_eq!(w.active_leaf(), Some(l), "la nouvelle vue est active");
         assert_eq!(w.arbre().get_root(l), racine);
     }
     // Retour à la note, puis « nouvel onglet » : dans SA pile.
     {
         let mut w = d.app.workspace().borrow_mut();
-        let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
+        let l = w
+            .get_leaves_of_type(TYPE_VUE)
+            .into_iter()
+            .find(|&l| w.arbre().parent(l).is_some())
+            .unwrap();
         w.detach(l);
         w.set_active_leaf(Some(d.note));
     }
     dw.ouvrir_ailleurs(Ailleurs::Onglet);
     let w = d.app.workspace().borrow();
-    let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
+    let l = w
+        .get_leaves_of_type(TYPE_VUE)
+        .into_iter()
+        .find(|&l| w.arbre().parent(l).is_some())
+        .unwrap();
     assert_eq!(w.arbre().parent(l), w.arbre().parent(d.note));
     assert_eq!(w.active_leaf(), Some(l));
 }
@@ -514,7 +596,13 @@ fn ouvrir_ailleurs_emporte_l_etat_que_la_vue_veut_voir_suivre() {
         ..Crochets::default()
     });
     dw.ouvrir_ailleurs(Ailleurs::Panneau);
-    assert!(d.vue.etats.borrow().iter().any(|e| e.get("cluster") == Some(&json!("g1"))));
+    assert!(
+        d.vue
+            .etats
+            .borrow()
+            .iter()
+            .any(|e| e.get("cluster") == Some(&json!("g1")))
+    );
 }
 
 #[test]
@@ -525,7 +613,10 @@ fn actif_le_passage_reste_surligne_plus_marque_relache_il_part() {
     assert!(dw.est_actif());
     // Le pointeur est parti : l'actif garde le passage, plus marqué.
     dw.poser_survol(false);
-    assert_eq!(plages(&d), vec![(12, 18, "doc-widget-passage is-passage is-active".to_owned())]);
+    assert_eq!(
+        plages(&d),
+        vec![(12, 18, "doc-widget-passage is-passage is-active".to_owned())]
+    );
     // Un clic dans le texte : l'actif est relâché, le surlignage part.
     h.set_active(false);
     assert!(plages(&d).is_empty());
@@ -536,7 +627,11 @@ fn flottant_le_bouclier_ne_part_qu_a_l_activation_manuelle() {
     let d = decor();
     let (dw, h) = widget(&d, 12, 18, Some((420.0, 320.0)));
     assert!(!dw.est_nu());
-    assert_eq!(h.manuel.get(), Some(true), "un glisser du bouclier n'active pas");
+    assert_eq!(
+        h.manuel.get(),
+        Some(true),
+        "un glisser du bouclier n'active pas"
+    );
     assert!(dw.a_un_bouclier());
     // Un clic sans bouger active.
     dw.bouclier_appui();
@@ -551,17 +646,38 @@ fn flottant_le_bouclier_ne_part_qu_a_l_activation_manuelle() {
 fn flottant_un_glisser_deplace_et_ne_signale_qu_a_la_fin() {
     let d = decor();
     let (dw, h) = widget(&d, 12, 18, Some((420.0, 320.0)));
-    h.set_anchor(WidgetAnchor::Viewport { x: 200.0, y: 200.0, from: None });
+    h.set_anchor(WidgetAnchor::Viewport {
+        x: 200.0,
+        y: 200.0,
+        from: None,
+    });
     let vu = Rc::new(RefCell::new(Vec::new()));
     let v = vu.clone();
     dw.on_moved(move |a| v.borrow_mut().push(a));
     dw.bouclier_appui();
     dw.bouclier_glisse(2.0, 1.0); // sous le seuil : rien
-    assert_eq!(h.get_anchor(), WidgetAnchor::Viewport { x: 200.0, y: 200.0, from: None });
+    assert_eq!(
+        h.get_anchor(),
+        WidgetAnchor::Viewport {
+            x: 200.0,
+            y: 200.0,
+            from: None
+        }
+    );
     dw.bouclier_glisse(30.0, 10.0);
     dw.bouclier_glisse(40.0, 20.0);
-    assert_eq!(h.get_anchor(), WidgetAnchor::Viewport { x: 240.0, y: 220.0, from: None });
-    assert!(vu.borrow().is_empty(), "une écriture par geste, pas par mouvement");
+    assert_eq!(
+        h.get_anchor(),
+        WidgetAnchor::Viewport {
+            x: 240.0,
+            y: 220.0,
+            from: None
+        }
+    );
+    assert!(
+        vu.borrow().is_empty(),
+        "une écriture par geste, pas par mouvement"
+    );
     dw.bouclier_relache();
     assert_eq!(vu.borrow().len(), 1);
     assert!(!h.is_active(), "un glisser n'active pas");
@@ -569,10 +685,20 @@ fn flottant_un_glisser_deplace_et_ne_signale_qu_a_la_fin() {
 
 #[test]
 fn en_marge_le_x_appartient_a_la_bande_un_glisser_ne_change_que_dy() {
-    let a = WidgetAnchor::Gutter { side: GutterSide::Right, pos: 3, to: Some(9), dy: 5.0 };
+    let a = WidgetAnchor::Gutter {
+        side: GutterSide::Right,
+        pos: 3,
+        to: Some(9),
+        dy: 5.0,
+    };
     assert_eq!(
         DocWidget::decaler(a, 40.0, 12.0),
-        WidgetAnchor::Gutter { side: GutterSide::Right, pos: 3, to: Some(9), dy: 17.0 }
+        WidgetAnchor::Gutter {
+            side: GutterSide::Right,
+            pos: 3,
+            to: Some(9),
+            dy: 17.0
+        }
     );
 }
 
@@ -581,17 +707,27 @@ fn replie_le_widget_montre_les_icones_de_sa_vue_et_suit_update_header() {
     let d = decor();
     let (dw, h) = widget_nu(&d, 12, 18);
     // « Réduire » par le menu : replié, la marge reçoit la forme réduite (icônes de la vue).
-    let reduire = dw.menu_contextuel().into_iter().find(|e| e.titre == "Réduire").unwrap();
+    let reduire = dw
+        .menu_contextuel()
+        .into_iter()
+        .find(|e| e.titre == "Réduire")
+        .unwrap();
     (reduire.action)();
     dw.tour();
     assert!(dw.est_replie());
-    assert_eq!(h.icones_compactes(), Some(vec!["🙂".to_owned(), "message-circle".to_owned()]));
+    assert_eq!(
+        h.icones_compactes(),
+        Some(vec!["🙂".to_owned(), "search".to_owned()])
+    );
     let textes: Vec<_> = dw.pastilles().iter().map(Pastille::texte).collect();
     assert_eq!(textes, ["🙂", ""]);
-    assert!(matches!(dw.pastilles()[1], Pastille::Icone(ref n) if n == "message-circle"));
+    assert!(matches!(dw.pastilles()[1], Pastille::Icone(ref n) if n == "search"));
     // La vue change ses icônes : updateHeader, le widget replié suit.
     *d.vue.icones.borrow_mut() = ["A", "B", "C", "D", "E"].map(String::from).to_vec();
-    d.app.workspace().borrow_mut().update_header(dw.leaf().unwrap());
+    d.app
+        .workspace()
+        .borrow_mut()
+        .update_header(dw.leaf().unwrap());
     dw.tour();
     assert_eq!(h.icones_compactes().map(|v| v.len()), Some(5));
     let textes: Vec<_> = dw.pastilles().iter().map(Pastille::texte).collect();
@@ -604,7 +740,10 @@ fn la_forme_reduite_garde_son_identite_tant_que_rien_ne_change() {
     let (dw, h) = widget_nu(&d, 12, 18);
     dw.replier();
     let avant = h.nb_set_compact.get();
-    d.app.workspace().borrow_mut().update_header(dw.leaf().unwrap());
+    d.app
+        .workspace()
+        .borrow_mut()
+        .update_header(dw.leaf().unwrap());
     dw.tour(); // titre et icônes identiques : le même objet, rien de refait
     assert_eq!(h.nb_set_compact.get(), avant);
 }
@@ -625,7 +764,10 @@ fn replie_la_forme_reduite_porte_son_menu_son_survol_et_son_document() {
     assert!(plages(&d).is_empty());
     // Le menu de sa ligne (⋮) : les ouvertures, puis Fermer, en dernier et en danger.
     let menu = (info.menu.as_ref().unwrap())();
-    let t: Vec<_> = menu.iter().map(|e| (e.titre.as_str(), e.section.as_str())).collect();
+    let t: Vec<_> = menu
+        .iter()
+        .map(|e| (e.titre.as_str(), e.section.as_str()))
+        .collect();
     assert_eq!(
         t,
         [
@@ -655,7 +797,10 @@ fn reveal_de_la_forme_reduite_deplie_active_et_previent_le_plugin() {
     assert!(revele.get() && dw.est_ouvert() && !dw.est_replie());
     assert_eq!(*bascules.borrow(), vec![true]);
     assert!(h.is_active());
-    assert!(h.compact.borrow().is_none(), "ouvert : plus de forme réduite");
+    assert!(
+        h.compact.borrow().is_none(),
+        "ouvert : plus de forme réduite"
+    );
     // Le focus de la vue vient au tour (après l'ouverture).
     assert_eq!(d.vue.focus.get(), 0);
     dw.tour();
@@ -668,7 +813,10 @@ fn reduire_relache_l_actif_apres_le_geste_pas_pendant() {
     let (dw, h) = widget_nu(&d, 12, 18);
     h.set_active(true);
     dw.replier();
-    assert!(h.is_active(), "le clic sur Réduire ne doit pas être ré-activé : le relâché attend le tour");
+    assert!(
+        h.is_active(),
+        "le clic sur Réduire ne doit pas être ré-activé : le relâché attend le tour"
+    );
     dw.tour();
     assert!(!h.is_active());
 }
@@ -692,9 +840,15 @@ fn la_place_deux_vues_proches_la_premiere_passe_en_pastille_un_clic_la_rend_comp
 
 #[test]
 fn la_place_infinie_et_absente_se_codent_sans_perte() {
-    assert_eq!(place_de_l_etat(&etat_de_place(Some(f64::INFINITY))), Some(Some(f64::INFINITY)));
+    assert_eq!(
+        place_de_l_etat(&etat_de_place(Some(f64::INFINITY))),
+        Some(Some(f64::INFINITY))
+    );
     assert_eq!(place_de_l_etat(&etat_de_place(None)), Some(None));
-    assert_eq!(place_de_l_etat(&etat_de_place(Some(120.0))), Some(Some(120.0)));
+    assert_eq!(
+        place_de_l_etat(&etat_de_place(Some(120.0))),
+        Some(Some(120.0))
+    );
     assert_eq!(place_de_l_etat(&json!({ "focus": true })), None);
 }
 
@@ -709,7 +863,10 @@ fn sans_marge_pour_la_vue_entiere_le_widget_se_montre_replie_sans_toucher_a_la_b
     assert!(dw.est_replie());
     assert!(dw.est_ouvert(), "la bascule de l'utilisateur est intacte");
     assert_eq!(bascules.get(), 0);
-    assert!(h.compact.borrow().is_some(), "la forme réduite tient dans la marge étroite");
+    assert!(
+        h.compact.borrow().is_some(),
+        "la forme réduite tient dans la marge étroite"
+    );
     assert_eq!(dw.infobulle_icones(), "Vue de test");
     // La fenêtre s'élargit : le widget redevient entier.
     h.emettre_fit(true);
@@ -731,7 +888,9 @@ fn masque_par_son_calque_le_passage_n_est_plus_surligne() {
 fn le_service_et_le_widget_ensemble_ouvrir_replier_fermer() {
     let d = decor();
     let s = service(true, Rc::new(Cell::new(0.0)));
-    let id = s.open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 12, 18)).unwrap();
+    let id = s
+        .open(DocWidgetOpen::new(ViewState::new(TYPE_VUE), NOTE, 12, 18))
+        .unwrap();
     let (dw, _h) = widget_nu(&d, 12, 18);
     let s2 = s.clone();
     let i2 = id.clone();
@@ -740,7 +899,10 @@ fn le_service_et_le_widget_ensemble_ouvrir_replier_fermer() {
     let i3 = id.clone();
     dw.on_closed(move || s3.close(&i3));
     dw.replier();
-    assert!(!s.enregistrement(&id).unwrap().ouvert, "la bascule est persistée");
+    assert!(
+        !s.enregistrement(&id).unwrap().ouvert,
+        "la bascule est persistée"
+    );
     dw.fermer();
     assert!(s.enregistrement(&id).is_none(), "fermer = le record part");
 }
@@ -756,13 +918,23 @@ impl PlacementWidget for Places {
         side == GutterSide::Left
     }
     fn document_anchor_at(&self) -> Option<WidgetAnchor> {
-        Some(WidgetAnchor::Document { pos: 12, to: None, dx: 4.0, dy: 2.0 })
+        Some(WidgetAnchor::Document {
+            pos: 12,
+            to: None,
+            dx: 4.0,
+            dy: 2.0,
+        })
     }
     fn viewport_anchor_at(&self) -> Option<WidgetAnchor> {
         Some(WidgetAnchor::viewport(10.0, 20.0))
     }
     fn gutter_anchor_at(&self, side: GutterSide) -> Option<WidgetAnchor> {
-        Some(WidgetAnchor::Gutter { side, pos: 12, to: None, dy: 0.0 })
+        Some(WidgetAnchor::Gutter {
+            side,
+            pos: 12,
+            to: None,
+            dy: 0.0,
+        })
     }
 }
 
@@ -775,15 +947,33 @@ fn le_menu_clic_droit_propose_les_places_qu_on_n_occupe_pas_et_qui_tiennent() {
     let t: Vec<_> = dw.menu_contextuel().into_iter().map(|e| e.titre).collect();
     assert_eq!(
         t,
-        ["Ancrer dans le document", "Détacher du document", "Placer dans la marge gauche", "Réduire", "Fermer"]
+        [
+            "Ancrer dans le document",
+            "Détacher du document",
+            "Placer dans la marge gauche",
+            "Réduire",
+            "Fermer"
+        ]
     );
     // « Ancrer dans le document » : le passage garde sa LONGUEUR depuis le nouveau début.
     let vu = Rc::new(RefCell::new(Vec::new()));
     let v = vu.clone();
     dw.on_moved(move |a| v.borrow_mut().push(a));
-    let ancrer = dw.menu_contextuel().into_iter().find(|e| e.titre == "Ancrer dans le document").unwrap();
+    let ancrer = dw
+        .menu_contextuel()
+        .into_iter()
+        .find(|e| e.titre == "Ancrer dans le document")
+        .unwrap();
     (ancrer.action)();
-    assert_eq!(h.get_anchor(), WidgetAnchor::Document { pos: 12, to: Some(18), dx: 4.0, dy: 2.0 });
+    assert_eq!(
+        h.get_anchor(),
+        WidgetAnchor::Document {
+            pos: 12,
+            to: Some(18),
+            dx: 4.0,
+            dy: 2.0
+        }
+    );
     assert_eq!(vu.borrow().len(), 1);
 }
 

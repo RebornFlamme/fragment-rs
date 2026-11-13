@@ -76,6 +76,9 @@ impl std::fmt::Debug for ActionEntete {
     }
 }
 
+/// Les titre et icônes dont la forme réduite a été posée, avec cette forme.
+type InfoPosee = ((String, Vec<String>), Rc<CompactInfo>);
+
 struct ActionVue {
     icone: String,
     titre: String,
@@ -160,7 +163,7 @@ struct Etat {
     taille: (f64, f64),
     derniere_room: Option<Option<f64>>,
     offs: Vec<Disposer>,
-    info: Option<((String, Vec<String>), Rc<CompactInfo>)>,
+    info: Option<InfoPosee>,
     tour: Tour,
     actions_vue: Vec<ActionVue>,
     glisse: Option<WidgetAnchor>,
@@ -319,7 +322,11 @@ impl DocWidget {
         };
         w.leaf(leaf).map_or((String::new(), Vec::new(), None), |l| {
             let v = l.view();
-            (v.get_display_text(), v.get_icons(), v.get_document().map(DocumentKey::into_string))
+            (
+                v.get_display_text(),
+                v.get_icons(),
+                v.get_document().map(DocumentKey::into_string),
+            )
         })
     }
 
@@ -343,7 +350,11 @@ impl DocWidget {
                 .and_then(|w| w.leaf(l).map(|f| f.get_view_type() == TYPE_VUE_GRAPPE))
                 .unwrap_or(false)
         });
-        if est_grappe { Motif::Bulles } else { Motif::Pile }
+        if est_grappe {
+            Motif::Bulles
+        } else {
+            Motif::Pile
+        }
     }
 
     /// Les pastilles à peindre (replié comme ouvert : UN seul élément, au même endroit).
@@ -369,7 +380,11 @@ impl DocWidget {
 
     /// L'infobulle des icônes : replié, le nom de la vue ; ouvert, « Réduire ».
     pub fn infobulle_icones(&self) -> String {
-        if self.est_replie() { self.titre() } else { "Réduire".to_owned() }
+        if self.est_replie() {
+            self.titre()
+        } else {
+            "Réduire".to_owned()
+        }
     }
 
     // ─── Ouverture de la vue ───
@@ -411,7 +426,10 @@ impl DocWidget {
         if let (Some(ref_), Ok(w)) = (abonnement, self.ws.try_borrow()) {
             let events = w.leaf(leaf).map(|l| l.events().clone());
             if let Some(ev) = events {
-                self.etat.borrow_mut().offs.push(Box::new(move || ev.offref(&ref_)));
+                self.etat
+                    .borrow_mut()
+                    .offs
+                    .push(Box::new(move || ev.offref(&ref_)));
             }
         }
         self.rendre_icones();
@@ -450,7 +468,12 @@ impl DocWidget {
             action: a.action.clone(),
         };
         let e = self.etat.borrow();
-        let mut v: Vec<ActionEntete> = e.actions_vue.iter().filter(|a| a.avant_montage).map(vue).collect();
+        let mut v: Vec<ActionEntete> = e
+            .actions_vue
+            .iter()
+            .filter(|a| a.avant_montage)
+            .map(vue)
+            .collect();
         drop(e);
         let mut reduire = None;
         for a in DocWidgetAction::TOUTES {
@@ -460,10 +483,21 @@ impl DocWidget {
             let (icone, titre) = a.icone_et_titre();
             let moi = self.moi.clone();
             let faire: Rc<dyn Fn()> = match a {
-                DocWidgetAction::Split => Rc::new(move || moi.upgrade().map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Droite))),
-                DocWidgetAction::Tab => Rc::new(move || moi.upgrade().map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Onglet))),
-                DocWidgetAction::Dock => Rc::new(move || moi.upgrade().map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Panneau))),
-                DocWidgetAction::Collapse => Rc::new(move || moi.upgrade().map_or((), |d| d.replier())),
+                DocWidgetAction::Split => Rc::new(move || {
+                    moi.upgrade()
+                        .map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Droite))
+                }),
+                DocWidgetAction::Tab => Rc::new(move || {
+                    moi.upgrade()
+                        .map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Onglet))
+                }),
+                DocWidgetAction::Dock => Rc::new(move || {
+                    moi.upgrade()
+                        .map_or((), |d| d.ouvrir_ailleurs(Ailleurs::Panneau))
+                }),
+                DocWidgetAction::Collapse => {
+                    Rc::new(move || moi.upgrade().map_or((), |d| d.replier()))
+                }
             };
             let entree = ActionEntete {
                 cle: a.cle().to_owned(),
@@ -489,14 +523,19 @@ impl DocWidget {
     pub fn ouvrir_ailleurs(&self, ou: Ailleurs) {
         let Some(source) = self.leaf() else { return };
         let suit = self.crochets.borrow().transfert.clone().and_then(|f| f());
-        let Ok(mut w) = self.ws.try_borrow_mut() else { return };
+        let Ok(mut w) = self.ws.try_borrow_mut() else {
+            return;
+        };
         let cible = match ou {
             Ailleurs::Panneau => w.get_right_leaf(),
             Ailleurs::Droite => w.get_leaf(NouvelleFeuille::Split),
             Ailleurs::Onglet => w.get_leaf(NouvelleFeuille::Onglet),
         };
         let Ok(cible) = cible else { return };
-        let Some(vs) = w.leaf(source).map(|l| ViewState { active: Some(true), ..l.get_view_state() }) else {
+        let Some(vs) = w.leaf(source).map(|l| ViewState {
+            active: Some(true),
+            ..l.get_view_state()
+        }) else {
             return;
         };
         w.set_view_state(cible, vs, suit);
@@ -558,7 +597,11 @@ impl DocWidget {
 
     /// Le clic sur ses icônes : ouvre si replié, replie sinon.
     pub fn clic_icones(&self) {
-        if self.est_replie() { self.deplier() } else { self.replier() }
+        if self.est_replie() {
+            self.deplier()
+        } else {
+            self.replier()
+        }
     }
 
     /// La forme réduite déclarée à la marge : UN objet stable tant que le titre et les icônes ne
@@ -595,7 +638,9 @@ impl DocWidget {
         info.doc = Some(Rc::new(move || m.upgrade().and_then(|d| d.lire_vue().2)));
         info.groupable = !self.opts.non_groupable;
         let m = moi;
-        info.menu = Some(Rc::new(move || m.upgrade().map_or_else(Vec::new, |d| d.menu_reduit())));
+        info.menu = Some(Rc::new(move || {
+            m.upgrade().map_or_else(Vec::new, |d| d.menu_reduit())
+        }));
         let info = Rc::new(info);
         self.etat.borrow_mut().info = Some((cle, info.clone()));
         info
@@ -627,19 +672,34 @@ impl DocWidget {
     /// une grappe) ou qu'il est l'actif de la vue (plus marqué). Le passage est la PLAGE de l'ancre,
     /// tenue et remappée par le cœur.
     pub fn surligner(&self) {
-        let Some(hl) = self.opts.surlignages.clone() else { return };
+        let Some(hl) = self.opts.surlignages.clone() else {
+            return;
+        };
         let (voulu, cle) = {
             let e = self.etat.borrow();
-            (!e.closed && !e.hidden && (e.active || e.survol || e.survol_ailleurs), self.cle_surlignage_depuis(&e))
+            (
+                !e.closed && !e.hidden && (e.active || e.survol || e.survol_ailleurs),
+                self.cle_surlignage_depuis(&e),
+            )
         };
         let plage = match self.ancre() {
-            Some(WidgetAnchor::Document { pos, to: Some(to), .. } | WidgetAnchor::Gutter { pos, to: Some(to), .. }) if to > pos => Some((pos, to)),
+            Some(
+                WidgetAnchor::Document {
+                    pos, to: Some(to), ..
+                }
+                | WidgetAnchor::Gutter {
+                    pos, to: Some(to), ..
+                },
+            ) if to > pos => Some((pos, to)),
             _ => None,
         };
         let mut hl = hl.borrow_mut();
         match (voulu, plage) {
             (true, Some((from, to))) => {
-                hl.set(&cle, vec![HighlightRange::with_cls(from, to, self.classe_passage())]);
+                hl.set(
+                    &cle,
+                    vec![HighlightRange::with_cls(from, to, self.classe_passage())],
+                );
             }
             _ => hl.delete(&cle),
         }
@@ -819,9 +879,33 @@ impl DocWidget {
     /// le X appartient à la bande, seul `dy` bouge (le widget ne peut que monter ou descendre).
     pub fn decaler(depart: WidgetAnchor, dx: f64, dy: f64) -> WidgetAnchor {
         match depart {
-            WidgetAnchor::Viewport { x, y, from } => WidgetAnchor::Viewport { x: x + dx, y: y + dy, from },
-            WidgetAnchor::Document { pos, to, dx: ax, dy: ay } => WidgetAnchor::Document { pos, to, dx: ax + dx, dy: ay + dy },
-            WidgetAnchor::Gutter { side, pos, to, dy: ay } => WidgetAnchor::Gutter { side, pos, to, dy: ay + dy },
+            WidgetAnchor::Viewport { x, y, from } => WidgetAnchor::Viewport {
+                x: x + dx,
+                y: y + dy,
+                from,
+            },
+            WidgetAnchor::Document {
+                pos,
+                to,
+                dx: ax,
+                dy: ay,
+            } => WidgetAnchor::Document {
+                pos,
+                to,
+                dx: ax + dx,
+                dy: ay + dy,
+            },
+            WidgetAnchor::Gutter {
+                side,
+                pos,
+                to,
+                dy: ay,
+            } => WidgetAnchor::Gutter {
+                side,
+                pos,
+                to,
+                dy: ay + dy,
+            },
         }
     }
 
@@ -831,9 +915,19 @@ impl DocWidget {
         let Some(h) = self.handle() else { return };
         let actuelle = h.get_anchor();
         let suivante = match (suivante, actuelle) {
-            (a, WidgetAnchor::Document { pos: p, to: Some(t), .. } | WidgetAnchor::Gutter { pos: p, to: Some(t), .. })
-                if a.suit_le_texte() && a.span_fin().is_none() =>
-            {
+            (
+                a,
+                WidgetAnchor::Document {
+                    pos: p,
+                    to: Some(t),
+                    ..
+                }
+                | WidgetAnchor::Gutter {
+                    pos: p,
+                    to: Some(t),
+                    ..
+                },
+            ) if a.suit_le_texte() && a.span_fin().is_none() => {
                 avec_fin(a, a.pos().unwrap_or(0) + t.saturating_sub(p))
             }
             (a, _) => a,
@@ -924,28 +1018,60 @@ impl DocWidget {
                 })
             };
             if !matches!(ancre, WidgetAnchor::Document { .. }) {
-                v.push(entree("Ancrer dans le document", "pin", "", false, appliquer(self.moi.clone(), p.document_anchor_at())));
+                v.push(entree(
+                    "Ancrer dans le document",
+                    "pin",
+                    "",
+                    false,
+                    appliquer(self.moi.clone(), p.document_anchor_at()),
+                ));
             }
             if !matches!(ancre, WidgetAnchor::Viewport { .. }) {
-                v.push(entree("Détacher du document", "pin-off", "", false, appliquer(self.moi.clone(), p.viewport_anchor_at())));
+                v.push(entree(
+                    "Détacher du document",
+                    "pin-off",
+                    "",
+                    false,
+                    appliquer(self.moi.clone(), p.viewport_anchor_at()),
+                ));
             }
             for side in GutterSide::TOUS {
-                if matches!(ancre, WidgetAnchor::Gutter { side: s, .. } if s == side) || !p.gutter_fits(side) {
+                if matches!(ancre, WidgetAnchor::Gutter { side: s, .. } if s == side)
+                    || !p.gutter_fits(side)
+                {
                     continue;
                 }
                 let (titre, icone) = match side {
                     GutterSide::Left => ("Placer dans la marge gauche", "panel-left"),
                     GutterSide::Right => ("Placer dans la marge droite", "panel-right"),
                 };
-                v.push(entree(titre, icone, "", false, appliquer(self.moi.clone(), p.gutter_anchor_at(side))));
+                v.push(entree(
+                    titre,
+                    icone,
+                    "",
+                    false,
+                    appliquer(self.moi.clone(), p.gutter_anchor_at(side)),
+                ));
             }
         }
         if !self.est_replie() {
             let m = self.moi.clone();
-            v.push(entree("Réduire", "minimize-2", "", false, Rc::new(move || m.upgrade().map_or((), |d| d.replier()))));
+            v.push(entree(
+                "Réduire",
+                "minimize-2",
+                "",
+                false,
+                Rc::new(move || m.upgrade().map_or((), |d| d.replier())),
+            ));
         }
         let m = self.moi.clone();
-        v.push(entree("Fermer", "x", "", false, Rc::new(move || m.upgrade().map_or((), |d| d.fermer()))));
+        v.push(entree(
+            "Fermer",
+            "x",
+            "",
+            false,
+            Rc::new(move || m.upgrade().map_or((), |d| d.fermer())),
+        ));
         v
     }
 
@@ -958,22 +1084,44 @@ impl DocWidget {
         for (titre, icone, ou) in [
             ("Ouvrir dans le panneau", "panel-right", Ailleurs::Panneau),
             ("Ouvrir à droite", "columns-2", Ailleurs::Droite),
-            ("Ouvrir dans un nouvel onglet", "file-plus", Ailleurs::Onglet),
+            (
+                "Ouvrir dans un nouvel onglet",
+                "file-plus",
+                Ailleurs::Onglet,
+            ),
         ] {
             let m = self.moi.clone();
-            v.push(entree(titre, icone, "open", false, Rc::new(move || m.upgrade().map_or((), |d| d.ouvrir_ailleurs(ou)))));
+            v.push(entree(
+                titre,
+                icone,
+                "open",
+                false,
+                Rc::new(move || m.upgrade().map_or((), |d| d.ouvrir_ailleurs(ou))),
+            ));
         }
         let de_la_vue = self.crochets.borrow().entrees_menu.clone();
         if let Some(f) = de_la_vue {
             v.extend(f());
         }
         let m = self.moi.clone();
-        v.push(entree("Fermer", "x", "danger", true, Rc::new(move || m.upgrade().map_or((), |d| d.fermer()))));
+        v.push(entree(
+            "Fermer",
+            "x",
+            "danger",
+            true,
+            Rc::new(move || m.upgrade().map_or((), |d| d.fermer())),
+        ));
         v
     }
 }
 
-fn entree(titre: &str, icone: &str, section: &str, avertissement: bool, action: Rc<dyn Fn()>) -> EntreeMenuReduit {
+fn entree(
+    titre: &str,
+    icone: &str,
+    section: &str,
+    avertissement: bool,
+    action: Rc<dyn Fn()>,
+) -> EntreeMenuReduit {
     EntreeMenuReduit {
         titre: titre.to_owned(),
         icone: icone.to_owned(),
@@ -986,14 +1134,27 @@ fn entree(titre: &str, icone: &str, section: &str, avertissement: bool, action: 
 /// Une ancre de texte avec la fin `to` (inchangée pour une ancre viewport).
 fn avec_fin(a: WidgetAnchor, to: usize) -> WidgetAnchor {
     match a {
-        WidgetAnchor::Document { pos, dx, dy, .. } => WidgetAnchor::Document { pos, to: Some(to), dx, dy },
-        WidgetAnchor::Gutter { side, pos, dy, .. } => WidgetAnchor::Gutter { side, pos, to: Some(to), dy },
+        WidgetAnchor::Document { pos, dx, dy, .. } => WidgetAnchor::Document {
+            pos,
+            to: Some(to),
+            dx,
+            dy,
+        },
+        WidgetAnchor::Gutter { side, pos, dy, .. } => WidgetAnchor::Gutter {
+            side,
+            pos,
+            to: Some(to),
+            dy,
+        },
         v @ WidgetAnchor::Viewport { .. } => v,
     }
 }
 
 /// L'état éphémère d'ouverture d'un widget : le placement, plus l'état ponctuel de la demande.
-pub fn etat_d_ouverture_complet(placement: &DocWidgetPlacement, eph: Option<Map<String, Value>>) -> Map<String, Value> {
+pub fn etat_d_ouverture_complet(
+    placement: &DocWidgetPlacement,
+    eph: Option<Map<String, Value>>,
+) -> Map<String, Value> {
     let mut m = eph.unwrap_or_default();
     m.extend(placement.en_etat());
     m
