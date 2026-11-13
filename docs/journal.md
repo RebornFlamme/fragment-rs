@@ -772,3 +772,12 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - fr-t1-binaire fermée. Le message de livraison est envoyé à l'orchestrateur, avec : dettes ADR-009, 011, 012 et 013 ; 8 exceptions nommées ; ADR-014 (divergence) ; textes des PR amont, en attente de l'accord de l'utilisateur.
   - ★ `build.yml` a `cancel-in-progress` : chaque push sur main annule le build en cours. Ne pas pousser le journal pendant un build de livraison.
   - t3scenesc : 10 PNG identiques entre les passes ; `t3-html-source` passe au vrai bouton « </> ».
+- 00:12 UTC : réponses de l'orchestrateur sur T1. Tout est accepté, avec ces conditions :
+  - ADR-009 : la largeur ±1 px ne vaut que pour T1. Aujourd'hui le sas l'applique à toutes les scènes : bead fr-p3.2 lancé (saslargeur, Sonnet).
+  - §4 de program.md corrigé par l'orchestrateur (fragment-maths, #83) : commité ici.
+  - ADR-012 : dette de T3, à rouvrir en T9 avec le webview possédé. Bead fr-zdx, à rattacher à l'épic T9 quand elle existera.
+  - ADR-013 : l'échange de cliquets tient si la dette TOTALE n'augmente pas, sinon repli GPUI (note sur fr-p4.1).
+  - Exceptions nommées : acceptées.
+  - ADR-014 : accordé PROVISOIREMENT, remonté à l'utilisateur. Seul l'intérieur des pages est concerné. Restent stricts : la géométrie des pages, le chrome, les surlignages, la sélection et la couche de texte.
+  - PR amont : NE PAS ouvrir avant la réponse de l'utilisateur.
+  - Clear : « prêt pour le clear » quand les équipiers auront rendu compte, puis `clear_session("self")`. L'orchestrateur renvoie le brief.
