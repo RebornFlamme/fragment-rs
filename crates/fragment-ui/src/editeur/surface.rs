@@ -26,7 +26,6 @@ use fragment_text::utf16::{byte_to_utf16, utf16_len, utf16_to_byte};
 use gpui_kit::base::input::EditorState;
 use gpui_kit::{Bounds, Pixels, Point, point, px};
 
-use super::constantes::MARGE_CONTENU_VERTICALE;
 use super::element::EditeurLive;
 
 /// La surface de texte, empruntée le temps d'une lecture (`EditeurLive::surface`).
@@ -96,7 +95,7 @@ impl<'a> SurfaceLive<'a> {
         let rang = self.etat.display_map().buffer_line_to_display_row(l);
         // Le nombre de rangées n'est pas grand : exact en f32 (< 2^24).
         #[allow(clippy::cast_precision_loss)]
-        let mut y = MARGE_CONTENU_VERTICALE + base * rang as f32;
+        let mut y = self.editeur.marge_haute() + base * rang as f32;
         if let Some(f) = self.editeur.arguments_fork() {
             for &(n, h) in f.hauteurs.iter().take_while(|(n, _)| *n < l) {
                 let (rangees, _, _) = self.metriques_ligne(n);

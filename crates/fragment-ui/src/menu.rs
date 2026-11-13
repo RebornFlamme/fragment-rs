@@ -331,6 +331,29 @@ pub fn profondeur_ouverte() -> usize {
     COURANT.with(|c| c.borrow().as_ref().map_or(0, |o| o.chemin.len()))
 }
 
+/// La forme (voir [`Menu::forme`]) du `niveau` ouvert, vide sans menu. Ajout de `fr-t3-tableaux`.
+pub fn forme_ouverte(niveau: usize) -> Vec<String> {
+    COURANT.with(|c| {
+        c.borrow()
+            .as_ref()
+            .and_then(|o| o.menu_au_niveau(niveau))
+            .map(Menu::forme)
+            .unwrap_or_default()
+    })
+}
+
+/// L'index (pour [`survoler`], [`cliquer`]) de l'entrée intitulée `titre` au `niveau` ouvert.
+/// Ajout de `fr-t3-tableaux`.
+pub fn index_ouvert(niveau: usize, titre: &str) -> Option<usize> {
+    COURANT.with(|c| {
+        let garde = c.borrow();
+        let m = garde.as_ref()?.menu_au_niveau(niveau)?;
+        m.entrees
+            .iter()
+            .position(|e| matches!(e, Entree::Item(it) if it.title == titre))
+    })
+}
+
 /// Survol de l'entrée `idx` du `niveau` : déploie son sous-menu et replie les autres.
 /// Rend `true` si l'affichage a changé.
 pub fn survoler(niveau: usize, idx: usize) -> bool {

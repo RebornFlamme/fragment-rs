@@ -743,3 +743,50 @@ fn fond_transparent_ne_pose_aucun_fond() {
     let mut b = Banc::new("# Titre\n\ncorps", options);
     assert!(b.lire(|e, _, _| e.arguments_fork().is_some()));
 }
+
+/// Crochet de `fr-t3-tableaux` : sans `marges` ni `interligne` (`None`, le défaut), l'éditeur garde
+/// la colonne de lecture, la marge haute de 2 rem et l'interligne de 1,4 ; avec, il prend les marges
+/// fixes d'une cellule et son interligne de 1,5.
+#[test]
+fn marges_et_interligne_none_gardent_le_comportement_actuel() {
+    let defaut = OptionsEditeur::default();
+    assert_eq!(defaut.marges, None);
+    assert_eq!(defaut.interligne, None);
+    let mut b = Banc::new("une ligne\nune autre", defaut);
+    let (r0, lh, haut1, marge) = b.lire(|e, _, cx| {
+        let s = e.surface(cx);
+        (
+            s.coords_at_pos(0).unwrap(),
+            e.interligne(),
+            s.haut_de_ligne(1),
+            e.marge_haute(),
+        )
+    });
+    assert!(pres(r0.top as f32, MARGE_CONTENU_VERTICALE), "{r0:?}");
+    assert!(pres(r0.left as f32, debut_texte(LARGEUR)), "{r0:?}");
+    assert!(pres(lh, 16. * INTERLIGNE_TEXTE));
+    assert!(pres(marge, MARGE_CONTENU_VERTICALE));
+    assert!(pres(
+        haut1,
+        MARGE_CONTENU_VERTICALE + 16. * INTERLIGNE_TEXTE
+    ));
+
+    let cellule = OptionsEditeur {
+        marges: Some([4.0, 8.0, 4.0, 8.0]),
+        interligne: Some(1.5),
+        ..OptionsEditeur::default()
+    };
+    let mut c = Banc::new("une ligne\nune autre", cellule);
+    let (r0, lh, haut1) = c.lire(|e, _, cx| {
+        let s = e.surface(cx);
+        (
+            s.coords_at_pos(0).unwrap(),
+            e.interligne(),
+            s.haut_de_ligne(1),
+        )
+    });
+    assert!(pres(r0.top as f32, 4.0), "{r0:?}");
+    assert!(pres(r0.left as f32, 8.0), "{r0:?}");
+    assert!(pres(lh, 24.0));
+    assert!(pres(haut1, 4.0 + 24.0), "{haut1}");
+}
