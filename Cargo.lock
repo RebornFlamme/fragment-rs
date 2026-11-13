@@ -2753,17 +2753,21 @@ dependencies = [
 name = "fragment-app"
 version = "0.0.1"
 dependencies = [
+ "accesskit",
  "anyhow",
  "embed-resource",
  "fragment-core",
  "fragment-theme",
  "fragment-ui",
+ "futures",
  "gpui-kit",
  "gpui-pre",
  "image",
+ "raw-window-handle",
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "windows 0.62.2",
 ]
 
 [[package]]

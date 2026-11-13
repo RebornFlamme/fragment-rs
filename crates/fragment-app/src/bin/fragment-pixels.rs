@@ -65,8 +65,13 @@ fn main() {
             std::process::exit(2);
         }
     };
-    // Les icônes (SVG de Lucide) sont des ressources embarquées de fragment-ui.
-    gpui_kit::application()
+    // Les icônes (SVG de Lucide) sont des ressources embarquées de fragment-ui. ★ Sous Windows, la
+    // plateforme est enveloppée pour relever l'identité des glyphes peints (fr-p3.4).
+    #[cfg(all(windows, feature = "pixels"))]
+    let application = pixels::enveloppe::application();
+    #[cfg(not(all(windows, feature = "pixels")))]
+    let application = gpui_kit::application();
+    application
         .with_assets(fragment_ui::icones::Ressources)
         .run(move |cx| {
             gpui_kit::init(cx);

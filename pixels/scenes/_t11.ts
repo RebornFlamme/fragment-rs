@@ -20,6 +20,7 @@
 import { test, expect, _electron, type ElectronApplication, type Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { appendFileSync, cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import path from 'path';
+import { avecGlyphes } from './_glyphes';
 import { attendreLayoutReady } from '../../../Fragment/app/e2e/harness';
 import { calme, schema, type Theme } from './_commun';
 import { appliquerLayout, attendreFenetre, estApp, figer, layoutDecor, BASE_COFFRES, type ActionsT2, type Bouton } from './_t2';
@@ -94,8 +95,9 @@ function contexte(app: ElectronApplication, p: Page, nom: string, theme: Theme):
     return {
         app, p, theme, act: actionsDe(p),
         capturer: async (page = p, options = {}) => {
-            const png = await page.screenshot({ animations: 'disabled', caret: options.caret ? 'initial' : 'hide' });
-            writeFileSync(path.join(REFERENCE, `${nom}-${theme}.png`), png);
+            const fichier = path.join(REFERENCE, `${nom}-${theme}.png`);
+            const png = await avecGlyphes(page, fichier, () => page.screenshot({ animations: 'disabled', caret: options.caret ? 'initial' : 'hide' }));
+            writeFileSync(fichier, png);
         },
         sonde: async (label, page, selecteur, n = 0) => {
             const b = await page.locator(selecteur).nth(n).boundingBox({ timeout: 2_000 }).catch(() => null);

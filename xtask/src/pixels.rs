@@ -13,6 +13,7 @@
 mod arrondis;
 mod boites;
 mod exceptions;
+mod identite;
 mod ombres;
 mod sas;
 
@@ -333,13 +334,6 @@ struct Base {
     arrondi_pourcent: f64,
     /// L'exception nommée `--shadow-l` (point b), quand le PNG en a une surface.
     exception: Option<BaseException>,
-    /// Glyphes NON JUGEABLES (fr-p3.1, décision du 13/11) : rognés par un rectangle de découpe à
-    /// 3×2 px visibles ou moins. Dette nommée (`docs/parite-pixels.md`), en cliquet.
-    non_jugeables: u64,
-    /// Lettres changées que la contre-épreuve n'a PAS détectées (fr-p3.1, orchestrateur 13/11
-    /// 03:15) : surtout des glyphes étroits (« l », « i », point, virgule : 1 à 3 px de large).
-    /// Dette nommée « lettre manquée », comptée par PNG, en cliquet ; à retirer par `fr-p3.4`.
-    lettres_manquees: u64,
     /// Boîtes de texte en dette « rastérisation des glyphes » (`fr-p4.1.3`, dès T2) : largeur seule,
     /// ≤ 2 px. Écrit seulement quand il est non nul.
     rasterisation_glyphes: u64,
@@ -402,14 +396,6 @@ fn lire_cliquet(chemin: &Path) -> anyhow::Result<BTreeMap<String, Base>> {
                 ombre_pourcent: part("ombre_pourcent")?,
                 arrondi_delta_max: delta("arrondi_delta_max")?,
                 arrondi_pourcent: part("arrondi_pourcent")?,
-                non_jugeables: v
-                    .get("non_jugeables")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
-                lettres_manquees: v
-                    .get("lettres_manquees")
-                    .and_then(serde_json::Value::as_u64)
-                    .unwrap_or(0),
                 rasterisation_glyphes: v.get("rasterisation_glyphes").map_or(Ok(0), |d| {
                     d.as_u64()
                         .with_context(|| format!("{nom} : rasterisation_glyphes invalide"))
@@ -512,12 +498,6 @@ fn ecrire_cliquet(
                 "arrondi_delta_max": b.arrondi_delta_max,
                 "arrondi_pourcent": b.arrondi_pourcent,
             });
-            if b.non_jugeables > 0 {
-                v["non_jugeables"] = serde_json::json!(b.non_jugeables);
-            }
-            if b.lettres_manquees > 0 {
-                v["lettres_manquees"] = serde_json::json!(b.lettres_manquees);
-            }
             if let Some(e) = b.exception {
                 v["shadow_l"] = serde_json::json!({
                     "etalement": e.etalement,
@@ -595,18 +575,6 @@ fn verifier_cliquet(mesure: Base, base: Option<&Base>) -> Option<String> {
             mesure.arrondi_pourcent, base.arrondi_pourcent
         ));
     }
-    if mesure.non_jugeables > base.non_jugeables {
-        raisons.push(format!(
-            "{} glyphes non jugeables (rognés à 3×2 px) > base {}",
-            mesure.non_jugeables, base.non_jugeables
-        ));
-    }
-    if mesure.lettres_manquees > base.lettres_manquees {
-        raisons.push(format!(
-            "{} lettres manquées par la contre-épreuve > base {}",
-            mesure.lettres_manquees, base.lettres_manquees
-        ));
-    }
     if mesure.rasterisation_glyphes > base.rasterisation_glyphes {
         raisons.push(format!(
             "{} boîtes en dette « rastérisation des glyphes » (fr-p4.1.3) > base {}",
@@ -679,15 +647,9 @@ fn boites_du_candidat(dossier: &Path, nom: &str, image: &RgbaImage) -> anyhow::R
     match std::fs::read_to_string(&chemin) {
         Ok(texte) => {
             let illisible = || format!("{} illisible", chemin.display());
-            let rognes = boites::deserialiser_rognes(&texte).with_context(illisible)?;
-            let (non_jugeables, glyphes) = boites::deserialiser_glyphes(&texte)
-                .with_context(illisible)?
-                .into_iter()
-                .partition(|g| rognes.contains(g) && non_jugeable(g));
             Ok(Declaration {
                 boites: boites::deserialiser(&texte).with_context(illisible)?,
-                glyphes,
-                non_jugeables,
+                glyphes: boites::deserialiser_glyphes(&texte).with_context(illisible)?,
                 ombres: boites::deserialiser_ombres(&texte).with_context(illisible)?,
                 arrondis: boites::deserialiser_arrondis(&texte).with_context(illisible)?,
             })
@@ -695,29 +657,31 @@ fn boites_du_candidat(dossier: &Path, nom: &str, image: &RgbaImage) -> anyhow::R
         Err(_) => Ok(Declaration {
             boites: boites::detecter(image),
             glyphes: Vec::new(),
-            non_jugeables: Vec::new(),
             ombres: Vec::new(),
             arrondis: Vec::new(),
         }),
     }
 }
 
-/// Un glyphe ROGNÉ par un rectangle de découpe n'est pas jugeable à 3×2 px visibles ou moins
-/// (fr-p3.1, décision du chef confirmée par l'orchestrateur le 13/11) : un fragment ne porte plus
-/// de forme de lettre. Le rectangle de découpe, lui, reste en strict ; un petit glyphe ENTIER
-/// (point, virgule, tiret) reste jugeable.
-fn non_jugeable(g: &BoiteEncre) -> bool {
-    g.largeur.min(g.hauteur) <= 2 && g.largeur.max(g.hauteur) <= 3
+/// Le relevé d'identité `<scène>-<thème>.glyphes.json` voisin du PNG `nom` dans `dossier`, s'il
+/// existe (fr-p3.4).
+fn identite_de(dossier: &Path, nom: &str) -> anyhow::Result<Option<Vec<identite::Glyphe>>> {
+    let chemin = dossier.join(nom.replace(".png", identite::SUFFIXE));
+    match std::fs::read_to_string(&chemin) {
+        Ok(texte) => identite::deserialiser(&texte)
+            .map(|r| Some(r.glyphes))
+            .map_err(|e| anyhow::anyhow!("{} : {e}", chemin.display())),
+        Err(_) => Ok(None),
+    }
 }
 
 /// Ce que le candidat déclare d'une capture (ADR-009) : boîtes, surfaces ombrées, boîtes arrondies.
 struct Declaration {
     boites: Vec<BoiteEncre>,
-    /// Les glyphes peints JUGEABLES (version 4) : le garde-fou de forme par glyphe et la
-    /// contre-épreuve.
+    /// Les glyphes peints (version 4), rognés compris : le garde-fou de forme par glyphe et la
+    /// contre-épreuve. ★ Un fragment rogné à 3×2 px n'était pas jugeable à l'image (fr-p3.1) ; il
+    /// l'est à l'identité (fr-p3.4).
     glyphes: Vec<BoiteEncre>,
-    /// Les glyphes non jugeables, ôtés de `glyphes` (voir [`non_jugeable`]).
-    non_jugeables: Vec<BoiteEncre>,
     ombres: Vec<OmbreDeclaree>,
     arrondis: Vec<ArrondiDeclare>,
 }
@@ -764,11 +728,27 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
     let mut mesures_nommees = String::new();
     let mut mesures_contre_epreuve = String::new();
     let (mut essais_contre_epreuve, mut detectes_contre_epreuve) = (0usize, 0usize);
-    let mut non_jugeables_total = 0usize;
     let mut mesures_rasterisation = String::new();
+    let mut sans_identite = Vec::new();
     for nom in &plan.paires {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
+        // fr-p3.4 : l'identité des glyphes, des deux côtés (absente d'un côté : pas d'identité).
+        let identite = match (
+            identite_de(&o.reference, nom)?,
+            identite_de(&o.candidat, nom)?,
+        ) {
+            (Some(reference), Some(candidat)) => Some(sas::Identite {
+                reference,
+                candidat,
+            }),
+            _ => None,
+        };
+        let bilan = identite
+            .as_ref()
+            .map(|id| identite::comparer(&id.reference, &id.candidat));
+        let identite_lue = identite.clone();
+        let _identite = sas::poser_identite(identite);
         let ligne = match boites_du_candidat(&o.candidat, nom, &c).and_then(|d| {
             // fr-p3.2 : la tranche de la scène décide si la largeur d'encre est stricte.
             sas::comparer_tranche(
@@ -794,29 +774,15 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     &exceptions::du_png(nom),
                     scene_depuis(&meta, nom),
                 );
-                if ce.essais > 0 || !d.non_jugeables.is_empty() {
+                if ce.essais > 0 {
                     writeln!(
                         mesures_contre_epreuve,
-                        "- {nom} : {} lettres changées (dont {} petits glyphes entiers), {} détectées ; {} glyphes sans autre lettre dans leur passage (pas d'essai) ; {} glyphes non jugeables (rognés à 3×2 px){}",
-                        ce.essais,
-                        ce.petits,
-                        ce.detectes,
-                        ce.sans_autre_lettre,
-                        d.non_jugeables.len(),
-                        d.non_jugeables
-                            .iter()
-                            .map(|g| format!(" ({},{}) {}×{}", g.x, g.y, g.largeur, g.hauteur))
-                            .collect::<String>()
+                        "- {nom} : {} lettres changées (dont {} petits glyphes entiers), {} détectées ; {} glyphes sans lettre d'un autre caractère dans leur passage (pas d'essai)",
+                        ce.essais, ce.petits, ce.detectes, ce.sans_autre_lettre,
                     )?;
                 }
-                non_jugeables_total += d.non_jugeables.len();
-                // ★ Une lettre manquée n'échoue plus seule : c'est une dette nommée, comptée par
-                // PNG en cliquet (orchestrateur, 13/11 03:15), sous un taux global de détection.
                 for m in &ce.manques {
-                    writeln!(
-                        details,
-                        "- {nom} : contre-épreuve : lettre manquée (dette nommée, fr-p3.4) : {m}"
-                    )?;
+                    writeln!(details, "- {nom} : contre-épreuve : lettre manquée : {m}")?;
                 }
                 essais_contre_epreuve += ce.essais;
                 detectes_contre_epreuve += ce.detectes;
@@ -828,8 +794,6 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     ombre_pourcent: arrondir(s.pourcent_ombre()),
                     arrondi_delta_max: s.delta_max_arrondi,
                     arrondi_pourcent: arrondir(s.pourcent_arrondi()),
-                    non_jugeables: d.non_jugeables.len() as u64,
-                    lettres_manquees: ce.manques.len() as u64,
                     rasterisation_glyphes: s.dettes_rasterisation() as u64,
                     exception: s
                         .gardes_exception()
@@ -885,6 +849,17 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
                     .chain(verifier_nommees(&mesure_nommees, base_nommees.get(nom)))
                     .reduce(|a, b| format!("{a} ; {b}"));
                 let mut verdict = s.verdict;
+                // fr-p3.4 : caractère contre caractère, à la même place ; tout écart fait échouer.
+                if let Some(b) = bilan.as_ref().filter(|b| !b.parfait())
+                    && let Some(id) = &identite_lue
+                {
+                    verdict = Verdict::Echec;
+                    for e in b.ecarts(&id.reference, &id.candidat).iter().take(20) {
+                        writeln!(details, "- {nom} : identité : {e}")?;
+                    }
+                } else if bilan.is_none() {
+                    sans_identite.push(nom.clone());
+                }
                 let cliquet = if verdict == Verdict::Echec {
                     "—".to_owned()
                 } else if let Some(raison) = raison_cliquet {
@@ -1152,7 +1127,7 @@ Barycentres d'encre (pire écart absolu des passages et de leurs moitiés, borne
     }
     if essais_contre_epreuve > 0 {
         let ligne = format!(
-            "contre-épreuve (fr-p3.1) : {essais_contre_epreuve} lettres changées sur le texte réel des candidats, {detectes_contre_epreuve} détectées ({:.1} % des glyphes jugeables, minimum {:.1} %) ; {} lettres manquées (dette nommée par PNG, en cliquet) ; {non_jugeables_total} glyphes non jugeables (rognés par un rectangle de découpe à 3×2 px visibles ou moins, dette nommée, en cliquet)",
+            "contre-épreuve (fr-p3.1, fr-p3.4) : {essais_contre_epreuve} lettres changées sur le texte réel des candidats, {detectes_contre_epreuve} détectées ({:.1} %, minimum {:.1} %) ; {} lettres manquées",
             100.0 * detectes_contre_epreuve as f64 / essais_contre_epreuve as f64,
             100.0 * sas::DETECTION_MIN,
             essais_contre_epreuve - detectes_contre_epreuve
@@ -1170,11 +1145,21 @@ Barycentres d'encre (pire écart absolu des passages et de leurs moitiés, borne
         write!(
             rapport,
             "
-Contre-épreuve d'une lettre changée (fr-p3.1, ADR-009) : dans chaque boîte de texte qui passe, un glyphe peint du candidat remplacé par une AUTRE lettre du même passage (écart floutée ≥ {} : le banc ne génère pas d'essai « même lettre ailleurs ») doit faire échouer la boîte ; chaque petit glyphe entier (point, virgule, tiret) est essayé. {ligne}.
+Contre-épreuve d'une lettre changée (fr-p3.1, ADR-009) : dans chaque boîte de texte qui passe, un glyphe peint du candidat remplacé par une lettre d'un AUTRE caractère du même passage (identité des glyphes, fr-p3.4) doit faire échouer la boîte ; chaque petit glyphe entier (point, virgule, tiret) est essayé, effacé. {ligne}.
 
-{mesures_contre_epreuve}",
-            sas::MEME_LETTRE
+{mesures_contre_epreuve}"
         )?;
+    }
+    if !sans_identite.is_empty() {
+        // Un relevé manque d'un côté (référence d'avant fr-p3.4) : l'identité n'y est pas jugée, et
+        // la contre-épreuve n'y essaie que l'effacement des petits glyphes.
+        let ligne = format!(
+            "identité des glyphes (fr-p3.4) absente pour {} PNG : {}",
+            sans_identite.len(),
+            sans_identite.join(", ")
+        );
+        println!("xtask pixels : {ligne}");
+        writeln!(rapport, "\n{ligne}.")?;
     }
     if plan.paires.is_empty() && !o.exiger_references {
         println!("xtask pixels : aucune paire référence/candidat à comparer (en attente)");
@@ -1466,8 +1451,6 @@ mod tests {
             ombre_pourcent: 5.0,
             arrondi_delta_max: 6,
             arrondi_pourcent: 10.0,
-            non_jugeables: 3,
-            lettres_manquees: 2,
             rasterisation_glyphes: 4,
             exception: Some(BaseException {
                 etalement: 1.5,
@@ -1484,8 +1467,6 @@ mod tests {
             ombre_pourcent: 4.0,
             arrondi_delta_max: 5,
             arrondi_pourcent: 9.0,
-            non_jugeables: 2,
-            lettres_manquees: 1,
             rasterisation_glyphes: 3,
             exception: Some(BaseException {
                 etalement: -1.4,
@@ -1529,18 +1510,6 @@ mod tests {
             ..base
         };
         assert!(verifier_cliquet(pire_bande, Some(&base)).is_some());
-        // Les glyphes non jugeables (fr-p3.1) : dette nommée, en cliquet.
-        let plus_de_fragments = Base {
-            non_jugeables: 4,
-            ..base
-        };
-        assert!(verifier_cliquet(plus_de_fragments, Some(&base)).is_some());
-        // Les lettres manquées par la contre-épreuve (fr-p3.1, 13/11 03:15) : idem.
-        let plus_de_manquees = Base {
-            lettres_manquees: 3,
-            ..base
-        };
-        assert!(verifier_cliquet(plus_de_manquees, Some(&base)).is_some());
         // La dette « rastérisation des glyphes » (fr-p4.1.3) : une boîte de plus fait échouer.
         let pire_rasterisation = Base {
             rasterisation_glyphes: 5,

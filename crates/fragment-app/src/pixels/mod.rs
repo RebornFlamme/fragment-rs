@@ -22,6 +22,8 @@ pub mod actions;
 pub mod capture;
 pub mod coffre;
 pub mod entree;
+#[cfg(all(windows, feature = "pixels"))]
+pub mod enveloppe;
 pub mod fenetres;
 
 use std::time::Duration;

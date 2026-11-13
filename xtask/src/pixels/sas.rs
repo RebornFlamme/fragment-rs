@@ -26,8 +26,77 @@ use image::{Rgba, RgbaImage};
 use super::arrondis::{self, ResultatArrondi};
 use super::boites::{ArrondiDeclare, BoiteEncre, Categorie, OmbreDeclaree};
 use super::exceptions::{self, Exception};
+use super::identite::{self, Glyphe};
 use super::ombres::{self, ResultatOmbre};
 use super::{Boite, Verdict, zones_connexes};
+
+/// L'identité des glyphes d'une capture (fr-p3.4) : les lettres relevées dans le DOM de Fragment
+/// (référence) et les glyphes peints du candidat, chacun avec son caractère.
+#[derive(Debug, Default, Clone)]
+pub struct Identite {
+    pub reference: Vec<Glyphe>,
+    pub candidat: Vec<Glyphe>,
+}
+
+thread_local! {
+    static IDENTITE: std::cell::RefCell<Option<Identite>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Pose l'identité des glyphes de la capture jugée (le sas et la contre-épreuve d'UNE capture),
+/// jusqu'à la fin de la garde rendue. ★ Portée par le fil plutôt que par chaque signature : « même
+/// lettre » se demande au fond du garde-fou par glyphe, sous une dizaine d'appels ; sans identité
+/// (tests à motifs, candidat ancien), la réponse est « inconnue » et rien n'est présumé identique.
+pub fn poser_identite(identite: Option<Identite>) -> GardeIdentite {
+    GardeIdentite(IDENTITE.with(|i| i.replace(identite)))
+}
+
+/// Rend l'identité d'avant quand elle tombe (voir [`poser_identite`]).
+pub struct GardeIdentite(Option<Identite>);
+
+impl Drop for GardeIdentite {
+    fn drop(&mut self) {
+        let avant = self.0.take();
+        IDENTITE.with(|i| *i.borrow_mut() = avant);
+    }
+}
+
+/// Le caractère du glyphe peint `g` (rectangle de l'image), lu dans l'identité du candidat.
+fn lettre(g: &BoiteEncre) -> Option<String> {
+    IDENTITE.with(|i| {
+        i.borrow().as_ref().and_then(|id| {
+            id.candidat
+                .iter()
+                .find(|c| {
+                    c.x == g.x as f32
+                        && c.y == g.y as f32
+                        && c.largeur == g.largeur as f32
+                        && c.hauteur == g.hauteur as f32
+                })
+                .map(|c| c.c.clone())
+        })
+    })
+}
+
+/// Une lettre changée de la contre-épreuve se voit-elle à l'identité ? Le glyphe `gi` reçoit le
+/// caractère `remplacant` (`None` : effacé) : c'est vu si la lettre de la référence à sa place
+/// n'est pas ce caractère (effacé : elle n'est plus peinte).
+fn identite_detecte(gi: &BoiteEncre, remplacant: Option<&str>) -> bool {
+    IDENTITE.with(|i| {
+        let id = i.borrow();
+        let Some(id) = id.as_ref() else {
+            return false;
+        };
+        let peint = Glyphe::new(
+            "",
+            gi.x as f32,
+            gi.y as f32,
+            gi.largeur as f32,
+            gi.hauteur as f32,
+        );
+        identite::a_la_place(&id.reference, &peint)
+            .is_some_and(|k| remplacant.is_none_or(|c| id.reference[k].c != c))
+    })
+}
 
 /// Marge autour d'une boîte d'encre où l'écart est toléré (anticrénelage qui déborde).
 pub const PAD_TOL: u32 = 1;
@@ -404,7 +473,7 @@ pub const GLYPHE_NET2: f64 = 1.09;
 /// sienne : il a changé.
 pub const GLYPHE_RELATIF: f64 = 0.7;
 /// L1 floutée sous laquelle le test relatif n'est pas mené : le glyphe est si proche du sien qu'une
-/// autre lettre (au moins [`MEME_LETTRE`] plus loin) ne peut pas faire mieux que
+/// autre lettre ne peut pas faire mieux que
 /// [`GLYPHE_RELATIF`] fois lui (coût : le test est quadratique dans le passage).
 pub const GLYPHE_RELATIF_DES: f64 = 0.04;
 
@@ -437,7 +506,12 @@ impl MesureGlyphe {
 /// (garde-fou [`ecart_forme`]), une lettre changée dans un mot de dix ne laissait que 2 à 4 %
 /// d'orphelins ; la part d'orphelins du glyphe seul ratait encore 11 % des lettres changées.
 /// Rend la mesure de chaque glyphe.
-fn mesurer_glyphes(rf: &Mesure, cd: &Mesure, glyphes: &[Rect]) -> Vec<MesureGlyphe> {
+fn mesurer_glyphes(
+    rf: &Mesure,
+    cd: &Mesure,
+    glyphes: &[Rect],
+    lettres: &[Option<String>],
+) -> Vec<MesureGlyphe> {
     if glyphes.is_empty() {
         return Vec::new();
     }
@@ -480,8 +554,11 @@ fn mesurer_glyphes(rf: &Mesure, cd: &Mesure, glyphes: &[Rect]) -> Vec<MesureGlyp
                         i64::from(gk.0) - i64::from(g.0) + decalages[k].0,
                         decalages[k].1,
                     );
-                    // La lettre k de la référence est-elle une autre lettre que la i ?
-                    if ecart_egalise(&rb, (dx, dy), &rb, ok, &pts) < MEME_LETTRE {
+                    // La lettre k est-elle une autre lettre que la i ? ★ Par l'identité (fr-p3.4),
+                    // plus par un seuil d'image : inconnue, la question reste posée.
+                    if let (Some(Some(a)), Some(Some(b))) = (lettres.get(i), lettres.get(k))
+                        && a == b
+                    {
                         continue;
                     }
                     let soi = ecart_egalise(&cb, (0, 0), &rb, (dx, dy), &pts);
@@ -504,8 +581,9 @@ fn ecart_glyphes(
     rf: &Mesure,
     cd: &Mesure,
     glyphes: &[Rect],
+    lettres: &[Option<String>],
 ) -> (f64, Option<(usize, MesureGlyphe)>) {
-    mesurer_glyphes(rf, cd, glyphes)
+    mesurer_glyphes(rf, cd, glyphes, lettres)
         .into_iter()
         .enumerate()
         .map(|(i, m)| (m.marge(), Some((i, m))))
@@ -684,6 +762,7 @@ fn juger(
     cd: &Mesure,
     largeur_stricte: bool,
     glyphes: &[Rect],
+    lettres: &[Option<String>],
 ) -> ResultatBoite {
     let mut violations = Vec::new();
     let ecart_encre = if rf.encre > 0.0 {
@@ -708,7 +787,7 @@ fn juger(
             100.0 * ECART_FORME
         ));
     }
-    let (ecart_glyphe, glyphe) = ecart_glyphes(rf, cd, glyphes);
+    let (ecart_glyphe, glyphe) = ecart_glyphes(rf, cd, glyphes, lettres);
     if ecart_glyphe > 1.0
         && let Some((i, m)) = glyphe
     {
@@ -1054,6 +1133,18 @@ fn glyphes_dans(b: &BoiteEncre, glyphes: &[BoiteEncre], r: Rect) -> Vec<Rect> {
         .collect()
 }
 
+/// Les caractères des glyphes de [`glyphes_dans`], dans le même ordre.
+fn lettres_dans(b: &BoiteEncre, glyphes: &[BoiteEncre]) -> Vec<Option<String>> {
+    if b.categorie != Categorie::Texte {
+        return Vec::new();
+    }
+    glyphes
+        .iter()
+        .filter(|g| contient(b, g))
+        .map(lettre)
+        .collect()
+}
+
 /// Le centre du glyphe `g` est dans la boîte `b`.
 fn contient(b: &BoiteEncre, g: &BoiteEncre) -> bool {
     let (cx, cy) = (g.x + g.largeur / 2, g.y + g.hauteur / 2);
@@ -1079,6 +1170,7 @@ pub fn juger_boite(
         &mesurer(candidat, mesure, fond_c, k),
         largeur_stricte(depuis),
         &glyphes_dans(b, glyphes, mesure),
+        &lettres_dans(b, glyphes),
     )
 }
 
@@ -1097,17 +1189,10 @@ fn contraste(img: &RgbaImage, r: Rect, fond: Rgba<u8>) -> f64 {
 pub const ESSAIS_PAR_BOITE: usize = 12;
 pub const ESSAIS_PAR_PNG: usize = 200;
 
-/// Écart sous lequel deux glyphes sont la même lettre (voir [`ecart_substitution`]). ★ Orchestrateur,
-/// 13/11 03:15 : 0,086, calé sur les captures réelles. Les mêmes lettres à deux phases sous le pixel
-/// montent jusqu'à 0,085 (« d », « e », « m », « r ») : 0,08 en faisait des lettres changées. Le prix :
-/// « a » remplacé par « e » (0,085) sort aussi du banc ; « e » remplacé par « a » (0,090) y reste.
-/// Testé aux deux bords sur la même fixture réelle.
-pub const MEME_LETTRE: f64 = 0.086;
-
-/// Part minimale des lettres changées que la contre-épreuve doit détecter, tous PNG confondus
-/// (orchestrateur, 13/11 03:15 : fusion à 99,2 %). Les manquées sont une dette nommée, comptée par
-/// PNG en cliquet ; la cible reste 100 % (`fr-p3.4`).
-pub const DETECTION_MIN: f64 = 0.992;
+/// Part minimale des lettres changées que la contre-épreuve doit détecter, tous PNG confondus :
+/// 100 % depuis l'identité des glyphes (fr-p3.4). « Même lettre » ne se devine plus d'un seuil
+/// d'image : le banc ne remplace une lettre que par une lettre d'un AUTRE caractère.
+pub const DETECTION_MIN: f64 = 1.0;
 
 /// La contre-épreuve d'une lettre changée sur du texte RÉEL (fr-p3.1, ADR-009 point 2).
 #[derive(Debug, Default)]
@@ -1124,58 +1209,11 @@ pub struct ContreEpreuve {
     pub manques: Vec<String>,
 }
 
-/// Écart de `a` à `b` sur `pts` : L1 normalisé (somme des écarts sur somme des couvertures), `b`
-/// lue au meilleur décalage fin de ±1 px.
-fn ecart_fin(a: &Mesure, b: &Mesure, pts: &[(i64, i64)]) -> f64 {
-    let va: Vec<f64> = pts.iter().map(|&(x, y)| lire(a, x, y)).collect();
-    decalages_fins()
-        .map(|(fx, fy)| {
-            let (mut d, mut s) = (0.0, 0.0);
-            for (p, &(x, y)) in va.iter().zip(pts) {
-                let q = lire_fin(b, x as f64 + fx, y as f64 + fy);
-                d += (p - q).abs();
-                s += p + q;
-            }
-            if s > 0.0 { d / s } else { 0.0 }
-        })
-        .fold(f64::INFINITY, f64::min)
-}
-
-/// Écart d'une lettre changée : le candidat `avant` et `apres` (couvertures floutées, coordonnées
-/// de leur région), sur chaque glyphe de `glyphes` qui touche les colonnes `[x0, x1]` de la
-/// substitution (rectangle élargi d'un pixel) ; rend le plus grand. ★ Mesuré sur le RÉSULTAT de la
-/// substitution, pas entre les deux glyphes : un glyphe plus large collé sur un plus étroit déborde
-/// sur son voisin, et « r » remplacé par « m » devant un « m » redonnait « rm » au pixel près.
-pub fn ecart_substitution(
-    avant: &Mesure,
-    apres: &Mesure,
-    glyphes: &[BoiteEncre],
-    x0: u32,
-    x1: u32,
-) -> f64 {
-    glyphes
-        .iter()
-        .filter(|g| g.x <= x1 + 1 && g.x + g.largeur >= x0)
-        .map(|g| {
-            let r = (g.x, g.y, g.x + g.largeur - 1, g.y + g.hauteur - 1);
-            ecart_fin(apres, avant, &points(r, 1))
-        })
-        .fold(0.0, f64::max)
-}
-
-/// La substitution laisse-t-elle la MÊME lettre ? Écart ([`ecart_substitution`]) sous
-/// [`MEME_LETTRE`] : la même lettre à une autre phase sous le pixel (« o » pour « o ») ; le banc ne
-/// génère pas un tel essai.
-fn meme_lettre(avant: &Mesure, apres: &Mesure, glyphes: &[BoiteEncre], x0: u32, x1: u32) -> bool {
-    ecart_substitution(avant, apres, glyphes, x0, x1) < MEME_LETTRE
-}
-
 /// Le glyphe `gj` peut-il remplacer `gi` dans un essai ? ★ Il tient dans l'avance de `gi` (1 px de
 /// plus au plus) : collé plus large, il recouvrait le glyphe voisin, et « r » remplacé par « m »
 /// devant un « m » redonnait « rm » à un demi-pixel près (écart 0,083, sous le pixel : pas une
 /// lettre changée). Deux petits glyphes de même taille à 1 px près (les points d'un « ... ») sont le
-/// même signe : à 2×2 px, la phase sous le pixel suffit à porter l'écart au-dessus de
-/// [`MEME_LETTRE`] (0,085 mesuré).
+/// même signe.
 fn substituable(gi: &BoiteEncre, gj: &BoiteEncre) -> bool {
     let meme_petit = petit(gi)
         && petit(gj)
@@ -1256,9 +1294,6 @@ pub fn contre_epreuve(
         let gl_local: Vec<BoiteEncre> = gl.iter().map(local).collect();
         let tout = (0, 0, cd_e.width() - 1, cd_e.height() - 1);
         let fond_c = fond(&cd_e, tout);
-        let k = contraste(&cd_e, tout, fond_c);
-        let flouee = |img: &RgbaImage| flouter(&mesurer(img, tout, fond_c, k));
-        let avant = flouee(&cd_e);
         // Les essais, répartis sur le passage, plus chaque petit glyphe entier (point, virgule,
         // tiret) : il reste jugeable et doit être vu.
         let pas = gl.len().div_ceil(ESSAIS_PAR_BOITE).max(1);
@@ -1276,19 +1311,25 @@ pub fn contre_epreuve(
                 hauteur: 0,
                 ..gi
             };
+            // ★ Une lettre changée est une lettre d'un AUTRE caractère (identité, fr-p3.4) : sans
+            // identité connue, pas d'essai (aucune ressemblance d'image ne la remplace).
+            let li = lettre(&gl[i]);
             let choix = if petit(&gi) {
-                Some((efface, substituer(&cd_e, fond_c, &gi, &efface)))
+                Some((efface, substituer(&cd_e, fond_c, &gi, &efface), None))
             } else {
-                (1..gl.len())
-                    .map(|d| gl_local[(i + d) % gl.len()])
-                    .filter(|gj| substituable(&gi, gj))
-                    .map(|gj| (gj, substituer(&cd_e, fond_c, &gi, &gj)))
-                    .find(|(gj, mute)| {
-                        let x1 = gi.x + gi.largeur.max(gj.largeur) - 1;
-                        !meme_lettre(&avant, &flouee(mute), &gl_local, gi.x, x1)
-                    })
+                li.as_ref().and_then(|li| {
+                    (1..gl.len())
+                        .map(|d| (i + d) % gl.len())
+                        .filter(|&j| substituable(&gi, &gl_local[j]))
+                        .find_map(|j| {
+                            lettre(&gl[j]).filter(|lj| lj != li).map(|lj| {
+                                let gj = gl_local[j];
+                                (gj, substituer(&cd_e, fond_c, &gi, &gj), Some(lj))
+                            })
+                        })
+                })
             };
-            let Some((gj, mute)) = choix else {
+            let Some((gj, mute, remplacant)) = choix else {
                 ce.sans_autre_lettre += 1;
                 continue;
             };
@@ -1298,7 +1339,7 @@ pub fn contre_epreuve(
             let mut res = juger_boite(&ref_e, &mute, &b_local, &gl_local, depuis);
             lever_nommees(&mut res, nommees, b);
             ce.essais += 1;
-            if res.ok() {
+            if res.ok() && !identite_detecte(&gl[i], remplacant.as_deref()) {
                 ce.manques.push(format!(
                     "boîte ({},{}) {}×{} : glyphe ({},{}) {}×{} {} sans échec [{}]",
                     b.x,
@@ -1857,82 +1898,33 @@ pub(super) mod tests {
         assert!(motifs(&avec).contains("glyphe n° 5"), "{}", motifs(&avec));
     }
 
-    /// L'écart d'une substitution sur un extrait RÉEL de candidat (`xtask/fixtures/`, capture de
-    /// fragment-rs) : le glyphe `i` remplacé par `j`, comme dans la contre-épreuve.
-    fn ecart_fixture(png: &[u8], glyphes: &[(u32, u32, u32, u32)], i: usize, j: usize) -> f64 {
-        let img = image::load_from_memory(png).expect("fixture").to_rgba8();
-        let gl: Vec<BoiteEncre> = glyphes
-            .iter()
-            .map(|&(x, y, largeur, hauteur)| BoiteEncre {
-                categorie: Categorie::Texte,
-                x,
-                y,
-                largeur,
-                hauteur,
-            })
-            .collect();
-        let tout = (0, 0, img.width() - 1, img.height() - 1);
-        let f = fond(&img, tout);
-        let k = contraste(&img, tout, f);
-        let flouee = |im: &RgbaImage| flouter(&mesurer(im, tout, f, k));
-        let mute = substituer(&img, f, &gl[i], &gl[j]);
-        let x1 = gl[i].x + gl[i].largeur.max(gl[j].largeur) - 1;
-        ecart_substitution(&flouee(&img), &flouee(&mute), &gl, gl[i].x, x1)
-    }
-
-    /// Les glyphes de la fixture réelle `a-e-0085.png`.
-    const GLYPHES_A_E: [(u32, u32, u32, u32); 5] = [
-        (0, 6, 8, 11),
-        (8, 6, 8, 9),
-        (17, 6, 7, 8),
-        (25, 6, 7, 8),
-        (33, 6, 8, 9),
-    ];
-
-    #[test]
-    fn deux_o_a_deux_phases_sont_la_meme_lettre() {
-        // Bord bas du seuil (chef, 13/11) : « Zoom », le premier « o » remplacé par le second.
-        let e = ecart_fixture(
-            include_bytes!("../../fixtures/o-o-0073.png"),
-            &[(4, 4, 7, 10), (12, 6, 8, 9), (20, 6, 8, 9), (29, 6, 11, 8)],
-            1,
-            2,
-        );
-        assert!((0.070..MEME_LETTRE).contains(&e), "{e}");
-    }
-
-    #[test]
-    fn un_a_pour_un_e_est_sous_le_seuil() {
-        // Bord bas du seuil 0,086 : un « a » remplacé par un « e » du même passage (0,085) passe
-        // pour la même lettre ; le banc ne génère pas cet essai.
-        let e = ecart_fixture(
-            include_bytes!("../../fixtures/a-e-0085.png"),
-            &GLYPHES_A_E,
-            1,
-            4,
-        );
-        assert!((0.080..MEME_LETTRE).contains(&e), "{e}");
-    }
-
-    #[test]
-    fn un_e_pour_un_a_est_une_autre_lettre() {
-        // Bord haut du seuil : l'essai inverse, « e » remplacé par « a » (0,090), est une lettre
-        // changée.
-        let e = ecart_fixture(
-            include_bytes!("../../fixtures/a-e-0085.png"),
-            &GLYPHES_A_E,
-            4,
-            1,
-        );
-        assert!((MEME_LETTRE..0.095).contains(&e), "{e}");
-    }
-
     #[test]
     fn un_trait_plus_fin_passe_glyphe_par_glyphe() {
         let r = ligne("panneau", 1.0, ENCRE, 0);
         let c = ligne("panneau", 0.85, ENCRE, 0);
         let s = sas_glyphes(&r, &c, "panneau", 14);
         assert_eq!(s.verdict, Verdict::Tolere, "{}", motifs(&s));
+    }
+
+    /// L'identité de glyphes posés lettre à lettre sur `texte`, la même des deux côtés.
+    fn identite_de(texte: &str, glyphes: &[BoiteEncre]) -> Identite {
+        let g: Vec<Glyphe> = texte
+            .chars()
+            .zip(glyphes)
+            .map(|(c, b)| {
+                Glyphe::new(
+                    &c.to_string(),
+                    b.x as f32,
+                    b.y as f32,
+                    b.largeur as f32,
+                    b.hauteur as f32,
+                )
+            })
+            .collect();
+        Identite {
+            reference: g.clone(),
+            candidat: g,
+        }
     }
 
     /// La contre-épreuve elle-même : sur un passage qui passe, chaque lettre changée est vue, et une
@@ -1943,11 +1935,44 @@ pub(super) mod tests {
         let c = ligne("panneau", 0.85, ENCRE, 0);
         let glyphes = glyphes_de("panneau", 14);
         let boites = super::super::boites::regrouper(&glyphes);
+        let _id = poser_identite(Some(identite_de("panneau", &glyphes)));
         let ce = contre_epreuve(&r, &c, &boites, &glyphes, &[], None);
         assert_eq!(ce.essais, 7);
         assert_eq!(ce.detectes, ce.essais, "{:?}", ce.manques);
         // Sans glyphes déclarés (boîtes déduites), pas de contre-épreuve.
         assert_eq!(contre_epreuve(&r, &c, &boites, &[], &[], None).essais, 0);
+    }
+
+    /// Sans seuil d'image (fr-p3.4) : « même lettre », c'est le même caractère. Un passage d'une
+    /// seule lettre n'a pas d'essai ; sans identité, aucune lettre n'est présumée autre.
+    #[test]
+    fn une_lettre_du_meme_caractere_n_est_pas_un_essai() {
+        let r = ligne("nnnn", 1.0, ENCRE, 0);
+        let c = ligne("nnnn", 0.85, ENCRE, 0);
+        let glyphes = glyphes_de("nnnn", 14);
+        let boites = super::super::boites::regrouper(&glyphes);
+        let ce = contre_epreuve(&r, &c, &boites, &glyphes, &[], None);
+        assert_eq!((ce.essais, ce.sans_autre_lettre), (0, 4));
+        let _id = poser_identite(Some(identite_de("nnnn", &glyphes)));
+        let ce = contre_epreuve(&r, &c, &boites, &glyphes, &[], None);
+        assert_eq!((ce.essais, ce.sans_autre_lettre), (0, 4));
+    }
+
+    /// Une lettre changée que l'image ne trahit pas (deux glyphes peints identiques au pixel, mais de
+    /// caractères différents) se voit à l'identité.
+    #[test]
+    fn une_lettre_changee_invisible_a_l_image_se_voit_a_l_identite() {
+        let r = ligne("nnnn", 1.0, ENCRE, 0);
+        let c = ligne("nnnn", 0.85, ENCRE, 0);
+        let glyphes = glyphes_de("nnnn", 14);
+        let boites = super::super::boites::regrouper(&glyphes);
+        let mut id = identite_de("nnnn", &glyphes);
+        id.candidat[1].c = "u".to_owned();
+        id.reference[1].c = "u".to_owned();
+        let _id = poser_identite(Some(id));
+        let ce = contre_epreuve(&r, &c, &boites, &glyphes, &[], None);
+        assert!(ce.essais >= 2, "{ce:?}");
+        assert_eq!(ce.detectes, ce.essais, "{:?}", ce.manques);
     }
 
     #[test]
@@ -1964,6 +1989,7 @@ pub(super) mod tests {
             hauteur: 2,
         });
         let boites = super::super::boites::regrouper(&glyphes);
+        let _id = poser_identite(Some(identite_de("pan.", &glyphes)));
         let ce = contre_epreuve(&r, &c, &boites, &glyphes, &[], None);
         assert_eq!(ce.petits, 1);
         assert_eq!(ce.essais, 4);

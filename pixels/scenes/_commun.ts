@@ -11,6 +11,7 @@
 import { test, expect, type Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
+import { avecGlyphes } from './_glyphes';
 import { lancerLecteur, type Harnais } from '../../../Fragment/app/e2e/readerHarness';
 import { activerModeInvisible } from '../invisible/garde';
 activerModeInvisible(); // ★ fr-9x4 : tout lancement d'Electron passe par le mode invisible (refus sinon).
@@ -140,8 +141,9 @@ export function scene(nom: string, corps: (c: Contexte) => Promise<void>): void 
                 await corps({
                     h, p: h.page, theme,
                     capturer: async (page = h.page) => {
-                        const png = await page.screenshot({ animations: 'disabled', caret: 'hide' });
-                        writeFileSync(path.join(REFERENCE, `${nom}-${theme}.png`), png);
+                        const fichier = path.join(REFERENCE, `${nom}-${theme}.png`);
+                        const png = await avecGlyphes(page, fichier, () => page.screenshot({ animations: 'disabled', caret: 'hide' }));
+                        writeFileSync(fichier, png);
                     },
                     sonde: async (label, page, selecteur, n = 0) => {
                         const b = await page.locator(selecteur).nth(n).boundingBox();

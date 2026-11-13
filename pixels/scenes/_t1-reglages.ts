@@ -12,6 +12,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import { writeFileSync } from 'fs';
 import path from 'path';
+import { avecGlyphes } from './_glyphes';
 import type { Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { expect, type ContexteT1 } from './_t1';
 
@@ -61,9 +62,13 @@ export async function rendreLeZoom(c: ContexteT1): Promise<void> {
  * donc 853 × 533 à 150 %. Le candidat Rust rend 1280 × 800 : on compare des pixels écran.
  */
 export async function capturerFenetre(c: ContexteT1, fichier: string): Promise<void> {
-    const b64 = await c.h.electronApp.evaluate(async ({ BrowserWindow }) => {
-        const img = await BrowserWindow.getAllWindows()[0].webContents.capturePage();
-        return img.toPNG().toString('base64');
+    const chemin = path.resolve(__dirname, '..', 'reference', fichier);
+    const png = await avecGlyphes(c.p, chemin, async () => {
+        const b64 = await c.h.electronApp.evaluate(async ({ BrowserWindow }) => {
+            const img = await BrowserWindow.getAllWindows()[0].webContents.capturePage();
+            return img.toPNG().toString('base64');
+        });
+        return Buffer.from(b64, 'base64');
     });
-    writeFileSync(path.resolve(__dirname, '..', 'reference', fichier), Buffer.from(b64, 'base64'));
+    writeFileSync(chemin, png);
 }
