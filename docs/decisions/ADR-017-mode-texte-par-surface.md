@@ -1,6 +1,6 @@
-# ADR-017 — Mode du texte par surface : ClearType sur fond opaque, gris dans un calque (BROUILLON)
+# ADR-017 — Mode du texte par surface : ClearType sur fond opaque, gris dans un calque ; fork n°2 de gpui-pre
 
-Statut : **brouillon** (fr-p4.1.4, 13/11/2026), à trancher par l'orchestrateur avant tout code (condition 3 du bead). Numéro à confirmer par le chef.
+Statut : **accepté**, option (B), par l'orchestrateur (13/11/2026, transmis par le chef), avec les conditions de la section « Décision ». Tâche fr-p4.1.4.
 
 ## Contexte
 
@@ -24,12 +24,24 @@ Deux propriétés font passer Chromium au gris :
 
 **(B) Fork n° 2 : patch de 3 lignes dans `gpui-pre`.** Dans `should_use_subpixel_rendering` : `if self.element_opacity < 1.0 { return false; }`. La règle 2 devient exacte et automatique (hover compris, toute surface nouvelle). La règle 1 reste en `fragment-ui` sans fork (élément racine + `flottant`). Coût : vendoriser `gpui-pre 0.3.12` (148 fichiers `.rs`, 8,6 Mo) sous `vendor/gpui-pre` avec `NOTICE` et le contrôle `fork-patch` de la CI, comme ADR-006 ; une entrée `[patch.crates-io]`. Aucune PR amont (décision utilisateur du 13/11). Une montée de gpui-kit (ADR-001) oblige à rejouer le patch.
 
-## Proposition
+## Décision
 
-(B) : 3 lignes contre ~50 sites et une règle dupliquée. À défaut, (A) en deux temps : règle 1 seule (calques), puis l'opacité.
+Option (B), aux conditions de l'orchestrateur, toutes obligatoires :
+1. **Le patch se limite à `should_use_subpixel_rendering`**, plus son test (`test_subpixel_refused_under_element_opacity`). Fichier `vendor/gpui-pre.patch` : +25 lignes dans `src/window.rs`, marquées `// ★ fragment-rs (ADR-017)`. Aucun autre changement dans ce fork sans un nouvel ADR.
+2. **Job CI `fork-patch`** : l'arbre `vendor/gpui-pre` doit être ÉGAL à l'archive de crates.io de la version épinglée (sha256 vérifié contre `NOTICE`), plus `vendor/gpui-pre.patch`, et rien d'autre (`diff -r`). Il échoue aussi si la version vendorisée n'est plus celle du `Cargo.lock` et de `[workspace.dependencies]`, et il affiche la dette de rebase (dernière version publiée).
+3. **NOTICE Apache-2.0 et provenance** (`vendor/gpui-pre/NOTICE` : version 0.3.12, URL et sha256 de l'archive). `cargo xtask audit-sources` exclut ce dossier par une exclusion nommée (`vendor/gpui-pre/`, entrée de dossier).
+4. **Aucune PR amont** : décision de l'utilisateur du 13/11/2026.
+5. **Contre-épreuves de scène** : un onglet au repos (opacité 0,6) en gris, le même texte à opacité 1 (onglet actif) en ClearType sur surface opaque ; patch retiré, la scène passe au rouge.
+6. **Plafond : deux forks au plus** (`gpui-base`, ADR-006 ; `gpui-pre`, ici).
 
-## Conséquences (si accepté)
+★ La version : gpui-kit 0.9.1 épingle `gpui-pre =0.3.12` (Cargo.lock) ; c'est elle qui est vendorisée.
 
-- `docs/constantes-rendu.md`, section texte : les deux règles et leurs sources CSS ci-dessus.
-- Scènes des deux cas limites (ligne de menu survolée ; surface opaque sur fond translucide).
-- Retrait de `--disable-lcd-text` des décors `_t2.ts`, `_t5a.ts`, `_t7a.ts` et recapture en LCD sous verrou, candidat et références dans la même PR.
+## Mise en œuvre de la règle (sans fork)
+
+`fragment_ui::rendu::mode_texte` :
+- `installer(cx, opaque)` : le mode de base de l'App devient le gris ; `opaque` (ClearType dans `fragment-pixels`, celui du système dans l'app) est gardé dans un global.
+- `surface_opaque(e)` : peint `e` dans le mode opaque, puis remet le mode d'avant. Posé à la racine de la coquille, de la fenêtre de réglages et du décor des flottantes.
+- `pile(fond, calques)` : le fond en surface opaque, chaque calque en gris. La coquille y range la barre d'état, les notices, le menu, l'infobulle et la modale.
+- Les dessins différés (`deferred` : menus, infobulles, listes déroulantes) sont peints après l'arbre, donc dans le mode de base : gris.
+
+La règle et ses sources CSS sont dans `docs/constantes-rendu.md`, section « Texte ».

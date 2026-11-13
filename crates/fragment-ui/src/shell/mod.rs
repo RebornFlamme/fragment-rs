@@ -16,10 +16,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use fragment_core::CommandManager;
-use gpui_kit::{
-    Context, IntoElement, ParentElement as _, Render, SharedString, Styled as _, Window, div,
-};
+use gpui_kit::{Context, IntoElement, Render, SharedString, Window};
 
+use crate::rendu::mode_texte::pile;
 use crate::splits::{ContexteSplits, rendre_workspace};
 use crate::{menu, modal, notice, tooltip};
 
@@ -43,15 +42,18 @@ impl Coquille {
 impl Render for Coquille {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let elements = self.barre_etat.borrow().clone();
-        div()
-            .size_full()
-            .relative()
-            .child(rendre_workspace(&self.splits, window.viewport_size(), cx))
-            .child(barre_etat::rendre(&elements, cx))
-            .child(notice::couche(cx))
-            .child(menu::couche(cx))
-            .child(tooltip::couche(cx))
-            .child(modal::couche(window, cx))
+        // Le workspace est la surface opaque (ClearType) ; la barre d'état (`position: fixed`,
+        // z-index 10) et les couches au-dessus sont des calques (gris) : ADR-017.
+        pile(
+            rendre_workspace(&self.splits, window.viewport_size(), cx),
+            [
+                barre_etat::rendre(&elements, cx),
+                notice::couche(cx),
+                menu::couche(cx),
+                tooltip::couche(cx),
+                modal::couche(window, cx).into_any_element(),
+            ],
+        )
     }
 }
 

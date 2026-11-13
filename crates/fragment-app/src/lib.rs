@@ -164,6 +164,14 @@ pub fn monter(
     hauteur: f32,
 ) -> anyhow::Result<Rc<Application>> {
     let noyau = boot::demarrer(options);
+    // Mode du texte par surface (ADR-017) : celui du système sur les surfaces opaques, gris dans les
+    // calques. Le harnais de pixels installe le sien avant (ClearType, comme Chromium).
+    if cx
+        .try_global::<fragment_ui::rendu::mode_texte::ModeOpaque>()
+        .is_none()
+    {
+        fragment_ui::rendu::mode_texte::installer(cx, gpui_kit::TextRenderingMode::PlatformDefault);
+    }
     // Le zoom de `appearance.json` est en place AVANT la première peinture.
     noyau.hote.appliquer(cx);
     let keymap = noyau.app.keymap().clone();

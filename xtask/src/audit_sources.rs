@@ -254,7 +254,8 @@ fn exclu(chemin: &str) -> bool {
     EXCLUS
         .lines()
         .filter_map(|l| l.split_once('#').map(|(c, _)| c.trim()))
-        .any(|c| c == chemin)
+        // Une entrée terminée par « / » exclut tout un dossier (fork vendorisé, ADR-017).
+        .any(|c| c == chemin || (c.ends_with('/') && chemin.starts_with(c)))
 }
 
 pub fn run(args: &[String]) -> Result<bool> {

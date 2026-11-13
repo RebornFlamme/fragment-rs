@@ -13,7 +13,7 @@
 //  ★ Chaque geste passe par `act`, qui l'EXÉCUTE sur Fragment et l'ENREGISTRE sous la forme de
 //    l'action JSON équivalente (schéma de pixels/README.md) : le JSON du candidat est écrit par le
 //    même code que la référence (.out/actions/<scène>.json), jamais réestimé à la main.
-//  ★ Texte d'interface en niveaux de gris (--disable-lcd-text), comme en T1.
+//  ★ Texte tel que l'utilisateur le voit (fr-p4.1.4, ADR-017) : ClearType sur fond opaque, gris dans un calque.
 //  ★ Le pointeur n'est garé (hover 2,2) que si la scène le demande : un survol (rail) ou un menu
 //    doivent rester tels quels à la capture ; `wait-stable` ne bouge jamais le pointeur.
 //
@@ -113,7 +113,7 @@ async function stable(page: Page): Promise<void> {
 
 async function lancer(fenetre: { largeur: number; hauteur: number }): Promise<Harnais> {
     const h = await lancerLecteur(lireCoffre(), 'carnet.md', {
-        args: ['--force-device-scale-factor=1', '--high-dpi-support=1', '--disable-lcd-text'],
+        args: ['--force-device-scale-factor=1', '--high-dpi-support=1'],
     });
     await h.electronApp.evaluate(({ BrowserWindow }, f) => {
         for (const w of BrowserWindow.getAllWindows()) w.setContentSize(f.largeur, f.hauteur);
