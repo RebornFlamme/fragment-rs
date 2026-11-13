@@ -404,7 +404,15 @@ fn cinq_et_plus_le_disque_de_la_maquette_pixel_perfect_plus_n_dans_la_grande_bas
             assert!((b.x - x * K).abs() < 0.5, "bulle {e:?} x");
             assert!((b.y - y * K).abs() < 0.5, "bulle {e:?} y");
             assert!((b.d - dia * K).abs() < 0.5, "bulle {e:?} Ø");
+            // ★ Strict : chaque calc(… * var(--k)) est à la grille de 1/64 px (LayoutUnit).
+            for v in [b.x, b.y, b.d] {
+                assert_eq!(v * 64.0, (v * 64.0).floor(), "bulle {e:?} hors grille 1/64");
+            }
         }
+        let a = bs.iter().find(|b| b.emplacement == Emplacement::A).unwrap();
+        assert_eq!((a.x, a.y, a.d), (21.765625, 20.890625, 22.0));
+        let b = bs.iter().find(|b| b.emplacement == Emplacement::B).unwrap();
+        assert_eq!((b.x, b.y), (1.328125, 18.640625));
         let texte = |e: Emplacement| {
             bs.iter()
                 .find(|b| b.emplacement == e)
