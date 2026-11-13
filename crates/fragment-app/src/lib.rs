@@ -22,8 +22,9 @@ use std::rc::{Rc, Weak};
 use std::time::{Duration, Instant};
 
 use fragment_core::App as _;
+use fragment_theme::ThemesCoffre;
 use fragment_ui::onglets::ContexteOnglets;
-use fragment_ui::reglages::{FenetreReglages, onglets_t1};
+use fragment_ui::reglages::{FenetreReglages, onglets_t1_themes};
 use fragment_ui::splits::ContexteSplits;
 use fragment_ui::{clavier, modal};
 use gpui_kit::*;
@@ -51,6 +52,8 @@ pub struct Application {
     pub splits: ContexteSplits,
     pub principale: AnyWindowHandle,
     reglages: RefCell<Option<AnyWindowHandle>>,
+    /// Les thèmes du coffre, quand un coffre est ouvert : l'onglet Appearance s'y branche.
+    themes: RefCell<Option<Rc<ThemesCoffre>>>,
     titre_reglages: SharedString,
     echeance_layout: Cell<Option<Instant>>,
 }
@@ -92,6 +95,11 @@ impl Application {
         self.noyau.sauver_layout();
     }
 
+    /// Branche les thèmes d'un coffre : les réglages ouverts ensuite proposent ses thèmes.
+    pub fn brancher_themes(&self, themes: Rc<ThemesCoffre>) {
+        *self.themes.borrow_mut() = Some(themes);
+    }
+
     /// La fenêtre de réglages, ouverte au besoin (ou ramenée devant), de taille `taille`.
     pub fn ouvrir_reglages(
         &self,
@@ -105,10 +113,15 @@ impl Application {
         }
         let apparence = self.noyau.apparence.clone();
         let titre = self.titre_reglages.clone();
+        let themes = self.themes.borrow().clone();
         let (fenetre, _) = gpui_kit::open_window(
             options_fenetre(cx, &titre, taille.0, taille.1),
             cx,
-            move |_, cx| cx.new(|_| FenetreReglages::new(titre.clone(), onglets_t1(&apparence))),
+            move |_, cx| {
+                cx.new(|_| {
+                    FenetreReglages::new(titre.clone(), onglets_t1_themes(&apparence, themes))
+                })
+            },
         )?;
         *self.reglages.borrow_mut() = Some(fenetre);
         Ok(fenetre)
@@ -180,6 +193,7 @@ pub fn monter(
         splits,
         principale,
         reglages: RefCell::new(None),
+        themes: RefCell::new(None),
         titre_reglages: titre_reglages.into(),
         echeance_layout: Cell::new(None),
     });

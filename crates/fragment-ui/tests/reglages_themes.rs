@@ -17,6 +17,7 @@ use fragment_theme::{Couleur, Mode, ThemeManager, ThemesCoffre};
 use fragment_ui::reglages::apparence_themes::{
     appliquer_schema, definitions_apparence_themes, mode_du_schema,
 };
+use fragment_ui::reglages::{FenetreReglages, onglet_appearance_themes, onglets_t1_themes};
 use fragment_ui::theme_global::theme;
 use fragment_ui::themes::monter;
 use gpui_kit::TestAppContext;
@@ -209,4 +210,88 @@ fn le_schema_clair_ou_sombre_garde_le_theme_du_coffre() {
     assert_eq!(accent, Couleur::hex(0xe8559a), "le thème du coffre reste");
     cx.update(|cx| appliquer_schema(cx, &b.themes, SchemaCouleurs::Dark, false));
     assert_eq!(cx.update(|cx| theme(cx).mode), Mode::Sombre);
+}
+
+// ── Branchement dans la fenêtre de réglages (fr-t11.1) ─────────────────────────
+
+/// Les définitions que rend l'onglet Appearance branché, une ligne par nom.
+fn ligne_de_longlet(b: &Banc, nom: &str) -> SettingDropdownControl {
+    let onglet = onglet_appearance_themes(&b.apparence, Some(b.themes.clone()));
+    let definitions = onglet.definitions.expect("définitions");
+    definitions(&fragment_theme::Theme::sombre())
+        .into_iter()
+        .find_map(|d| match d {
+            SettingDefinition::Item(i) if i.name == nom => {
+                i.controls.into_iter().find_map(|c| match c {
+                    SettingControl::Dropdown(d) => Some(d),
+                    _ => None,
+                })
+            }
+            SettingDefinition::Control(c) if c.name == nom => match c.control {
+                SettingControl::Dropdown(d) => Some(d),
+                _ => None,
+            },
+            _ => None,
+        })
+        .expect("liste déroulante")
+}
+
+#[test]
+fn l_onglet_appearance_branche_propose_les_themes_du_coffre() {
+    let b = banc();
+    let d = ligne_de_longlet(&b, "Themes");
+    assert_eq!(d.options.len(), 3, "Default, Rose, Vert");
+}
+
+#[test]
+fn le_schema_choisi_dans_longlet_se_pose_apres_le_changement() {
+    let b = banc();
+    b.apparence.set_theme_css("Rose");
+    let cx = TestAppContext::single();
+    cx.update(|cx| monter(cx, &b.themes));
+    let onglet = onglet_appearance_themes(&b.apparence, Some(b.themes.clone()));
+    let apres = onglet
+        .apres_changement
+        .clone()
+        .expect("rappel de la fenêtre");
+    let definitions = onglet.definitions.expect("définitions");
+    let choisir = |valeur: &str| {
+        let schema = definitions(&fragment_theme::Theme::sombre())
+            .into_iter()
+            .find_map(|d| match d {
+                SettingDefinition::Control(c) if c.name == "Base color scheme" => match c.control {
+                    SettingControl::Dropdown(d) => d.on_change,
+                    _ => None,
+                },
+                _ => None,
+            })
+            .expect("schéma");
+        schema(valeur.into());
+    };
+    choisir("light");
+    cx.update(|cx| apres(cx));
+    assert_eq!(cx.update(|cx| theme(cx).mode), Mode::Clair);
+    assert_eq!(
+        cx.update(|cx| theme(cx).palette.color_accent),
+        Couleur::hex(0xe8559a),
+        "le thème du coffre reste"
+    );
+    choisir("dark");
+    cx.update(|cx| apres(cx));
+    assert_eq!(cx.update(|cx| theme(cx).mode), Mode::Sombre);
+}
+
+#[test]
+fn la_fenetre_se_peint_avec_les_themes() {
+    let b = banc();
+    let mut cx = TestAppContext::single();
+    cx.update(|cx| monter(cx, &b.themes));
+    let onglets = onglets_t1_themes(&b.apparence, Some(b.themes.clone()));
+    let (vue, vcx) = cx.add_window_view(|_, _| FenetreReglages::new("Settings", onglets));
+    vue.update(vcx, |f, _| f.activer("appearance"));
+    for _ in 0..2 {
+        vcx.update(|w, cx| {
+            w.draw(cx).clear(cx);
+        });
+    }
 }

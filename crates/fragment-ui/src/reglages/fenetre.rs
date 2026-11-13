@@ -20,10 +20,10 @@ use fragment_core::{
 };
 use fragment_theme::{Aplat, Couleur, Theme};
 use gpui_kit::{
-    AbsoluteLength, AnyElement, App, Bounds, ClickEvent, Context, FontWeight,
+    AbsoluteLength, AnyElement, App, Bounds, ClickEvent, Context, Div, FontWeight,
     InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, Pixels, Render, SharedString,
-    StatefulInteractiveElement as _, Styled, Window, canvas, div, px, svg,
+    StatefulInteractiveElement as _, Styled, Window, anchored, canvas, deferred, div, px, svg,
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
@@ -35,6 +35,9 @@ use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// Les définitions d'un onglet, relues à chaque rendu (le thème courant en argument : l'accent du thème).
 pub type Definitions = Rc<dyn Fn(&Theme) -> Vec<SettingDefinition>>;
+
+/// Voir [`OngletReglages::apres_changement`].
+pub type ApresChangement = Rc<dyn Fn(&mut App)>;
 
 /// Les trois groupes du rail.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +65,9 @@ pub struct OngletReglages {
     pub icone: Option<String>,
     pub section: SectionOnglet,
     pub definitions: Option<Definitions>,
+    /// Appelé avec le `cx` de la fenêtre après chaque réglage changé par un clic (liste, accent,
+    /// bouton) : là où un effet de bord a besoin de la main (ex. le schéma de couleurs).
+    pub apres_changement: Option<ApresChangement>,
 }
 
 impl OngletReglages {
@@ -72,7 +78,13 @@ impl OngletReglages {
             icone: Some(icone.to_owned()),
             section,
             definitions: None,
+            apres_changement: None,
         }
+    }
+
+    pub fn avec_apres_changement(mut self, f: ApresChangement) -> Self {
+        self.apres_changement = Some(f);
+        self
     }
 
     pub fn avec_definitions(mut self, d: Definitions) -> Self {
@@ -99,6 +111,8 @@ pub struct FenetreReglages {
     bornes: Rc<RefCell<HashMap<String, Bounds<Pixels>>>>,
     /// La largeur de la fenêtre (px logiques), relevée au rendu : la largeur des cartes en dépend.
     largeur: f32,
+    /// La clé du contrôle dont la fenêtre flottante (liste, couleurs) est ouverte.
+    ouverte: Option<String>,
 }
 
 /// Un bloc du contenu, mesuré : ses marges verticales (qui se FUSIONNENT entre voisins, comme en
@@ -308,6 +322,7 @@ impl FenetreReglages {
             glisse: None,
             bornes: Rc::default(),
             largeur: 0.0,
+            ouverte: None,
         }
     }
 
@@ -315,6 +330,7 @@ impl FenetreReglages {
     pub fn activer(&mut self, id: &str) {
         if let Some(i) = self.onglets.iter().position(|o| o.id == id) {
             self.actif = i;
+            self.ouverte = None;
         }
     }
 
@@ -414,6 +430,7 @@ impl FenetreReglages {
                 let item = texte(item.child(o.nom.clone()), cx, ty.font_ui_medium, 1.5).on_click(
                     cx.listener(move |this, _: &ClickEvent, _, cx| {
                         this.actif = i;
+                        this.ouverte = None;
                         this.glisse = None;
                         cx.notify();
                     }),
@@ -896,22 +913,75 @@ impl FenetreReglages {
         let (f, p) = (&t.forme, &t.palette);
         match c {
             SettingControl::Slider(s) => Some(self.curseur(cle, s, y, t, cx)),
-            SettingControl::Dropdown(d) => Some(Self::liste(d, y, t, cx)),
+            SettingControl::Dropdown(d) => Some(self.liste(cle, d, y, t, cx)),
             SettingControl::Color(k) => {
+                let ouvert = self.ouverte.as_deref() == Some(cle);
+                let cle_s = cle.to_owned();
                 let pastille = div()
+                    .id(SharedString::from(format!("couleur-{cle}")))
                     .size(u(cx, f.size_4_7))
                     .flex_none()
                     .rounded_full()
                     .overflow_hidden()
+                    .cursor_pointer()
                     .bg(couleur(couleur_depuis_hex(&k.value)));
-                Some(
-                    bordure(pastille, u(cx, f.border_width))
-                        .border_color(couleur(p.tab_outline_color))
-                        .into_any_element(),
-                )
+                let pastille = bordure(pastille, u(cx, f.border_width))
+                    .border_color(couleur(p.tab_outline_color))
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        this.basculer(&cle_s);
+                        cx.notify();
+                    }));
+                if !ouvert {
+                    return Some(pastille.into_any_element());
+                }
+                // ★ Pas de sélecteur natif en GPUI : les huit couleurs nommées du thème en tiennent
+                //   lieu (l'accent reste libre dans `appearance.json`, un hex quelconque).
+                let hook = self.hook();
+                let mut rangee = div().flex().gap(u(cx, f.size_4_2)).p(u(cx, f.size_4_2));
+                for (i, c) in [
+                    p.color_red,
+                    p.color_orange,
+                    p.color_yellow,
+                    p.color_green,
+                    p.color_cyan,
+                    p.color_blue,
+                    p.color_purple,
+                    p.color_pink,
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let (hex, rappel, hook) = (hex_de(c), k.on_change.clone(), hook.clone());
+                    let pastille_choix = div()
+                        .id(SharedString::from(format!("choix-{cle}-{i}")))
+                        .size(u(cx, f.size_4_7))
+                        .flex_none()
+                        .rounded_full()
+                        .cursor_pointer()
+                        .bg(couleur(c))
+                        .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                            if let Some(r) = &rappel {
+                                r(hex.clone());
+                            }
+                            this.ouverte = None;
+                            if let Some(h) = &hook {
+                                h(cx);
+                            }
+                            cx.refresh_windows();
+                        }));
+                    rangee = rangee.child(pastille_choix);
+                }
+                Some(Self::avec_fenetre(
+                    pastille.into_any_element(),
+                    rangee,
+                    u(cx, f.size_4_7),
+                    t,
+                    cx,
+                ))
             }
             SettingControl::ExtraButton(b) => {
                 let action = b.on_click.clone();
+                let hook = self.hook();
                 let survol = couleur(p.background_modifier_hover);
                 let normal = couleur(p.text_normal);
                 let el = div()
@@ -933,6 +1003,9 @@ impl FenetreReglages {
                     )
                     .on_click(cx.listener(move |_, _: &ClickEvent, _, cx| {
                         action();
+                        if let Some(h) = &hook {
+                            h(cx);
+                        }
                         cx.refresh_windows();
                     }));
                 Some(el.into_any_element())
@@ -976,7 +1049,53 @@ impl FenetreReglages {
     }
 
     /// `select.dropdown`, fermé, d'arête haute exacte `y` : la largeur est celle de la plus longue option.
-    fn liste(d: &SettingDropdownControl, y: f32, t: &Theme, cx: &Context<Self>) -> AnyElement {
+    /// Le rappel d'après changement de l'onglet actif.
+    fn hook(&self) -> Option<ApresChangement> {
+        self.onglets
+            .get(self.actif)
+            .and_then(|o| o.apres_changement.clone())
+    }
+
+    /// Ouvre la fenêtre flottante du contrôle `cle`, ou la ferme si elle l'est déjà.
+    fn basculer(&mut self, cle: &str) {
+        self.ouverte = if self.ouverte.as_deref() == Some(cle) {
+            None
+        } else {
+            Some(cle.to_owned())
+        };
+    }
+
+    /// Le contrôle `base`, avec sa fenêtre flottante `contenu` posée sous lui (à `decalage`).
+    fn avec_fenetre(
+        base: AnyElement,
+        contenu: Div,
+        decalage: Pixels,
+        t: &Theme,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        let (f, p) = (&t.forme, &t.palette);
+        let boite = contenu
+            .occlude()
+            .bg(couleur(p.background_secondary))
+            .text_color(couleur(p.text_normal));
+        let boite = arrondir(boite, cx, u(cx, f.radius_sm), u(cx, f.border_width));
+        let boite =
+            bordure(boite, u(cx, f.border_width)).border_color(couleur(p.tab_outline_color));
+        div()
+            .relative()
+            .child(base)
+            .child(deferred(anchored().child(div().pt(decalage).child(boite))))
+            .into_any_element()
+    }
+
+    fn liste(
+        &self,
+        cle: &str,
+        d: &SettingDropdownControl,
+        y: f32,
+        t: &Theme,
+        cx: &Context<Self>,
+    ) -> AnyElement {
         let (f, ty, p) = (&t.forme, &t.typo, &t.palette);
         let actuel = d
             .options
@@ -985,6 +1104,7 @@ impl FenetreReglages {
             .map(|(_, l)| l.clone())
             .unwrap_or_default();
         let hauteur = hauteur_liste(t);
+        let survol = couleur(p.background_modifier_hover);
         // Le texte (ligne de 13 × 1,5) au haut de la boîte de contenu ; la flèche, image de fond de
         // 16 px centrée dans la boîte de rembourrage (`background-position: right 6px center`). Les
         // enfants absolus se posent depuis la boîte de rembourrage : la bordure est retirée.
@@ -1025,7 +1145,46 @@ impl FenetreReglages {
         // Arrondi déclaré, comme celui du champ de recherche.
         let boite = arrondir(boite, cx, u(cx, f.radius_sm), u(cx, bord));
         let boite = bordure(boite, u(cx, bord)).border_color(couleur(p.tab_outline_color));
-        texte(boite, cx, ty.font_ui_medium, 1.5).into_any_element()
+        let cle_s = cle.to_owned();
+        let boite = texte(boite, cx, ty.font_ui_medium, 1.5)
+            .id(SharedString::from(format!("liste-{cle}")))
+            .cursor_pointer()
+            .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                this.basculer(&cle_s);
+                cx.notify();
+            }));
+        if self.ouverte.as_deref() != Some(cle) {
+            return boite.into_any_element();
+        }
+        let hook = self.hook();
+        let mut options = div()
+            .flex()
+            .flex_col()
+            .min_w(px((largeur_liste(d, t, cx) * zoom).round()));
+        for (i, (valeur, libelle)) in d.options.iter().enumerate() {
+            let (valeur, rappel, hook) = (valeur.clone(), d.on_change.clone(), hook.clone());
+            options = options.child(
+                div()
+                    .id(SharedString::from(format!("option-{cle}-{i}")))
+                    .px(u(cx, f.size_4_2))
+                    .py(u(cx, REMBOURRAGE_LISTE))
+                    .cursor_pointer()
+                    .whitespace_nowrap()
+                    .hover(move |s| s.bg(survol))
+                    .child(libelle.clone())
+                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                        if let Some(r) = &rappel {
+                            r(valeur.clone());
+                        }
+                        this.ouverte = None;
+                        if let Some(h) = &hook {
+                            h(cx);
+                        }
+                        cx.refresh_windows();
+                    })),
+            );
+        }
+        Self::avec_fenetre(boite.into_any_element(), options, u(cx, hauteur), t, cx)
     }
 
     /// `input.slider` + l'étiquette de valeur (`.slider-value`), d'arête haute exacte `y`.
