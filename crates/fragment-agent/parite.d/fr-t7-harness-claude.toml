@@ -1,0 +1,21 @@
+# Parité de fr-t7-harness-claude (fragment-agent) : le vrai harness Claude, le binaire `claude`
+# piloté en stream-json (ADR-016). Les cas source sont ceux des e2e agent-harness et
+# agent-permissions qui portent sur le MOTEUR (ce que le double du SDK recevait et rendait) ; ils
+# sont rejoués dans crates/fragment-agent/tests/harness_claude.rs sur les transcripts RÉELS de S9,
+# réécrits en fixtures (tests/fixtures/harness/ : prompts factices, aucun compte, ids synthétiques).
+
+[[module]]
+ts = "app/src/ui/views/agent/harness/claudeHarness.ts, AgentHost.ts (send, getSession, envDuTour), sdkProcess.mjs (send, demander, getSession) ; app/e2e/{agent-harness,agent-permissions}.spec.ts"
+rs = "crates/fragment-agent/src/harness_claude/{mod,commande,protocole,tour,processus,transcript,dossier_agent,faux}.rs"
+cas_source = 15
+cas_portes = 8
+cas_ajoutes = 39
+non_portes = [
+  { cas = "agent-harness : la suite reçoit l'état persisté ; le moteur est FIGÉ après le 1er tour", raison = "le harness Claude n'a pas d'état (l'id de session EST celui de la conversation) ; le moteur figé est le fournisseur (fr-t7-fournisseur). La reprise est couverte par la_suite_reprend_la_session_sans_instantane_du_prompt" },
+  { cas = "agent-harness : le moteur par défaut des réglages s'applique à une conversation NEUVE", raison = "choix du moteur : fournisseur et service (fr-t7-fournisseur, fr-t7-service)" },
+  { cas = "agent-harness : plugin du moteur désactivé", raison = "registre et fournisseur (fr-t7-fournisseur)" },
+  { cas = "agent-permissions : « Toujours dans cette conversation » / « Toujours dans ce coffre »", raison = "les règles permanentes vivent chez Fragment (garde + PermanentRule, fr-t7-service) ; le harness vérifie seulement qu'il n'envoie jamais `updatedPermissions` (assistant_une_carte_dans_la_reponse_autoriser_une_fois_l_outil_passe)" },
+  { cas = "agent-permissions : mode PLAN, « Lancer » passe la conversation en modifs auto", raison = "le changement de mode est l'hôte ; le harness porte le texte du plan dans la demande (protocole::tests::la_carte_du_plan_porte_son_texte)" },
+  { cas = "agent-permissions : les RÉGLAGES déclaratifs", raison = "onglet Agent des réglages : fr-t7-reglages-agent" },
+]
+notes = "Écarts : tour SYNCHRONE (contrat.rs) ; l'arrêt est un drapeau partagé (`Interrupteur`, Send) que `HarnessClaude::interrupteur` / `interrompre` lèvent depuis un autre fil ou un rappel de HarnessIO ; un processus `claude` par tour (ADR-016 §1) ; `--system-prompt-snapshot off` à chaque reprise ou fork (S9, écart probable de Fragment signalé) ; le prompt est lu dans le dossier de l'agent de l'utilisateur (`prompt.md`, `preprompt.md`, skills) à chaque tour, sans version livrée : à défaut, les consignes de l'hôte (`HarnessTurn::instructions`) ; `history` lit le transcript disque en Rust (chaîne des `parentUuid`, sans sous-agents) au lieu de `getSessionMessages` ; `CLAUDE_CONFIG_DIR` est retiré de l'environnement comme tout CLAUDE*, donc les transcripts sont sous `~/.claude`. `one_shot` et la sortie structurée : T8. `status` sans sonde (le binaire est-il là ?). Cas ajoutés : pensée, reprise avec nouveau prompt, fork, pièces jointes, garde autorisée/refusée/demander, interruption au premier texte et avant le message, erreurs du binaire (option inconnue, UUID invalide, session absente, modèle inconnu, binaire introuvable), courriel du compte jamais journalisé ni écrit, prompt et skills relus, et les tests unitaires des modules (ligne de commande, environnement, protocole, transcript, faux processus)."
