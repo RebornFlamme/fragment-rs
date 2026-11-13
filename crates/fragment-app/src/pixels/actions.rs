@@ -173,6 +173,27 @@ pub struct PixelAttendu {
     pub rgb: [u8; 3],
 }
 
+/// Le mode de rastérisation du texte (fr-p4.1.4, ADR-017) : gris, ou ClearType (sous-pixel).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ModeTexte {
+    Gris,
+    Cleartype,
+}
+
+/// Contre-épreuve du mode du texte (ADR-017) : chaque glyphe peint dont le centre tombe dans la
+/// zone doit être rastérisé dans `mode`, et il en faut au moins un. Lue dans la scène peinte du
+/// candidat (sprites sous-pixel ou monochromes) : c'est le test du fork n°2 qui tourne en CI.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModeTexteAttendu {
+    pub x: f32,
+    pub y: f32,
+    pub largeur: f32,
+    pub hauteur: f32,
+    pub mode: ModeTexte,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Point {
@@ -426,6 +447,8 @@ struct SceneBrute {
     #[serde(default)]
     pixels_attendus: Vec<PixelAttendu>,
     #[serde(default)]
+    modes_texte: Vec<ModeTexteAttendu>,
+    #[serde(default)]
     actions: Vec<Value>,
 }
 
@@ -445,6 +468,8 @@ pub struct Scene {
     pub sans_reference: bool,
     /// Pixels que chaque capture doit porter (voir [`PixelAttendu`]).
     pub pixels_attendus: Vec<PixelAttendu>,
+    /// Modes du texte attendus par zone (voir [`ModeTexteAttendu`]).
+    pub modes_texte: Vec<ModeTexteAttendu>,
     pub actions: Vec<Action>,
 }
 
@@ -508,6 +533,7 @@ pub fn analyser_scene(texte: &str, nom_par_defaut: &str) -> Result<Scene, Erreur
         depuis,
         sans_reference: brute.sans_reference,
         pixels_attendus: brute.pixels_attendus,
+        modes_texte: brute.modes_texte,
         actions,
     })
 }
@@ -542,6 +568,27 @@ mod tests {
 
     fn scene(actions: &str) -> String {
         format!(r#"{{"scene":"t","actions":{actions}}}"#)
+    }
+
+    #[test]
+    fn les_modes_du_texte_se_lisent() {
+        let s = analyser_scene(
+            r#"{"modes_texte":[{"x":50,"y":5,"largeur":50,"hauteur":23,"mode":"gris"},
+                {"x":256,"y":5,"largeur":50,"hauteur":23,"mode":"cleartype"}]}"#,
+            "t",
+        )
+        .unwrap();
+        assert_eq!(s.modes_texte.len(), 2);
+        assert_eq!(s.modes_texte[0].mode, ModeTexte::Gris);
+        assert_eq!(s.modes_texte[1].mode, ModeTexte::Cleartype);
+        assert!(
+            analyser_scene(
+                r#"{"modes_texte":[{"x":0,"y":0,"largeur":1,"hauteur":1,"mode":"lcd"}]}"#,
+                "t"
+            )
+            .is_err()
+        );
+        assert!(analyser_scene("{}", "t").unwrap().modes_texte.is_empty());
     }
 
     #[test]

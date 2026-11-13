@@ -12,8 +12,9 @@ Modifié par fragment-rs : le seul fichier ci-dessous, par le seul patch vendor/
             l'archive ne sont pas vendorisés).
 
 Fichiers modifiés (chemins relatifs à la racine du crate) :
-  src/window.rs                          should_use_subpixel_rendering refuse le ClearType sous une opacité d'élément < 1 ; son test
+  src/window.rs                          should_use_subpixel_rendering refuse le ClearType sous une opacité d'élément < 1 (5 lignes)
 
 Ce que le patch ajoute : le texte peint sous un ancêtre d'opacité < 1 est rastérisé en gris, comme
 Chromium (un effet d'opacité est une surface intermédiaire transparente). Rien d'autre. Toute autre
-modification de ce fork exige un nouvel ADR. Plafond : deux forks (gpui-base, gpui-pre).
+modification de ce fork exige un nouvel ADR. Le test du patch tourne hors du fork, sur la vraie
+plateforme Windows : zones `modes_texte` des scènes pixels (t1-onglets), job CI `pixels`. Plafond : deux forks (gpui-base, gpui-pre).

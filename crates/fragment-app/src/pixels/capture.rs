@@ -12,7 +12,7 @@ use fragment_ui::flottant;
 use gpui_kit::{AnyWindowHandle, AsyncApp};
 use image::RgbaImage;
 
-use super::actions::{PixelAttendu, Scene};
+use super::actions::{ModeTexte, ModeTexteAttendu, PixelAttendu, Scene};
 
 // ★ Les boîtes de texte et d'icônes (ADR-009) : le fichier est celui de `xtask` (même code des deux
 // côtés, voir son en-tête). Le candidat les déclare ; `cargo xtask pixels` les relit.
@@ -30,6 +30,18 @@ thread_local! {
     /// Les glyphes de la dernière capture ROGNÉS par un rectangle de découpe (`content_mask`) : un
     /// fragment de 3×2 px visibles ou moins n'y est pas jugeable (fr-p3.1, décision du 13/11).
     static ROGNES: RefCell<Vec<boites::BoiteEncre>> = const { RefCell::new(Vec::new()) };
+    /// Les glyphes de texte visibles de la dernière capture et leur mode (fr-p4.1.4, ADR-017).
+    static MODES: RefCell<Option<Vec<GlypheMode>>> = const { RefCell::new(None) };
+}
+
+/// Un glyphe de texte peint : son rectangle (pixels physiques) et son mode de rastérisation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GlypheMode {
+    pub x0: f32,
+    pub y0: f32,
+    pub x1: f32,
+    pub y1: f32,
+    pub mode: ModeTexte,
 }
 
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
@@ -83,6 +95,7 @@ fn sprites_peints(
             s.bounds,
             s.content_mask.bounds,
             s.color.a,
+            ModeTexte::Cleartype,
         )
     });
     let monochromes = scene.monochrome_sprites.iter().map(|s| {
@@ -92,9 +105,11 @@ fn sprites_peints(
             s.bounds,
             s.content_mask.bounds,
             s.color.a,
+            ModeTexte::Gris,
         )
     });
-    for (order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes) {
+    let mut modes = Vec::new();
+    for (order, tuile, bornes, masque, alpha, mode) in glyphes.chain(monochromes) {
         if alpha <= 0.0 {
             continue;
         }
@@ -157,9 +172,19 @@ fn sprites_peints(
         if categorie == boites::Categorie::Texte && entier != rect {
             rognes.push(boite);
         }
+        if categorie == boites::Categorie::Texte {
+            modes.push(GlypheMode {
+                x0,
+                y0,
+                x1,
+                y1,
+                mode,
+            });
+        }
         sprites.push(boite);
     }
     ROGNES.with(|r| *r.borrow_mut() = rognes);
+    MODES.with(|m| *m.borrow_mut() = Some(modes));
     Some(sprites)
 }
 
@@ -260,7 +285,59 @@ pub fn verifier(image: &RgbaImage, scene: &Scene, mire: bool) -> anyhow::Result<
     if mire && compter_couleurs(image) < 3 {
         anyhow::bail!("{} : mire unie, le rasterizeur ne dessine pas", scene.nom);
     }
-    verifier_pixels(image, &scene.nom, &scene.pixels_attendus)
+    verifier_pixels(image, &scene.nom, &scene.pixels_attendus)?;
+    if scene.modes_texte.is_empty() {
+        return Ok(());
+    }
+    let Some(glyphes) = MODES.with(|m| m.borrow().clone()) else {
+        anyhow::bail!(
+            "{} : modes du texte attendus, mais la scène peinte est illisible (feature `pixels`)",
+            scene.nom
+        );
+    };
+    verifier_modes_texte(&scene.nom, &glyphes, &scene.modes_texte)
+}
+
+/// Contre-épreuve du mode du texte (ADR-017) : dans chaque zone, au moins un glyphe, et tous
+/// rastérisés dans le mode attendu. ★ C'est le test du fork n°2 (`vendor/gpui-pre.patch`) : sans le
+/// patch, un onglet au repos (opacité 0,6) sort en ClearType et la scène `t1-onglets` échoue.
+pub fn verifier_modes_texte(
+    nom: &str,
+    glyphes: &[GlypheMode],
+    attendus: &[ModeTexteAttendu],
+) -> anyhow::Result<()> {
+    for a in attendus {
+        let dedans: Vec<&GlypheMode> = glyphes
+            .iter()
+            .filter(|g| {
+                let (cx, cy) = ((g.x0 + g.x1) / 2.0, (g.y0 + g.y1) / 2.0);
+                cx >= a.x && cx < a.x + a.largeur && cy >= a.y && cy < a.y + a.hauteur
+            })
+            .collect();
+        if dedans.is_empty() {
+            anyhow::bail!(
+                "{nom} : aucun glyphe dans la zone ({}, {}, {} × {}) du mode {:?}",
+                a.x,
+                a.y,
+                a.largeur,
+                a.hauteur,
+                a.mode
+            );
+        }
+        let faux = dedans.iter().filter(|g| g.mode != a.mode).count();
+        if faux > 0 {
+            anyhow::bail!(
+                "{nom} : {faux} glyphe(s) sur {} hors du mode {:?} dans la zone ({}, {}, {} × {})",
+                dedans.len(),
+                a.mode,
+                a.x,
+                a.y,
+                a.largeur,
+                a.hauteur
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Chaque pixel attendu doit porter exactement sa couleur.
@@ -351,6 +428,48 @@ mod tests {
         assert!(e.contains("(2, 1)"), "{e}");
         let dehors = PixelAttendu { x: 9, ..ok };
         assert!(verifier_pixels(&img, "s", &[dehors]).is_err());
+    }
+
+    fn glyphe(x: f32, mode: ModeTexte) -> GlypheMode {
+        GlypheMode {
+            x0: x,
+            y0: 10.0,
+            x1: x + 6.0,
+            y1: 20.0,
+            mode,
+        }
+    }
+
+    #[test]
+    fn le_mode_du_texte_est_controle_par_zone() {
+        let glyphes = [
+            glyphe(50.0, ModeTexte::Gris),
+            glyphe(60.0, ModeTexte::Gris),
+            glyphe(260.0, ModeTexte::Cleartype),
+        ];
+        let zone = |x, mode| ModeTexteAttendu {
+            x,
+            y: 5.0,
+            largeur: 100.0,
+            hauteur: 23.0,
+            mode,
+        };
+        let attendus = [
+            zone(40.0, ModeTexte::Gris),
+            zone(250.0, ModeTexte::Cleartype),
+        ];
+        assert!(verifier_modes_texte("s", &glyphes, &attendus).is_ok());
+        // Patch retiré : l'onglet au repos sort en ClearType, la scène échoue.
+        let sans_patch = [
+            glyphe(50.0, ModeTexte::Cleartype),
+            glyphe(60.0, ModeTexte::Gris),
+        ];
+        let e = verifier_modes_texte("s", &sans_patch, &attendus[..1])
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("1 glyphe(s) sur 2"), "{e}");
+        // Une zone vide ne prouve rien : elle échoue aussi.
+        assert!(verifier_modes_texte("s", &[], &attendus[..1]).is_err());
     }
 
     #[test]

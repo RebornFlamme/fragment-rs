@@ -5147,8 +5147,9 @@ impl Window {
     }
 
     fn should_use_subpixel_rendering(&self, font_id: FontId, font_size: Pixels) -> bool {
-        // ★ fragment-rs (ADR-017) : sous une opacité < 1, le texte est gris, comme dans Chromium.
-        if !Self::opacite_permet_le_subpixel(self.element_opacity) {
+        // ★ fragment-rs (ADR-017) : sous un ancêtre d'opacité < 1 (un effet, donc une surface
+        // intermédiaire transparente), le texte est gris, comme dans Chromium.
+        if self.element_opacity < 1.0 {
             return false;
         }
         if self.platform_window.background_appearance() != WindowBackgroundAppearance::Opaque {
@@ -5167,12 +5168,6 @@ impl Window {
         };
 
         mode == TextRenderingMode::Subpixel
-    }
-
-    // ★ fragment-rs (ADR-017) : un ancêtre à opacité < 1 est un effet, donc une surface
-    // intermédiaire transparente : pas de ClearType dessus.
-    fn opacite_permet_le_subpixel(opacite: f32) -> bool {
-        opacite >= 1.0
     }
 
     /// Paints an emoji glyph into the scene for the next frame at the current z-index.
@@ -10162,23 +10157,6 @@ mod tests {
             )
             .size_full()
         }
-    }
-
-    // ★ fragment-rs (ADR-017)
-    #[gpui::test]
-    fn test_subpixel_refused_under_element_opacity(cx: &mut TestAppContext) {
-        test_underline_paint_at_scales(cx, |window| {
-            assert!(Window::opacite_permet_le_subpixel(window.element_opacity()));
-            window.with_element_opacity(Some(0.6), |window| {
-                assert!(!Window::opacite_permet_le_subpixel(window.element_opacity()));
-                window.with_element_opacity(Some(1.0), |window| {
-                    assert!(!Window::opacite_permet_le_subpixel(window.element_opacity()));
-                });
-            });
-            window.with_element_opacity(Some(1.0), |window| {
-                assert!(Window::opacite_permet_le_subpixel(window.element_opacity()));
-            });
-        });
     }
 
     fn test_underline_paint_at_scales(

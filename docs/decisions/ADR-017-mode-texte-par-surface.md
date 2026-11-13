@@ -27,14 +27,25 @@ Deux propriétés font passer Chromium au gris :
 ## Décision
 
 Option (B), aux conditions de l'orchestrateur, toutes obligatoires :
-1. **Le patch se limite à `should_use_subpixel_rendering`**, plus son test (`test_subpixel_refused_under_element_opacity`). Fichier `vendor/gpui-pre.patch` : +25 lignes dans `src/window.rs`, marquées `// ★ fragment-rs (ADR-017)`. Aucun autre changement dans ce fork sans un nouvel ADR.
+1. **Le patch se limite à `should_use_subpixel_rendering`** : `vendor/gpui-pre.patch`, +5 lignes dans `src/window.rs` (une garde `if self.element_opacity < 1.0 { return false; }` et son commentaire `// ★ fragment-rs (ADR-017)`). Aucun autre changement dans ce fork sans un nouvel ADR. **Son test tourne hors du fork, en CI** (voir « Le test du patch ») : le test interne d'abord écrit dans `window.rs` a été retiré, car `vendor/` est hors du workspace et il ne tournait jamais.
 2. **Job CI `fork-patch`** : l'arbre `vendor/gpui-pre` doit être ÉGAL à l'archive de crates.io de la version épinglée (sha256 vérifié contre `NOTICE`), plus `vendor/gpui-pre.patch`, et rien d'autre (`diff -r`). Il échoue aussi si la version vendorisée n'est plus celle du `Cargo.lock` et de `[workspace.dependencies]`, et il affiche la dette de rebase (dernière version publiée).
 3. **NOTICE Apache-2.0 et provenance** (`vendor/gpui-pre/NOTICE` : version 0.3.12, URL et sha256 de l'archive). `cargo xtask audit-sources` exclut ce dossier par une exclusion nommée (`vendor/gpui-pre/`, entrée de dossier).
 4. **Aucune PR amont** : décision de l'utilisateur du 13/11/2026.
-5. **Contre-épreuves de scène** : un onglet au repos (opacité 0,6) en gris, le même texte à opacité 1 (onglet actif) en ClearType sur surface opaque ; patch retiré, la scène passe au rouge.
+5. **Contre-épreuves de scène** : un onglet au repos (opacité 0,6) en gris, le même texte à opacité 1 (onglet actif) en ClearType sur surface opaque ; patch retiré, la scène passe au rouge. ★ Remplacement (chef, 13/11) : `.clickable-icon` ne porte que des SVG (gris des deux côtés, ne prouve rien) ; le second texte atténué retenu est `.view-header-title-parent` (`workspace.css:779`, opacité 0,6), voir « Le test du patch ».
 6. **Plafond : deux forks au plus** (`gpui-base`, ADR-006 ; `gpui-pre`, ici).
 
 ★ La version : gpui-kit 0.9.1 épingle `gpui-pre =0.3.12` (Cargo.lock) ; c'est elle qui est vendorisée.
+
+## Le test du patch (CI)
+
+★ Un test headless ne peut pas juger ce patch : la plateforme de test de GPUI refuse toujours le ClearType (`TestWindow::is_subpixel_rendering_supported` rend `false`), avec ou sans patch. Le test tourne donc sur la vraie plateforme Windows, dans le job `pixels` : une scène déclare `modes_texte` (zones et mode attendu, `gris` ou `cleartype`), et `fragment-pixels` lit dans la scène peinte le genre de chaque sprite de glyphe (`subpixel_sprites` = ClearType, `monochrome_sprites` = gris). Chaque zone doit contenir au moins un glyphe, tous du mode attendu ; sinon la capture échoue et le job passe au rouge (`capture::verifier_modes_texte`, test unitaire `le_mode_du_texte_est_controle_par_zone`).
+
+Les zones, relevées sur les références de Fragment (texte gris : aucun pixel chromatique ; ClearType : 38 à 86 % de pixels chromatiques) :
+- `t1-onglets` : onglets au repos (opacité 0,6) **gris**, onglet actif (opacité 1, surface opaque) **ClearType**. Patch retiré, les onglets au repos sortent en ClearType : rouge.
+- `t1-menu` (cas limite 1, texte sur le fond opaque d'un calque composé) : **gris**.
+- `t1-modale` (cas limite 2, surface opaque au-dessus d'un fond translucide, le voile) : **gris**.
+
+Le chemin `.view-header-title-parent` n'apparaît que dans `t2-fil-ariane` (tranche T3, pas encore active) : sa zone y sera ajoutée à l'activation de T3.
 
 ## Mise en œuvre de la règle (sans fork)
 
