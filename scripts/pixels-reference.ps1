@@ -2,6 +2,9 @@
 .SYNOPSIS
   Régénère la référence pixel : joue les scènes pixels/scenes/*.spec.ts sur Fragment
   (harnais e2e, Playwright de Fragment/app/node_modules) et écrit pixels/reference/*.png.
+  ★ SECOURS LOCAL (fr-e9q, décision utilisateur du 13/11) : les références se capturent sur GitHub Actions
+  (.github/workflows/references.yml, PR references/<date>). Ce script ne tourne sur le PC qu'en cas de panne
+  DÉCLARÉE de la CI (au journal), sous le verrou de capture C:/dev/fragment-capture.lock.
 .PARAMETER Scene
   Optionnel : une ou plusieurs scènes séparées par des virgules (ex. "menu,base"). Sans lui, toutes les scènes.
 .NOTES

@@ -1,0 +1,254 @@
+# Références pixels capturées sur GitHub Actions (fr-e9q, décision utilisateur du 13/11).
+#
+# Joue les scènes pixels/scenes/*.spec.ts sur Fragment (dépôt PRIVÉ, cloné en lecture à un SHA
+# épinglé) et propose le résultat par une PR automatique qui ne touche QUE pixels/reference/**.
+# Le chef relit et fusionne : rien n'est remplacé sans lui.
+#
+# ★ Sécurité (ce dépôt est PUBLIC) :
+#   - jamais de déclencheur pull_request : une PR de fork ne voit ni le secret ni Fragment ;
+#   - GITHUB_TOKEN réduit à contents: write + pull-requests: write, non persisté par checkout
+#     (les scripts d'installation npm de Fragment tournent sans lui) ; FRAGMENT_READ_TOKEN n'existe
+#     que dans l'étape du clone ;
+#   - Fragment est cloné dans $RUNNER_TEMP et supprimé en fin de job (if: always()) ;
+#   - aucune sortie de npm, tsc, Vite ou Playwright n'est imprimée (scripts/references-ci.ps1) ;
+#   - artefacts : PNG seulement ; actions tierces épinglées par SHA de commit.
+name: references
+
+on:
+  workflow_dispatch:
+    inputs:
+      fragment_sha:
+        description: "Commit de Fragment (40 hex). Vide = le SHA épinglé ci-dessous (FRAGMENT_SHA)."
+        required: false
+        default: ""
+      scenes:
+        description: "Scènes séparées par des virgules (nom du .spec.ts sans extension). Vide = toutes."
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "pixels/scenes/**"
+      - "pixels/vault*/**"
+      - "pixels/playwright.config.ts"
+      - "pixels/vite.reference.config.ts"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: references
+  cancel-in-progress: false
+
+env:
+  # ★ Le commit de Fragment des références commitées (PROVENANCE.txt du 10/11). Le changer = une PR.
+  FRAGMENT_SHA: 89c7a809475974b6bfc67e38ac44c0720968c0c4
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # ★ .cargo/config.toml vise C:/dev/… (portable) : sur le runner, target/ (ignoré par git) de l'espace de travail.
+  CARGO_TARGET_DIR: ${{ github.workspace }}/target
+
+jobs:
+  references:
+    runs-on: windows-latest
+    timeout-minutes: 300
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Paramètres (SHA de Fragment, scènes, dossiers)
+        id: param
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA_SAISI: ${{ inputs.fragment_sha }}
+          SCENES_SAISIES: ${{ inputs.scenes }}
+          AVANT: ${{ github.event.before }}
+        run: |
+          $sha = if ($env:SHA_SAISI) { $env:SHA_SAISI.Trim() } else { $env:FRAGMENT_SHA }
+          if ($sha -notmatch '^[0-9a-f]{40}$') { throw "SHA de Fragment invalide : $sha (40 hex attendus)" }
+          $scenes = ''
+          if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') {
+            $scenes = ($env:SCENES_SAISIES -replace '\s', '')
+          } elseif ($env:AVANT -and $env:AVANT -notmatch '^0+$') {
+            # Push sur main : seules les scènes dont le .spec.ts a changé ; un décor commun (_*.ts),
+            # un coffre ou une config change tout ; un JSON seul (côté candidat) ne demande rien.
+            $chemins = @(gh api "repos/$env:GITHUB_REPOSITORY/compare/$env:AVANT...$env:GITHUB_SHA" --jq '.files[].filename')
+            $tout = @($chemins | Where-Object { $_ -match '^pixels/(scenes/_|vault|playwright\.config|vite\.reference)' }).Count -gt 0
+            $specs = @($chemins | Where-Object { $_ -match '^pixels/scenes/[^/_][^/]*\.spec\.ts$' } |
+              ForEach-Object { [IO.Path]::GetFileName($_) -replace '\.spec\.ts$', '' } |
+              Where-Object { Test-Path "pixels/scenes/$_.spec.ts" })
+            if (-not $tout) {
+              if ($specs.Count -eq 0) { "rien=1" >> $env:GITHUB_OUTPUT; "Aucune scène à recapturer."; exit 0 }
+              $scenes = ($specs | Sort-Object -Unique) -join ','
+            }
+          }
+          if ($scenes -and $scenes -notmatch '^[A-Za-z0-9._,-]+$') { throw "Liste de scènes refusée : $scenes" }
+          "sha=$sha" >> $env:GITHUB_OUTPUT
+          "scenes=$scenes" >> $env:GITHUB_OUTPUT
+          "capture=$($env:RUNNER_TEMP)\capture" >> $env:GITHUB_OUTPUT
+          "Fragment : $sha ; scènes : $(if ($scenes) { $scenes } else { 'toutes' })"
+
+      # ★ L'écran du runner est en 1024×768 : il rognerait la fenêtre 1280×800 (ci.yml, job pixels).
+      - name: Écran 1920×1080, adaptateur et réglages de texte
+        if: steps.param.outputs.rien != '1'
+        run: |
+          Set-DisplayResolution -Width 1920 -Height 1080 -Force
+          Get-CimInstance Win32_VideoController | Format-List Name, CurrentHorizontalResolution, CurrentVerticalResolution
+          Get-ItemProperty 'HKCU:\Control Panel\Desktop' | Format-List FontSmoothing, FontSmoothingType, FontSmoothingGamma, FontSmoothingOrientation
+
+      - name: Clone de Fragment (lecture seule, SHA épinglé, hors de l'espace de travail)
+        if: steps.param.outputs.rien != '1'
+        env:
+          JETON: ${{ secrets.FRAGMENT_READ_TOKEN }}
+          SHA: ${{ steps.param.outputs.sha }}
+          CAPTURE: ${{ steps.param.outputs.capture }}
+        run: |
+          if (-not $env:JETON) { throw 'Secret FRAGMENT_READ_TOKEN absent.' }
+          $dest = Join-Path $env:CAPTURE 'Fragment'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          git -C $dest init --quiet
+          git -C $dest config core.longpaths true
+          # L'URL avec jeton n'est passée qu'à fetch (aucun remote enregistré) ; Actions masque le secret.
+          git -C $dest fetch --quiet --depth 1 --no-tags "https://x-access-token:$($env:JETON)@github.com/RebornFlamme/Fragment.git" $env:SHA 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Commit $($env:SHA) introuvable sur RebornFlamme/Fragment (non poussé ?) ou jeton refusé." }
+          git -C $dest checkout --quiet FETCH_HEAD
+          if ((git -C $dest rev-parse HEAD).Trim() -ne $env:SHA) { throw 'Le clone ne pointe pas sur le SHA demandé.' }
+          "lock=$((Get-FileHash (Join-Path $dest 'package-lock.json')).Hash)" >> $env:GITHUB_OUTPUT
+          "Fragment cloné à $($env:SHA)."
+        id: clone
+
+      # Cache : tarballs npm publics et binaire Electron, rien de Fragment.
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: steps.param.outputs.rien != '1'
+        with:
+          path: |
+            ~\AppData\Local\npm-cache
+            ~\AppData\Local\electron\Cache
+          key: references-npm-${{ runner.os }}-${{ steps.clone.outputs.lock }}
+
+      - name: Capture des références (scripts/references-ci.ps1)
+        if: steps.param.outputs.rien != '1'
+        id: capture
+        env:
+          CAPTURE: ${{ steps.param.outputs.capture }}
+          SCENES: ${{ steps.param.outputs.scenes }}
+        run: ./scripts/references-ci.ps1 -Capture $env:CAPTURE -Depot $env:GITHUB_WORKSPACE -Scenes $env:SCENES
+
+      - run: rustup show active-toolchain || rustup toolchain install
+        if: steps.param.outputs.rien != '1'
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+        if: steps.param.outputs.rien != '1'
+        with:
+          shared-key: references-xtask
+
+      # Mesure d'équivalence : références CI contre références de main, référence contre référence
+      # (`cargo xtask pixels`, sans déclaration de boîtes ni cliquet : « Strict » = 0 pixel).
+      - name: Équivalence avec les références de main
+        if: steps.param.outputs.rien != '1'
+        id: equivalence
+        env:
+          CAPTURE: ${{ steps.param.outputs.capture }}
+        run: |
+          $c = $env:CAPTURE
+          $main = Join-Path $c 'refs-main'; $ci = Join-Path $c 'refs-ci'; $vide = Join-Path $c 'scenes-vides'
+          New-Item -ItemType Directory -Force -Path $vide, (Join-Path $c 'diff') | Out-Null
+          $rapport = Join-Path $c 'equivalence-xtask.md'
+          cargo run --release --quiet --locked -p xtask -- pixels --reference $main --candidate $ci --scenes $vide `
+            --cliquet (Join-Path $c 'sans-cliquet.json') --tranche T1 --diff (Join-Path $c 'diff') --report $rapport
+          "xtask pixels : code $LASTEXITCODE"
+          $lignes = @(Get-Content $rapport | Where-Object { $_ -match '^\| [^|]+\.png \|' })
+          $ecarts = @(); $strict = 0
+          foreach ($l in $lignes) {
+            $col = $l.Split('|') | ForEach-Object { $_.Trim() }
+            if ($col[2] -eq 'Strict') { $strict++ } else { $ecarts += "| $($col[1]) | $($col[2]) | $($col[4]) | $($col[5]) | $($col[7]) |" }
+          }
+          $nouvelles = @(Get-ChildItem $ci -Filter *.png | Where-Object { -not (Test-Path (Join-Path $main $_.Name)) } | ForEach-Object { $_.Name })
+          $md = @("## Équivalence (fr-e9q)", "",
+            "$($lignes.Count) PNG comparés aux références de main : $strict identiques (0 pixel), $($ecarts.Count) en écart ; $($nouvelles.Count) nouveau(x).", "")
+          if ($ecarts.Count) { $md += @('| PNG | Verdict xtask | px hors boîtes | px dans les boîtes détectées | delta max |', '|---|---|---|---|---|') + $ecarts + @('') }
+          if ($nouvelles.Count) { $md += @('Nouveaux : ' + ($nouvelles -join ', '), '') }
+          $md -join "`n" | Set-Content -Encoding utf8 (Join-Path $c 'equivalence.md')
+          $md -join "`n" >> $env:GITHUB_STEP_SUMMARY
+          "ecarts=$($ecarts.Count)" >> $env:GITHUB_OUTPUT
+
+      - name: Garde — seuls pixels/reference/** changent
+        if: steps.param.outputs.rien != '1'
+        id: garde
+        run: |
+          $chemins = @(git status --porcelain=v1 --untracked-files=all | ForEach-Object { $_.Substring(3).Trim('"') })
+          $hors = @($chemins | Where-Object { $_ -notmatch '^pixels/reference/' })
+          if ($hors.Count) { throw ("Chemins hors de pixels/reference/ modifiés : " + ($hors -join ', ')) }
+          "$($chemins.Count) chemin(s) modifié(s), tous sous pixels/reference/."
+          "changements=$($chemins.Count)" >> $env:GITHUB_OUTPUT
+
+      - name: PR automatique references/<date>
+        if: steps.param.outputs.rien != '1' && steps.garde.outputs.changements != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ECARTS: ${{ steps.equivalence.outputs.ecarts }}
+          CAPTURE: ${{ steps.param.outputs.capture }}
+          SHA_FRAGMENT: ${{ steps.param.outputs.sha }}
+        run: |
+          # ★ Branche « references/… » et non « refs/… » : un nom de branche en refs/ est ambigu pour git.
+          $branche = "references/$((Get-Date).ToUniversalTime().ToString('yyyy-MM-dd'))-$($env:GITHUB_RUN_NUMBER)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --quiet -c $branche
+          git add -A -- pixels/reference
+          $indexees = @(git diff --cached --name-only)
+          $hors = @($indexees | Where-Object { $_ -notmatch '^pixels/reference/' })
+          if ($hors.Count) { throw ("Refus : chemins hors de pixels/reference/ dans le commit : " + ($hors -join ', ')) }
+          git commit --quiet -m "feat : références pixels capturées en CI, Fragment $($env:SHA_FRAGMENT.Substring(0,7)) (fr-e9q)" -m "Run $($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)"
+          git push --quiet "https://x-access-token:$($env:GH_TOKEN)@github.com/$($env:GITHUB_REPOSITORY).git" "HEAD:refs/heads/$branche"
+          if ($LASTEXITCODE -ne 0) { throw 'Poussée refusée.' }
+          $corps = @(
+            "Références pixels capturées par ``references.yml`` sur ``windows-latest`` (fr-e9q).", "",
+            "- Fragment : ``$($env:SHA_FRAGMENT)``", "- fragment-rs : ``$($env:GITHUB_SHA)``",
+            "- Run : $($env:GITHUB_SERVER_URL)/$($env:GITHUB_REPOSITORY)/actions/runs/$($env:GITHUB_RUN_ID)",
+            "- Provenance détaillée : ``pixels/reference/PROVENANCE.json``", "",
+            (Get-Content -Raw (Join-Path $env:CAPTURE 'equivalence.md')), "",
+            "Ne contient que ``pixels/reference/**`` (vérifié par le workflow). Le chef relit et fusionne ; un écart non expliqué ne se fusionne pas.")
+          $corpsFichier = Join-Path $env:CAPTURE 'corps-pr.md'
+          $corps -join "`n" | Set-Content -Encoding utf8 $corpsFichier
+          $titre = "refs : références pixels CI ($branche)"
+          $brouillon = @()
+          if ([int]$env:ECARTS -gt 0) { $titre = "refs [ÉCART] : références pixels CI ($branche)"; $brouillon = @('--draft') }
+          gh pr create --base main --head $branche --title $titre --body-file $corpsFichier @brouillon
+          if ($LASTEXITCODE -ne 0) {
+            # Réglage du dépôt « Allow GitHub Actions to create and approve pull requests » coupé :
+            # la branche est poussée, la PR s'ouvre à la main.
+            "::warning::PR non créée par le jeton d'Actions ; branche $branche poussée : gh pr create --head $branche --body-file <corps>"
+            "PR à ouvrir à la main : branche ``$branche``." >> $env:GITHUB_STEP_SUMMARY
+          }
+
+      # Artefacts : PNG seulement (références capturées et images de diff).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && steps.param.outputs.rien != '1'
+        with:
+          name: references-ci
+          path: |
+            ${{ runner.temp }}/capture/refs-ci/*.png
+            ${{ runner.temp }}/capture/diff/**/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Nettoyage (Fragment, node_modules, journaux)
+        if: always()
+        env:
+          CAPTURE: ${{ runner.temp }}\capture
+        run: |
+          $fichierPid = Join-Path $env:CAPTURE 'vite.pid'
+          if (Test-Path $fichierPid) { taskkill /PID (Get-Content $fichierPid) /T /F *> $null }
+          Get-Process electron -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+          if (Test-Path $env:CAPTURE) { cmd /c rmdir /s /q "$env:CAPTURE" }
+          if (Test-Path $env:CAPTURE) { throw 'Le clone de Fragment n''a pas pu être supprimé.' }
+          'Dossier de capture supprimé.'
