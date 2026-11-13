@@ -90,6 +90,10 @@ pub use workspace::feuille::{GenerateurIds, WorkspaceLeaf};
 pub use workspace::layout::{
     LayoutNode, LeafLayout, SplitLayout, TabsLayout, WorkspaceLayout, is_workspace_layout,
 };
+pub use workspace::menu_pane::{
+    ActionMenu, EntreeMenuPane, MenuPane, SECTIONS_PANE, SOURCE_ENTETE_ONGLET,
+    SOURCE_PLUS_D_OPTIONS, menu_de_pane,
+};
 pub use workspace::pile::{DropZone, drop_index_at, zone_at};
 pub use workspace::redimension::{
     BUDGET_MS, Boite, GelDesFeuilles, GesteSplit, LARGEUR_DOCK_MAX, LARGEUR_DOCK_MIN, Mesure,

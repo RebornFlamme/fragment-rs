@@ -16,7 +16,10 @@
 //! Le titre central est vide pour une vue ordinaire : le fil d'Ariane des vues de fichier arrive
 //! avec elles (T2).
 
-use fragment_core::{CommandManager, DeferredView, EmptyView, ItemId, View};
+use fragment_core::{
+    CommandManager, DeferredView, EmptyView, ItemId, MenuPane, SOURCE_PLUS_D_OPTIONS, View,
+    menu_de_pane,
+};
 use fragment_theme::Aplat;
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
@@ -60,40 +63,79 @@ pub fn executer_ici(ctx: &ContexteOnglets, leaf: ItemId, commande: &str) {
     commandes.execute_command_by_id(commande, None);
 }
 
-/// Le menu « ⋯ » : le menu du pane (ItemView déclare l'ordre des groupes, y compris ceux que seules
-/// les sous-classes peupleront).
-fn menu_plus_d_options(ctx: &ContexteOnglets, leaf: ItemId, evt: &MouseDownEvent, cx: &App) {
-    let zoom = Echelle::courante(cx).zoom();
-    let mut menu = Menu::new();
-    menu.add_sections(&["pane", "action", "view", "info", "system", "danger"]);
-    for (titre, icone, commande) in [
-        (
-            "Diviser à droite",
-            "separator-vertical",
-            "workspace:split-vertical",
-        ),
-        (
-            "Diviser en bas",
-            "separator-horizontal",
-            "workspace:split-horizontal",
-        ),
-    ] {
-        let ctx = ctx.clone();
+/// Remplit le menu dessiné depuis le modèle du cœur : sections, puis entrées (clic, icône, état,
+/// sous-menu). Les sections suivent l'ordre déclaré par l'ouvreur.
+pub fn remplir_depuis_pane(menu: &mut Menu, modele: &MenuPane) {
+    let sections: Vec<&str> = modele.sections().iter().map(String::as_str).collect();
+    menu.add_sections(&sections);
+    for e in modele.entrees() {
         menu.add_item(|i| {
-            i.set_title(titre)
-                .set_icon(icone)
-                .set_section("pane")
-                .on_click(move || executer_ici(&ctx, leaf, commande));
+            i.set_title(&e.titre)
+                .set_section(&e.section)
+                .set_disabled(e.desactivee)
+                .set_warning(e.avertissement);
+            if !e.icone.is_empty() {
+                i.set_icon(&e.icone);
+            }
+            if let Some(action) = e.action.clone() {
+                i.on_click(move || action());
+            }
+            if let Some(sous) = &e.sous_menu {
+                remplir_depuis_pane(i.set_submenu(), sous);
+            }
         });
     }
-    menu.add_item(|i| {
+}
+
+/// Le menu « ⋯ » d'une feuille : l'ouvreur (ItemView) déclare les sections et les entrées du pane,
+/// puis la VUE ajoute les siennes (`on_pane_menu`). ★ Le cœur ne nomme aucune vue : une vue qui ne
+/// contribue rien laisse le menu de base.
+pub fn menu_de_la_feuille(ctx: &ContexteOnglets, leaf: ItemId) -> Menu {
+    let de_base = |m: &mut MenuPane| {
+        for (titre, icone, commande) in [
+            (
+                "Diviser à droite",
+                "separator-vertical",
+                "workspace:split-vertical",
+            ),
+            (
+                "Diviser en bas",
+                "separator-horizontal",
+                "workspace:split-horizontal",
+            ),
+        ] {
+            let ctx = ctx.clone();
+            m.add_item(|i| {
+                i.set_title(titre)
+                    .set_icon(icone)
+                    .set_section("pane")
+                    .on_click(move || executer_ici(&ctx, leaf, commande));
+            });
+        }
         // Pas de multi-fenêtre : désactivée, comme dans Fragment.
-        i.set_title("Ouvrir dans une nouvelle fenêtre")
-            .set_icon("app-window")
-            .set_section("pane")
-            .set_disabled(true);
-    });
-    menu.show_at_position(
+        m.add_item(|i| {
+            i.set_title("Ouvrir dans une nouvelle fenêtre")
+                .set_icon("app-window")
+                .set_section("pane")
+                .set_disabled(true);
+        });
+    };
+    let modele = match ctx.workspace.try_borrow() {
+        Ok(w) => match w.leaf(leaf) {
+            Some(l) => menu_de_pane(l.view(), SOURCE_PLUS_D_OPTIONS, de_base),
+            None => MenuPane::new(),
+        },
+        Err(_) => MenuPane::new(),
+    };
+    let mut menu = Menu::new();
+    remplir_depuis_pane(&mut menu, &modele);
+    menu
+}
+
+/// Le menu « ⋯ » : ouvert à la position du pointeur.
+fn menu_plus_d_options(ctx: &ContexteOnglets, leaf: ItemId, evt: &MouseDownEvent, cx: &App) {
+    let zoom = Echelle::courante(cx).zoom();
+    menu_de_la_feuille(ctx, leaf).show_at_position(
         f32::from(evt.position.x) / zoom,
         f32::from(evt.position.y) / zoom,
         &ctx.keymap,

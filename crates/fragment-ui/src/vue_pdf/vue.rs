@@ -143,6 +143,10 @@ impl View for VuePdf {
     fn scope(&self) -> Option<Scope> {
         Some(self.base.scope.clone())
     }
+    /// Le menu « ⋯ » : Zoom avant / Zoom arrière, dans la section `view` (PdfView.onPaneMenu).
+    fn on_pane_menu(&self, menu: &mut fragment_core::MenuPane, _source: &str) {
+        super::menu::contribuer_au_menu_de_pane(menu, &self.liens.touches);
+    }
     fn on_open(&mut self) {
         self.abonner_coffre();
     }

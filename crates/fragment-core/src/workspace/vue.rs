@@ -95,6 +95,13 @@ pub trait View: Any {
         None
     }
 
+    /// Le menu « ⋯ » du pane (`onPaneMenu`). Interception par mutation : la vue reçoit un menu EN
+    /// CONSTRUCTION et y AJOUTE ses entrées ; l'ouvreur (l'en-tête) l'a créé, a déclaré l'ordre des
+    /// sections, et le dessine. `source` : `more-options`, `tab-header`…
+    fn on_pane_menu(&self, menu: &mut super::menu_pane::MenuPane, source: &str) {
+        let _ = (menu, source);
+    }
+
     /// Pour la couche de rendu et les tests : retrouver le type concret.
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

@@ -606,3 +606,25 @@ fn la_chasse_de_dm_sans_sur_un_titre_d_onglet_reste_a_deux_pixels_de_chromium() 
         "chasse de « {titre} » = {largeur} px, attendu 47 à 48"
     );
 }
+
+// ─── Le menu « ⋯ » de l'en-tête (ItemView.addAction + onPaneMenu) ───
+
+/// Une vue qui ne contribue rien : le menu de base de l'ouvreur, dans l'ordre de Fragment.
+#[test]
+fn le_menu_plus_d_options_d_une_vue_muette_est_celui_de_l_ouvreur() {
+    let banc = lancer(&layout(
+        json!("a"),
+        pile(0, vec![feuille("a", "markdown")]),
+        None,
+    ));
+    let leaf = banc.ws().active_leaf().unwrap();
+    let m = fragment_ui::entete::menu_de_la_feuille(&banc.ctx, leaf);
+    assert_eq!(
+        m.forme(),
+        [
+            "Diviser à droite",
+            "Diviser en bas",
+            "Ouvrir dans une nouvelle fenêtre"
+        ]
+    );
+}
