@@ -9,4 +9,10 @@ rs = "crates/fragment-ui/src/grappe/{mod,bulles,vue,presentateur,rendu}.rs, crat
 cas_source = 18
 cas_portes = 14
 cas_ajoutes = 7
+non_portes = [
+  { cas = "gutter-cluster : la timeline (posts en tweet) et le clic sur un post", raison = "T7, fr-t7-post" },
+  { cas = "gutter-cluster : « Ouvrir dans un nouvel onglet » (fil en grand)", raison = "le fil en grand est T7 ; seul le transfert du filtre est testé" },
+  { cas = "gutter-cluster : « Copier la conversation » (presse-papiers)", raison = "au chat, T7" },
+  { cas = "gutter-cluster : « Télécharger la conversation »", raison = "au chat, T7" },
+]
 notes = "Portés (gutter-cluster) : replié seul, 2/3/4 bulles (un test paramétré), disque à 5 et plus au pixel de la maquette (+2, +3), survol des bulles et infobulle, ouverture en place (même widget, bulles immobiles), toutes les lignes et survol d'une ligne, en-tête recherche / tri / filtre, menu ⋮ (ouvertures, la vue, Fermer), Aller à (grappe effacée, revient repliée), ouverte puis fermée, clic dehors, ⋮ Fermer (grappe à 4), grappe défaite. n.a. (T7, fr-t7-post) : la timeline (posts en tweet) et le clic sur un post ; « Ouvrir dans un nouvel onglet » : seul le transfert du filtre est testé (le fil en grand est T7). Le presse-papiers et le téléchargement de « Copier / Télécharger la conversation » sont au chat (T7). Ajoutés : diagonale à deux, transitoire et non groupable, filtre qui suit la vue ouverte ailleurs, ouverte sans grappe, membre ouvert loin (pas de masque), annonce d'un côté qui ne défait pas l'autre, scène et icônes de remplacement. Écarts : la grappe passe par un ModeleGrappe partagé (l'état éphémère Rust est du JSON) ; le lien pointillé vers les bulles (setClusterHost) est au montage ; locate et list-filter manquent au jeu d'icônes (remplacés à l'écran, dette). Scènes t5-grappe-* (pixels:grappe {n, open}) : références à capturer au montage, aucun fichier de pixels/ touché."
