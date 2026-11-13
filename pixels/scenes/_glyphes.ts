@@ -174,7 +174,9 @@ export async function releverDom(page: Page): Promise<ReleveDom> {
         // tiennent pas. Le conteneur tronqué est le bloc qui porte text-overflow et un overflow
         // non visible ; ses lettres dont le bord droit passe la limite (bord du contenu moins la
         // largeur de « … ») ne sont pas peintes, et « … » se pose juste après la dernière qui tient.
-        type Tronque = { limite: number; largeur: number; dernier: Rect | null; gauche: number; el: Element };
+        // ★ Sauf la PREMIÈRE lettre : la règle de text-overflow veut qu'elle soit rognée, jamais
+        // remplacée (un onglet trop étroit montre un « N » coupé, pas « … » ; t1-boutons-fenetre).
+        type Tronque = { limite: number; largeur: number; dernier: Rect | null; gauche: number; el: Element; vu: boolean };
         const tronques = new Map<Element, Tronque | null>();
         const tronqueDe = (el: Element): Tronque | null => {
             for (let e: Element | null = el; e; e = e.parentElement) {
@@ -193,7 +195,7 @@ export async function releverDom(page: Page): Promise<ReleveDom> {
                     const b = e.getBoundingClientRect();
                     const gauche = b.left + html.clientLeft + parseFloat(s.paddingLeft);
                     const droite = b.left + html.clientLeft + html.clientWidth - parseFloat(s.paddingRight);
-                    t = { limite: droite - largeur, largeur, dernier: null, gauche, el: e };
+                    t = { limite: droite - largeur, largeur, dernier: null, gauche, el: e, vu: false };
                 }
                 tronques.set(e, t);
                 return t;
@@ -232,7 +234,9 @@ export async function releverDom(page: Page): Promise<ReleveDom> {
                 if (!r) continue;
                 const entier: Rect = { x0: r.left, y0: r.top, x1: r.right, y1: r.bottom };
                 if (tronque) {
-                    if (entier.x1 > tronque.limite + 0.01) {
+                    const premiere = !tronque.vu;
+                    tronque.vu = true;
+                    if (!premiere && entier.x1 > tronque.limite + 0.01) {
                         releve.ecartes.decoupes += 1;
                         continue;
                     }

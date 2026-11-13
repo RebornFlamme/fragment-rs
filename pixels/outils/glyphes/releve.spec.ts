@@ -128,3 +128,14 @@ test('un texte tronque releve ses lettres visibles puis les points de suspension
     expect(x + l).toBeLessThanOrEqual(80.5);
     expect(x).toBeGreaterThanOrEqual(r.glyphes[r.glyphes.length - 2][1]);
 });
+
+test('un texte tronque trop etroit garde sa premiere lettre rognee sans points de suspension', async ({ page }) => {
+    // La première lettre d'une ligne tronquée est rognée, jamais remplacée par « … »
+    // (onglet trop étroit de t1-boutons-fenetre).
+    await charger(page, `<div class="abs" style="left:10px;top:10px;width:8px;overflow:hidden;
+        white-space:nowrap;text-overflow:ellipsis"><span>New Tab</span></div>`);
+    const r = await releverDom(page);
+    expect(texte(r.glyphes)).toBe('N');
+    expect(r.rognes).toEqual([0]);
+    expect(encreCouverte(await encre(page, 0, 0, 60, 40), r.glyphes)).toEqual([]);
+});
