@@ -155,6 +155,22 @@ pub fn options_fenetre(cx: &App, titre: &str, largeur: f32, hauteur: f32) -> Win
     }
 }
 
+/// Pose le mode du schéma enregistré (`baseColorScheme`) en gardant le thème du coffre : sans cela,
+/// le choix de l'utilisateur serait perdu à chaque relance (`system` suit l'OS).
+pub fn appliquer_schema_au_demarrage(
+    cx: &mut App,
+    themes: &ThemesCoffre,
+    apparence: &fragment_core::Apparence,
+    os_sombre: bool,
+) {
+    fragment_ui::reglages::apparence_themes::appliquer_schema(
+        cx,
+        themes,
+        apparence.schema(),
+        os_sombre,
+    );
+}
+
 /// Démarre l'application et monte sa fenêtre principale (`largeur` × `hauteur`). `gpui_kit::init`
 /// doit avoir été appelé, et les polices enregistrées.
 pub fn monter(
@@ -207,6 +223,13 @@ pub fn monter(
     // Les thèmes du coffre : les réglages les proposent, l'écran les suit à chaud.
     if let Some(themes) = application.noyau.themes.clone() {
         fragment_ui::themes::monter(cx, &themes);
+        if options.schema_au_demarrage {
+            let os_sombre = matches!(
+                cx.window_appearance(),
+                WindowAppearance::Dark | WindowAppearance::VibrantDark
+            );
+            appliquer_schema_au_demarrage(cx, &themes, &application.noyau.apparence, os_sombre);
+        }
         application.brancher_themes(themes);
     }
 

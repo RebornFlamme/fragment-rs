@@ -84,6 +84,10 @@ pub struct Options {
     pub horloge: Horloge,
     /// Le coffre à ouvrir (`None` : aucun coffre, les docks démarrent repliés comme en T1).
     pub coffre: Option<SourceCoffre>,
+    /// Poser au démarrage le schéma de `appearance.json` (`system` : sombre ou clair de l'OS).
+    /// ★ Faux par défaut : les scènes de pixels fixent leur propre mode avant `monter`, et l'OS du
+    ///   runner ne doit pas le changer. Le binaire (`main.rs`) l'active.
+    pub schema_au_demarrage: bool,
 }
 
 impl Options {
@@ -101,6 +105,7 @@ impl Options {
             nom: "coffre".to_owned(),
             horloge: Rc::new(move || debut.elapsed().as_millis() as u64),
             coffre: None,
+            schema_au_demarrage: false,
         }
     }
 }

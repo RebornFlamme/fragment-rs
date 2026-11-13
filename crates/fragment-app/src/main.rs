@@ -18,6 +18,7 @@ fn main() {
         .unwrap_or_else(|| PathBuf::from("."));
     let mut options = Options::avec(Stockages::dossier(&dossier), env!("CARGO_PKG_VERSION"));
     options.coffre = Some(fragment_app::coffre::SourceCoffre::Dossier(dossier.clone()));
+    options.schema_au_demarrage = true;
     options.nom = dossier.file_name().map_or_else(
         || "Fragment".to_owned(),
         |n| n.to_string_lossy().into_owned(),
