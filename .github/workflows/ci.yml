@@ -199,6 +199,23 @@ jobs:
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
       - name: Capture n°2
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-2
+      # fr-p4.1.3 (mesure, non bloquant) : réglages de texte du runner, en lecture seule, puis une
+      # capture en ClearType de GPUI (FRAGMENT_PIXELS_TEXTE=subpixel) publiée à côté du candidat gris.
+      - name: Réglages de texte du runner (ClearType, DPI, Avalon.Graphics)
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Get-ItemProperty 'HKCU:\Control Panel\Desktop' | Format-List FontSmoothing, FontSmoothingType, FontSmoothingGamma, FontSmoothingOrientation, LogPixels, Win8DpiScaling
+          "HKCU Avalon.Graphics : $(Test-Path 'HKCU:\SOFTWARE\Microsoft\Avalon.Graphics')"
+          Get-ChildItem 'HKCU:\SOFTWARE\Microsoft\Avalon.Graphics' -Recurse -ErrorAction SilentlyContinue | Format-List
+          Get-ItemProperty 'HKCU:\Control Panel\Desktop\PerMonitorSettings\*' -ErrorAction SilentlyContinue | Format-List PSChildName, DpiValue
+          Get-CimInstance Win32_DesktopMonitor | Format-List Name, PixelsPerXLogicalInch
+      - name: Capture ClearType (mesure fr-p4.1.3)
+        continue-on-error: true
+        env:
+          FRAGMENT_PIXELS_TEXTE: subpixel
+        run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-subpixel
       - name: Preuve — fenêtre vide et mire comparées à elles-mêmes (strict, 0 pixel)
         run: |
           foreach ($f in 'fenetre-vide-dark.png', 'mire-dark.png') {
@@ -221,6 +238,7 @@ jobs:
           name: pixels
           path: |
             pixels/candidate/
+            pixels/candidate-subpixel/
             pixels/diff/
             docs/parite-pixels.md
           if-no-files-found: ignore
