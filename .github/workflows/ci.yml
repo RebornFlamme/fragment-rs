@@ -206,14 +206,15 @@ jobs:
               if (-not (Test-Path "$d/$f")) { throw "capture absente : $d/$f" }
             }
           }
-          cargo xtask pixels --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
+          # ★ fr-p3.1 : xtask en release (la contre-épreuve par glyphe triple la durée en debug).
+          cargo run --release --quiet -p xtask -- pixels --reference pixels/candidate-2 --candidate pixels/candidate --diff pixels/diff/preuve --report pixels/diff/preuve.md
       - name: Parité avec Fragment (scènes ayant référence et candidat)
         shell: bash
         run: |
           shopt -s nullglob
           paires=0
           for c in pixels/candidate/*.png; do [ -f "pixels/reference/$(basename "$c")" ] && paires=$((paires+1)); done
-          if [ "$paires" -gt 0 ]; then cargo xtask pixels --exiger-references; else echo "Aucune scène n'a encore référence + candidat (phase 0)."; fi
+          if [ "$paires" -gt 0 ]; then cargo run --release --quiet -p xtask -- pixels --exiger-references; else echo "Aucune scène n'a encore référence + candidat (phase 0)."; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:

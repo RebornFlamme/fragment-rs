@@ -14,6 +14,10 @@ repository = "https://github.com/RebornFlamme/fragment-rs"
 # ★ gpui-kit et toute la famille gpui-pre-* sont ÉPINGLÉS à la version exacte (ADR-001).
 # gpui-kit 0.9.1 exige lui-même gpui-pre =0.3.12 : ne monter l'un qu'avec l'autre, par ADR.
 gpui-kit = "=0.9.1"
+# ★ La version de gpui-pre que tire gpui-kit 0.9.1, et seulement elle : elle SUIT gpui-kit et ne monte
+# qu'avec lui. Tirée directement par la seule feature `pixels` de fragment-app, pour sa feature
+# `bench-support` (`Window::rendered_scene`, lecture des sprites peints : fr-p3.1, ADR-009).
+gpui-pre = "=0.3.12"
 anyhow = "1"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }

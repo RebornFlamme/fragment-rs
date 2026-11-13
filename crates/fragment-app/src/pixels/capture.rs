@@ -24,6 +24,12 @@ thread_local! {
     static OMBRES: RefCell<Vec<boites::OmbreDeclaree>> = const { RefCell::new(Vec::new()) };
     /// Les boîtes arrondies de la dernière capture, déclarées de même.
     static ARRONDIS: RefCell<Vec<boites::ArrondiDeclare>> = const { RefCell::new(Vec::new()) };
+    /// Les sprites de glyphes et d'icônes de la dernière capture, lus dans SA scène peinte
+    /// (`None` : scène illisible, sans la feature `pixels` ; les boîtes sont alors déduites).
+    static SPRITES: RefCell<Option<Vec<boites::BoiteEncre>>> = const { RefCell::new(None) };
+    /// Les glyphes de la dernière capture ROGNÉS par un rectangle de découpe (`content_mask`) : un
+    /// fragment de 3×2 px visibles ou moins n'y est pas jugeable (fr-p3.1, décision du 13/11).
+    static ROGNES: RefCell<Vec<boites::BoiteEncre>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
@@ -35,6 +41,7 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
     cx.update(|cx| {
         fenetre.update(cx, |_, window, cx| {
             flottant::vider_ombres();
+            fragment_ui::boites::vider_icones();
             window.draw(cx).clear(cx);
             let ombres = flottant::ombres_peintes().iter().map(declarer).collect();
             OMBRES.with(|o| *o.borrow_mut() = ombres);
@@ -43,9 +50,147 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
                 .map(declarer_arrondi)
                 .collect();
             ARRONDIS.with(|a| *a.borrow_mut() = arrondis);
-            window.render_to_image()
+            let image = window.render_to_image()?;
+            let sprites = sprites_peints(window, image.width(), image.height()).map(|mut s| {
+                s.extend(icones_declarees(image.width(), image.height()));
+                s
+            });
+            SPRITES.with(|s| *s.borrow_mut() = sprites);
+            Ok(image)
         })
     })?
+}
+
+/// Les glyphes et les icônes de la scène que `render_to_image` vient de rastériser (fr-p3.1).
+///
+/// ★ Pourquoi la scène et pas un crochet dans `fragment-ui` : le texte passe par des dizaines de
+/// `div().child(chaîne)` et l'éditeur peint ses lignes lui-même ; aucun point de `fragment-ui` ne les
+/// voit tous. La scène, si : chaque glyphe y est un sprite posé au pixel près par `paint_glyph`, chaque
+/// icône un sprite de `paint_svg`. C'est la vérité de la peinture, pas une estimation de mise en page.
+#[cfg(feature = "pixels")]
+fn sprites_peints(
+    window: &gpui_kit::Window,
+    largeur: u32,
+    hauteur: u32,
+) -> Option<Vec<boites::BoiteEncre>> {
+    let scene = window.rendered_scene();
+    let mut sprites = Vec::new();
+    let mut rognes = Vec::new();
+    let glyphes = scene.subpixel_sprites.iter().map(|s| {
+        (
+            s.order,
+            s.tile.bounds.size,
+            s.bounds,
+            s.content_mask.bounds,
+            s.color.a,
+        )
+    });
+    let monochromes = scene.monochrome_sprites.iter().map(|s| {
+        (
+            s.order,
+            s.tile.bounds.size,
+            s.bounds,
+            s.content_mask.bounds,
+            s.color.a,
+        )
+    });
+    for (order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes) {
+        if alpha <= 0.0 {
+            continue;
+        }
+        // ★ Glyphe ou icône : `paint_glyph` pose la tuile à sa taille (bornes = tuile), `paint_svg`
+        // la rastérise à `SMOOTH_SVG_SCALE_FACTOR` (2) fois la taille affichée. Une tuile plus large
+        // que le sprite est donc un SVG.
+        let categorie = if tuile.width.0 as f32 > bornes.size.width.0 + 0.5 {
+            boites::Categorie::Icone
+        } else {
+            boites::Categorie::Texte
+        };
+        let x0 = bornes.origin.x.0.max(masque.origin.x.0).max(0.0).floor();
+        let y0 = bornes.origin.y.0.max(masque.origin.y.0).max(0.0).floor();
+        let x1 = (bornes.origin.x.0 + bornes.size.width.0)
+            .min(masque.origin.x.0 + masque.size.width.0)
+            .min(largeur as f32)
+            .ceil();
+        let y1 = (bornes.origin.y.0 + bornes.size.height.0)
+            .min(masque.origin.y.0 + masque.size.height.0)
+            .min(hauteur as f32)
+            .ceil();
+        if x1 <= x0 || y1 <= y0 {
+            continue;
+        }
+        let rect = (x0, y0, x1, y1);
+        // Un sprite entièrement recouvert par un aplat opaque peint APRÈS lui (ordre de dessin plus
+        // grand) n'est pas visible : sa boîte tolérerait l'aplat. Il n'est pas déclaré.
+        let couvert = scene.quads.iter().any(|q| {
+            q.order > order
+                && q.background.as_solid().is_some_and(|c| c.a >= 1.0)
+                && q.corner_radii.top_left.0 == 0.0
+                && q.corner_radii.top_right.0 == 0.0
+                && q.corner_radii.bottom_left.0 == 0.0
+                && q.corner_radii.bottom_right.0 == 0.0
+                && {
+                    let b = q.bounds.intersect(&q.content_mask.bounds);
+                    b.origin.x.0 <= rect.0
+                        && b.origin.y.0 <= rect.1
+                        && b.origin.x.0 + b.size.width.0 >= rect.2
+                        && b.origin.y.0 + b.size.height.0 >= rect.3
+                }
+        });
+        if couvert {
+            continue;
+        }
+        let boite = boites::BoiteEncre {
+            categorie,
+            x: x0 as u32,
+            y: y0 as u32,
+            largeur: (x1 - x0) as u32,
+            hauteur: (y1 - y0) as u32,
+        };
+        // Rogné : le rectangle de découpe (ou le bord de l'image) coupe la tuile.
+        let entier = (
+            bornes.origin.x.0.floor(),
+            bornes.origin.y.0.floor(),
+            (bornes.origin.x.0 + bornes.size.width.0).ceil(),
+            (bornes.origin.y.0 + bornes.size.height.0).ceil(),
+        );
+        if categorie == boites::Categorie::Texte && entier != rect {
+            rognes.push(boite);
+        }
+        sprites.push(boite);
+    }
+    ROGNES.with(|r| *r.borrow_mut() = rognes);
+    Some(sprites)
+}
+
+/// Les icônes peintes à la main (quads), déclarées par leur dessin pendant la peinture : la scène
+/// ne les montre pas comme des sprites (`fragment_ui::boites`, le « − » des boutons de fenêtre).
+fn icones_declarees(largeur: u32, hauteur: u32) -> Vec<boites::BoiteEncre> {
+    fragment_ui::boites::icones_peintes()
+        .into_iter()
+        .filter_map(|i| {
+            let (x0, y0) = (i.x.max(0.0).floor(), i.y.max(0.0).floor());
+            let x1 = (i.x + i.largeur).min(largeur as f32).ceil();
+            let y1 = (i.y + i.hauteur).min(hauteur as f32).ceil();
+            (x1 > x0 && y1 > y0).then_some(boites::BoiteEncre {
+                categorie: boites::Categorie::Icone,
+                x: x0 as u32,
+                y: y0 as u32,
+                largeur: (x1 - x0) as u32,
+                hauteur: (y1 - y0) as u32,
+            })
+        })
+        .collect()
+}
+
+/// Sans la feature `pixels` (cible de test du lecteur), la scène peinte n'est pas lisible.
+#[cfg(not(feature = "pixels"))]
+fn sprites_peints(
+    _window: &gpui_kit::Window,
+    _largeur: u32,
+    _hauteur: u32,
+) -> Option<Vec<boites::BoiteEncre>> {
+    None
 }
 
 /// Une surface ombrée de `fragment-ui` dans le format du fichier de déclaration.
@@ -143,26 +288,40 @@ pub fn verifier_pixels(
 }
 
 /// Écrit le PNG `<dossier>/<scène>-<thème>.png` et, à côté, `<scène>-<thème>.boites.json` : les boîtes
-/// de texte et d'icônes de CETTE capture (catégorie et rectangle), dérivées de l'image candidate
-/// seule, jamais de la référence (ADR-009).
+/// de texte et d'icônes de CETTE capture (catégorie et rectangle), lues dans sa scène peinte
+/// (fr-p3.1) ; jamais dans la référence (ADR-009). Sans scène lisible, elles sont déduites de
+/// l'image candidate seule (repli).
 pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyhow::Result<()> {
     std::fs::create_dir_all(dossier)?;
     let chemin = dossier.join(format!("{nom}-{theme}.png"));
     image.save(&chemin)?;
-    let boites = boites::detecter(image);
+    let sprites = SPRITES.with(|s| s.borrow().clone());
+    let (boites, glyphes, source) = match sprites {
+        Some(sprites) => {
+            let glyphes: Vec<_> = sprites
+                .iter()
+                .filter(|s| s.categorie == boites::Categorie::Texte)
+                .copied()
+                .collect();
+            (boites::regrouper(&sprites), glyphes, "scène peinte")
+        }
+        None => (boites::detecter(image), Vec::new(), "déduites de l'image"),
+    };
+    let rognes = ROGNES.with(|r| r.borrow().clone());
     let ombres = OMBRES.with(|o| o.borrow().clone());
     let arrondis = ARRONDIS.with(|a| a.borrow().clone());
     std::fs::write(
         dossier.join(format!("{nom}-{theme}.boites.json")),
-        boites::serialiser_tout(&boites, &ombres, &arrondis),
+        boites::serialiser_tout(&boites, &glyphes, &rognes, &ombres, &arrondis),
     )?;
     println!(
-        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes, {} surfaces ombrées, {} boîtes arrondies)",
+        "capturée : {} ({}×{}, {} couleurs distinctes, {} boîtes de texte ou d'icônes ({source}, {} glyphes), {} surfaces ombrées, {} boîtes arrondies)",
         chemin.display(),
         image.width(),
         image.height(),
         compter_couleurs(image),
         boites.len(),
+        glyphes.len(),
         ombres.len(),
         arrondis.len()
     );

@@ -9,6 +9,7 @@
 //! Les autres modules sont des coquilles vides, une par tâche aval : elles les remplissent
 //! sans toucher à ce fichier.
 
+pub mod boites;
 pub mod echelle;
 pub mod flottant;
 pub mod icones;

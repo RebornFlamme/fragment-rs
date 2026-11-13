@@ -5,12 +5,17 @@
 //! `mod.rs`). Il ne dépend donc que de `image` et `serde_json`, et d'aucun autre module.
 //!
 //! Le candidat déclare ses boîtes dans un fichier voisin du PNG (`<scène>-<thème>.boites.json`).
-//! GPUI ne laisse pas lire les sprites de glyphes ni d'icônes d'une scène peinte (la scène de
-//! `Window` est privée) : la déclaration est donc DÉRIVÉE DE L'IMAGE CANDIDATE SEULE, sans jamais
-//! regarder la référence. C'est ce qui rend le sas non circulaire : une boîte ne dépend pas de
-//! ce que Fragment dessine, et tout écart hors d'une boîte reste strict.
 //!
-//! Méthode : un pixel est « de bord » s'il diffère d'un voisin de plus de [`SEUIL_BORD`] ;
+//! **Boîtes exactes (fr-p3.1, version 4)** : `fragment-pixels` lit la scène PEINTE de GPUI
+//! (`Window::rendered_scene`, feature `bench-support`) et y prend le rectangle de chaque sprite de
+//! glyphe et d'icône (voir `fragment-app/src/pixels/capture.rs`). Chaque glyphe est déclaré
+//! (`glyphes`) ; [`regrouper`] en fait les passages (`boites`). Une boîte ne dépend toujours que du
+//! candidat, jamais de ce que Fragment dessine : le sas reste non circulaire.
+//!
+//! **Repli** ([`detecter`]) : sans fichier de déclaration, `xtask` déduit les boîtes de l'IMAGE
+//! candidate seule (ancienne méthode, environ 2 lettres changées sur 3 vues sur du texte de 13 px).
+//!
+//! Méthode du repli : un pixel est « de bord » s'il diffère d'un voisin de plus de [`SEUIL_BORD`] ;
 //! les traits droits de plus de [`RUN_UNIFORME`] pixels DE COULEUR UNIFORME (bordures, séparateurs,
 //! bords de fonds : les deux pixels de part et d'autre du bord identiques tout le long) sont
 //! écartés : c'est de la géométrie, donc strict (le sas les retire aussi des boîtes gonflées, voir
@@ -510,15 +515,81 @@ impl Default for ArrondiDeclare {
     }
 }
 
-/// Le fichier de déclaration voisin du PNG candidat, sans ombres.
-pub fn serialiser(boites: &[BoiteEncre]) -> String {
-    serialiser_tout(boites, &[], &[])
+/// Les passages de texte et les icônes d'une liste de sprites peints (un rectangle par glyphe ou par
+/// icône, en pixels physiques), triés par (y, x).
+///
+/// Une icône reste seule. Deux glyphes sont du même passage quand leurs lignes se recouvrent (au moins
+/// une rangée commune) et qu'au plus [`ECART_H`] colonnes les séparent : un mot, une ligne. ★ Pas
+/// d'écart vertical comme pour le repli : deux lignes de texte ne se touchent jamais, alors qu'un
+/// jambage descendant et la hampe de la ligne suivante peuvent venir à 2 px l'un de l'autre.
+pub fn regrouper(sprites: &[BoiteEncre]) -> Vec<BoiteEncre> {
+    let glyphes: Vec<&BoiteEncre> = sprites
+        .iter()
+        .filter(|s| s.categorie == Categorie::Texte && s.largeur > 0 && s.hauteur > 0)
+        .collect();
+    // Union-find sur les glyphes, par paires (quelques milliers de glyphes au plus par capture).
+    let mut parent: Vec<usize> = (0..glyphes.len()).collect();
+    fn racine(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+    let fin = |b: &BoiteEncre| (b.x + b.largeur - 1, b.y + b.hauteur - 1);
+    for i in 0..glyphes.len() {
+        let (a, (ax1, ay1)) = (glyphes[i], fin(glyphes[i]));
+        for (j, &b) in glyphes.iter().enumerate().skip(i + 1) {
+            let (bx1, by1) = fin(b);
+            let lignes = a.y <= by1 && b.y <= ay1;
+            let colonnes = a.x <= bx1 + 1 + ECART_H && b.x <= ax1 + 1 + ECART_H;
+            if lignes && colonnes {
+                let (ra, rb) = (racine(&mut parent, i), racine(&mut parent, j));
+                parent[ra] = rb;
+            }
+        }
+    }
+    let mut passages: std::collections::BTreeMap<usize, Groupe> = std::collections::BTreeMap::new();
+    for (i, g) in glyphes.iter().enumerate() {
+        let r = racine(&mut parent, i);
+        let groupe = passages.entry(r).or_insert_with(Groupe::vide);
+        let (x1, y1) = fin(g);
+        groupe.ajouter(g.x, g.y);
+        groupe.ajouter(x1, y1);
+    }
+    let mut boites: Vec<BoiteEncre> = passages
+        .values()
+        .map(|g| BoiteEncre {
+            categorie: Categorie::Texte,
+            x: g.x0,
+            y: g.y0,
+            largeur: g.x1 - g.x0 + 1,
+            hauteur: g.y1 - g.y0 + 1,
+        })
+        .chain(
+            sprites
+                .iter()
+                .filter(|s| s.categorie == Categorie::Icone && s.largeur > 0 && s.hauteur > 0)
+                .copied(),
+        )
+        .collect();
+    boites.sort_by_key(|b| (b.y, b.x, b.largeur, b.hauteur));
+    boites.dedup();
+    boites
 }
 
-/// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, surfaces
-/// ombrées et boîtes arrondies (version 3).
+/// Le fichier de déclaration voisin du PNG candidat, sans ombres.
+pub fn serialiser(boites: &[BoiteEncre]) -> String {
+    serialiser_tout(boites, &[], &[], &[], &[])
+}
+
+/// Le fichier de déclaration voisin du PNG candidat : boîtes de texte et d'icônes, glyphes peints,
+/// glyphes ROGNÉS par un rectangle de découpe (`rognes`, sous-liste des glyphes), surfaces ombrées et
+/// boîtes arrondies (version 4).
 pub fn serialiser_tout(
     boites: &[BoiteEncre],
+    glyphes: &[BoiteEncre],
+    rognes: &[BoiteEncre],
     ombres: &[OmbreDeclaree],
     arrondis: &[ArrondiDeclare],
 ) -> String {
@@ -530,6 +601,15 @@ pub fn serialiser_tout(
                 "x": b.x, "y": b.y, "largeur": b.largeur, "hauteur": b.hauteur,
             })
         })
+        .collect();
+    // Un glyphe par ligne du fichier, [x, y, largeur, hauteur] : la liste est longue.
+    let glyphes: Vec<Value> = glyphes
+        .iter()
+        .map(|g| json!([g.x, g.y, g.largeur, g.hauteur]))
+        .collect();
+    let rognes: Vec<Value> = rognes
+        .iter()
+        .map(|g| json!([g.x, g.y, g.largeur, g.hauteur]))
         .collect();
     let ombres: Vec<Value> = ombres
         .iter()
@@ -567,8 +647,43 @@ pub fn serialiser_tout(
             v
         })
         .collect();
-    let json = json!({ "version": 3, "boites": liste, "ombres": ombres, "arrondis": arrondis });
+    let json = json!({
+        "version": 4, "boites": liste, "glyphes": glyphes, "rognes": rognes, "ombres": ombres, "arrondis": arrondis,
+    });
     serde_json::to_string_pretty(&json).unwrap_or_default() + "\n"
+}
+
+/// Relit les glyphes peints d'un fichier de déclaration (aucun avant la version 4 : boîtes déduites).
+pub fn deserialiser_glyphes(texte: &str) -> Option<Vec<BoiteEncre>> {
+    deserialiser_rects(texte, "glyphes")
+}
+
+/// Relit les glyphes rognés par un rectangle de découpe (aucun dans un fichier sans la clé).
+pub fn deserialiser_rognes(texte: &str) -> Option<Vec<BoiteEncre>> {
+    deserialiser_rects(texte, "rognes")
+}
+
+/// Une liste de rectangles [x, y, largeur, hauteur] de glyphes, sous la clé `cle`.
+fn deserialiser_rects(texte: &str, cle: &str) -> Option<Vec<BoiteEncre>> {
+    let json: Value = serde_json::from_str(texte).ok()?;
+    let Some(liste) = json.get(cle) else {
+        return Some(Vec::new());
+    };
+    liste
+        .as_array()?
+        .iter()
+        .map(|g| {
+            let g = g.as_array()?;
+            let champ = |i: usize| g.get(i)?.as_u64().and_then(|v| u32::try_from(v).ok());
+            Some(BoiteEncre {
+                categorie: Categorie::Texte,
+                x: champ(0)?,
+                y: champ(1)?,
+                largeur: champ(2)?,
+                hauteur: champ(3)?,
+            })
+        })
+        .collect()
 }
 
 /// Relit les surfaces ombrées d'un fichier de déclaration (aucune pour un fichier de version 1).
@@ -931,6 +1046,60 @@ mod tests {
         assert_eq!(deserialiser("pas du json"), None);
     }
 
+    fn sprite(categorie: Categorie, x: u32, y: u32, largeur: u32, hauteur: u32) -> BoiteEncre {
+        BoiteEncre {
+            categorie,
+            x,
+            y,
+            largeur,
+            hauteur,
+        }
+    }
+
+    #[test]
+    fn les_glyphes_peints_font_des_passages_et_les_icones_restent_seules() {
+        use Categorie::{Icone, Texte};
+        let sprites = [
+            // « ab cd » sur une ligne : espace de 4 px entre « b » et « c ».
+            sprite(Texte, 10, 20, 6, 9),
+            sprite(Texte, 17, 18, 6, 11),
+            sprite(Texte, 27, 22, 6, 7),
+            sprite(Texte, 34, 18, 6, 11),
+            // La ligne suivante, à 2 px sous le jambage de la première : un autre passage.
+            sprite(Texte, 10, 31, 6, 9),
+            // Un mot loin à droite sur la première ligne.
+            sprite(Texte, 80, 20, 6, 9),
+            // Une icône collée au texte reste seule.
+            sprite(Icone, 42, 16, 16, 16),
+        ];
+        assert_eq!(
+            regrouper(&sprites),
+            vec![
+                sprite(Icone, 42, 16, 16, 16),
+                sprite(Texte, 10, 18, 30, 11),
+                sprite(Texte, 80, 20, 6, 9),
+                sprite(Texte, 10, 31, 6, 9),
+            ]
+        );
+    }
+
+    #[test]
+    fn les_glyphes_declares_font_l_aller_retour() {
+        let glyphes = vec![
+            sprite(Categorie::Texte, 10, 20, 6, 9),
+            sprite(Categorie::Texte, 17, 18, 6, 11),
+        ];
+        let rognes = vec![glyphes[0]];
+        let texte = serialiser_tout(&regrouper(&glyphes), &glyphes, &rognes, &[], &[]);
+        assert_eq!(deserialiser_glyphes(&texte), Some(glyphes));
+        assert_eq!(deserialiser_rognes(&texte), Some(rognes));
+        // Avant la version 4 : aucun glyphe déclaré.
+        assert_eq!(
+            deserialiser_glyphes(r#"{"version": 3, "boites": []}"#),
+            Some(Vec::new())
+        );
+    }
+
     #[test]
     fn les_ombres_declarees_font_l_aller_retour() {
         let ombres = vec![OmbreDeclaree {
@@ -968,7 +1137,7 @@ mod tests {
                 element: "contour d'onglet actif".to_owned(),
             },
         ];
-        let texte = serialiser_tout(&[], &ombres, &arrondis);
+        let texte = serialiser_tout(&[], &[], &[], &ombres, &arrondis);
         assert_eq!(deserialiser_ombres(&texte), Some(ombres));
         assert_eq!(deserialiser_arrondis(&texte), Some(arrondis));
         assert_eq!(

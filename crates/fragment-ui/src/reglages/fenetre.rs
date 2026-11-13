@@ -28,7 +28,7 @@ use gpui_kit::{
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
 use crate::echelle::{Echelle, calees, u};
-use crate::flottant::{arrondir, bordure, texte};
+use crate::flottant::{arrondir, arrondir_coins, bordure, texte};
 use crate::icones;
 use crate::polices::largeur_texte;
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -149,6 +149,9 @@ struct GeoCarte {
 /// `content-box` (le défaut de Fragment), la bordure s'ajoute : 33 px en tout. Comptée dedans, tout
 /// le rail et le contenu montaient d'un pixel.
 const TITRE_HAUTEUR: f32 = 32.0;
+/// Le nom de l'arc déclaré de la pastille d'accent : exception nommée d'ADR-009 (en cliquet sous
+/// `fr-p4.1`, `xtask/src/pixels/exceptions.rs`), dont il est la clé de cliquet.
+const ELEMENT_PASTILLE: &str = "arc de la pastille d'accent";
 /// Largeur du contenu du rail (`.vertical-tab-header { width }`, hors rembourrage).
 const RAIL_LARGEUR: f32 = 220.0;
 /// `.vertical-tab-content { max-width }`.
@@ -921,10 +924,19 @@ impl FenetreReglages {
                     .id(SharedString::from(format!("couleur-{cle}")))
                     .size(u(cx, f.size_4_7))
                     .flex_none()
-                    .rounded_full()
                     .overflow_hidden()
                     .cursor_pointer()
                     .bg(couleur(couleur_depuis_hex(&k.value)));
+                // ★ Ronde = rayon de la demi-taille, DÉCLARÉ pour le sas (fr-p3.1, bord d'arrondi),
+                // sous le nom de son exception (anneau de bordure de 1 px, mélange alpha).
+                let pastille = arrondir_coins(
+                    pastille,
+                    cx,
+                    u(cx, f.size_4_7 / 2.0),
+                    u(cx, f.border_width),
+                    [true; 4],
+                    ELEMENT_PASTILLE,
+                );
                 let pastille = bordure(pastille, u(cx, f.border_width))
                     .border_color(couleur(p.tab_outline_color))
                     .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
