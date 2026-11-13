@@ -28,6 +28,19 @@ use gpui_kit::{
 
 use crate::icones;
 
+/// ★ Repli documenté (fr-pvd, dette « fr-tep-14px ») : la croix et les grips en 14 px restent sur
+/// l'ancien chemin `svg()` de GPUI (sprite monochrome, gamma de texte compris), comme sur `main`.
+/// Mesure (#160) : sans ce gamma, leur encre tombe à 0,86-0,89 de Chromium (points ronds et
+/// diagonales : géométrie, pas couverture ; une courbe alpha^g n'y change rien sans empirer 303
+/// boîtes sur 614) et deux scènes (`t1-boutons-fenetre-dark`, `t1-toolbar-sections-light`)
+/// dépassaient leur cliquet. À retirer par fr-pvd.
+const REPLI_14_PX: &[&str] = &["x", "grip-vertical", "grip-horizontal"];
+
+/// Vrai si cette icône, à cette tuile (2x la boîte), reste peinte par `svg()` de GPUI.
+fn reste_sur_svg(nom: &str, tuile: (i32, i32)) -> bool {
+    tuile == (28, 28) && REPLI_14_PX.contains(&nom)
+}
+
 /// Au-delà de ce nombre d'images en cache (un changement de thème en recolore toutes), on vide :
 /// les images sont rendues à nouveau à la demande, et leurs tuiles d'atlas sont rendues.
 const CACHE_MAX: usize = 1024;
@@ -362,6 +375,17 @@ impl Element for Icone {
                 if tuile.0 <= 0 || tuile.1 <= 0 {
                     return;
                 }
+                if reste_sur_svg(nom, tuile) {
+                    let _ = window.paint_svg(
+                        bounds,
+                        icones::chemin(nom).into(),
+                        None,
+                        gpui_kit::TransformationMatrix::unit(),
+                        couleur,
+                        cx,
+                    );
+                    return;
+                }
                 let Some(i) = image(cx, nom, en_octets(couleur), tuile, rotation) else {
                     return;
                 };
@@ -435,6 +459,14 @@ mod tests {
         let brut = RenderImage::new(vec![image::Frame::new(brut)]);
         let i = colorer_les_texels_transparents(&brut, [10, 20, 30, 255]).unwrap();
         assert_eq!(i.as_bytes(0).unwrap(), &[30, 20, 10, 0, 30, 20, 10, 200]);
+    }
+
+    #[test]
+    fn la_croix_et_les_grips_de_14_px_restent_sur_svg() {
+        assert!(reste_sur_svg("x", (28, 28)));
+        assert!(reste_sur_svg("grip-vertical", (28, 28)));
+        assert!(!reste_sur_svg("x", (32, 32)));
+        assert!(!reste_sur_svg("chevron-right", (28, 28)));
     }
 
     #[test]
