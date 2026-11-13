@@ -1,0 +1,11 @@
+# Parité de fr-t5-lien-ancre (fragment-ui). Le tracé pur (trace, clé de géométrie) est déjà porté
+# dans fragment-annotation::anchor_link ; ici : bouts du lien, règle « un lien ou non », registre,
+# pointillés et dessin. Les cas headless suivent anchor-link.spec.ts sur une FAUSSE surface.
+
+[[module]]
+ts = "app/src/ui/views/doc-widget/anchorLink.ts (LinkMarker, Liens, anchorLinks), DocWidget.ts (relier, boutsDuLien), anchor-link.css, app/e2e/anchor-link.spec.ts"
+rs = "crates/fragment-ui/src/lien_ancre/{mod,modele,dessin}.rs, crates/fragment-ui/tests/lien_ancre.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 8
+notes = "Portés : continuation du soulignement (départ, arrivée au milieu des icônes, cercle au bout, 4 points), ancre de point = pas de lien, suivi quand le widget bouge (suivre : relit les bouts à chaque image, redessine si la clé change), grappe = un lien par membre. Les rectangles viennent d'une fausse surface (trait SurfaceLien) ; le branchement au survol réel et au calque de la surface (addLayer, requestAnimationFrame) est au montage (fr-t5-montage-note). Écart : GPUI n'a pas de trait pointillé, les pointillés (3/3, phase continue d'un sommet à l'autre) sont calculés puis peints un par un. Scène pixels:lien-ancre ({from,to}) : la scène t5-lien-ancre et sa référence sont à capturer au montage, aucun fichier de pixels/ n'est touché ici. Ajoutés : bord droit si le widget est à gauche, entrée à 19 px sans icônes, widget caché ou nul, plan zoomé, point d'ancrage avec dy, clé de marqueur, pointillés."
