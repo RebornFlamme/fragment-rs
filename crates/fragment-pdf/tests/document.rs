@@ -199,18 +199,13 @@ fn fabriquer_pdf(pages: &[SpecPage], signets: &[Item]) -> Vec<u8> {
     pdf
 }
 
-/// ★ Une seule liaison pdfium par processus : les tests tournent en parallèle, et deux
-///   `initialiser` simultanés font échouer le second (`PdfiumLibraryBindingsAlreadyInitialized`).
-///   Le `Once` sérialise ; `initialiser(None)` lit `PDFIUM_LIB_DIR` lui-même.
+/// Charge pdfium : `initialiser` est sérialisé par la crate, les tests parallèles peuvent l'appeler.
 fn charger_pdfium() {
-    static UNE_FOIS: std::sync::Once = std::sync::Once::new();
-    UNE_FOIS.call_once(|| {
-        let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
-        let dossier = std::env::var_os("PDFIUM_LIB_DIR")
-            .is_none()
-            .then_some(defaut);
-        initialiser(dossier).expect("pdfium : lancer scripts/pdfium.ps1");
-    });
+    let defaut = Path::new("C:/dev/fragment-rs-pdfium-bin/chromium-8125/bin");
+    let dossier = std::env::var_os("PDFIUM_LIB_DIR")
+        .is_none()
+        .then_some(defaut);
+    initialiser(dossier).expect("pdfium : lancer scripts/pdfium.ps1");
 }
 
 /// Charge pdfium : `PDFIUM_LIB_DIR`, sinon le dossier par défaut de `scripts/pdfium.ps1`.
