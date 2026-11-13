@@ -3,16 +3,12 @@
 // la vue `markdown` (registre des vues, extension `md`).
 //! Le plugin cœur « Markdown » : la vue, l'extension `md`, les commandes d'éditeur.
 //!
-//! ★ Le cœur ne sait pas encore donner l'éditeur actif (`CommandHost::active_editor` rend
-//!   `None`) : les `editor_callback` du modèle ne se déclencheraient jamais. Chaque commande est
-//!   donc réenveloppée en `check_callback` qui cherche ELLE-MÊME la vue Markdown de la feuille
-//!   active et lui demande son contexte d'éditeur (absent en lecture seule : la commande est
-//!   alors indisponible, comme chez Fragment).
+//! Les commandes `editor:*` du modèle passent par `CommandHost::active_editor` : la vue active
+//! expose son éditeur (`View::editor_context`), absent en lecture seule (commande indisponible).
 
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
-use fragment_core::command::{EditorCallback, EditorContext};
 use fragment_core::{App as _, AppCoeur, Command, Disposer, Hotkey, Modifier, Workspace};
 use fragment_markdown::commandes::actions::commandes_editeur;
 
@@ -38,37 +34,9 @@ fn avec_vue_active<R>(
     f(md)
 }
 
-/// Le contexte d'éditeur de la vue active (`None` : pas de note, ou note en lecture seule).
-pub fn editeur_actif(ws: &Weak<RefCell<Workspace>>) -> Option<EditorContext> {
-    avec_vue_active(ws, VueMarkdown::contexte_editeur)
-}
-
-/// Réenveloppe une commande d'éditeur pour qu'elle trouve son éditeur dans le Workspace.
-fn sur_la_note_active(c: Command, ws: Weak<RefCell<Workspace>>) -> Command {
-    let Some(cb): Option<EditorCallback> = c.editor_callback.clone() else {
-        return c;
-    };
-    let mut n = Command::new(&c.id, &c.name).with_check_callback(move |checking| {
-        let Some(ctx) = editeur_actif(&ws) else {
-            return Some(false);
-        };
-        if !checking {
-            cb(&ctx);
-        }
-        Some(true)
-    });
-    n.hotkeys = c.hotkeys;
-    n.repeatable = c.repeatable;
-    n.icon = c.icon;
-    n
-}
-
-/// Les commandes d'éditeur, branchées sur la note active.
+/// Les commandes d'éditeur (via `active_editor` du cœur) et `editor:save-file`.
 pub fn commandes(ws: &Weak<RefCell<Workspace>>) -> Vec<Command> {
-    let mut v: Vec<Command> = commandes_editeur()
-        .into_iter()
-        .map(|c| sur_la_note_active(c, ws.clone()))
-        .collect();
+    let mut v: Vec<Command> = commandes_editeur();
     let ws = ws.clone();
     v.push(
         Command::new(COMMANDE_ENREGISTRER, "Enregistrer le fichier")

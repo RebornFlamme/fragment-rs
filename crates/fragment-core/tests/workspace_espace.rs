@@ -20,9 +20,9 @@ use std::rc::Rc;
 use fragment_core::documents::{DocumentProvider, OWNER_CORE};
 use fragment_core::keymap::types::Modifier;
 use fragment_core::{
-    App, AppCoeur, Command, ContexteVue, DocumentKey, EmptyView, ItemId, ItemViewBase, KeyEvent,
-    LayoutMemoire, LayoutStore, NouvelleFeuille, OpenViewState, Scope, View, ViewCreator,
-    ViewState, ViewStateResult, Workspace, enregistrer_commandes_app,
+    App, AppCoeur, Command, CommandHost, ContexteVue, DocumentKey, EditorContext, EmptyView,
+    ItemId, ItemViewBase, KeyEvent, LayoutMemoire, LayoutStore, NouvelleFeuille, OpenViewState,
+    Scope, View, ViewCreator, ViewState, ViewStateResult, Workspace, enregistrer_commandes_app,
     enregistrer_commandes_workspace,
 };
 use serde_json::{Map, Value, json};
@@ -155,6 +155,14 @@ impl View for VueTest {
         if let Some(m) = state.as_object() {
             self.lecture = m.clone();
         }
+    }
+
+    /// Seules les notes exposent un éditeur (les PDF, chats, explorateurs n'en ont pas).
+    fn editor_context(&self) -> Option<EditorContext> {
+        (self.type_ == "markdown").then(|| EditorContext {
+            editor: Rc::new(self.type_.clone()),
+            view: Rc::new(()),
+        })
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -953,4 +961,25 @@ fn layout_change_une_fois_par_operation_et_rien_avant_le_layout_pret() {
     w.set_layout_store(Rc::new(store.clone()));
     assert!(!w.save_layout().unwrap());
     assert!(store.lire().unwrap().is_none());
+}
+
+#[test]
+fn active_editor_rend_l_editeur_de_la_feuille_active() {
+    let b = lancer(&["a.md"], &LayoutMemoire::new());
+    let ctx = b
+        .app
+        .active_editor()
+        .expect("la note active expose son éditeur");
+    assert_eq!(
+        ctx.editor.downcast_ref::<String>().map(String::as_str),
+        Some("markdown")
+    );
+    // Une feuille sans éditeur (le PDF) : rien.
+    let feuille = b.ws().active_leaf().unwrap();
+    b.app.workspace().borrow_mut().set_view_state(
+        feuille,
+        ViewState::with_state("pdf", json!({ "file": "a.pdf" })),
+        None,
+    );
+    assert!(b.app.active_editor().is_none());
 }

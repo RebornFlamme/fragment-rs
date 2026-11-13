@@ -168,6 +168,11 @@ impl Workspace {
         self.arbre.feuille_mut(leaf).map(WorkspaceLeaf::view_mut)
     }
 
+    /// `workspace.activeEditor` : l'éditeur exposé par la vue de la feuille active.
+    pub fn active_editor(&self) -> Option<crate::command::EditorContext> {
+        self.leaf(self.active_leaf?)?.view().editor_context()
+    }
+
     pub fn active_leaf(&self) -> Option<ItemId> {
         self.active_leaf
     }

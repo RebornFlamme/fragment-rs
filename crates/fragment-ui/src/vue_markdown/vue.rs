@@ -260,6 +260,10 @@ impl VueMarkdown {
 }
 
 impl View for VueMarkdown {
+    fn editor_context(&self) -> Option<EditorContext> {
+        self.contexte_editeur()
+    }
+
     fn get_view_type(&self) -> String {
         MARKDOWN_VIEW_TYPE.to_owned()
     }
