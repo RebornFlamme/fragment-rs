@@ -1,6 +1,6 @@
 {
   "scene": "reglages-editor",
-  "depuis": "T3",
+  "depuis": "T2",
   "window": {"width":1280,"height":800,"dpr":1},
   "settings_window": {"width":1000,"height":700,"dpr":1},
   "themes": ["dark","light"],
