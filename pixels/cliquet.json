@@ -431,7 +431,7 @@
           "glyphe": 1.0914
         }
       },
-      "lettres_manquees": 1,
+      "lettres_manquees": 2,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.2902,
       "pourcent": 44.9678
@@ -576,12 +576,6 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 39.2857,
       "delta_max": 129,
-      "exceptions_t1": {
-        "mot « fermer » de la palette": {
-          "barycentre": 0.5687,
-          "glyphe": 1.026
-        }
-      },
       "ombre_delta_max": 1,
       "ombre_pourcent": 3.1625,
       "pourcent": 41.8353,
@@ -619,12 +613,6 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
       "delta_max": 129,
-      "exceptions_t1": {
-        "mot « fermer » de la palette": {
-          "barycentre": 0.5687,
-          "glyphe": 1.026
-        }
-      },
       "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
@@ -664,12 +652,6 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
       "delta_max": 129,
-      "exceptions_t1": {
-        "mot « fermer » de la palette": {
-          "barycentre": 0.5687,
-          "glyphe": 1.026
-        }
-      },
       "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
