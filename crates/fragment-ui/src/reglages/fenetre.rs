@@ -10,7 +10,7 @@
 //!   liste déroulante et le sélecteur de couleur natif, les définitions page / liste / arbre / action /
 //!   libre.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -28,6 +28,7 @@ use gpui_kit::{
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
+use super::selecteur_couleur::{Appliquer, zones};
 use crate::echelle::{Echelle, calees, u};
 use crate::flottant::{arrondir, arrondir_coins, bordure, texte};
 use crate::icones;
@@ -114,6 +115,8 @@ pub struct FenetreReglages {
     largeur: f32,
     /// La clé du contrôle dont la fenêtre flottante (liste, couleurs) est ouverte.
     ouverte: Option<String>,
+    /// La teinte choisie au sélecteur libre (un gris n'en garde pas dans son hex).
+    teinte: Rc<Cell<Option<f32>>>,
 }
 
 /// Un bloc du contenu, mesuré : ses marges verticales (qui se FUSIONNENT entre voisins, comme en
@@ -353,6 +356,7 @@ impl FenetreReglages {
             bornes: Rc::default(),
             largeur: 0.0,
             ouverte: None,
+            teinte: Rc::default(),
         }
     }
 
@@ -1010,6 +1014,21 @@ impl FenetreReglages {
                         }));
                     rangee = rangee.child(pastille_choix);
                 }
+                // Le sélecteur libre (fr-t11.4) : carré + teinte sous la rangée nommée, sans fermer.
+                let appliquer: Appliquer<Self> = {
+                    let (rappel, hook) = (k.on_change.clone(), hook.clone());
+                    Rc::new(move |hex, cx| {
+                        if let Some(r) = &rappel {
+                            r(hex);
+                        }
+                        if let Some(h) = &hook {
+                            h(cx);
+                        }
+                        cx.refresh_windows();
+                    })
+                };
+                let libre = zones(cle, &k.value, &self.teinte, &self.bornes, &appliquer, cx);
+                let rangee = div().flex().flex_col().child(rangee).child(libre);
                 Some(Self::avec_fenetre(
                     pastille.into_any_element(),
                     rangee,

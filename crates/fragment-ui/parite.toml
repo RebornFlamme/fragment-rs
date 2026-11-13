@@ -149,3 +149,15 @@ cas_source = 0
 cas_portes = 0
 cas_ajoutes = 3
 notes = "Le pont Keystroke GPUI → KeyEvent : touche physique déduite de la touche imprimée (GPUI ne donne pas `code`), auto-répétition non transmise par l'intercepteur."
+
+# fr-t11.4 : sélecteur d'accent libre.
+[[module]]
+ts = "app/src/ui/core/settings/components/ColorComponent.ts"
+rs = "crates/fragment-ui/src/reglages/selecteur_couleur.rs, crates/fragment-ui/tests/reglages.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Ajouté : accent_libre_choisi_au_selecteur_est_applique_et_enregistre (pas de .test.ts source)."
+[[module.non_portes]]
+quoi = "le sélecteur natif de Chromium (input type=color : boîte système, pipette, saisie hex/rgb/hsl)"
+raison = "Écart assumé : GPUI n'a pas de sélecteur natif. Équivalent minimal dessiné (carré saturation/luminosité + barre de teinte, mêmes valeurs #rrggbb, appliqué à chaque geste comme l'évènement input) ; ni pipette ni saisie de texte. gpui-component::ColorPicker écarté (feature component, thème propre, ADR-001)."

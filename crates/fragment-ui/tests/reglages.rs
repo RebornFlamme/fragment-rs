@@ -175,3 +175,37 @@ fn fenetre_de_reglages_slider_applique_au_relache_reset_resynchronise() {
     assert_eq!(ligne_zoom(&a).piste(), 125.0);
     assert_eq!(ligne_zoom(&a).etiquette(), "125 %");
 }
+
+/// Fr-t11.4 : le sélecteur libre rend un `#rrggbb` quelconque, que la ligne « Accent color »
+/// applique et enregistre (Fragment : `input type=color`, `appearance.set('accentColor', v)`).
+#[test]
+fn accent_libre_choisi_au_selecteur_est_applique_et_enregistre() {
+    use fragment_ui::reglages::selecteur_couleur::{Hsv, dans_carre};
+
+    let stockage = Rc::new(StockageMemoire::new());
+    let a = Apparence::new(stockage.clone(), Rc::new(|| 0));
+    a.charger();
+    let defs = definitions_appearance(&a, "#646cff", None);
+    let couleur = defs
+        .iter()
+        .find_map(|d| match d {
+            SettingDefinition::Item(it) => it.controls.iter().find_map(|c| match c {
+                SettingControl::Color(k) => Some(k.clone()),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .expect("la ligne Accent color a un sélecteur");
+    assert_eq!(couleur.value, "#646cff");
+
+    // Un geste au milieu du carré, sur la teinte de la valeur affichée : une couleur hors des huit.
+    let choisie = dans_carre(Hsv::depuis_hex(&couleur.value).teinte, 0.4, 0.3).en_hex();
+    (couleur.on_change.as_ref().expect("on_change"))(choisie.clone());
+    assert_eq!(a.accent(), choisie);
+
+    // Écrit au vidage (la sauvegarde est différée), puis rechargé depuis le même stockage.
+    a.magasin().vider();
+    let b = Apparence::new(stockage, Rc::new(|| 0));
+    b.charger();
+    assert_eq!(b.accent(), choisie);
+}
