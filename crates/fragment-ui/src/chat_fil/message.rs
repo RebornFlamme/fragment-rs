@@ -361,7 +361,27 @@ impl Render for MessageVue {
                 .bg(couleur(p.background_secondary))
                 .w_auto();
         }
+        // ★ Les pièces jointes consécutives forment UN flux en ligne qui passe à la ligne
+        // (`.chat-part[data-part='attachment']` est `inline-flex` dans Fragment, les autres parts
+        // sont des blocs) : une rangée `flex-wrap` par série de pièces.
+        let mut rangee: Option<gpui_kit::Div> = None;
         for r in &self.rendus {
+            if let Rendu::Part {
+                kind,
+                vivant: Some(v),
+                ..
+            } = r
+                && kind == "attachment"
+            {
+                let r = rangee
+                    .take()
+                    .unwrap_or_else(|| div().flex().flex_wrap().items_start());
+                rangee = Some(r.child(v.vue()));
+                continue;
+            }
+            if let Some(r) = rangee.take() {
+                contenu = contenu.child(r);
+            }
             match r {
                 Rendu::Texte { hote, .. } => contenu = contenu.child(hote.clone()),
                 Rendu::TexteTiers { vue, .. } => contenu = contenu.child(vue.clone()),
@@ -370,6 +390,9 @@ impl Render for MessageVue {
                 } => contenu = contenu.child(v.vue()),
                 Rendu::Part { vivant: None, .. } => {}
             }
+        }
+        if let Some(r) = rangee.take() {
+            contenu = contenu.child(r);
         }
         if self.attend {
             // « ••• » : trois points de 5 px, écart 3 px (`.chat-typing`) ; l'animation est coupée

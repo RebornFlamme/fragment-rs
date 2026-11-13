@@ -39,7 +39,8 @@ use gpui_kit::platform::current_platform;
 use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
     AnyWindowHandle, App, AppContext as _, Bounds, ClipboardEntry, ClipboardItem, Context, Entity,
-    Point, Render, TestAppContext, TestDispatcher, Window, WindowBounds, WindowOptions, px, size,
+    Point, Render, TestAppContext, TestDispatcher, VisualTestContext, Window, WindowBounds,
+    WindowOptions, px, size,
 };
 use serde_json::{Value, json};
 
@@ -609,4 +610,68 @@ fn relecture_rouvrir_la_conversation_rend_ses_pieces_vignette_comprise() {
     let url = url_donnees("image/png", &png(3, 2));
     assert_eq!(octets_de_url(&url), Some(("image/png".into(), png(3, 2))));
     assert!(octets_de_url("blob:xyz").is_none());
+}
+
+/// Un JPEG décodable de `l` × `h` pixels, fabriqué ici (la feature `jpeg` de `image`).
+fn jpeg(l: u32, h: u32) -> Vec<u8> {
+    let mut sortie = std::io::Cursor::new(Vec::new());
+    image::RgbImage::from_pixel(l, h, image::Rgb([30, 90, 200]))
+        .write_to(&mut sortie, image::ImageFormat::Jpeg)
+        .unwrap();
+    sortie.into_inner()
+}
+
+/// ★ Un JPEG a sa vignette (avant : seul le PNG était lu, le JPEG gardait l'icône et le nom), un
+/// type non image ou des octets illisibles n'en ont pas.
+#[test]
+fn une_piece_jpeg_a_sa_vignette() {
+    use fragment_ui::chat_pieces::vue::vignette_de;
+    let v = vignette_de(&att("photo.jpg", "image/jpeg", &jpeg(40, 30))).expect("vignette JPEG");
+    let t = v.size(0);
+    assert_eq!((t.width.0, t.height.0), (40, 30));
+    assert!(vignette_de(&att("photo.png", "image/png", &png(3, 2))).is_some());
+    assert!(vignette_de(&att("faux.jpg", "image/jpeg", b"pas un jpeg")).is_none());
+    assert!(vignette_de(&att("cours.pdf", "application/pdf", &jpeg(4, 4))).is_none());
+}
+
+/// Dans un message, les pièces s'enchaînent en flux en ligne (`inline-flex` dans Fragment) : trois
+/// petites pièces sur la même ligne, séparées de 2-3 (4 px) ; une pièce qui ne tient plus passe à la
+/// ligne suivante ; le texte reste au-dessus, en bloc.
+#[test]
+fn les_pieces_s_enchainent_en_flux_en_ligne() {
+    let registre = registre_vide();
+    registre.borrow_mut().parts.push(Rc::new(RenduPieceJointe));
+    let d = DepsFil {
+        participants: vec![Participant {
+            id: "julien".into(),
+            name: "Julien".into(),
+            initials: None,
+            role: Role::User,
+        }],
+        registre: registre.clone(),
+        fournisseur: "agent".into(),
+        conversation: "c1".into(),
+        mode: ChatMode::Panel,
+        taille_texte: 16.0,
+    };
+    let mut b = Banc::new(640.0, 800.0, move |_, _| ListeMessages::new(d));
+    let parts = vec![
+        ChatPart::text("que contiennent-ils ?"),
+        part_attachment(&att("a.pdf", "application/pdf", b"%PDF")),
+        part_attachment(&att("b.pdf", "application/pdf", b"%PDF")),
+        part_attachment(&att("c.pdf", "application/pdf", b"%PDF")),
+    ];
+    let m = vec![message(parts)];
+    b.agir(move |l, window, cx| l.mettre_a_jour(&m, window, cx));
+    let mut vcx = VisualTestContext::from_window(b.fenetre, &b.cx);
+    let (a, bb, c) = (
+        vcx.debug_bounds("chat-piece/a.pdf").expect("a"),
+        vcx.debug_bounds("chat-piece/b.pdf").expect("b"),
+        vcx.debug_bounds("chat-piece/c.pdf").expect("c"),
+    );
+    assert_eq!(a.origin.y, bb.origin.y, "a et b sur la même ligne");
+    assert_eq!(a.origin.y, c.origin.y, "a et c sur la même ligne");
+    assert!(bb.origin.x > a.origin.x && c.origin.x > bb.origin.x);
+    // Le contour de la boîte tient dans le conteneur ; la marge droite de 4 px sépare les pièces.
+    assert!(a.size.height > px(0.0));
 }

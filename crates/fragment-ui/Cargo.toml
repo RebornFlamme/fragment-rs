@@ -31,8 +31,8 @@ fragment-plugins = { path = "../fragment-plugins" }
 serde_json.workspace = true
 gpui-kit.workspace = true
 # Les images d'ombre du calque (fr-p4.1, ADR-013) : `image::Frame` de `RenderImage`. Déjà tirée par
-# GPUI (même version, 0.25) et dans le workspace.
-image = { workspace = true }
+# GPUI (même version, 0.25) et dans le workspace. Feature `jpeg` : la vignette d'une pièce JPEG (fr-3t0).
+image = { workspace = true, features = ["jpeg"] }
 # Le HTML du Markdown (fr-t3-html-rendu, ADR-012) : analysé par html5ever en arbre rcdom, les mêmes
 # versions que celles que `gpui-base` tire déjà (aucune crate nouvelle au lock).
 html5ever = "0.27"
