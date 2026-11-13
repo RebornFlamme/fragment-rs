@@ -1,0 +1,12 @@
+# Parité de fr-t3-html-rendu (fragment-ui) : le HTML dans le Markdown du live preview (ADR-012).
+# Schéma `parite.d` : un fichier par tâche. htmlDecorations.ts n'a pas de test unitaire : les cas viennent des
+# cinq premiers tests de la spec e2e markdown-html (les trois réponses de l'agent vont à T7), portés en headless
+# dans tests/md_html.rs ; la politique (sanitizeHtml.ts) est portée et testée par fragment-markdown/sanitize_html.
+
+[[module]]
+ts = "app/src/ui/views/markdown/htmlDecorations.ts, html-markdown.css, sanitizeHtml.ts (usage : sanitizeHtml)"
+rs = "crates/fragment-ui/src/md_html/arbre.rs, css.rs, smil.rs, svg.rs, en_ligne.rs, bloc.rs, hote.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 13
+notes = "e2e markdown-html portés : blocs rendus (div stylée, SVG animé à la couleur du thème, details qui s'ouvre, rien du HTML brut, bord du texte au pixel), assaini (script, onclick, javascript:), commentaire caché et balises en ligne (span stylé, mark, u, sub, br), source au curseur et bouton </>, éditer autour d'un bloc (clic sur la bonne ligne, frappe, annulation). Ajoutés : 13 unitaires (arbre assaini, CSS en ligne, SMIL, SVG, en ligne). Écarts : (1) <br> en ligne masqué sans saut de ligne (le fork n'a pas de widget en ligne qui casse la ligne) ; (2) éléments ENTIERS en ligne (svg, img sur une ligne) masqués, non peints : le calque des widgets en ligne a un seul propriétaire (md_inline), à brancher au montage ; (3) sub / sup / kbd sans décalage ni police (HighlightStyle n'a ni vertical-align ni famille) ; (4) img du HTML : texte alt (décodage des pièces jointes : T9) ; iframe : carte de repli (ADR-012 §6) ; (5) CSS hors sous-ensemble ignoré, marges de <p> non fusionnées, svg width:100% à la taille du viewBox ; (6) SMIL sans keyTimes / calcMode / begin / animateMotion."

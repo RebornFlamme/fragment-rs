@@ -85,6 +85,9 @@ struct Partage {
     /// Le chevron sous la souris : l'hôte ne libère que le contrôle qu'il a lui-même posé (une puce
     /// liée pose le sien par `Repli::survoler_controle`).
     chevron_survole: Option<usize>,
+    /// Un complément de plus, appliqué après celui des blocs (les balises HTML en ligne masquées,
+    /// `fr-t3-html-rendu`) : [`HoteBlocs::poser_complement_aval`].
+    aval: Option<ComplementRangees>,
 }
 
 /// Une ligne logique telle qu'elle est posée à l'écran (repère FENÊTRE).
@@ -169,6 +172,7 @@ impl HoteBlocs {
             maths: None,
             bordure: 0.0,
             chevron_survole: None,
+            aval: None,
         }));
         let p = partage.clone();
         let complement: ComplementRangees =
@@ -199,6 +203,11 @@ impl HoteBlocs {
                 };
                 let blocs = completer(&entree, &mesure, m);
                 p.blocs = blocs;
+                let aval = p.aval.clone();
+                drop(p);
+                if let Some(f) = aval {
+                    f(e, m);
+                }
             });
         editeur.update(cx, |e, cx| e.poser_complement(Some(complement), cx));
         let abonnements = vec![cx.subscribe(&editeur, Self::sur_changement)];
@@ -234,6 +243,14 @@ impl HoteBlocs {
         }
         self.editeur.update(cx, |e, cx| e.reprojeter_maintenant(cx));
         self.relire_maths(cx);
+        cx.notify();
+    }
+
+    /// Pose (ou retire) un complément de rangées APPLIQUÉ APRÈS celui des blocs, puis reprojette.
+    /// Ajout de `fr-t3-html-rendu` : les balises HTML en ligne y sont masquées hors curseur.
+    pub fn poser_complement_aval(&mut self, c: Option<ComplementRangees>, cx: &mut Context<Self>) {
+        self.partage.borrow_mut().aval = c;
+        self.editeur.update(cx, |e, cx| e.reprojeter_maintenant(cx));
         cx.notify();
     }
 
