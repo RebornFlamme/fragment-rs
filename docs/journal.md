@@ -1049,3 +1049,18 @@ Contexte du chef : 510k, seuil de clear 550k.
 5. ★ Moniteurs de CI : `gh pr checks --json` rend "bucket" AVANT "name".- 13/11 ~15:20 UTC — #154 fusionnée (vue PDF : champ de page, menu, mémoire). **Vague 14 : 33 fusions.** #151 rebasée par le chef (conflit sur Cargo.lock seulement ; ↺ vérifié), CI relancée.
 - fr-9x4 (mode invisible) : #156 ouverte, CI en cours. Run 3 = 0 pixel sur t1-fenetre-vide (même MD5 que les références, densité inchangée) ; deux défauts de taille corrigés (sous-classe sautée par la liste des fenêtres d'Electron ; +16×8 px hors moniteurs sans cadre). Run 4 coupé par la sentinelle en 33 ms : le premier plan a changé par l'action de l'UTILISATEUR (Chrome → barre des tâches), Electron resté hors écran. `pixels/.out/invisible/ECHEC.txt` bloque tout lancement tant qu'il existe. Refus de démarrer hors mode invisible démontré sans Electron. Remonté à l'orchestrateur : la règle « premier plan identique » (ou « jamais Electron au premier plan ») et l'extension aux autres scènes. Rien relancé.
 **Prochaine action exacte** (après le clear) : celle de l'entrée « Vague 14 (fin, avant clear du chef) », plus : fusionner #151 et #156 à leur CI verte ; attendre la décision de l'orchestrateur sur fr-9x4 avant TOUT lancement de capture.
+## Vague 15 (reprise après clear) — 13/11/2026 14:45 UTC — usage 5h 11 % (reset 18:30) / semaine 91 % (reset 18:00)
+- ★ Le réveil d'après-clear N'A PAS survécu : chef relancé par l'orchestrateur (§10, ancienne procédure à reprendre au prochain clear : prévenir l'orchestrateur, puis `clear_session(self)`, il renvoie le brief). Battement CronCreate posé (minute 17) et vérifié.
+- Décisions de l'orchestrateur sur fr-9x4 (#156) :
+  - (a) Sentinelle : ÉCHEC si une fenêtre Electron/Fragment devient premier plan, OU si un rectangle Electron touche un moniteur, OU si une fenêtre Electron devient visible dans la barre des tâches. Un changement de premier plan de l'utilisateur entre ses propres fenêtres n'est PAS un échec. ECHEC.txt du run 4 = faux positif (Chrome → barre des tâches) : supprimé et documenté par l'équipier.
+  - (b) Extension aux autres scènes AUTORISÉE, par lots, sentinelle active, 0 pixel contre les références existantes ; à la 1re divergence due au mode, arrêt et remontée à l'orchestrateur.
+  - fr-p3.4 (#105) et fr-p4.1.4 (#128) reprennent après fusion de #156.
+- #151 (fr-t11.4) : audit 0, verte ; fusion lancée → 502 de GitHub, puis « Merge already in progress » (verrou côté GitHub). Bead fermé ; fusion à réessayer au battement.
+- Équipiers lancés : fr-9x4 (Opus, règle (a) + run t1 + lots de scènes), fr-zk1 (Sonnet, hook de menu de pane, `../fragment-rs-panemenu`). Disque : 65 Go libres.
+- Dosage : 6 points avant l'arrêt à 97 % jusqu'au reset de 18:00 UTC → 2 équipiers seulement ; fr-2f3 attend #155 (fichiers `coffres/` partagés), fr-tep (31 fichiers) après le reset.
+
+**Prochaine action exacte** :
+1. Battement : get_usage ; réessayer `gh pr merge 151 --squash`.
+2. Compte rendu fr-9x4 : divergence → message à l'orchestrateur et arrêt ; sinon revue + audit + fusion #156, mise à jour de `docs/brief-reprise.md` et des règles d'équipier (mode invisible seul autorisé, règle (a)).
+3. Après #156 : équipiers neufs #105 (passe B), puis #128, puis #155, mode invisible.
+4. Après 18:00 UTC (nouvelle semaine, « charbonne ») : remplir les 7 places (fr-tep, fr-2f3 après #155, fr-914, fr-t11-livraison après #105/#128, + `bd ready`).
