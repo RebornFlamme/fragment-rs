@@ -34,3 +34,6 @@ debug = false
 # ★ Fork n°1 (ADR-006) : gpui-base 0.9.1 + rangées dictées par l'hôte. Patch minimal, voir vendor/gpui-base/NOTICE.
 [patch.crates-io]
 gpui-base = { path = "vendor/gpui-base" }
+# ★ Fork n°2 (ADR-017) : gpui-pre 0.3.12 + texte gris sous une opacité < 1 (vendor/gpui-pre.patch).
+# Plafond : deux forks. Aucune PR amont (décision de l'utilisateur).
+gpui-pre = { path = "vendor/gpui-pre" }

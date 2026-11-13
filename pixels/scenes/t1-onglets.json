@@ -4,6 +4,11 @@
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",
+  "modes_texte": [
+    {"x":48,"y":4,"largeur":56,"hauteur":24,"mode":"gris"},
+    {"x":254,"y":4,"largeur":56,"hauteur":24,"mode":"cleartype"},
+    {"x":460,"y":4,"largeur":56,"hauteur":24,"mode":"gris"}
+  ],
   "actions": [
     {"type":"layout","tree":{"main":{"type":"tabs","tabs":4,"current":1}}},
     {"type":"hover","x":640,"y":500},

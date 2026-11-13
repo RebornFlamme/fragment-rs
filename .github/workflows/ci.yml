@@ -142,6 +142,37 @@ jobs:
         with:
           name: gpui-base-fork-patch
           path: gpui-base-fork.patch
+      # Fork n°2 (ADR-017) : vendor/gpui-pre = l'archive de crates.io à la version épinglée + EXACTEMENT
+      # vendor/gpui-pre.patch, rien d'autre. Toute modification glissée ailleurs dans l'arbre fait échouer.
+      - name: Diff exact de vendor/gpui-pre contre l'archive + vendor/gpui-pre.patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          v=$(grep -A1 '^name = "gpui-pre"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          vv=$(sed -n 's/^version = "\(.*\)"$/\1/p' vendor/gpui-pre/Cargo.toml | head -1)
+          vw=$(sed -n 's/^gpui-pre = "=\(.*\)"$/\1/p' Cargo.toml)
+          echo "gpui-pre : Cargo.lock $v, vendor $vv, [workspace.dependencies] $vw"
+          if [ "$v" != "$vv" ] || [ "$v" != "$vw" ]; then
+            echo "::error::vendor/gpui-pre n'est plus à la version épinglée : rebaser le fork (ADR-017)"
+            exit 1
+          fi
+          tmp=$(mktemp -d)
+          curl -fsSL "https://static.crates.io/crates/gpui-pre/gpui-pre-$v.crate" -o "$tmp/o.crate"
+          sha=$(sed -n 's/^ *sha256 \([0-9a-f]\{64\}\)$/\1/p' vendor/gpui-pre/NOTICE)
+          echo "$sha  $tmp/o.crate" | sha256sum -c -
+          tar xzf "$tmp/o.crate" -C "$tmp"
+          attendu="$tmp/gpui-pre-$v"
+          rm -f "$attendu/Cargo.lock" "$attendu/.cargo_vcs_info.json"
+          (cd "$attendu" && patch -p1 --no-backup-if-mismatch < "$GITHUB_WORKSPACE/vendor/gpui-pre.patch")
+          if ! diff -r -x NOTICE "$attendu" vendor/gpui-pre; then
+            echo "::error::vendor/gpui-pre diffère de l'archive + vendor/gpui-pre.patch (ADR-017 : aucun autre changement)"
+            exit 1
+          fi
+          echo "Fichiers touchés par le patch :"; grep '^+++ ' vendor/gpui-pre.patch
+          echo "Taille du patch : +$(grep -c '^+[^+]' vendor/gpui-pre.patch) -$(grep -c '^-[^-]' vendor/gpui-pre.patch || true) lignes"
+          # Dette de rebase : la dernière version publiée, pour mémoire (n'échoue pas).
+          last=$(curl -fsSL -A "fragment-rs-ci" https://crates.io/api/v1/crates/gpui-pre | sed -n 's/.*"max_version":"\([^"]*\)".*/\1/p' || true)
+          echo "Dette de rebase : fork en $v, dernière version publiée : ${last:-inconnue}"
 
   check-app:
     runs-on: windows-latest
@@ -199,8 +230,8 @@ jobs:
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate
       - name: Capture n°2
         run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-2
-      # fr-p4.1.3 (mesure, non bloquant) : réglages de texte du runner, en lecture seule, puis une
-      # capture en ClearType de GPUI (FRAGMENT_PIXELS_TEXTE=subpixel) publiée à côté du candidat gris.
+      # fr-p4.1.3 (mesure, non bloquant) : réglages de texte du runner, en lecture seule. Depuis
+      # fr-p4.1.4 (ADR-017), le candidat est en ClearType sur les surfaces opaques, gris dans les calques.
       - name: Réglages de texte du runner (ClearType, DPI, Avalon.Graphics)
         if: always()
         continue-on-error: true
@@ -211,11 +242,6 @@ jobs:
           Get-ChildItem 'HKCU:\SOFTWARE\Microsoft\Avalon.Graphics' -Recurse -ErrorAction SilentlyContinue | Format-List
           Get-ItemProperty 'HKCU:\Control Panel\Desktop\PerMonitorSettings\*' -ErrorAction SilentlyContinue | Format-List PSChildName, DpiValue
           Get-CimInstance Win32_DesktopMonitor | Format-List Name, PixelsPerXLogicalInch
-      - name: Capture ClearType (mesure fr-p4.1.3)
-        continue-on-error: true
-        env:
-          FRAGMENT_PIXELS_TEXTE: subpixel
-        run: target/debug/fragment-pixels.exe pixels/scenes pixels/candidate-subpixel
       - name: Preuve — fenêtre vide et mire comparées à elles-mêmes (strict, 0 pixel)
         run: |
           foreach ($f in 'fenetre-vide-dark.png', 'mire-dark.png') {
@@ -238,7 +264,6 @@ jobs:
           name: pixels
           path: |
             pixels/candidate/
-            pixels/candidate-subpixel/
             pixels/diff/
             docs/parite-pixels.md
           if-no-files-found: ignore

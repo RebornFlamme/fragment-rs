@@ -38,12 +38,13 @@ use actions::{Action, Cible, Scene, ThemeScene, VueScene};
 /// Variable d'environnement du mode de rendu du texte des captures (fr-p4.1.3, mesure).
 pub const VAR_MODE_TEXTE: &str = "FRAGMENT_PIXELS_TEXTE";
 
-/// Mode de rendu du texte des captures. Par défaut, le gris. `subpixel` donne le ClearType de
-/// GPUI, que Chromium emploie sur les surfaces opaques non composées (docs/mesures/rasterisation-glyphes.md).
+/// Mode du texte des SURFACES OPAQUES des captures (ADR-017). Par défaut, le ClearType de GPUI,
+/// celui de Chromium sur une surface opaque non composée (docs/mesures/rasterisation-glyphes.md) ;
+/// les calques restent gris. `gris` met aussi les surfaces opaques en gris (mesure seulement).
 pub fn mode_texte(valeur: Option<&str>) -> gpui_kit::TextRenderingMode {
     match valeur.map(str::trim) {
-        Some(v) if v.eq_ignore_ascii_case("subpixel") => gpui_kit::TextRenderingMode::Subpixel,
-        _ => gpui_kit::TextRenderingMode::Grayscale,
+        Some(v) if v.eq_ignore_ascii_case("gris") => gpui_kit::TextRenderingMode::Grayscale,
+        _ => gpui_kit::TextRenderingMode::Subpixel,
     }
 }
 
@@ -97,10 +98,12 @@ pub async fn jouer(
     cx: &mut AsyncApp,
 ) -> anyhow::Result<RgbaImage> {
     let session = cx.update(|cx| -> anyhow::Result<Session> {
-        // ★ Chromium (le harnais de référence) peint le texte en niveaux de gris ; GPUI choisit le sous-pixel
-        // (franges colorées) sur le moteur wgpu. Sans ce réglage, chaque bord de glyphe diffère de 100+.
-        // fr-p4.1.3 : `FRAGMENT_PIXELS_TEXTE=subpixel` capture en ClearType, pour la mesure seulement.
-        cx.set_text_rendering_mode(mode_texte(std::env::var(VAR_MODE_TEXTE).ok().as_deref()));
+        // ★ Mode du texte par surface, comme Chromium (ADR-017) : ClearType sur les surfaces opaques,
+        // gris dans les calques et sous une opacité < 1. `FRAGMENT_PIXELS_TEXTE=gris` : tout en gris.
+        fragment_ui::rendu::mode_texte::installer(
+            cx,
+            mode_texte(std::env::var(VAR_MODE_TEXTE).ok().as_deref()),
+        );
         theme_global::installer(cx, mode(theme));
         // ★ L'échelle est un global de l'application, qui survit d'une scène à l'autre : le zoom
         // posé par une scène d'app (`app:zoom-in`, 110 %) agrandissait les surfaces flottantes des
@@ -288,14 +291,14 @@ mod tests {
     }
 
     #[test]
-    fn le_mode_texte_reste_en_gris_sauf_subpixel_explicite() {
+    fn le_mode_opaque_est_cleartype_sauf_gris_explicite() {
         use super::mode_texte;
         use gpui_kit::TextRenderingMode as M;
-        assert_eq!(mode_texte(None), M::Grayscale);
-        assert_eq!(mode_texte(Some("")), M::Grayscale);
-        assert_eq!(mode_texte(Some("gris")), M::Grayscale);
+        assert_eq!(mode_texte(None), M::Subpixel);
+        assert_eq!(mode_texte(Some("")), M::Subpixel);
         assert_eq!(mode_texte(Some("subpixel")), M::Subpixel);
-        assert_eq!(mode_texte(Some(" SubPixel ")), M::Subpixel);
+        assert_eq!(mode_texte(Some("gris")), M::Grayscale);
+        assert_eq!(mode_texte(Some(" GRIS ")), M::Grayscale);
     }
 
     #[test]

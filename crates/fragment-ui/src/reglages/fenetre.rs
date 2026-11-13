@@ -1391,7 +1391,9 @@ impl Render for FenetreReglages {
                     }
                 }),
             );
-        texte(racine, cx, t.typo.font_ui_medium, 1.5)
+        // La fenêtre de réglages est une surface opaque (ClearType) ; ses listes déroulantes sont
+        // des dessins différés, donc des calques gris (ADR-017).
+        crate::rendu::mode_texte::surface_opaque(texte(racine, cx, t.typo.font_ui_medium, 1.5))
     }
 }
 

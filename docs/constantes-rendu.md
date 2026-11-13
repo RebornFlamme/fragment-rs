@@ -30,6 +30,24 @@
 - Grille des réglages : `minmax(230px, 1fr)` (ui\core\settings\settings.css:190).
 - Rond d'avatar : `border-radius: 999px` et `50%` (ui\core\workspace\view-icons.css:18, 108).
 
+## Texte : ClearType ou gris, par propriété de la surface (fr-p4.1.4, ADR-017)
+
+Chromium (Fragment) peint le texte en ClearType sur le calque opaque de la page, en gris ailleurs
+(mesure : `docs/mesures/rasterisation-glyphes.md`). La règle découle de PROPRIÉTÉS, jamais de noms :
+
+| propriété de la surface | mode | source dans Fragment | mise en œuvre |
+|---|---|---|---|
+| contenu en flux sur le fond opaque de la fenêtre | **ClearType** | (défaut de Chromium : calque racine opaque) | `rendu::mode_texte::surface_opaque` (racine de la coquille, de la fenêtre de réglages, du décor des flottantes) |
+| calque superposé (`position: fixed` au-dessus du contenu) | **gris** | ui\core\menu.css:5, ui\core\modal.css:8 (la palette est une modale), ui\core\notice.css:5, ui\core\tooltip.css:5, ui\workspace.css:1071 (`.status-bar`, `z-index: 10`) | tout enfant d'une `rendu::mode_texte::pile` après le fond ; tout dessin différé de GPUI (`deferred`, peint hors de l'arbre, donc dans le mode de base gris) |
+| sous un ancêtre d'opacité < 1 (effet : surface intermédiaire transparente) | **gris** | ui\workspace.css:411 (`.workspace-tab-header { opacity: 0.6 }`, remis à 1 par `.is-active` l. 538, et au survol dans les docks l. 1019), ui\workspace.css:779 (`.view-header-title-parent`) ; `.clickable-icon` (l. 375) ne porte que des SVG | GPUI lui-même, au glyphe (fork n°2, `vendor/gpui-pre.patch`) : `Styled::opacity` et son survol suffisent |
+
+- Cas limites : une ligne de menu survolée (fond opaque DANS un calque) reste grise ; une surface
+  opaque posée sur un fond translucide (la boîte de la modale sur son voile) est grise, parce qu'elle
+  est dans un calque.
+- Une surface nouvelle hérite du bon mode sans code : en flux → ClearType, dans une pile ou différée
+  → gris, sous une opacité < 1 → gris.
+- Les icônes (SVG) sont toujours des masques gris dans GPUI, sous toute règle.
+
 ## Jetons
 
 Déclarés sur `:root` (structure, identique dans les deux thèmes), sur `body` (identique dans les deux thèmes), puis sur `.theme-dark` et `.theme-light` (palette). Quand une valeur n'est déclarée que sur `body` ou `:root`, les deux colonnes portent la même valeur, suivie de « (commun) ».

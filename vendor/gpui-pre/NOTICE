@@ -1,0 +1,20 @@
+gpui-pre (fork n°2 de fragment-rs, ADR-017)
+
+Origine   : https://crates.io/crates/gpui-pre/0.3.12
+Version   : 0.3.12 (celle qu'épingle gpui-kit =0.9.1 ; voir Cargo.lock et [workspace.dependencies])
+Archive   : https://static.crates.io/crates/gpui-pre/gpui-pre-0.3.12.crate
+            sha256 29db89613527079737f53752eab27fb65c9a7dd94979256c65a0e590c9fd34d8
+Licence   : Apache-2.0 (LICENSE-APACHE, inchangée). Les en-têtes d'origine sont conservés.
+Amont     : aucune PR amont (décision de l'utilisateur du 13/11/2026).
+Modifié par fragment-rs : le seul fichier ci-dessous, par le seul patch vendor/gpui-pre.patch.
+            Chaque ajout est marqué `// ★ fragment-rs (ADR-017)`. Le job CI `fork-patch` vérifie que
+            cet arbre est EXACTEMENT l'archive + ce patch (Cargo.lock et .cargo_vcs_info.json de
+            l'archive ne sont pas vendorisés).
+
+Fichiers modifiés (chemins relatifs à la racine du crate) :
+  src/window.rs                          should_use_subpixel_rendering refuse le ClearType sous une opacité d'élément < 1 (5 lignes)
+
+Ce que le patch ajoute : le texte peint sous un ancêtre d'opacité < 1 est rastérisé en gris, comme
+Chromium (un effet d'opacité est une surface intermédiaire transparente). Rien d'autre. Toute autre
+modification de ce fork exige un nouvel ADR. Le test du patch tourne hors du fork, sur la vraie
+plateforme Windows : zones `modes_texte` des scènes pixels (t1-onglets), job CI `pixels`. Plafond : deux forks (gpui-base, gpui-pre).

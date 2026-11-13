@@ -84,12 +84,10 @@ export function preparerCoffre(): void {
 export async function lancer(config: ConfigCoffres): Promise<ElectronApplication> {
     preparerCoffre();
     writeFileSync(path.join(DONNEES, 'config.json'), JSON.stringify(config), 'utf8');
-    // ★ `--disable-lcd-text` : texte en niveaux de gris, comme les références de T1 et comme GPUI.
-    // La capture de #80 s'est faite avec ClearType actif (chroma du texte jusqu'à 161, contre ≤ 5 en
-    // T1) : chaque boîte de texte s'élargissait d'1 à 2 px. Le drapeau rend la capture indépendante
-    // du réglage de Windows.
+    // ★ Texte tel que l'utilisateur le voit (fr-p4.1.4, ADR-017) : ClearType sur les surfaces opaques,
+    // gris dans les calques composés. Plus de `--disable-lcd-text` ; le candidat suit la même règle.
     return _electron.launch({
-        args: ['.', `--user-data-dir=${DONNEES}`, '--force-device-scale-factor=1', '--high-dpi-support=1', '--disable-lcd-text'],
+        args: ['.', `--user-data-dir=${DONNEES}`, '--force-device-scale-factor=1', '--high-dpi-support=1'],
         env: { ...process.env, NODE_ENV: 'development' } as Record<string, string>,
     });
 }

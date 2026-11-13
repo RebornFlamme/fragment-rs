@@ -21,7 +21,7 @@
 //    au thème sombre), jamais réestimé à la main.
 //  ★ `wait-stable` ne déplace PAS le pointeur (README de pixels/) : la scène de survol garde le sien
 //    sur la tuile ; les autres le garent par un `hover 2,2` explicite.
-//  ★ `--disable-lcd-text` : texte d'interface en niveaux de gris, comme T1 (constat de fr-t2-montage).
+//  ★ Texte tel que l'utilisateur le voit (fr-p4.1.4, ADR-017) : ClearType sur fond opaque, gris dans un calque.
 //
 //  Aucun test ici (pas de suffixe .spec.ts).
 // ═══════════════════════════════════════════════════════════════════════════
@@ -133,7 +133,7 @@ async function monter(fenetre: { largeur: number; hauteur: number }): Promise<Ha
         ...plugin('e2e-globe', 'gutter-globe-plugin.cjs'),
         ...plugin('e2e-dwv', 'doc-widget-view-plugin.cjs'),
     };
-    const h = await lancerLecteur(fichiers, NOTE, { args: ['--force-device-scale-factor=1', '--high-dpi-support=1', '--disable-lcd-text'] });
+    const h = await lancerLecteur(fichiers, NOTE, { args: ['--force-device-scale-factor=1', '--high-dpi-support=1'] });
     await h.electronApp.evaluate(({ BrowserWindow }, f) => {
         for (const w of BrowserWindow.getAllWindows()) w.setContentSize(f.largeur, f.hauteur);
     }, fenetre);

@@ -1,0 +1,14 @@
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -5147,6 +5147,11 @@
+     }
+ 
+     fn should_use_subpixel_rendering(&self, font_id: FontId, font_size: Pixels) -> bool {
++        // ★ fragment-rs (ADR-017) : sous un ancêtre d'opacité < 1 (un effet, donc une surface
++        // intermédiaire transparente), le texte est gris, comme dans Chromium.
++        if self.element_opacity < 1.0 {
++            return false;
++        }
+         if self.platform_window.background_appearance() != WindowBackgroundAppearance::Opaque {
+             return false;
+         }

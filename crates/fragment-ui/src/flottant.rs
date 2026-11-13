@@ -310,15 +310,17 @@ impl Render for Decor {
         let fond = couleur(theme_ou_defaut(cx).palette.workspace_bg);
         // Ordre de peinture = ordre des z-index de Fragment : barre (900), notices et menu (1000),
         // infobulle (1100).
-        div()
-            .size_full()
-            .relative()
-            .bg(fond)
-            .child(toolbar::couche(cx))
-            .child(notice::couche(cx))
-            .child(menu::couche(cx))
-            .child(tooltip::couche(cx))
-            // Les modales passent devant tout (z-index 1100, au-dessus du menu).
-            .child(crate::modal::couche(window, cx))
+        // Le fond est la surface opaque ; chaque couche est un calque (texte gris, ADR-017).
+        crate::rendu::mode_texte::pile(
+            div().size_full().bg(fond),
+            [
+                toolbar::couche(cx),
+                notice::couche(cx),
+                menu::couche(cx),
+                tooltip::couche(cx),
+                // Les modales passent devant tout (z-index 1100, au-dessus du menu).
+                crate::modal::couche(window, cx).into_any_element(),
+            ],
+        )
     }
 }

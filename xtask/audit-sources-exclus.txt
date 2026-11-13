@@ -6,3 +6,6 @@ crates/fragment-ui/assets/icons/LICENSE-LUCIDE # licence ISC de Lucide et notice
 crates/fragment-app/assets/brand/favicon.svg # logo exporté de la marque, déjà public (usefragment.org)
 crates/fragment-app/assets/brand/favicon-32.svg # logo exporté de la marque, déjà public (usefragment.org)
 crates/fragment-app/assets/brand/app-icon-small.svg # icône exportée de la marque, déjà publique (installeur)
+# EXCLUSION NOMMÉE DU FORK N°2 (orchestrateur, 13/11, ADR-017) : source publique de gpui-pre 0.3.12 (Apache-2.0),
+# aucune source de Fragment. Le « / » final exclut tout le dossier.
+vendor/gpui-pre/ # fork n°2 de gpui-pre, vérifié contre l'archive de crates.io par le job fork-patch

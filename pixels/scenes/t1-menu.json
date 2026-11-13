@@ -5,6 +5,9 @@
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault",
+  "modes_texte": [
+    {"x":428,"y":262,"largeur":175,"hauteur":160,"mode":"gris"}
+  ],
   "actions": [
     {"type":"hover","x":2,"y":2},
     {"type":"command","id":"pixels:menu","args":{"x":420,"y":260}},
