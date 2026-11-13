@@ -75,8 +75,13 @@ if ($VerrouDejaPris) {
 } else {
     $finAttente = (Get-Date).AddMinutes(30)
     while ($true) {
-        & cmd /c mkdir "$verrou" 2>$null
-        if ($LASTEXITCODE -eq 0) { $verrouPris = $true; break }
+        # ★ Sous ErrorActionPreference=Stop, Windows PowerShell 5.1 fait du stderr de « cmd /c mkdir »
+        #   (« existe déjà ») une erreur fatale : le script mourait au lieu d'attendre son tour. On garde
+        #   mkdir (atomique) et on relâche la préférence le temps de l'appel.
+        $pref = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        & cmd /c mkdir "$verrou" 2>&1 | Out-Null
+        $okVerrou = ($LASTEXITCODE -eq 0); $ErrorActionPreference = $pref
+        if ($okVerrou) { $verrouPris = $true; break }
         if ((Get-Date) -gt $finAttente) { throw "Verrou de capture tenu depuis plus de 30 min : $verrou ($((Get-Content (Join-Path $verrou 'qui.txt') -Raw -ErrorAction SilentlyContinue)))" }
         Write-Host "Verrou de capture tenu ; nouvel essai dans 1 min."
         Start-Sleep -Seconds 60
