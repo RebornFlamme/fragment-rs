@@ -1,0 +1,10 @@
+# Parité de fr-t5-menu-calques (fragment-ui). Le modèle (arbre, œil, dépliage, contributions) est
+# dans fragment-layers (fr-t5-menu-modele) ; ici : l'état du menu ouvert, ses gestes et son dessin.
+
+[[module]]
+ts = "app/src/ui/core/workspace/ItemView.ts (showLayerMenu, ligneDeCalque), layer-menu.css, app/e2e/artefacts-menu.spec.ts et agent-bar.spec.ts (le menu Calques seulement)"
+rs = "crates/fragment-ui/src/menu_calques/{mod,rendu}.rs, crates/fragment-ui/tests/menu_calques.rs"
+cas_source = 8
+cas_portes = 8
+cas_ajoutes = 6
+notes = "Portés : arbre replié par défaut, œil (affiche / masque, le menu reste ouvert), clic de ligne (déplie ; sans enfants = œil), présets, bouton de contributeur à droite de l'œil sans dépliage, ligne contribuée en première sous Agent, aucun calque disponible, calque inapplicable ou hors menu. n.a. : les actions propres aux artefacts (mod-hide, mod-delete, Aller à) et les données qu'ils rangent, au plugin Artefacts. Ajoutés : dépliage retenu à la réouverture, Échap et portée, réouverture, commande de scène, dessin headless. Écarts : (1) eye.svg et eye-off.svg ajoutés au jeu d'icônes (lucide-static 1.25.0) ; (2) l'infobulle de l'œil est exposée (info_bulle_oeil), son affichage est au montage ; (3) max-width calc(100vw - 16px) borné par snap_to_window_with_margin, pas de max_w en vw ; (4) le clic des boutons ne passe pas par stopPropagation : œil et boutons sont frères de la zone de ligne ; (5) l'ombre est celle du premier niveau de menu. Scène pixels:menu_calques {x, y, deplie, masques} : références à capturer au montage."
