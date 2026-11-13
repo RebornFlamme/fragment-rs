@@ -34,6 +34,18 @@ use serde_json::{Value, json};
 
 use actions::{Action, Cible, Scene, ThemeScene, VueScene};
 
+/// Variable d'environnement du mode de rendu du texte des captures (fr-p4.1.3, mesure).
+pub const VAR_MODE_TEXTE: &str = "FRAGMENT_PIXELS_TEXTE";
+
+/// Mode de rendu du texte des captures. Par défaut, le gris. `subpixel` donne le ClearType de
+/// GPUI, que Chromium emploie sur les surfaces opaques non composées (docs/mesures/rasterisation-glyphes.md).
+pub fn mode_texte(valeur: Option<&str>) -> gpui_kit::TextRenderingMode {
+    match valeur.map(str::trim) {
+        Some(v) if v.eq_ignore_ascii_case("subpixel") => gpui_kit::TextRenderingMode::Subpixel,
+        _ => gpui_kit::TextRenderingMode::Grayscale,
+    }
+}
+
 /// Délai laissé à la première fenêtre pour poser sa première image stable.
 const ATTENTE_INITIALE: Duration = Duration::from_millis(1500);
 /// `wait-stable` : une pause après les deux images, comme `calme()` côté Fragment.
@@ -84,7 +96,8 @@ pub async fn jouer(
     let session = cx.update(|cx| -> anyhow::Result<Session> {
         // ★ Chromium (le harnais de référence) peint le texte en niveaux de gris ; GPUI choisit le sous-pixel
         // (franges colorées) sur le moteur wgpu. Sans ce réglage, chaque bord de glyphe diffère de 100+.
-        cx.set_text_rendering_mode(gpui_kit::TextRenderingMode::Grayscale);
+        // fr-p4.1.3 : `FRAGMENT_PIXELS_TEXTE=subpixel` capture en ClearType, pour la mesure seulement.
+        cx.set_text_rendering_mode(mode_texte(std::env::var(VAR_MODE_TEXTE).ok().as_deref()));
         theme_global::installer(cx, mode(theme));
         // ★ L'échelle est un global de l'application, qui survit d'une scène à l'autre : le zoom
         // posé par une scène d'app (`app:zoom-in`, 110 %) agrandissait les surfaces flottantes des
@@ -263,6 +276,17 @@ mod tests {
         let (vue, vcx) = cx.add_window_view(Jouet::new);
         vcx.update(entree::redessiner);
         (vue, vcx)
+    }
+
+    #[test]
+    fn le_mode_texte_reste_en_gris_sauf_subpixel_explicite() {
+        use super::mode_texte;
+        use gpui_kit::TextRenderingMode as M;
+        assert_eq!(mode_texte(None), M::Grayscale);
+        assert_eq!(mode_texte(Some("")), M::Grayscale);
+        assert_eq!(mode_texte(Some("gris")), M::Grayscale);
+        assert_eq!(mode_texte(Some("subpixel")), M::Subpixel);
+        assert_eq!(mode_texte(Some(" SubPixel ")), M::Subpixel);
     }
 
     #[test]
