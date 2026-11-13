@@ -1007,3 +1007,4 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - Lancés : fr-t7-defilement (Opus), fr-t5-menu-modele (Sonnet, #127), fr-t5-lien-ancre (Sonnet), fr-t7-service (Sonnet).
 - PR en CI : #126 (surlignages, dette Multiplie notée), #127.
 **Rythme** : 3 points en 1 h, au-dessus des 1,8 par heure nécessaires ; 6 places occupées, pas plus.
+- Battement 13/11 09:40 UTC — usage 5h 23 % / semaine 82 % ; contexte du chef 240k. PR : #127 (relance du flake fr-9n1), #125, #128 et #105 en brouillon chez leurs équipiers. 6 places occupées, disque 81 Go. Rythme tenu (1,8 point par heure requis) : pas de 7e place.
