@@ -1,0 +1,12 @@
+# Parité de fr-t5-menu-modele (fragment-layers). ItemView.ts n'a pas de test unitaire pour le menu :
+# les cas sont écrits d'après le contrat (toggleLayer, isLayerActive, reconcileLayers, showLayerMenu,
+# ligneDeCalque) et les specs gutter-arbiter (décocher puis recocher un calque). visibility.ts est déjà
+# porté (crates/fragment-text/src/visibility.rs).
+
+[[module]]
+ts = "app/src/ui/core/workspace/ItemView.ts (layerInstances, toggleLayer, isLayerActive, reconcileLayers, showLayerMenu, ligneDeCalque, état éphémère activeLayers / layerInstances), app/src/ui/core/layers/types.ts (entrées du menu), Workspace.ts (événement layer-menu)"
+rs = "crates/fragment-layers/src/menu_calques.rs, crates/fragment-layers/tests/menu_calques.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 15
+notes = "Modèle pur : ViewLayers (instances voulues, bascule, close idempotent, graines par défaut, plan de réconciliation, état éphémère à deux formes), build_menu (arbre : calques du catalogue dans l'ordre, presets, lignes et boutons contribués par le trait LayerMenuContributor), MenuState (dépliage par vue, clic de ligne). Écart : le catalogue arrive en CatalogLayer (données) et non en LayerSpec ; la réconciliation rend un plan au lieu de monter elle-même ; le suivi des enfants retirés (MutationObserver) disparaît, l'arbre se reconstruit."
