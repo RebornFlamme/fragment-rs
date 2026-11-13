@@ -39,10 +39,6 @@ pub enum Nature {
     /// PARTIES (moitiés) jusqu'à [`ECART_BARYCENTRE_GLYPHES`] d'une boîte ; l'origine (barycentre du
     /// passage), les bords, la forme et la teinte restent exigés.
     Glyphes,
-    /// Le garde-fou de forme PAR GLYPHE jusqu'à la marge [`MARGE_GLYPHE_MOT`] ET celui du
-    /// barycentre du passage (l'origine) jusqu'à [`ECART_BARYCENTRE_MOT`] d'une boîte de texte
-    /// ([`Exception::boite`]) : encre, bords, moitiés et teinte restent exigés.
-    Mot,
     /// Le SEUL garde-fou de forme PAR GLYPHE jusqu'à la marge [`MARGE_GLYPHE_PLACEMENT`] d'une
     /// boîte de texte ([`Exception::boite`]) : encre, bords, barycentres (passage compris) et
     /// teinte restent exigés.
@@ -191,35 +187,12 @@ pub const GLYPHES_8_8: &str = "glyphes à 8,8 px en clair";
 /// L'écart de barycentre toléré sur les PARTIES d'une boîte par une exception [`Nature::Glyphes`].
 pub const ECART_BARYCENTRE_GLYPHES: f64 = 0.75;
 
-/// ★ L'élément du mot « fermer » de la palette sombre (orchestrateur, 13/11 03:15, en cliquet sous
-/// `fr-p4.1`) : les glyphes y sont placés par GPUI de −0,02 à −0,60 px de ceux de Chromium (avances
-/// et arrondi de position dans le mot, pas la capture) ; le barycentre du passage glisse à −0,57 px
-/// et le « m » déplacé porte sa masse 3×3 à 1,58 (borne 1,54). Le clair passe. Clés du cliquet :
-/// `glyphe` (marge du pire glyphe), `barycentre` (passage, px).
-pub const MOT_FERMER: &str = "mot « fermer » de la palette";
-
-/// La marge du pire glyphe tolérée par une exception [`Nature::Mot`] (1 : la borne).
-pub const MARGE_GLYPHE_MOT: f64 = 1.05;
-
-/// L'écart de barycentre du passage toléré par une exception [`Nature::Mot`].
-pub const ECART_BARYCENTRE_MOT: f64 = 0.6;
-
-const fn mot(png: &'static str, boite: [u32; 4]) -> Exception {
-    Exception {
-        png,
-        element: MOT_FERMER,
-        jeton: "--text-muted",
-        nature: Nature::Mot,
-        boite: Some(boite),
-    }
-}
-
 /// ★ L'élément des glyphes déplacés de texte légitime (chef, 13/11 04:30, en cliquet sous
-/// `fr-p4.1.1`, placement des glyphes) : `t1-notice-empilees` sombre (deux boîtes) et `t1-zoom-80`
+/// `fr-p4.1.1`, placement des glyphes) : `t1-notice-empilees` sombre (une boîte, « Première ») et `t1-zoom-80`
 /// sombre (une boîte). Un glyphe y est placé par GPUI à une autre phase sous-pixel que Chromium :
 /// sa masse 3×3 (1,60 et 1,68, borne 1,54) ou 2×2 (1,10, borne 1,09) déborde, sans autre écart
 /// (encre, bords, passage dans leurs bornes). Les bornes du garde-fou ne bougent pas (la détection
-/// reste ≥ 99,2 %) ; seules ces trois boîtes sont levées. Clé du cliquet : `glyphe` (marge du pire
+/// reste ≥ 99,2 %) ; seules ces deux boîtes sont levées. Clé du cliquet : `glyphe` (marge du pire
 /// glyphe). Elles tombent avec le correctif de placement de `fr-p4.1.1`.
 pub const GLYPHE_DEPLACE: &str = "glyphe déplacé (placement des glyphes)";
 
@@ -418,13 +391,8 @@ pub const EXCEPTIONS: &[Exception] = &[
     // (la boîte peinte est la tuile : 11×11 et 13×13 depuis fr-p3.1, voir `pour_boite_ou_encre`).
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [345, 11, 9, 9]),
     encre("t1-zoom-80-dark.png", ICONE_HAIRLINE, [1127, 13, 11, 7]),
-    // Le mot « fermer » du pied de la palette, sombre seulement (trois scènes de la palette).
-    mot("t1-palette-dark.png", [503, 241, 37, 10]),
-    mot("t1-palette-selection-dark.png", [503, 241, 37, 10]),
-    mot("t1-palette-aucun-resultat-dark.png", [503, 220, 37, 10]),
     // Les glyphes déplacés de texte légitime, sombre seulement (fr-p4.1.1).
     placement("t1-notice-empilees-dark.png", [1162, 30, 86, 10]),
-    placement("t1-notice-empilees-dark.png", [1196, 140, 53, 10]),
     placement("t1-zoom-80-dark.png", [372, 12, 37, 7]),
     // L'arc de la pastille d'accent des réglages, deux scènes, deux thèmes.
     pastille("t1-reglages-appearance-dark.png"),
@@ -987,67 +955,6 @@ mod tests {
         }
     }
 
-    /// Contre-épreuve du mot « fermer » : la forme par glyphe (marge ≤ 1,05) et le passage
-    /// (≤ 0,6 px) levés dans SA boîte de SES PNG sombres ; au-delà, en clair ou ailleurs : rien.
-    #[test]
-    fn le_mot_fermer_ne_leve_que_la_forme_et_le_passage() {
-        use crate::pixels::sas::{ResultatBoite, lever_nommees};
-        let boite = |y: u32| BoiteEncre {
-            categorie: super::super::boites::Categorie::Texte,
-            x: 503,
-            y,
-            largeur: 37,
-            hauteur: 10,
-        };
-        let resultat = |y: u32, marge: f64, passage: f64| ResultatBoite {
-            boite: boite(y),
-            differents: 0,
-            delta_max: 0,
-            ecart_encre: -0.027,
-            ecart_forme: 0.0,
-            ecart_glyphe: marge,
-            teinte: 1.0,
-            barycentres: vec![("passage", passage, -0.06)],
-            ecart_bords: Some([0, 0, -1, 0]),
-            dette_largeur: false,
-            nommee: None,
-            encre_reference: None,
-            violations: vec![
-                format!("forme : glyphe n° 4 changé (marge {marge})"),
-                format!(
-                    "origine : barycentre (passage) décalé de ({passage:+.2}, -0.06) px (borne ±0.5)"
-                ),
-            ],
-        };
-        let leve = |png: &str, y: u32, marge: f64, passage: f64| {
-            let mut r = resultat(y, marge, passage);
-            lever_nommees(&mut r, &du_png(png), &boite(y));
-            r
-        };
-        // La mesure de CI : marge 1,03 (masse 3×3 1,58 / 1,54), passage −0,57 : levée.
-        for (png, y) in [
-            ("t1-palette-dark.png", 241),
-            ("t1-palette-selection-dark.png", 241),
-            ("t1-palette-aucun-resultat-dark.png", 220),
-        ] {
-            let r = leve(png, y, 1.03, -0.57);
-            assert!(r.violations.is_empty(), "{png} {:?}", r.violations);
-            assert_eq!(r.nommee, Some(MOT_FERMER));
-        }
-        let png = "t1-palette-dark.png";
-        // Au-delà : marge > 1,05, passage > 0,6.
-        assert_eq!(leve(png, 241, 1.06, -0.57).violations.len(), 1);
-        assert_eq!(leve(png, 241, 1.03, -0.61).violations.len(), 1);
-        // Le clair, une autre boîte : rien n'est levé.
-        assert_eq!(
-            leve("t1-palette-light.png", 241, 1.03, -0.57)
-                .violations
-                .len(),
-            2
-        );
-        assert_eq!(leve(png, 200, 1.03, -0.57).violations.len(), 2);
-    }
-
     /// Contre-épreuve du « N » coupé : une autre teinte est levée (et mesurée) dans SA boîte de SON
     /// PNG seulement ; le même glyphe décalé d'1 px échoue (barycentre), la même teinte dans une
     /// autre boîte ou un autre PNG échoue.
@@ -1461,7 +1368,7 @@ mod tests {
         );
     }
 
-    /// Le glyphe déplacé ne lève QUE la forme par glyphe, jusqu'à 1,10, dans ses trois boîtes
+    /// Le glyphe déplacé ne lève QUE la forme par glyphe, jusqu'à 1,10, dans ses deux boîtes
     /// sombres ; au-delà, ou dans une autre boîte, ou si le passage glisse : rien n'est levé.
     #[test]
     fn le_glyphe_deplace_ne_leve_que_la_forme_par_glyphe() {
@@ -1474,7 +1381,7 @@ mod tests {
             hauteur: h,
         };
         let resultat = |marge: f64, passage: f64| ResultatBoite {
-            boite: boite(1196, 140, 53, 10),
+            boite: boite(1162, 30, 86, 10),
             differents: 0,
             delta_max: 0,
             ecart_encre: -0.094,
@@ -1498,21 +1405,18 @@ mod tests {
         };
         let png = "t1-notice-empilees-dark.png";
         // La mesure de CI : marge 1,09 (masse 3×3 1,68 / 1,54) : forme levée, passage exigé.
-        let r = leve(png, boite(1196, 140, 53, 10), 1.09);
+        let r = leve(png, boite(1162, 30, 86, 10), 1.09);
         assert_eq!(r.nommee, Some(GLYPHE_DEPLACE));
         assert_eq!(r.violations.len(), 1);
         assert!(r.violations[0].starts_with("origine : barycentre (passage)"));
         // Au-delà de 1,10 : la forme reste en échec.
-        assert_eq!(
-            leve(png, boite(1196, 140, 53, 10), 1.12).violations.len(),
-            2
-        );
+        assert_eq!(leve(png, boite(1162, 30, 86, 10), 1.12).violations.len(), 2);
         // Une autre boîte, ou le clair : rien n'est levé.
         let r = leve(png, boite(1156, 94, 53, 10), 1.09);
         assert_eq!((r.nommee, r.violations.len()), (None, 2));
         let r = leve(
             "t1-notice-empilees-light.png",
-            boite(1196, 140, 53, 10),
+            boite(1162, 30, 86, 10),
             1.09,
         );
         assert_eq!((r.nommee, r.violations.len()), (None, 2));

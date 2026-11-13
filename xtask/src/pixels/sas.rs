@@ -830,22 +830,6 @@ pub(crate) fn lever_nommees(
         }
         res.nommee = Some(element);
     }
-    // Exception nommée d'un mot (fr-p3.1, « fermer » de la palette) : la forme par glyphe jusqu'à
-    // la marge `MARGE_GLYPHE_MOT` et le barycentre du passage jusqu'à `ECART_BARYCENTRE_MOT`.
-    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Mot) {
-        if res.ecart_glyphe <= exceptions::MARGE_GLYPHE_MOT {
-            res.violations.retain(|v| !v.starts_with(VIOLATION_GLYPHE));
-        }
-        let passage_ok = res.barycentres.iter().all(|&(partie, dx, dy)| {
-            partie != "passage"
-                || (dx.abs() <= exceptions::ECART_BARYCENTRE_MOT
-                    && dy.abs() <= exceptions::ECART_BARYCENTRE_MOT)
-        });
-        if passage_ok {
-            res.violations.retain(|v| !v.starts_with(VIOLATION_PASSAGE));
-        }
-        res.nommee = Some(element);
-    }
     // Exception nommée d'un glyphe déplacé (fr-p4.1.1, placement des glyphes) : la SEULE forme par
     // glyphe, jusqu'à la marge `MARGE_GLYPHE_PLACEMENT` ; le passage reste à sa borne.
     if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Placement) {
@@ -858,9 +842,6 @@ pub(crate) fn lever_nommees(
 
 /// Préfixe de la violation du garde-fou de forme par glyphe (voir [`juger`]).
 const VIOLATION_GLYPHE: &str = "forme : glyphe n° ";
-
-/// Préfixe de la violation du barycentre du passage (voir [`juger`]).
-const VIOLATION_PASSAGE: &str = "origine : barycentre (passage)";
 
 /// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
 const VIOLATION_TEINTE: &str = "teinte : ";
@@ -1582,15 +1563,6 @@ pub fn comparer_tranche(
                     .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
                     .fold(0.0, f64::max);
                 garder(element, "barycentre", pire);
-            } else if element == exceptions::MOT_FERMER {
-                garder(element, "glyphe", b.ecart_glyphe);
-                let passage = b
-                    .barycentres
-                    .iter()
-                    .filter(|(partie, _, _)| *partie == "passage")
-                    .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
-                    .fold(0.0, f64::max);
-                garder(element, "barycentre", passage);
             } else if element == exceptions::GLYPHE_DEPLACE {
                 garder(element, "glyphe", b.ecart_glyphe);
             } else if element == exceptions::ICONE_HAIRLINE {
