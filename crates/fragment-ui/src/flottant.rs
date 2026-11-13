@@ -24,7 +24,7 @@ use serde_json::Value;
 use crate::echelle::u;
 use crate::polices::famille_interface;
 use crate::theme_global::{couleur, theme_ou_defaut};
-use crate::{menu, notice, toolbar, tooltip};
+use crate::{menu, menu_calques, notice, toolbar, tooltip};
 
 /// Les ombres portées d'un jeton (`--menu-shadow`, `--shadow-s`…) en ombres GPUI, mises à l'échelle.
 ///
@@ -317,6 +317,7 @@ impl Render for Decor {
             .child(toolbar::couche(cx))
             .child(notice::couche(cx))
             .child(menu::couche(cx))
+            .child(menu_calques::couche(cx))
             .child(tooltip::couche(cx))
             // Les modales passent devant tout (z-index 1100, au-dessus du menu).
             .child(crate::modal::couche(window, cx))
