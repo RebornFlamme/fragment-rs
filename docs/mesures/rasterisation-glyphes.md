@@ -97,12 +97,12 @@ les recapturer.
 
 | | portable (références) | runner `windows-latest` (candidat) |
 |---|---|---|
-| Lissage des polices (`FontSmoothing`) | 2 (actif) | voir le journal du job (étape « Réglages de texte du runner ») |
-| Type (`FontSmoothingType`) | **2 = ClearType** | idem |
-| `FontSmoothingGamma` | 0 (défaut) | idem |
-| Orientation | 1 = RGB | idem |
-| `HKCU\…\Avalon.Graphics` | présente, vide (pas de `DISPLAY1`) | idem |
-| Écran | 1920 × 1080 physique, 150 % (un processus non sensible au DPI voit 1280 × 720), `DpiValue` 0 = recommandé | 1920 × 1080 posé par `Set-DisplayResolution`, 96 dpi |
+| Lissage des polices (`FontSmoothing`) | 2 (actif) | 2 (actif) |
+| Type (`FontSmoothingType`) | **2 = ClearType** | **2 = ClearType** |
+| `FontSmoothingGamma` | 0 (défaut) | 0 (défaut) |
+| Orientation | 1 = RGB | 1 = RGB |
+| `HKCU\…\Avalon.Graphics` | présente, vide (pas de `DISPLAY1`) | présente, vide |
+| Écran | 1920 × 1080 physique, 150 % (un processus non sensible au DPI voit 1280 × 720), `DpiValue` 0 = recommandé | 1920 × 1080 posé par `Set-DisplayResolution`, 96 dpi (`PixelsPerXLogicalInch` 96, `Win8DpiScaling` 0) |
 | Rendu | Electron 43, Chromium GPU (AMD Radeon) ; captures en DPR 1 | GPUI DirectX 11 sur WARP |
 
 - DPI et mise à l'échelle **ne jouent pas** sur la rastérisation des glyphes des références : Fragment
@@ -110,6 +110,9 @@ les recapturer.
 - Le ClearType du système **joue** : c'est lui qui fait choisir le LCD à Chromium. Une référence
   capturée sur un poste en lissage standard, ou avec `--disable-lcd-text` (#102 pour T2), serait
   grise partout.
+- **Les deux postes ont les mêmes réglages de texte** (run 43371279803). Le poste n'est donc pas une
+  cause à part entière : seule l'échelle d'affichage diffère (150 % contre 96 dpi), et elle ne passe
+  pas dans les captures.
 - GPUI ne lit le système qu'en mode `PlatformDefault`. `fragment-pixels` impose le mode : le runner
   ne change donc rien au candidat, à ses `CreateRenderingParams` près (gamma et contraste).
 
@@ -138,8 +141,22 @@ Limites, d'après les sources :
 
 ## 6. Mesure CI des deux modes
 
-À compléter avec le run de la PR : chroma, encre et largeur de `candidate-subpixel` contre les
-références ClearType.
+Run 43371279803 (PR #113), job `pixels` vert. On mesure par `encre.py` les mots de T1 qui ont un candidat
+(le run ne capture pas encore T2), contre les références de main :
+
+| mots de T1 | n | mode du candidat | encre cand/réf | largeur cand − réf | bord gauche | bord droit | plus étroits | plus larges |
+|---|---|---|---|---|---|---|---|---|
+| ClearType dans la référence | 425 | gris (défaut) | 0,777 | −0,69 px | +0,36 | −0,33 | 51 % | 5 % |
+| ClearType dans la référence | 425 | **Subpixel** | **0,990** | **+0,04 px** | −0,05 | −0,01 | 3 % | 6 % |
+| gris dans la référence | 374 | **gris** (défaut) | **1,020** | −0,52 px | +0,26 | −0,25 | 43 % | 12 % |
+| gris dans la référence | 374 | Subpixel | 1,293 | +0,33 px | −0,14 | +0,19 | 8 % | 30 % |
+
+**Le jeu gagnant dépend de la surface** : `Subpixel` de GPUI pour le texte que Chromium peint en
+ClearType (encre à 1 %, largeur à 0,04 px), `Grayscale` pour celui des calques composés. Aucun mode
+global ne convient : chacun laisse en défaut la moitié des mots. Il reste deux voies, au choix de
+l'orchestrateur : (a) un mode par surface dans `fragment-ui` (§ 5, sans fork) ; (b) des références
+grises partout (`--disable-lcd-text`, déjà le cas de #102 pour T2), moins fidèles à Fragment tel que
+l'utilisateur le voit.
 
 ## Reproduire
 
