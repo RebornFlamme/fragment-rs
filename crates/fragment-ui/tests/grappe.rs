@@ -515,6 +515,8 @@ fn ouverte_toutes_les_vues_6_lignes_survol_d_une_ligne_son_passage() {
     assert_eq!(lignes[0].doc.as_deref(), Some("chat:fil"));
     assert!(!lignes[0].titre_visible());
     assert_eq!(lignes[0].icone, "J");
+    // L'ouverture a éteint tous les passages (un `false`) ; seul le survol de la ligne allume le sien.
+    ms[4].survols.borrow_mut().clear();
     g.modele.survoler(4, true);
     assert_eq!(passages(&d), 1);
     assert_eq!(*ms[4].survols.borrow(), [true]);
@@ -552,8 +554,8 @@ fn en_tete_recherche_tri_filtre_le_bouton_s_allume_hors_defaut() {
     // tous les membres de test : un modèle à part, une ligne par document.
     let md = ModeleGrappe::new();
     let mut infos = Vec::new();
-    for i in 0..6 {
-        let mut info = (*ms[i].membre.info).clone();
+    for (i, m) in ms.iter().enumerate().take(6) {
+        let mut info = (*m.membre.info).clone();
         let doc = format!("chat:g6-{i}");
         info.doc = Some(Rc::new(move || Some(doc.clone())));
         infos.push(Rc::new(GutterMember::new(Rc::new(info), move || BASE + i)));
