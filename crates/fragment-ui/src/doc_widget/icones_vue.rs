@@ -1,0 +1,153 @@
+// Port de app/src/ui/core/workspace/viewIcons.ts et de view-icons.css (la part qui sert le cadre).
+//! Les icônes d'une vue réduite à elles (`View::get_icons`) : le MODÈLE (quelles pastilles, quelle
+//! teinte, quelle largeur) — pur, testable sans fenêtre — que [`super::rendu`] peint.
+//!
+//! Chaque icône est une chaîne : un nom d'icône (Lucide, ou inscrite) donne son SVG ; sinon un
+//! court texte (emoji, initiales) sur une pastille ronde, teintée de façon stable par le texte.
+//! Plusieurs icônes se chevauchent ; au-delà du maximum, une pastille « +N ».
+
+use crate::icones;
+
+/// Les teintes des pastilles (angles OKLCH) : huit couleurs à luminosité perçue égale — corail,
+/// ambre, olive, vert, sarcelle, ciel, indigo, magenta.
+pub const TEINTES: [f32; 8] = [25.0, 60.0, 100.0, 150.0, 190.0, 235.0, 275.0, 325.0];
+
+/// Le côté d'une pastille (view-icons.css : `.view-icon`).
+pub const PASTILLE: f32 = 22.0;
+/// Le chevauchement de deux pastilles voisines d'une pile.
+pub const CHEVAUCHEMENT: f32 = 7.0;
+/// Le carré du motif « bulles » : quatre pastilles de taille normale.
+pub const BULLES: f32 = 41.0;
+/// Le décalage d'une bulle du carré (`data-slot` b, c, d : 19 px).
+pub const DECALAGE_BULLE: f32 = 19.0;
+/// Le disque de 5 membres et plus : 522 unités de la maquette, la plus grande bulle (Ø 240) valant 22 px.
+pub const DISQUE: f32 = 48.0;
+/// La ligne normale du bandeau d'icônes (`--doc-widget-icons-height`).
+pub const HAUTEUR_LIGNE: f32 = 38.0;
+/// Le bandeau d'une grappe : le carré des bulles plus 7 px de marge en haut et en bas.
+pub const HAUTEUR_BULLES: f32 = BULLES + 14.0;
+
+/// Le motif des icônes : la pile (défaut) ou les bulles d'une grappe.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Motif {
+    Pile,
+    Bulles,
+}
+
+/// Une pastille à peindre.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Pastille {
+    /// Un nom d'icône connu : son SVG, sobre, sur l'encre du texte.
+    Icone(String),
+    /// Un court texte (emoji, initiales) sur une pastille teintée (angle OKLCH, en degrés).
+    Texte { texte: String, teinte: f32 },
+    /// « +N » : les icônes qui ne tiennent pas.
+    Plus(usize),
+}
+
+impl Pastille {
+    /// Le texte visible (le contenu de `.view-icon`) : celui d'une icône SVG est vide.
+    pub fn texte(&self) -> String {
+        match self {
+            Self::Icone(_) => String::new(),
+            Self::Texte { texte, .. } => texte.clone(),
+            Self::Plus(n) => format!("+{n}"),
+        }
+    }
+}
+
+/// Une teinte stable tirée d'un texte (même texte, même teinte, partout).
+pub fn teinte(texte: &str) -> f32 {
+    let mut h: u32 = 0;
+    for c in texte.chars() {
+        // `charCodeAt(0)` d'un point de code : sa première unité UTF-16.
+        let mut tampon = [0u16; 2];
+        let unite = u32::from(c.encode_utf16(&mut tampon)[0]);
+        h = (h * 31 + unite) % 9973;
+    }
+    TEINTES[(h % 8) as usize]
+}
+
+/// Combien de pastilles d'icônes (hors « +N ») le motif en montre.
+fn maximum(n: usize, motif: Motif) -> usize {
+    match motif {
+        // Bulles : jusqu'à 4, toutes ; au-delà (le disque), 3 plus « +N » dans la grande.
+        Motif::Bulles => {
+            if n <= 4 {
+                4
+            } else {
+                3
+            }
+        }
+        Motif::Pile => 3,
+    }
+}
+
+/// Les pastilles d'une liste d'icônes, dans l'ordre de peinture.
+pub fn pastilles(icones: &[String], motif: Motif) -> Vec<Pastille> {
+    let max = maximum(icones.len(), motif);
+    let mut v: Vec<Pastille> = icones
+        .iter()
+        .take(max)
+        .map(|i| {
+            if icones::svg(i).is_some() {
+                Pastille::Icone(i.clone())
+            } else {
+                Pastille::Texte {
+                    texte: i.clone(),
+                    teinte: teinte(i),
+                }
+            }
+        })
+        .collect();
+    if icones.len() > max {
+        v.push(Pastille::Plus(icones.len() - max));
+    }
+    v
+}
+
+/// La largeur du bouton d'icônes d'une pile de `n` icônes : 11 px de marge à gauche, 7 à droite,
+/// des pastilles de 22 px qui se chevauchent de 7, au plus 3 plus « +N ».
+pub fn largeur_pile(n: usize) -> f32 {
+    let k = n.clamp(1, 3) + usize::from(n > 3);
+    18.0 + PASTILLE + (k.max(1) - 1) as f32 * (PASTILLE - CHEVAUCHEMENT)
+}
+
+/// La place que prend la boîte d'icônes (largeur du bouton) : pile, ou carré / disque d'une grappe.
+pub fn largeur_boite(n: usize, motif: Motif) -> f32 {
+    match motif {
+        Motif::Pile => largeur_pile(n),
+        Motif::Bulles => 18.0 + if n > 4 { DISQUE } else { BULLES },
+    }
+}
+
+/// La hauteur du bandeau d'icônes : la ligne normale, ou, pour une grappe, un bandeau plus haut.
+pub fn hauteur_bandeau(motif: Motif) -> f32 {
+    match motif {
+        Motif::Pile => HAUTEUR_LIGNE,
+        Motif::Bulles => HAUTEUR_BULLES,
+    }
+}
+
+/// Une couleur OKLCH en sRGB 8 bits (le calcul de Chromium : OKLab, matrice LMS, gamma sRGB).
+pub fn oklch_vers_rgb(l: f32, c: f32, h_deg: f32) -> [u8; 3] {
+    let h = h_deg.to_radians();
+    let (a, b) = (c * h.cos(), c * h.sin());
+    let l_ = l + 0.396_337_78 * a + 0.215_803_76 * b;
+    let m_ = l - 0.105_561_346 * a - 0.063_854_17 * b;
+    let s_ = l - 0.089_484_18 * a - 1.291_485_5 * b;
+    let (l3, m3, s3) = (l_ * l_ * l_, m_ * m_ * m_, s_ * s_ * s_);
+    let r = 4.076_741_7 * l3 - 3.307_711_6 * m3 + 0.230_969_94 * s3;
+    let g = -1.268_438 * l3 + 2.609_757_4 * m3 - 0.341_319_4 * s3;
+    let bl = -0.004_196_086_3 * l3 - 0.703_418_6 * m3 + 1.707_614_7 * s3;
+    let gamma = |x: f32| {
+        let x = x.clamp(0.0, 1.0);
+        let v = if x <= 0.003_130_8 {
+            12.92 * x
+        } else {
+            1.055 * x.powf(1.0 / 2.4) - 0.055
+        };
+        (v * 255.0).round() as u8
+    };
+    [gamma(r), gamma(g), gamma(bl)]
+}
