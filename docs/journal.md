@@ -1027,3 +1027,23 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - ★ `bd create` échouait en silence (code 1) avec « Playwright » dans le titre (cause non trouvée) ; même texte sans ce mot dans le titre : créé.
 - Fusionnées : #147 (active_editor), #148 (vue PDF), #149 (rapport des icônes : exception gardée, contournement fr-tep, 0 pixel = 3e fork). Vague 14 : 29 fusions. #151 (accent) remise en brouillon : sélecteur natif comme Fragment, pas d'UI inventée.
 - Battement 13/11 13:40 UTC — usage 5h 3 % (reset 18:30) / semaine **90 %** (cible atteinte ; reset 18:00, arrêt à 97 %) ; contexte du chef 478k (clear à 550k). En cours : fr-p3.4 (arrêté, attend fr-9x4), fr-9x4 (Opus), fr-t2-gestionnaire (Opus), fr-7va, fr-c8n, fr-t11.4 (reprise), fr-t7-orbe (#150 en CI). PR en CI : #150, #152. Décision : plus de nouveau lancement ; fusions au fil de l'eau, puis clear quand les équipiers ont rendu (procédure §10, orchestrateur prévenu avant). Disque 49 Go.
+
+## Vague 14 (fin, avant clear du chef) — 13/11/2026 14:15 UTC — usage 5h 9 % (reset 18:30) / semaine 91 % (reset 18:00)
+Contexte du chef : 510k, seuil de clear 550k.
+- Fusionnées depuis 13:40 : #150 (orbe ; exclusion nommée de la notice MIT, attribuée au chef), #152 (onglet Agent des réglages), #153 (menu contextuel de la note, collage, paste-plain, follow-link, taille minimale). **Vague 14 : 32 fusions.**
+- PR ouvertes :
+  - #151 (fr-t11.4, accent) : pastille native ChooseColorW, ADR-018 (unsafe isolé) ; CI en cours. AVANT fusion : vérifier que le bouton ↺ (revenir à l'accent du thème, comme Fragment) est là.
+  - #154 (fr-7va, vue PDF : champ de page, menu, mémoire 13,2 → 33,3 → 40,0 Mo) : CI en cours.
+  - #155 (fr-t2-gestionnaire, brouillon) : pixels rouge, 4 PNG sans base au cliquet ; références à vérifier, captures en mode invisible seulement. Reprise par un équipier neuf.
+  - #105 (fr-p3.4, brouillon, 8 jobs verts) : passe B à finir (160/248) en mode invisible.
+  - #128 (fr-p4.1.4, brouillon) : attend #105 ; 12 recaptures en mode invisible.
+- Équipiers actifs : fr-9x4 (mode invisible, Opus, `../fragment-rs-invisible`), fr-t11.4 (CI de #151).
+- Nouveaux beads : fr-zk1 (hook de menu de pane), fr-2f3 (mot-symbole exporté), fr-tep (icônes en images), fr-7va, fr-c8n (fermé).
+- Interdits en vigueur : AUCUN Playwright/Electron avant la fusion de fr-9x4, puis mode invisible seul. Références en CI GELÉES (workflow désactivé). Aucune PR amont.
+
+**Prochaine action exacte** (après le clear) :
+1. get_usage ; battement CronCreate minute 17 vérifié par CronList. Cible d'hebdo atteinte (≥ 90 %) ; arrêt à 97 % ; reset à 18:00 UTC.
+2. Fusionner au fil des comptes rendus : #151 (après vérification du ↺), #154. Audit `cargo xtask audit-sources --rev origin/task/<id>` avec CARGO_TARGET_DIR=C:/dev/fragment-rs-target-audit ; ★ l'audit lit la liste d'exclusions de main, pas de la branche.
+3. À la fusion de fr-9x4 : reprendre #105 (passe B), puis #128, puis #155 (équipiers neufs, mode invisible).
+4. Places libres (≤ 7, disque ≥ 20 Go) : fr-zk1, fr-2f3, fr-tep, fr-t11-livraison (après #105/#128, cliquet.json), fr-914 (après fr-9x4).
+5. ★ Moniteurs de CI : `gh pr checks --json` rend "bucket" AVANT "name".
