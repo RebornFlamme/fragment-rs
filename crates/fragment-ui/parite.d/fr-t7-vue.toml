@@ -1,0 +1,12 @@
+# Parité de fr-t7-vue (fragment-ui). ChatView.ts, ChatPlugin.ts et chatKey.ts n'ont pas de test
+# unitaire TS ; les cas headless suivent app/e2e/chat.spec.ts (historique, page, cowork),
+# chat-column.spec.ts (la colonne de la note, la matrice des bords), chat-document.spec.ts
+# (historique ←) et chat-origin.spec.ts (la carte d'origine).
+
+[[module]]
+ts = "app/src/ui/views/chat/ChatView.ts (mode, layout, état, ⋯, carte d'origine, barre repliée par la marge, rafraîchissement), chat-view.css (la colonne de la note, la grille du cowork) et ChatPlugin.ts (la vue, le schéma chat:, chat:open, chat:new, chat:new-tab)"
+rs = "crates/fragment-ui/src/chat_vue/{mod,geometrie,modele,vue,contenu,plugin,fournisseur_test}.rs, crates/fragment-ui/tests/chat_vue.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 30
+notes = "Cœur sans GPUI : VueChat (View du cœur : type, titre, icônes = initiales, adresse chat:<fournisseur>/<id>, navigation ← →, état {provider, conversation, sidebar}, état éphémère, ⋯) sur un EtatChat partagé avec le contenu GPUI (ContenuChat) qui assemble ListeMessages, Defileur, Champ, BarreLaterale, accueil, pastille et PostVue. Géométrie PURE (la matrice des bords, la barre et la réserve animées par Transition). Écarts : (1) pas de surface de document ni de calques (fr-t7-surface, fr-t7-montage), pas de rail ni de Ctrl+F (fr-t7-rail-recherche) ; (2) l'embed du document de la carte d'origine est à T9 (embedDocument) — T7 rend l'en-tête et la légende ; (3) la carte est un part `chat-origine` injecté devant le 1er message de l'utilisateur à chaque rafraîchissement (MessageVue n'a pas de crochet de pièce jointe) ; (4) le champ porte ses 12 px de marge (chat_fil) : en page l'enveloppe les reprend par des marges négatives pour poser le champ aux bords du texte ; (5) la session est synchrone : le contenu se met à jour par `pomper` (rendu et image du shell) ; (6) « Supprimer » est proposé dès que la conversation a des messages (le trait ChatProvider n'a pas de `can_delete`) ; (7) `copy-link` et Répondre sont au montage ; (8) le mode ancrée/embarquée/barre est demandé par l'hôte (état éphémère `mode`, `docWidget`), le cœur n'a pas la classe de feuille `is-embedded` ; (9) la carte d'origine garde les cotes d'estimation (attachments.css n'est pas dans constantes-rendu.md) : à calibrer par les scènes t7-*."
