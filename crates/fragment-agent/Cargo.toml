@@ -10,6 +10,9 @@ repository.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+# Socle T5-T7 (fr-p3-socle-t5t7) : le moteur et le fournisseur parlent au chat et aux artefacts.
+fragment-chat = { path = "../fragment-chat" }
+fragment-artefacts = { path = "../fragment-artefacts" }
 # ★ Expressions régulières : les modèles TS en utilisent partout (famille d'outil, skills, tar…).
 # Hors liste d'avance de program.md §4 : notée dans la PR.
 regex = "1"

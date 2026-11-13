@@ -2723,6 +2723,8 @@ dependencies = [
 name = "fragment-agent"
 version = "0.0.1"
 dependencies = [
+ "fragment-artefacts",
+ "fragment-chat",
  "regex",
  "serde",
  "serde_json",
@@ -2904,9 +2906,12 @@ dependencies = [
 name = "fragment-ui"
 version = "0.0.1"
 dependencies = [
+ "fragment-agent",
  "fragment-annotation",
+ "fragment-chat",
  "fragment-cli",
  "fragment-core",
+ "fragment-layers",
  "fragment-markdown",
  "fragment-maths",
  "fragment-pdf",

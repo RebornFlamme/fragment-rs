@@ -14,6 +14,13 @@ use crate::{
     md_tableau, pdf_barre, pdf_laterale, pdf_pages, pdf_recherche, pdf_texte, themes, tree_item,
     vue_fichier, vue_markdown, vue_pdf,
 };
+// Socle T5-T7 (fr-p3-socle-t5t7).
+use crate::{
+    agent, agent_barre, agent_controles, agent_reglages, agent_trace, calques, chat_barre_laterale,
+    chat_citation, chat_defilement, chat_fil, chat_pieces, chat_post, chat_rail, chat_surface,
+    chat_vue, doc_widget, grappe, lien_ancre, menu_calques, mode_marge, orbe, surlignages,
+    widget_couche,
+};
 
 /// Enregistre dans `commandes` toutes les commandes `pixels:*` des modules de rendu.
 pub fn commandes_de_scene(commandes: &CommandManager) {
@@ -52,4 +59,27 @@ pub fn commandes_de_scene(commandes: &CommandManager) {
     pdf_recherche::commandes_de_scene(commandes);
     vue_pdf::commandes_de_scene(commandes);
     themes::commandes_de_scene(commandes);
+    calques::commandes_de_scene(commandes);
+    widget_couche::commandes_de_scene(commandes);
+    surlignages::commandes_de_scene(commandes);
+    doc_widget::commandes_de_scene(commandes);
+    grappe::commandes_de_scene(commandes);
+    lien_ancre::commandes_de_scene(commandes);
+    mode_marge::commandes_de_scene(commandes);
+    menu_calques::commandes_de_scene(commandes);
+    chat_fil::commandes_de_scene(commandes);
+    chat_surface::commandes_de_scene(commandes);
+    chat_defilement::commandes_de_scene(commandes);
+    chat_rail::commandes_de_scene(commandes);
+    chat_barre_laterale::commandes_de_scene(commandes);
+    chat_pieces::commandes_de_scene(commandes);
+    chat_citation::commandes_de_scene(commandes);
+    chat_post::commandes_de_scene(commandes);
+    chat_vue::commandes_de_scene(commandes);
+    agent_trace::commandes_de_scene(commandes);
+    orbe::commandes_de_scene(commandes);
+    agent_controles::commandes_de_scene(commandes);
+    agent_barre::commandes_de_scene(commandes);
+    agent_reglages::commandes_de_scene(commandes);
+    agent::commandes_de_scene(commandes);
 }
