@@ -386,6 +386,14 @@ pub const EXCEPTIONS: &[Exception] = &[
     coin_barre("t1-split-vertical-dark.png"),
     coin_barre("t1-zoom-150-dark.png"),
     coin_barre("t1-zoom-80-dark.png"),
+    // Le MÊME coin dans les scènes sombres de l'explorateur de T2 (chef, 13/11, 03:25 ; orchestrateur
+    // 03:30) : arc (1178,780) 103 × 21 r 6, 1 px en (1180,782) de delta 11, comme t1-docks-ouverts.
+    coin_barre("t2-explorateur-dark.png"),
+    coin_barre("t2-explorateur-menu-dossier-dark.png"),
+    coin_barre("t2-explorateur-menu-fichier-dark.png"),
+    coin_barre("t2-explorateur-ouvert-dark.png"),
+    coin_barre("t2-explorateur-renommer-dark.png"),
+    coin_barre("t2-explorateur-survol-dark.png"),
     // Bords des traits de poignée, en CLAIR (décision du chef, fr-t1.5) : Skia arrondit d'un niveau
     // (canal bleu surtout) les cellules de bord d'un trait à position fractionnaire, sans règle
     // constante (plancher en 657,5, autre sens en 1166,5, alternance d'une ligne à l'autre). Même
@@ -917,6 +925,7 @@ mod tests {
                 ],
                 ecart_bords: Some([0, 0, -1, 0]),
                 dette_largeur: true,
+                dette_placement: false,
                 nommee: None,
                 encre_reference: None,
                 violations,
@@ -1063,9 +1072,13 @@ mod tests {
     #[test]
     fn chaque_exception_nomme_un_png_de_t1_et_un_element() {
         for e in EXCEPTIONS {
-            // Seul le contour d'onglet actif s'étend aux scènes de l'explorateur de T2 (chef, 13/11).
+            // Seuls le contour d'onglet actif et le coin de la barre d'état s'étendent aux scènes de
+            // l'explorateur de T2 (chef, 13/11), le coin en sombre seulement.
             let tranche_admise = e.png.starts_with("t1-")
-                || (e.element == CONTOUR_ONGLET && e.png.starts_with("t2-explorateur"));
+                || (e.element == CONTOUR_ONGLET && e.png.starts_with("t2-explorateur"))
+                || (e.element == COIN_BARRE_ETAT
+                    && e.png.starts_with("t2-explorateur")
+                    && e.png.ends_with("-dark.png"));
             assert!(tranche_admise && e.png.ends_with(".png"), "{e:?}");
             assert!(!e.element.is_empty() && e.jeton.starts_with("--"), "{e:?}");
         }
@@ -1409,6 +1422,7 @@ mod tests {
             barycentres: vec![("passage", passage, 0.0)],
             ecart_bords: Some([1, 0, 0, 0]),
             dette_largeur: false,
+            dette_placement: false,
             nommee: None,
             encre_reference: None,
             violations: vec![

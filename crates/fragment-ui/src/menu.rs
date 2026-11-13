@@ -570,8 +570,14 @@ fn rendre_niveau(
                     } else {
                         c.text_normal
                     };
+                    // ★ Ni l'icône ni le libellé ne rétrécissent : la boîte du menu est peinte à la
+                    // largeur ARRONDIE au pixel (`largeur_ajustee`), parfois sous la largeur exacte du
+                    // libellé le plus long ; Chromium garde la fraction en mise en page. Sans
+                    // `flex_none`, le rétrécissement retombait sur l'icône et décalait le libellé de
+                    // −0,85 px (« Afficher dans l'explorateur système », (187,490), run 43356976195).
                     let icone = div()
                         .w(u(cx, f.icon_m))
+                        .flex_none()
                         .flex()
                         .pl(moitie(cx, f.icon_m - ICONE))
                         .opacity(if it.warning { 1.0 } else { 0.7 })
@@ -582,7 +588,7 @@ fn rendre_niveau(
                                 .flex_none()
                                 .text_color(couleur(couleur_texte))
                         }));
-                    let mut titre = div().flex_1().child(it.title.clone());
+                    let mut titre = div().flex_1().whitespace_nowrap().child(it.title.clone());
                     if it.checked {
                         titre = titre.child(div().opacity(0.7).child(" \u{2713}"));
                     }

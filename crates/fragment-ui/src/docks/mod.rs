@@ -471,6 +471,7 @@ pub fn rendre_poignee_dock(
         zone,
         true,
         couleur(t.palette.color_accent),
+        t.palette.background_secondary,
         cx,
     ));
     if !active {

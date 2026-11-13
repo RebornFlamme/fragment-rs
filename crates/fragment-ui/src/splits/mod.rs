@@ -368,14 +368,31 @@ fn place(c: Cadre, cx: &App) -> gpui_kit::Div {
 
 /// Les quads d'un trait exact (px logiques de la fenêtre) le long de son axe, posés relativement à
 /// `origine` : un quad entier par pixel de bord (couleur pondérée par la part couverte) et un pour le
-/// plein. `vertical` : un trait vertical (le long de x).
+/// plein. `vertical` : un trait vertical (le long de x). `fond` (le fond dominant sous le trait) ne
+/// sert qu'au sens de l'arrondi d'un pixel de bord.
+///
+/// ★ Chromium pose un pixel de bord à `fond + ⌊(teinte − fond) × échelle / 256⌋`
+/// ([`geometrie::melange_couverture`]) : la demie tombe TOUJOURS vers le bas. GPUI mélange en
+/// flottant et arrondit au plus proche, la demie tombait d'un côté ou de l'autre selon le bruit
+/// (poignée du dock gauche de `t2-explorateur-renommer`, x = 295 : 138 contre 137 = 20 + ⌊235 / 2⌋).
+/// L'opacité du bord est poussée de [`BIAIS_DEMIE`] du côté qui fait descendre la demie : vers le
+/// bas quand la teinte est plus claire que le fond, vers le haut sinon (les trois canaux de l'accent
+/// sont du même côté du fond, en sombre comme en clair).
 pub(crate) fn quads_du_trait(
     trait_: Cadre,
     origine: Cadre,
     vertical: bool,
     teinte: gpui_kit::Rgba,
+    fond: fragment_theme::Couleur,
     cx: &App,
 ) -> Vec<gpui_kit::Div> {
+    let lum_teinte = (teinte.r + teinte.g + teinte.b) * 255.0;
+    let lum_fond = f32::from(fond.r) + f32::from(fond.g) + f32::from(fond.b);
+    let biais = if lum_teinte > lum_fond {
+        -BIAIS_DEMIE
+    } else {
+        BIAIS_DEMIE
+    };
     let zoom = f64::from(Echelle::courante(cx).zoom());
     let (debut, fin) = if vertical {
         (trait_.x, trait_.droite())
@@ -387,6 +404,9 @@ pub(crate) fn quads_du_trait(
         .map(|c| {
             let mut teinte = teinte;
             teinte.a *= c.part;
+            if c.part < 1.0 {
+                teinte.a = (teinte.a + biais).clamp(0.0, 1.0);
+            }
             let q = div().absolute().bg(teinte);
             if vertical {
                 q.left(u(cx, (c.debut - origine.x) as f32))
@@ -402,6 +422,11 @@ pub(crate) fn quads_du_trait(
         })
         .collect()
 }
+
+/// Poussée de l'opacité d'un pixel de bord (voir [`quads_du_trait`]) : assez pour dominer le bruit
+/// du flottant (≥ 0,02 niveau sur un écart de 19), assez peu pour ne jamais franchir un demi-niveau
+/// (≤ 0,24 sur un écart de 240).
+const BIAIS_DEMIE: f32 = 1e-3;
 
 /// ★ Les fonds CONNUS sous le trait d'une poignée : les barres d'onglets des piles (fond de barre,
 /// trait bas) et, partout ailleurs, le fond du workspace. Un pixel de bord du trait y est peint en
