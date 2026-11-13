@@ -3,3 +3,4 @@
 
 pub mod melange;
 pub mod ombre;
+pub mod texte;

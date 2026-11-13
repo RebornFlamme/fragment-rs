@@ -21,6 +21,7 @@ use crate::echelle::{calees, u};
 use crate::flottant::{chaine, ecouter_args, nombre, ombrer, texte};
 use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::rendu::melange::{aplat_exact, bord_unique};
+use crate::rendu::texte::{self as rendu_texte, Ancrage};
 use crate::theme_global::{couleur, theme_ou_defaut};
 
 /// La durée par défaut d'une notice (millisecondes), comme Obsidian.
@@ -189,6 +190,24 @@ pub fn couche(cx: &App) -> AnyElement {
                 }
                 calees(cx, f.size_4_4, &segments)
             });
+    // Le résidu vertical de chaque carte (haut exact − haut calé, px zoomés) : le même calcul que
+    // `calees`, pour le texte exact.
+    let residus: Vec<f32> = lignes
+        .iter()
+        .enumerate()
+        .scan(f.size_4_4, |exact, (k, n)| {
+            if k > 0 {
+                *exact += f.size_4_2;
+            }
+            let haut = *exact;
+            *exact += n.unwrap_or(0) as f32 * interligne + 2.0 * f.size_2_5 + 2.0 * f.border_width;
+            Some(haut)
+        })
+        .map(|haut| {
+            let zoom = f32::from(u(cx, 1.0));
+            haut * zoom - (haut * zoom + 0.5 + 1e-3).floor()
+        })
+        .collect();
     let cartes: Vec<AnyElement> = entrees
         .into_iter()
         .enumerate()
@@ -209,10 +228,11 @@ pub fn couche(cx: &App) -> AnyElement {
                 .max_w(u(cx, largeur_max))
                 .px(u(cx, f.size_2_7))
                 // ★ Chromium cale la ligne de 16,8 px (12 × 1,4) vers le haut ; GPUI l'arrondit à 17 et la
-                // pose un pixel plus bas. Un pixel de rembourrage passe donc du haut vers le bas : la
-                // carte garde sa hauteur, le texte remonte.
-                .pt(u(cx, f.size_2_5 - 1.0))
-                .pb(u(cx, f.size_2_5 + 1.0))
+                // pose un pixel plus bas. Texte de GPUI (une notice qui passe à la ligne) : un pixel
+                // de rembourrage passe du haut vers le bas, la carte garde sa hauteur, le texte
+                // remonte. Le texte exact (`rendu::texte`) pose lui-même la ligne de base de Chromium.
+                .pt(u(cx, f.size_2_5 - if tient { 0.0 } else { 1.0 }))
+                .pb(u(cx, f.size_2_5 + if tient { 0.0 } else { 1.0 }))
                 .text_color(couleur(c.text_normal))
                 .cursor_pointer()
                 .on_click(move |_: &ClickEvent, _: &mut Window, app: &mut App| {
@@ -228,8 +248,22 @@ pub fn couche(cx: &App) -> AnyElement {
                 aplat_exact(c.background_modifier_border, c.opacites.bordure, fond),
                 fond,
                 true,
-            )
-            .child(e.message);
+            );
+            // ★ fr-p4.1.2 : la carte est ancrée à droite et suit le texte : Chromium pose le texte à
+            // `droite − largeur exacte`, la fraction à gauche ; GPUI le posait à l'arête calée.
+            let carte = if tient {
+                let dy = calage
+                    .as_ref()
+                    .map_or(0.0, |_| residus.get(k).copied().unwrap_or(0.0));
+                carte.child(
+                    rendu_texte::texte_exact(e.message)
+                        .pleine_largeur()
+                        .ancrage_x(Ancrage::Fin)
+                        .decalage(0.0, dy),
+                )
+            } else {
+                carte.child(e.message)
+            };
             let carte = if tient {
                 carte.whitespace_nowrap().w(largeur_ajustee(
                     cx,

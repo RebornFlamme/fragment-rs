@@ -31,6 +31,7 @@ use crate::modal::{Demande, Fermeture, Ouverture, largeur_boite, ouvrir};
 use crate::polices::{FAMILLE_INTERFACE, caracteristiques};
 use crate::rendu::melange::bord_unique;
 use crate::rendu::ombre::ombrer_au_calque;
+use crate::rendu::texte::texte_exact;
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
 
@@ -669,6 +670,15 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
             segments.push(mesurer(&ins.but, FontWeight::NORMAL));
         }
         let largeurs = calees(cx, t.forme.size_2_7, &segments);
+        // ★ fr-p4.1.2 : chaque morceau part de l'arête CALÉE ; Chromium peint son texte à l'arête
+        // exacte. Le résidu (exact − calé, px zoomés) sort du même calcul que `calees`.
+        let zoom = f32::from(u(cx, 1.0));
+        let residu = |m: usize| -> f32 {
+            let exact = (t.forme.size_2_7 + segments[..m].iter().sum::<f32>()) * zoom;
+            let cale = (t.forme.size_2_7 * zoom + 0.5 + 1e-3).floor()
+                + largeurs[..m].iter().map(|l| f32::from(*l)).sum::<f32>();
+            exact - cale
+        };
         let mut legende = div()
             .flex_none()
             .flex()
@@ -691,7 +701,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                 .whitespace_nowrap()
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(normal)
-                .child(ins.commande.clone());
+                .child(texte_exact(ins.commande.clone()).decalage(residu(i), 0.0));
             if glyphes_en_gras_synthetique(&ins.commande) > 0 {
                 // Le gras synthétique : le même texte repeint décalé de l'épaississement de Skia.
                 commande = commande.relative().child(
@@ -700,7 +710,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                         .top(u(cx, 0.0))
                         .left(u(cx, epaississement_gras_synthetique(taille)))
                         .whitespace_nowrap()
-                        .child(ins.commande.clone()),
+                        .child(texte_exact(ins.commande.clone()).decalage(residu(i), 0.0)),
                 );
             }
             legende = legende.child(
@@ -716,7 +726,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                             .ml(largeurs[i + 1])
                             .w(largeurs[i + 2])
                             .whitespace_nowrap()
-                            .child(ins.but.clone()),
+                            .child(texte_exact(ins.but.clone()).decalage(residu(i + 2), 0.0)),
                     ),
             );
         }
