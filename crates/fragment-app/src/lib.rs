@@ -14,6 +14,7 @@
 //!   (200 ms), et avant chaque image du lecteur de scènes.
 
 pub mod boot;
+pub mod coffre;
 pub mod hote_fenetre;
 pub mod identite;
 pub mod stockage;
@@ -73,6 +74,10 @@ impl Application {
     /// Un tic : synchronisation, puis les écritures débouncées (configs, layout).
     pub fn tic(&self, cx: &mut App) {
         self.synchroniser(cx);
+        // Les changements du disque (surveillance du coffre) : l'arbre se redessine.
+        if self.noyau.coffre.as_ref().is_some_and(|c| c.pomper() > 0) {
+            cx.refresh_windows();
+        }
         self.noyau.apparence.magasin().sonder();
         let due = self
             .noyau
@@ -169,7 +174,7 @@ pub fn monter(
         workspace: noyau.app.workspace().clone(),
         commandes: noyau.commandes(),
         keymap: keymap.clone(),
-        contenu_de_vue: None,
+        contenu_de_vue: Some(coffre::contenu_de_vue()),
     };
     // Le nom du coffre au pied du dock gauche (sélecteur de coffre, rendu statique en T1).
     let splits = ContexteSplits::new(onglets)

@@ -4,6 +4,7 @@
   "window": {"width":1280,"height":800,"dpr":1},
   "themes": ["dark","light"],
   "vault": "pixels/vault-t2",
+  "decor": "defaut",
   "actions": [
     {"type":"hover","x":2,"y":2},
     {"type":"wait-stable"}

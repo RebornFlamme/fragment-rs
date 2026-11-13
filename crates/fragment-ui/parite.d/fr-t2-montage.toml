@@ -1,0 +1,18 @@
+# Parité de fr-t2-montage (fragment-ui) : la vue de fichier de test et l'en-tête de l'explorateur.
+# Le montage du coffre (fragment-app/src/coffre.rs) est testé dans crates/fragment-app/tests/coffre.rs.
+
+[[module]]
+ts = "app/src/ui/core/workspace/FileView.ts, e2e/view-header-nav.spec.ts"
+rs = "crates/fragment-ui/src/vue_fichier/mod.rs"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 5
+notes = "Le test e2e de view-header-nav est découpé en quatre tests headless (← actif / → inactif, retour, avance, historique qui suit un renommage) sur VueFichierSimple. Non traduit : le centrage du titre à ±2 px (du rendu, scène t2-fil-ariane en T3) et les clics sur les boutons (testés par l'état de l'historique). Ajoutés : segments du fil d'Ariane, reveal_folder qui émet reveal-in-folder."
+
+[[module]]
+ts = "app/src/ui/views/explorer/FileExplorerView.tsx (nav-header), explorer.css"
+rs = "crates/fragment-ui/src/explorateur/vue.rs (rendre_en_tete)"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "Les quatre boutons de l'en-tête (nouvelle note, nouveau dossier, trier, tout replier) : jugés par les scènes pixels t2-explorateur*. Le bouton « Nouvelle note » appelle la création de la vue, pas la commande file-explorer:new-file (même effet : newFileLocation n'est pas porté, racine)."
