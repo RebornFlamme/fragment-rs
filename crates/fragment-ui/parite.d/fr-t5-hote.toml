@@ -1,0 +1,11 @@
+# Parité de fr-t5-hote (fragment-ui). Schéma `parite.d` : un fichier par tâche. ViewOverlays.ts n'a pas de
+# test unitaire TS ; les cas headless suivent le contrat d'OverlayHost et les specs e2e viewport et
+# reader-pdf (zoom), sur une FAUSSE surface (un pane qui capte les clics, un contenu défilé, un zoom).
+
+[[module]]
+ts = "app/src/ui/core/layers/ViewOverlays.ts (mount, ensureViewport, ensureDocument, ensureGutter, makeRoot, gutterSlot, trackActivation, onGeometryChange, onViewportChange, onClustersChange, activeHostedLeaf, destroy)"
+rs = "crates/fragment-ui/src/calques/{mod,hote,element}.rs, crates/fragment-ui/tests/calques.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 10
+notes = "Hôte GPUI : registre d'ElementId (plan, côtés, largeur imposée, affichage, place, grappe, boîte mesurée), OverlayHost + WidgetElements, arbitre et actif de la vue branchés (échelle du niveau voulu, slot rendu → actif relâché et retour au plan). Dessin : un canvas en dernier enfant du pane ; dans son prepaint (après la mise en page de la surface, avant la peinture) chaque élément est mis en page seul, les modèles tournent, puis chaque élément est posé (prepaint_at) — lire puis écrire dans la même image, au plus trois tours. Écarts : pas de transform (chaque élément est placé par la géométrie pure) ; pass_through = pas d'occlusion de l'enveloppe ; pas de ResizeObserver (la mesure est faite à chaque image et filtrée par la clé)."
