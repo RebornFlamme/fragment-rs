@@ -214,11 +214,14 @@ foreach ($f in $pngs) {
 $journalSent = Join-Path $sortieInv 'sentinelle.jsonl'
 $lignes = @(if (Test-Path $journalSent) { Get-Content $journalSent -Encoding UTF8 | ForEach-Object { $_ | ConvertFrom-Json } })
 $idsAvant = @($lignes | Where-Object { $_.type -eq 'avant' } | ForEach-Object { $_.id } | Sort-Object -Unique)
-$idsApres = @($lignes | Where-Object { $_.type -eq 'apres' -and $_.identique } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$idsApres = @($lignes | Where-Object { $_.type -eq 'apres' -and $_.ok } | ForEach-Object { $_.id } | Sort-Object -Unique)
+$gestes   = @($lignes | Where-Object { $_.type -eq 'premier-plan-utilisateur' }).Count
 $lances = $idsAvant.Count
 $apres  = @($idsAvant | Where-Object { $idsApres -contains $_ }).Count
 Write-Host ''
-Write-Host ("Mode invisible : {0} lancement(s) d'Electron, {1} avec premier plan identique avant/pendant/après et aucune fenêtre sur un moniteur." -f $lances, $apres)
+# Règle du 13/11 : échec seulement si Electron prend le premier plan, touche un moniteur ou gagne un
+# bouton de barre des tâches ; les gestes de l'utilisateur entre SES fenêtres sont comptés, pas sanctionnés.
+Write-Host ("Mode invisible : {0} lancement(s) d'Electron, {1} sans premier plan à Electron, sans fenêtre sur un moniteur ni bouton de barre des tâches ; {2} changement(s) de premier plan de l'utilisateur (informatif)." -f $lances, $apres, $gestes)
 if (Test-Path $drapeau) {
     Write-Host ("PREUVE EN ÉCHEC : {0}" -f (Get-Content $drapeau -Raw).Trim()) -ForegroundColor Red
     $code = 1

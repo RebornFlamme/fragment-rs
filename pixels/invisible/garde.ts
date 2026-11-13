@@ -10,7 +10,9 @@
 //      écran calculée par la sentinelle depuis la liste des moniteurs ;
 //   4. vérifie que chaque fenêtre est bien une FenetreInvisible, active l'émulation du focus (la page se
 //      croit au premier plan sans jamais l'être) et neutralise page.bringToFront ;
-//   5. à la fermeture, fait relever le premier plan APRÈS (identique exigé).
+//   5. à la fermeture, fait faire le relevé APRÈS (règle du 13/11 : échec seulement si Electron a pris le
+//      premier plan, touché un moniteur ou gagné un bouton de barre des tâches ; un geste de l'utilisateur
+//      entre SES fenêtres est compté, pas sanctionné).
 // Un ECHEC de la sentinelle tue Electron (elle le fait elle-même), écrit le drapeau et fait échouer tous
 // les lancements suivants : le run s'arrête.
 
@@ -188,8 +190,8 @@ async function lancerInvisible(lancer: (o: any) => Promise<ElectronApplication>,
     let fin: Promise<void> | null = null;
     const terminer = (): Promise<void> => {
         fin ??= s.commande('APRES', id).then((apres) => {
-            noter({ type: 'apres', id, identique: apres.identique, balayages: apres.balayages, fenetresMax: apres.fenetresMax });
-            console.log(`[invisible] ${id} : premier plan identique avant/pendant/après, ${String(apres.balayages)} balayages, aucune fenêtre sur un moniteur.`);
+            noter({ type: 'apres', id, identique: apres.identique, changementsUtilisateur: apres.changementsUtilisateur, balayages: apres.balayages, relevesBarre: apres.relevesBarre, fenetresMax: apres.fenetresMax });
+            console.log(`[invisible] ${id} : jamais au premier plan, aucune fenêtre sur un moniteur ni dans la barre des tâches (${String(apres.balayages)} balayages, ${String(apres.relevesBarre)} relevés de barre, ${String(apres.changementsUtilisateur)} geste(s) de l'utilisateur).`);
         });
         return fin;
     };

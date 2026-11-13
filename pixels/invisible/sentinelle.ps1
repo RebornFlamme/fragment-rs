@@ -4,17 +4,24 @@
   ne vient jamais devant l'utilisateur.
 .DESCRIPTION
   Lancée (fenêtre cachée) par pixels/invisible/garde.ts, une par processus de test Playwright. Elle
-  surveille les processus DESCENDANTS de -Racine (le processus de test : Electron en est l'enfant) :
-    - premier plan : GetForegroundWindow relevé à « AVANT <id> » doit rester IDENTIQUE jusqu'à
-      « APRES <id> » ; et à tout instant, il ne doit jamais appartenir à un processus du run ;
-    - fenêtres : aucun rectangle de fenêtre visible d'un processus du run n'intersecte un moniteur.
+  surveille les processus DESCENDANTS de -Racine (le processus de test : Electron en est l'enfant).
+  Règle (décision de l'orchestrateur, 13/11) — ÉCHEC si et seulement si :
+    - « premier-plan-electron » : le premier plan appartient à un processus du run ;
+    - « fenetre-sur-moniteur » : un rectangle de fenêtre visible d'un processus du run intersecte un moniteur ;
+    - « barre-des-taches » : pendant un lancement, un bouton de la barre des tâches dont l'Appid ou le nom
+      évoque Electron/Fragment apparaît ou change (relevé UI Automation comparé à celui d'AVANT).
+  Un changement de premier plan entre fenêtres qui ne sont PAS du run (l'utilisateur passe de Chrome à
+  la barre des tâches) n'est pas un échec : ligne « premier-plan-utilisateur », informative seulement.
+  ★ Run 4 (13/11) : l'ancienne règle « premier plan identique d'AVANT à APRÈS » a arrêté le run sur
+    chrome → Shell_TrayWnd, geste de l'utilisateur, Electron resté à x=3912 : faux positif.
   Contrôle par événements (SetWinEventHook : premier plan, apparition, déplacement) ET par balayage
-  toutes les 50 ms. Au premier écart : ligne ECHEC, Electron (tous les descendants) tué, fichier
-  -Drapeau écrit (le garde refuse ensuite tout lancement), code de sortie 3.
+  toutes les 50 ms (barre des tâches : fil à part, toutes les 250 ms et à chaque apparition). Au premier
+  écart : ligne ECHEC, Electron (tous les descendants) tué, fichier -Drapeau écrit (le garde refuse
+  ensuite tout lancement), code de sortie 3.
   Protocole : commandes sur stdin (AVANT <id>, APRES <id>, QUITTER), une ligne JSON par réponse sur
   stdout, tout recopié dans -Journal. Lecture seule sur Win32 : rien n'est déplacé ni activé.
   -AutoTest : contrôle les fonctions elles-mêmes SANS Electron, en lecture seule sur les fenêtres
-  déjà présentes, puis sort (0 = tout bon).
+  déjà présentes (dont les cas synthétiques de la règle), puis sort (0 = tout bon).
 .NOTES
   Windows PowerShell 5.1 : le C# d'Add-Type est compilé en C# 5 (pas d'interpolation ni d'out var).
 #>
@@ -34,7 +41,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Automation;
 
 public static class SentinelleInvisible
 {
@@ -92,7 +101,18 @@ public static class SentinelleInvisible
     static HashSet<uint> nos = new HashSet<uint>();
     static Dictionary<uint, string> noms = new Dictionary<uint, string>();
     static IntPtr fgAvant = IntPtr.Zero;
+    static IntPtr fgDernier = IntPtr.Zero;
+    static int changementsUtilisateur = 0;
     static string idActif = null;
+    // Barre des tâches : relevé de référence (AVANT) et dernier relevé du fil UI Automation.
+    static Dictionary<string, string> barreAvant = null;
+    static long barreAvantSeq = 0;
+    static Dictionary<string, string> barreDerniere = null;
+    static long barreSeq = 0;
+    static long barreDernierSucces = 0;
+    static string barreErreur = null;
+    static AutoResetEvent barreReveil = new AutoResetEvent(false);
+    static Stopwatch horloge = Stopwatch.StartNew();
     static bool echec = false;
     static bool scanDemande = false;
     static long balayages = 0;
@@ -257,6 +277,105 @@ public static class SentinelleInvisible
         return "{\"hwnd\":" + h.ToInt64() + ",\"pid\":" + pid + ",\"exe\":\"" + Esc(exe) + "\",\"classe\":\"" + Esc(Classe(h)) + "\",\"rect\":" + R(r) + "}";
     }
 
+    // ---- Règle (fonctions pures, testées par -AutoTest) -----------------------------------------
+    /// Verdict sur le premier plan : « electron » (ÉCHEC) s'il appartient à un processus du run ;
+    /// « utilisateur » (journalisé seulement) s'il a changé entre deux fenêtres hors run ; sinon null.
+    public static string VerdictPremierPlan(IntPtr fg, uint fgPid, HashSet<uint> run, IntPtr precedent)
+    {
+        if (fg != IntPtr.Zero && run.Contains(fgPid)) return "electron";
+        if (fg != precedent) return "utilisateur";
+        return null;
+    }
+
+    static readonly Regex evoqueElectron = new Regex("electron|fragment", RegexOptions.IgnoreCase);
+
+    /// Boutons de la barre des tâches (clé = Appid, valeur = nom) qui évoquent Electron/Fragment et sont
+    /// NOUVEAUX ou ont CHANGÉ de nom (ex. « 1 fenêtre » → « 2 fenêtres ») depuis le relevé d'AVANT.
+    /// Un bouton disparu, ou qui n'évoque ni l'un ni l'autre (Chrome, l'horloge…), n'est jamais retenu.
+    public static List<string> BoutonsSuspects(Dictionary<string, string> avant, Dictionary<string, string> maintenant)
+    {
+        List<string> l = new List<string>();
+        foreach (KeyValuePair<string, string> kv in maintenant)
+        {
+            if (!evoqueElectron.IsMatch(kv.Key) && !evoqueElectron.IsMatch(kv.Value)) continue;
+            string v;
+            if (!avant.TryGetValue(kv.Key, out v) || v != kv.Value) l.Add(kv.Key);
+        }
+        return l;
+    }
+
+    // ---- Barre des tâches (UI Automation, lecture seule) -----------------------------------------
+    /// Boutons de la barre des tâches principale : Appid (AutomationId) → nom accessible. Lève si la barre
+    /// est introuvable. ★ Électron met skipTaskbar par ITaskbarList::DeleteTab, pas par un style de
+    /// fenêtre : les styles ne disent rien, seule la barre elle-même fait foi.
+    public static Dictionary<string, string> BoutonsBarre()
+    {
+        AutomationElement barre = AutomationElement.RootElement.FindFirst(TreeScope.Children,
+            new PropertyCondition(AutomationElement.ClassNameProperty, "Shell_TrayWnd"));
+        if (barre == null) throw new InvalidOperationException("Shell_TrayWnd introuvable");
+        AutomationElementCollection bs = barre.FindAll(TreeScope.Descendants,
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button));
+        Dictionary<string, string> d = new Dictionary<string, string>();
+        foreach (AutomationElement b in bs)
+        {
+            string cls = b.Current.ClassName ?? "";
+            if (cls.StartsWith("SystemTray.") || cls == "ToggleButton") continue; // zone de notification, Démarrer…
+            string cle = b.Current.AutomationId ?? "";
+            if (cle == "") cle = cls;
+            string k = cle;
+            for (int i = 2; d.ContainsKey(k); i++) k = cle + "#" + i;
+            d[k] = b.Current.Name ?? "";
+        }
+        return d;
+    }
+
+    static string Json(Dictionary<string, string> d, IEnumerable<string> cles)
+    {
+        StringBuilder b = new StringBuilder("{");
+        bool premier = true;
+        foreach (string k in cles)
+        {
+            if (!premier) b.Append(",");
+            premier = false;
+            string v;
+            b.Append("\"" + Esc(k) + "\":\"" + Esc(d.TryGetValue(k, out v) ? v : "(absent)") + "\"");
+        }
+        return b.Append("}").ToString();
+    }
+
+    static void FilBarre()
+    {
+        while (true)
+        {
+            try
+            {
+                Dictionary<string, string> d = BoutonsBarre();
+                lock (verrou) { barreDerniere = d; barreSeq++; barreDernierSucces = horloge.ElapsedMilliseconds; barreErreur = null; }
+            }
+            catch (Exception e)
+            {
+                lock (verrou) { barreErreur = e.GetType().Name + ": " + e.Message; }
+            }
+            barreReveil.WaitOne(250);
+        }
+    }
+
+    /// Attend un relevé de la barre postérieur à l'appel (au plus `delai` ms) ; null si aucun.
+    static Dictionary<string, string> ReleveFrais(int delai, out long seq)
+    {
+        long depart;
+        lock (verrou) depart = barreSeq;
+        barreReveil.Set();
+        Stopwatch m = Stopwatch.StartNew();
+        while (m.ElapsedMilliseconds < delai)
+        {
+            lock (verrou) { if (barreSeq > depart) { seq = barreSeq; return barreDerniere; } }
+            Thread.Sleep(10);
+        }
+        seq = 0;
+        return null;
+    }
+
     // ---- Contrôle ------------------------------------------------------------------------------
     static void Echec(string preuve, string detail)
     {
@@ -277,17 +396,42 @@ public static class SentinelleInvisible
         Dictionary<uint, string> d = Descendants(racine, moi);
         nos = new HashSet<uint>(d.Keys);
         noms = d;
-        // 1. Premier plan : jamais à un processus du run ; identique pendant un lancement.
+        // 1. Premier plan : jamais à un processus du run. Un changement entre fenêtres de l'utilisateur
+        //    est journalisé (preuve informative), pas un échec.
         IntPtr fg = GetForegroundWindow();
         uint fgPid;
         GetWindowThreadProcessId(fg, out fgPid);
-        if (fg != IntPtr.Zero && nos.Contains(fgPid)) { Echec("premier-plan-electron", DecrireFenetre(fg)); return; }
-        if (idActif != null && fg != fgAvant)
+        string verdict = VerdictPremierPlan(fg, fgPid, nos, fgDernier);
+        if (verdict == "electron") { Echec("premier-plan-electron", DecrireFenetre(fg)); return; }
+        if (verdict == "utilisateur")
         {
-            Echec("premier-plan-change", "{\"avant\":" + DecrireFenetre(fgAvant) + ",\"maintenant\":" + DecrireFenetre(fg) + "}");
-            return;
+            if (idActif != null)
+            {
+                changementsUtilisateur++;
+                Ecrire("{\"type\":\"premier-plan-utilisateur\",\"id\":\"" + Esc(idActif) + "\",\"avant\":" + DecrireFenetre(fgDernier) + ",\"maintenant\":" + DecrireFenetre(fg) + "}");
+            }
+            fgDernier = fg;
         }
-        // 2. Aucun rectangle de fenêtre visible du run sur un moniteur.
+        // 2. Barre des tâches (pendant un lancement) : aucun bouton Electron/Fragment nouveau ou changé.
+        if (idActif != null && barreAvant != null)
+        {
+            Dictionary<string, string> d2 = null;
+            long seq, succes;
+            string err;
+            lock (verrou) { d2 = barreDerniere; seq = barreSeq; succes = barreDernierSucces; err = barreErreur; }
+            if (seq > barreAvantSeq && d2 != null)
+            {
+                List<string> sus = BoutonsSuspects(barreAvant, d2);
+                if (sus.Count > 0) { Echec("barre-des-taches", "{\"avant\":" + Json(barreAvant, sus) + ",\"maintenant\":" + Json(d2, sus) + "}"); return; }
+            }
+            // Sans relevé réussi depuis 3 s, la preuve n'est plus tenue : échec (barre illisible).
+            if (horloge.ElapsedMilliseconds - succes > 3000)
+            {
+                Echec("barre-des-taches-illisible", "{\"erreur\":\"" + Esc(err) + "\",\"depuisMs\":" + (horloge.ElapsedMilliseconds - succes) + "}");
+                return;
+            }
+        }
+        // 3. Aucun rectangle de fenêtre visible du run sur un moniteur.
         List<Fenetre> fs = FenetresVisibles(nos);
         if (fs.Count > fenetresVuesMax) fenetresVuesMax = fs.Count;
         foreach (Fenetre f in fs)
@@ -303,6 +447,8 @@ public static class SentinelleInvisible
     static void SurEvenement(IntPtr hook, uint evt, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
     {
         if (evt == EVENT_SYSTEM_FOREGROUND || idObject == OBJID_WINDOW) scanDemande = true;
+        // Une fenêtre qui apparaît peut gagner un bouton : relevé de la barre sans attendre les 250 ms.
+        if (evt == EVENT_OBJECT_SHOW && idObject == OBJID_WINDOW) barreReveil.Set();
     }
 
     static void Commande(string ligne)
@@ -315,21 +461,46 @@ public static class SentinelleInvisible
             if (idActif != null) Ecrire("{\"type\":\"apres-implicite\",\"id\":\"" + Esc(idActif) + "\"}");
             moniteurs = Moniteurs();
             fgAvant = GetForegroundWindow();
+            fgDernier = fgAvant;
+            changementsUtilisateur = 0;
+            // Relevé de référence de la barre AVANT le lancement : sans lui, pas de preuve, pas de lancement.
+            long seq;
+            Dictionary<string, string> b = ReleveFrais(5000, out seq);
+            if (b == null)
+            {
+                string err;
+                lock (verrou) err = barreErreur;
+                idActif = id;
+                Echec("barre-des-taches-illisible", "{\"erreur\":\"" + Esc(err) + "\",\"quand\":\"avant\"}");
+                return;
+            }
+            barreAvant = b;
+            barreAvantSeq = seq;
             idActif = id;
             Balayer();
-            if (!echec) Ecrire("{\"type\":\"avant\",\"id\":\"" + Esc(id) + "\",\"premierPlan\":" + DecrireFenetre(fgAvant) + "}");
+            if (!echec) Ecrire("{\"type\":\"avant\",\"id\":\"" + Esc(id) + "\",\"premierPlan\":" + DecrireFenetre(fgAvant) + ",\"barre\":" + Json(b, b.Keys) + "}");
         }
         else if (verbe == "APRES")
         {
+            // Dernier relevé de la barre, frais, avant de conclure.
+            long seq;
+            ReleveFrais(2000, out seq);
             Balayer();
             if (!echec)
             {
                 IntPtr fg = GetForegroundWindow();
-                Ecrire("{\"type\":\"apres\",\"id\":\"" + Esc(id) + "\",\"ok\":true,\"identique\":" + (fg == fgAvant ? "true" : "false") + ",\"premierPlan\":" + DecrireFenetre(fg) + ",\"balayages\":" + balayages + ",\"fenetresMax\":" + fenetresVuesMax + "}");
+                long nb;
+                lock (verrou) nb = barreSeq - barreAvantSeq;
+                Ecrire("{\"type\":\"apres\",\"id\":\"" + Esc(id) + "\",\"ok\":true,\"identique\":" + (fg == fgAvant ? "true" : "false") + ",\"changementsUtilisateur\":" + changementsUtilisateur + ",\"premierPlan\":" + DecrireFenetre(fg) + ",\"balayages\":" + balayages + ",\"relevesBarre\":" + nb + ",\"fenetresMax\":" + fenetresVuesMax + "}");
             }
             idActif = null;
+            barreAvant = null;
             balayages = 0;
             fenetresVuesMax = 0;
+        }
+        else if (verbe != "")
+        {
+            Ecrire("{\"type\":\"commande-inconnue\",\"ligne\":\"" + Esc(ligne) + "\"}");
         }
     }
 
@@ -357,6 +528,10 @@ public static class SentinelleInvisible
         });
         lecteur.IsBackground = true;
         lecteur.Start();
+        Thread filBarre = new Thread(FilBarre);
+        filBarre.IsBackground = true;
+        filBarre.SetApartmentState(ApartmentState.MTA);
+        filBarre.Start();
 
         rappel = new WinEventProc(SurEvenement);
         IntPtr h1 = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, rappel, 0, 0, WINEVENT_OUTOFCONTEXT);
@@ -460,17 +635,72 @@ public static class SentinelleInvisible
         Ecrire("{\"type\":\"autotest\",\"cas\":\"arbre-et-arret\",\"ok\":" + ((vu && exclu && tue) ? "true" : "false") + ",\"vu\":" + (vu ? "true" : "false") + ",\"exclu\":" + (exclu ? "true" : "false") + ",\"tue\":" + (tue ? "true" : "false") + "}");
         if (!(vu && exclu && tue)) ko++;
 
-        // Le premier plan n'a pas bougé pendant l'auto-test.
+        // Règle du premier plan (cas synthétiques, run 4 compris).
+        HashSet<uint> run = new HashSet<uint>(); run.Add(6040);
+        IntPtr chrome = new IntPtr(22873786), barreFg = new IntPtr(196748), elec = new IntPtr(2624128);
+        bool r1 = VerdictPremierPlan(barreFg, 15008, run, chrome) == "utilisateur"; // run 4 : chrome → barre des tâches
+        bool r2 = VerdictPremierPlan(chrome, 10700, run, chrome) == null;            // rien ne bouge
+        bool r3 = VerdictPremierPlan(elec, 6040, run, chrome) == "electron";         // Electron au premier plan
+        bool r4 = VerdictPremierPlan(elec, 6040, run, elec) == "electron";           // … même s'il l'était déjà
+        bool r5 = VerdictPremierPlan(IntPtr.Zero, 0, run, chrome) == "utilisateur";  // bureau sans premier plan
+        bool okPp = r1 && r2 && r3 && r4 && r5;
+        Ecrire("{\"type\":\"autotest\",\"cas\":\"regle-premier-plan\",\"ok\":" + (okPp ? "true" : "false") + ",\"cas_run4_utilisateur\":" + (r1 ? "true" : "false") + "}");
+        if (!okPp) ko++;
+
+        // Règle de la barre des tâches (cas synthétiques).
+        Dictionary<string, string> av = new Dictionary<string, string>();
+        av["Appid: Chrome"] = "Google Chrome - 1 fenêtre en cours d’exécution épinglé";
+        av["Appid: electron.app.Fragment"] = "Fragment - 1 fenêtre en cours d’exécution épinglé";
+        Dictionary<string, string> chromeChange = new Dictionary<string, string>(av);
+        chromeChange["Appid: Chrome"] = "Google Chrome - 2 fenêtres en cours d’exécution épinglé";
+        Dictionary<string, string> nouveau = new Dictionary<string, string>(av);
+        nouveau["Appid: C:\\x\\node_modules\\electron\\dist\\electron.exe"] = "Electron - 1 fenêtre en cours d’exécution";
+        Dictionary<string, string> groupe = new Dictionary<string, string>(av);
+        groupe["Appid: electron.app.Fragment"] = "Fragment - 2 fenêtres en cours d’exécution épinglé";
+        Dictionary<string, string> titre = new Dictionary<string, string>(av);
+        titre["Appid: inconnu"] = "Fragment";
+        Dictionary<string, string> disparu = new Dictionary<string, string>();
+        bool b1 = BoutonsSuspects(av, av).Count == 0;
+        bool b2 = BoutonsSuspects(av, chromeChange).Count == 0;
+        bool b3 = BoutonsSuspects(av, nouveau).Count == 1;
+        bool b4 = BoutonsSuspects(av, groupe).Count == 1;
+        bool b5 = BoutonsSuspects(av, titre).Count == 1;
+        bool b6 = BoutonsSuspects(av, disparu).Count == 0;
+        bool okB = b1 && b2 && b3 && b4 && b5 && b6;
+        Ecrire("{\"type\":\"autotest\",\"cas\":\"regle-barre\",\"ok\":" + (okB ? "true" : "false") + "}");
+        if (!okB) ko++;
+
+        // Lecture réelle de la barre des tâches (UI Automation) : au moins un bouton d'application.
+        bool okLect = false;
+        string detailLect = "";
+        try
+        {
+            Stopwatch sw = Stopwatch.StartNew();
+            Dictionary<string, string> d1 = BoutonsBarre();
+            int applis = 0;
+            foreach (string k in d1.Keys) if (k.StartsWith("Appid:")) applis++;
+            okLect = applis > 0;
+            detailLect = ",\"boutons\":" + d1.Count + ",\"applis\":" + applis + ",\"ms\":" + sw.ElapsedMilliseconds + ",\"suspectsContreSoi\":" + BoutonsSuspects(d1, BoutonsBarre()).Count;
+        }
+        catch (Exception e) { detailLect = ",\"erreur\":\"" + Esc(e.Message) + "\""; }
+        Ecrire("{\"type\":\"autotest\",\"cas\":\"lecture-barre\",\"ok\":" + (okLect ? "true" : "false") + detailLect + "}");
+        if (!okLect) ko++;
+
+        // Le premier plan n'a pas bougé pendant l'auto-test (informatif : un geste de l'utilisateur
+        // n'est plus un échec, règle du 13/11).
         bool stable = GetForegroundWindow() == fg;
-        Ecrire("{\"type\":\"autotest\",\"cas\":\"premier-plan-stable\",\"ok\":" + (stable ? "true" : "false") + "}");
-        if (!stable) ko++;
+        Ecrire("{\"type\":\"autotest\",\"cas\":\"premier-plan-stable\",\"ok\":true,\"informatif\":true,\"stable\":" + (stable ? "true" : "false") + "}");
         Ecrire("{\"type\":\"autotest-fin\",\"echecs\":" + ko + "}");
         return ko == 0 ? 0 : 1;
     }
 }
 '@
 
-Add-Type -TypeDefinition $source -Language CSharp
+Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, WindowsBase
+# UI Automation (barre des tâches) : assemblages .NET Framework du GAC, rien à installer.
+$noms = @('UIAutomationClient', 'UIAutomationTypes', 'WindowsBase')
+$refs = [AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { $noms -contains $_.GetName().Name } | ForEach-Object { $_.Location }
+Add-Type -TypeDefinition $source -Language CSharp -ReferencedAssemblies $refs
 if ($AutoTest) {
     if ($Journal) { [void](New-Item -ItemType Directory -Force -Path (Split-Path -Parent $Journal)) }
     [SentinelleInvisible]::Journal($Journal)
