@@ -2916,6 +2916,7 @@ dependencies = [
  "fragment-markdown",
  "fragment-maths",
  "fragment-pdf",
+ "fragment-plugins",
  "fragment-text",
  "fragment-theme",
  "gpui-kit",

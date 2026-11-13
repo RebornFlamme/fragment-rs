@@ -25,6 +25,8 @@ fragment-maths = { path = "../fragment-maths" }
 fragment-layers = { path = "../fragment-layers" }
 fragment-chat = { path = "../fragment-chat" }
 fragment-agent = { path = "../fragment-agent" }
+# La marge de lecture (fr-t5-mode-marge) : le tableau des trois commandes, déjà porté là.
+fragment-plugins = { path = "../fragment-plugins" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true

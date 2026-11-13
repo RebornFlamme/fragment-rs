@@ -1,0 +1,20 @@
+# Parité de fr-t5-mode-marge (fragment-ui). Schéma `parite.d` : un fichier par tâche. marginMode.ts n'a
+# pas de test unitaire TS (le modèle des trois commandes est dans fragment-plugins, le détecteur pur
+# dans fragment-core::swipe) ; les cas headless suivent margin-mode.spec.ts sur une FAUSSE note
+# (fenêtre de test GPUI, vrai Workspace, vrai Keymap, molettes GPUI simulées, horloge réglée).
+
+[[module]]
+ts = "app/src/ui/coreCommands/marginMode.ts (installerMargeDeLecture : 3 commandes sur la feuille active, retrait), marginMode.css (réserve 25 % / 40 %, transition 90 ms, feuille imbriquée exclue), app/e2e/margin-mode.spec.ts"
+rs = "crates/fragment-ui/src/mode_marge/{mod,etat,geometrie,commandes}.rs, crates/fragment-ui/tests/mode_marge.rs"
+cas_source = 11
+cas_portes = 9
+cas_ajoutes = 4
+notes = "Portés : géométrie (colonne qui ne s'élargit pas, relevée dans la mise en page GPUI et égale au modèle pur), élargir puis rétrécir aussitôt, < 150 ms sans saut (échantillons par image à 60 Hz, aller = retour), un seul déclenchement, Ctrl et vertical ignorés, tableau large qui défile encore (faux défileur qui se déclare par `absorber`), toggle-margin, liaisons SwipeRight/SwipeLeft et portée de vue, PDF 40 % (modèle : réserve sans transition, largeur utile ; l'application à la vue PDF est au montage). Non portés (montage, fr-t5-montage-note) : bouton de l'en-tête allumé, carte du lecteur dans la marge élargie. Ajoutés : marge par feuille, indisponible sans document, pixels:marge sans transition, retrait qui ferme tout. Écart : l'état est une table par feuille (pas de classe CSS) ; une vue embarquée lit SA feuille, jamais ouverte, ce qui remplace le `:not(.workspace-leaf .workspace-leaf *)`."
+
+[[module]]
+ts = "app/src/ui/core/keymap/Keymap.ts (écoute `wheel`, defileEncore)"
+rs = "crates/fragment-ui/src/clavier/balayage.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "Molette GPUI → Keymap::handle_wheel (horodatage en ms d'une horloge injectable). Sens : le delta de GPUI est opposé à celui du DOM sur les deux axes (inversé ici). `defileEncore` : GPUI n'arrête pas la propagation d'un overflow_scroll et ne dit pas s'il a bougé, donc un défileur horizontal se DÉCLARE par `absorber` dans son écouteur (phase de bulle, avant la racine posée par `ecouter`)."
