@@ -65,6 +65,8 @@ const vrai = {
     setBounds: proto.setBounds,
     setContentBounds: proto.setContentBounds,
     getBounds: proto.getBounds,
+    getMinimumSize: proto.getMinimumSize,
+    setMinimumSize: proto.setMinimumSize,
 };
 
 /** La position hors écran : celle de la sentinelle (pixels physiques), repoussée au besoin au-delà
@@ -109,15 +111,36 @@ function ramener(w, quand) {
  */
 function ajusterContenu(w, largeur, hauteur) {
     if (w.isDestroyed() || !w.fragmentSansCadre) return;
+    // Lu par le garde juste avant chaque capture : contenu réel ≠ contenu voulu = capture refusée.
+    w.fragmentContenuVoulu = [largeur, hauteur];
     vrai.setSize.call(w, largeur, hauteur);
     for (let i = 0; i < 3; i++) {
         const [cw, ch] = vrai.getContentSize.call(w);
         if (cw === largeur && ch === hauteur) return;
         const b = vrai.getBounds.call(w);
+        compenserMinimum(w, cw - b.width, ch - b.height);
         vrai.setSize.call(w, b.width - (cw - largeur), b.height - (ch - hauteur));
     }
     const [cw, ch] = vrai.getContentSize.call(w);
     noter({ type: 'contenu-inexact', id: w.id, voulu: [largeur, hauteur], obtenu: [cw, ch] });
+}
+
+/**
+ * ★ (fr-278) La taille MINIMALE (Fragment pose minWidth/minHeight = 600 × 400 sur ses fenêtres sans
+ *   cadre) borne les BORNES de la fenêtre, pas son contenu. Hors moniteur, le contenu dépasse les bornes
+ *   de 16 × 8 px : pour un contenu de 600 × 400 il faudrait des bornes de 584 × 392, que le minimum
+ *   refuse — t3-etroite sortait en 616 × 408. On abaisse donc le minimum de l'écart mesuré (une fois par
+ *   fenêtre) : le minimum garde son sens d'origine, « contenu ≥ 600 × 400 », comme sur un moniteur.
+ */
+const minimumCompense = new WeakSet();
+function compenserMinimum(w, dx, dy) {
+    if (minimumCompense.has(w) || (dx <= 0 && dy <= 0)) return;
+    minimumCompense.add(w);
+    const [mw, mh] = vrai.getMinimumSize.call(w);
+    if (mw <= 0 && mh <= 0) return;
+    const nouveau = [mw > 0 ? Math.max(1, mw - Math.max(0, dx)) : 0, mh > 0 ? Math.max(1, mh - Math.max(0, dy)) : 0];
+    vrai.setMinimumSize.call(w, nouveau[0], nouveau[1]);
+    noter({ type: 'minimum-compense', id: w.id, minimum: [mw, mh], ecart: [dx, dy], applique: nouveau });
 }
 
 class FenetreInvisible extends Orig {

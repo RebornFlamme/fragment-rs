@@ -138,14 +138,41 @@ function laSentinelle(): Promise<Sentinelle> {
 
 // ---- Lancement -------------------------------------------------------------------------------
 let compteur = 0;
+const appDeLaPage = new WeakMap<Page, ElectronApplication>();
+
+/**
+ * ★ (fr-278) Avant chaque capture : la zone cliente de la fenêtre doit valoir EXACTEMENT le contenu
+ *   demandé au crochet (`fragmentContenuVoulu`), sinon la capture est refusée bruyamment — t3-etroite
+ *   sortait en 616 × 408 au lieu de 600 × 400 sans que rien ne le signale. Ce n'est pas une preuve de
+ *   visibilité : pas de drapeau ECHEC, la scène échoue seule.
+ */
+async function verifierContenu(page: Page): Promise<void> {
+    const app = appDeLaPage.get(page);
+    if (!app) return;
+    const fenetre = await app.browserWindow(page).catch(() => null);
+    if (!fenetre) return;
+    const [voulu, obtenu] = await fenetre.evaluate((w: any) => [w.fragmentContenuVoulu ?? null, w.getContentSize()] as const);
+    const vu = await page.evaluate(() => [window.innerWidth, window.innerHeight]);
+    noter({ type: 'contenu-avant-capture', voulu, obtenu, viewport: vu });
+    // Le viewport (CSS) est journalisé seulement : un zoom de page le rendrait différent à bon droit.
+    if (voulu && (obtenu[0] !== voulu[0] || obtenu[1] !== voulu[1])) {
+        throw new Error(`mode invisible : zone cliente ${obtenu.join('×')} (viewport ${vu.join('×')}) au lieu de ${voulu.join('×')} — capture refusée.`);
+    }
+}
 
 async function brancherPage(app: ElectronApplication, page: Page, id: string): Promise<void> {
     // ★ L'émulation du focus (la page se croit au premier plan : caret, sélection active, :focus) —
     //   Playwright ne la pose pas pour Electron, et la fenêtre n'est jamais activée en mode invisible.
     const proto = Object.getPrototypeOf(page);
+    appDeLaPage.set(page, app);
     if (!proto[MARQUE]) {
         proto[MARQUE] = true;
         proto.bringToFront = async function () { noter({ type: 'neutralise', methode: 'page.bringToFront' }); };
+        const capturer = proto.screenshot;
+        proto.screenshot = async function (this: Page, ...args: unknown[]) {
+            await verifierContenu(this);
+            return capturer.apply(this, args);
+        };
     }
     try {
         const cdp = await app.context().newCDPSession(page);
