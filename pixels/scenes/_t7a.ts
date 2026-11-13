@@ -22,6 +22,7 @@
 import { test, expect, type Page } from '../../../Fragment/app/node_modules/@playwright/test';
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import path from 'path';
+import { avecGlyphes } from './_glyphes';
 import { lancerLecteur, type Harnais } from '../../../Fragment/app/e2e/readerHarness';
 import { schema, type Theme } from './_commun';
 import { layoutVide, type ArbreScene } from './_t1';
@@ -233,8 +234,9 @@ export function sceneT7a(nom: string, corps: (c: ContexteT7a) => Promise<void>, 
                 await corps({
                     h, p, theme, act,
                     capturer: async () => {
-                        const png = await p.screenshot({ animations: 'disabled', caret: 'hide' });
-                        writeFileSync(path.join(REFERENCE, `${nom}-${theme}.png`), png);
+                        const fichier = path.join(REFERENCE, `${nom}-${theme}.png`);
+                        const png = await avecGlyphes(p, fichier, () => p.screenshot({ animations: 'disabled', caret: 'hide' }));
+                        writeFileSync(fichier, png);
                     },
                 });
                 // Le JSON du candidat : écrit une fois (thème sombre), depuis les gestes joués.
