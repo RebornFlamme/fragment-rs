@@ -1,0 +1,9 @@
+# Parité de fr-t2-gestionnaire (fragment-ui). Spec e2e de Fragment traduite : vaults.spec.ts (7 tests).
+
+[[module]]
+ts = "app/e2e/vaults.spec.ts, app/src/ui/vault-manager/VaultManager.ts, app/src/ui/core/VaultSwitcher.ts, app/src/electron/vaults.ts"
+rs = "crates/fragment-ui/src/coffres/{mod,gestionnaire,selecteur}.rs, crates/fragment-app/src/coffre.rs (ChoixCoffre), crates/fragment-ui/tests/coffres.rs"
+cas_source = 7
+cas_portes = 7
+cas_ajoutes = 4
+notes = "Les fenêtres Electron deviennent des effets du ControleurCoffres (OuvrirGestionnaire, OuvrirApp, FermerGestionnaire, Relancer, Quitter) que fragment-app applique aux fenêtres GPUI. Ajoutés : bascule depuis l'app (relance), Créer (dossier créé), menu avec coffre introuvable grisé, ouvreur du pied. Écarts : le mot « fragment » du logo est du texte, pas les contours du lockup (asset de marque à décider) ; le chemin d'un coffre se coupe aux mots, pas `word-break: break-all`. Scènes t2-gestionnaire-premier, t2-gestionnaire-liste, t2-selecteur-menu jugées par le job pixels."

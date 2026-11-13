@@ -1,0 +1,16 @@
+{
+  "scene": "t2-gestionnaire-liste",
+  "depuis": "T2",
+  "vue": "gestionnaire",
+  "window": {"width":840,"height":560,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "coffres": [
+    "C:/dev/fragment-rs-pixels-coffres/vault-t2",
+    "C:/dev/fragment-rs-pixels-coffres/disparu"
+  ],
+  "actions": [
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

@@ -130,6 +130,8 @@ pub enum VueScene {
     Jouet,
     /// Un fond de thème et les surfaces flottantes (notice, menu, infobulle, barre d'outils).
     Flottantes,
+    /// La fenêtre du gestionnaire de coffres (840 × 560), sur la liste `coffres` de la scène.
+    Gestionnaire,
 }
 
 /// Le layout d'une scène à coffre (`_t2.ts`, `OptionsScene.layout`).
@@ -419,6 +421,10 @@ struct SceneBrute {
     decor: Decor,
     #[serde(default)]
     vue: VueScene,
+    /// Les coffres connus d'une scène `gestionnaire` (chemins, du plus récent au plus ancien) ;
+    /// un chemin absent du disque s'affiche « introuvable ».
+    #[serde(default)]
+    coffres: Vec<String>,
     depuis: Option<String>,
     /// Scène de preuve de la CI Rust, sans équivalent Fragment (`mire`, `jouet-*`).
     #[serde(default)]
@@ -438,6 +444,8 @@ pub struct Scene {
     pub reglages: Option<Taille>,
     pub themes: Vec<ThemeScene>,
     pub vue: VueScene,
+    /// Les coffres connus d'une scène `gestionnaire`.
+    pub coffres: Vec<String>,
     /// Le coffre de fixture, relatif à la racine du dépôt.
     pub vault: Option<String>,
     pub decor: Decor,
@@ -503,6 +511,7 @@ pub fn analyser_scene(texte: &str, nom_par_defaut: &str) -> Result<Scene, Erreur
         reglages: brute.settings_window,
         themes: brute.themes.unwrap_or_else(|| vec![ThemeScene::Dark]),
         vue: brute.vue,
+        coffres: brute.coffres,
         vault: brute.vault,
         decor: brute.decor,
         depuis,

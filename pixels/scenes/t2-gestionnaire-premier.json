@@ -1,0 +1,11 @@
+{
+  "scene": "t2-gestionnaire-premier",
+  "depuis": "T2",
+  "vue": "gestionnaire",
+  "window": {"width":840,"height":560,"dpr":1},
+  "themes": ["dark","light"],
+  "actions": [
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

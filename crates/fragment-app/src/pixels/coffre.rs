@@ -112,6 +112,11 @@ pub fn options_de_scene(scene: &Scene) -> anyhow::Result<Options> {
 /// Les commandes de scène d'un coffre : vivantes tant que la valeur l'est.
 pub struct CommandesCoffre {
     retraits: Vec<Disposer>,
+    /// Le menu du sélecteur : le contrôleur des coffres de la scène et ses demandes (ignorées).
+    _selecteur: Option<(
+        Rc<RefCell<fragment_ui::coffres::ControleurCoffres>>,
+        Disposer,
+    )>,
     abonnement: EventRef,
 }
 
@@ -121,7 +126,37 @@ impl Drop for CommandesCoffre {
         for r in self.retraits.drain(..) {
             r();
         }
+        if let Some((_, r)) = self._selecteur.take() {
+            r();
+        }
     }
+}
+
+/// Le menu du sélecteur d'une scène à coffre : un registre propre à la scène (hors du userData de
+/// l'utilisateur), dont le seul coffre connu est celui de la scène, courant.
+fn selecteur_de_scene(
+    application: &fragment_app::Application,
+) -> Option<(
+    Rc<RefCell<fragment_ui::coffres::ControleurCoffres>>,
+    Disposer,
+)> {
+    let racine = application.noyau.coffre.as_ref()?.racine.clone();
+    let user_data = base_des_coffres().join("userdata-rs");
+    let _ = std::fs::remove_dir_all(&user_data);
+    let registre = fragment_cli::coffres::RegistreCoffres::new(user_data);
+    let mut controleur = fragment_ui::coffres::ControleurCoffres::new(registre);
+    if let Err(e) = controleur.demarrer_sur(&racine) {
+        eprintln!("fragment-pixels : registre de scène : {e}");
+        return None;
+    }
+    let controleur = Rc::new(RefCell::new(controleur));
+    let keymap = fragment_core::App::keymap(&*application.noyau.app).clone();
+    let retrait = fragment_app::coffre::brancher_selecteur(
+        controleur.clone(),
+        keymap,
+        Rc::new(RefCell::new(Vec::new())),
+    );
+    Some((controleur, retrait))
 }
 
 /// Un geste de scène sur la vue de l'explorateur.
@@ -181,6 +216,7 @@ pub fn brancher(application: &Rc<fragment_app::Application>) -> CommandesCoffre 
         .collect();
     CommandesCoffre {
         retraits,
+        _selecteur: selecteur_de_scene(application),
         abonnement,
     }
 }

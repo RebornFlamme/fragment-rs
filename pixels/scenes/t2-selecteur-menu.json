@@ -1,0 +1,12 @@
+{
+  "scene": "t2-selecteur-menu",
+  "depuis": "T2",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t2",
+  "actions": [
+    {"type":"click","x":80,"y":780},
+    {"type":"wait","ms":200},
+    {"type":"wait-stable"}
+  ]
+}

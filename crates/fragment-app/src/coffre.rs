@@ -15,6 +15,7 @@ use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 
+use fragment_cli::coffres::RegistreCoffres;
 use fragment_core::vault::fs::FileSystemAdapter;
 use fragment_core::vault::surveillance::OptionsSurveillance;
 use fragment_core::workspace::vue_fichier::{REVEAL_IN_FOLDER, RevealInFolder};
@@ -23,6 +24,8 @@ use fragment_core::{
     MemoryAdapter, Modifier, NouvelleFeuille, OWNER_CORE, OpenViewState, TFile, Vault,
     VaultDocumentProvider, ViewCreator, ViewState, Workspace, relay_vault_events,
 };
+use fragment_ui::coffres::selecteur::{self, ActionsSelecteur};
+use fragment_ui::coffres::{CommandeGestionnaire, ControleurCoffres, Effet, VueGestionnaire};
 use fragment_ui::explorateur::{
     self, ActionsExplorateur, ContexteExplorateur, FILE_EXPLORER_VIEW_TYPE, FileExplorerView,
 };
@@ -319,4 +322,260 @@ pub fn contenu_de_vue() -> ContenuDeVue {
             .or_else(|| vue_markdown::contenu(v, cx))
             .or_else(|| vue_pdf::contenu(v, cx))
     })
+}
+
+// ── Le choix du coffre (fr-t2-gestionnaire) ─────────────────────────────
+// Port de app/src/electron/vaults.ts (la fenêtre de gestion, la boîte de choix de dossier, la
+// relance sur un autre coffre) et du démarrage de app/src/electron/main.ts.
+
+/// Le dossier des données de l'application (`config.json` : le coffre courant et la liste).
+/// `FRAGMENT_USER_DATA` le remplace (tests, scènes). ★ Distinct de celui de Fragment (Electron) :
+/// les deux applications écriraient le même `config.json` à des moments différents.
+pub fn dossier_user_data() -> PathBuf {
+    if let Some(d) = std::env::var_os("FRAGMENT_USER_DATA") {
+        return PathBuf::from(d);
+    }
+    let base = if cfg!(windows) {
+        std::env::var_os("APPDATA").map(PathBuf::from)
+    } else if cfg!(target_os = "macos") {
+        std::env::var_os("HOME").map(|h| PathBuf::from(h).join("Library/Application Support"))
+    } else {
+        std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+    };
+    base.unwrap_or_else(std::env::temp_dir).join("fragment-rs")
+}
+
+/// La boîte native de choix de dossier ; `None` si elle est annulée.
+#[cfg(any(windows, target_os = "macos"))]
+pub fn choisir_dossier(titre: &str) -> Option<String> {
+    rfd::FileDialog::new()
+        .set_title(titre)
+        .pick_folder()
+        .map(|p| p.to_string_lossy().into_owned())
+}
+
+/// La boîte native de choix de dossier ; `None` si elle est annulée. ★ Sous Linux, `zenity` plutôt
+/// qu'une dépendance GTK : la CI Linux n'a pas les en-têtes de GTK.
+#[cfg(not(any(windows, target_os = "macos")))]
+pub fn choisir_dossier(titre: &str) -> Option<String> {
+    let sortie = std::process::Command::new("zenity")
+        .args(["--file-selection", "--directory", "--title", titre])
+        .output()
+        .ok()?;
+    let chemin = String::from_utf8_lossy(&sortie.stdout).trim().to_owned();
+    (sortie.status.success() && !chemin.is_empty()).then_some(chemin)
+}
+
+/// Ce qu'un item du menu du sélecteur demande (il n'a pas de `cx` : la demande attend le tic).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Demande {
+    Basculer(String),
+    Gerer,
+}
+
+/// File des demandes du menu du sélecteur.
+pub type Demandes = Rc<RefCell<Vec<Demande>>>;
+
+/// Installe l'ouvreur du menu du sélecteur : la liste relue à chaque ouverture, les items poussent
+/// leur demande dans `demandes`.
+pub fn brancher_selecteur(
+    controleur: Rc<RefCell<ControleurCoffres>>,
+    keymap: fragment_core::Keymap,
+    demandes: Demandes,
+) -> Disposer {
+    selecteur::brancher(Rc::new(move |x, y| {
+        let coffres = controleur.try_borrow().ok().map(|c| c.lister());
+        let (d1, d2) = (demandes.clone(), demandes.clone());
+        let actions = ActionsSelecteur {
+            basculer: Rc::new(move |c| d1.borrow_mut().push(Demande::Basculer(c))),
+            gerer: Rc::new(move || d2.borrow_mut().push(Demande::Gerer)),
+        };
+        selecteur::menu(coffres.as_deref(), &actions).show_at_position(x, y, &keymap);
+    }))
+}
+
+/// Démarre l'application sur un coffre ; rend son Keymap (le menu du sélecteur y empile Échap).
+pub type Lanceur = Rc<dyn Fn(&mut gpui_kit::App, &str) -> Option<fragment_core::Keymap>>;
+
+/// Le choix du coffre côté application : le contrôleur de `fragment-ui`, la fenêtre du
+/// gestionnaire, et l'application démarrée par `lanceur`.
+pub struct ChoixCoffre {
+    controleur: Rc<RefCell<ControleurCoffres>>,
+    gestionnaire: RefCell<Option<gpui_kit::AnyWindowHandle>>,
+    demandes: Demandes,
+    lanceur: Lanceur,
+    retraits: RefCell<Vec<Disposer>>,
+}
+
+impl ChoixCoffre {
+    pub fn new(registre: RegistreCoffres, lanceur: Lanceur) -> Rc<Self> {
+        Rc::new(Self {
+            controleur: Rc::new(RefCell::new(ControleurCoffres::new(registre))),
+            gestionnaire: RefCell::new(None),
+            demandes: Rc::new(RefCell::new(Vec::new())),
+            lanceur,
+            retraits: RefCell::new(Vec::new()),
+        })
+    }
+
+    /// Le démarrage : `impose` (argument de la ligne de commande) ou le coffre mémorisé, sinon le
+    /// gestionnaire seul. Lance aussi le tic qui sert les demandes du menu du sélecteur.
+    pub fn demarrer(self: &Rc<Self>, cx: &mut gpui_kit::App, impose: Option<&str>) {
+        let effets = {
+            let mut c = self.controleur.borrow_mut();
+            match impose {
+                Some(d) => c.demarrer_sur(d),
+                None => c.demarrer(),
+            }
+        };
+        self.appliquer_resultat(cx, effets);
+        let faible = Rc::downgrade(self);
+        cx.spawn(async move |cx| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(50))
+                    .await;
+                let Some(choix) = faible.upgrade() else {
+                    break;
+                };
+                let demandes: Vec<Demande> = choix.demandes.borrow_mut().drain(..).collect();
+                if !demandes.is_empty() {
+                    cx.update(|cx| choix.servir(cx, demandes));
+                }
+            }
+        })
+        .detach();
+    }
+
+    fn servir(self: &Rc<Self>, cx: &mut gpui_kit::App, demandes: Vec<Demande>) {
+        for d in demandes {
+            let effets = match d {
+                Demande::Basculer(c) => self.controleur.borrow_mut().choisir(&c),
+                Demande::Gerer => Ok(self.controleur.borrow_mut().gerer()),
+            };
+            self.appliquer_resultat(cx, effets);
+        }
+    }
+
+    /// Une commande de la fenêtre du gestionnaire. Différée : elle peut fermer la fenêtre dont
+    /// l'événement est en cours de traitement.
+    fn commande(self: &Rc<Self>, commande: CommandeGestionnaire, cx: &mut gpui_kit::App) {
+        let choix = self.clone();
+        cx.defer(move |cx| {
+            let effets = {
+                let mut c = choix.controleur.borrow_mut();
+                match commande {
+                    CommandeGestionnaire::Fermer => Ok(c.fermer_gestionnaire()),
+                    CommandeGestionnaire::Ouvrir => {
+                        let d = choisir_dossier("Ouvrir un dossier comme coffre");
+                        c.dossier_ouvert(d.as_deref())
+                    }
+                    CommandeGestionnaire::Creer => {
+                        let d = choisir_dossier("Créer un nouveau coffre");
+                        c.dossier_cree(d.as_deref())
+                    }
+                    CommandeGestionnaire::Choisir(p) => c.choisir(&p),
+                    CommandeGestionnaire::Oublier(p) => c.oublier(&p).map(|()| Vec::new()),
+                }
+            };
+            choix.appliquer_resultat(cx, effets);
+        });
+    }
+
+    fn appliquer_resultat(
+        self: &Rc<Self>,
+        cx: &mut gpui_kit::App,
+        effets: Result<Vec<Effet>, fragment_cli::coffres::ErreurCoffres>,
+    ) {
+        match effets {
+            Ok(e) => self.appliquer(cx, e),
+            Err(e) => eprintln!("fragment : coffres : {e}"),
+        }
+    }
+
+    /// Applique les effets du contrôleur aux fenêtres.
+    pub fn appliquer(self: &Rc<Self>, cx: &mut gpui_kit::App, effets: Vec<Effet>) {
+        for effet in effets {
+            match effet {
+                Effet::OuvrirGestionnaire => self.ouvrir_gestionnaire(cx),
+                Effet::FermerGestionnaire => {
+                    let fenetre = self.gestionnaire.borrow_mut().take();
+                    if let Some(h) = fenetre {
+                        let _ = h.update(cx, |_, window, _| window.remove_window());
+                    }
+                }
+                Effet::OuvrirApp(c) => {
+                    if let Some(keymap) = (self.lanceur)(cx, &c) {
+                        let r = brancher_selecteur(
+                            self.controleur.clone(),
+                            keymap,
+                            self.demandes.clone(),
+                        );
+                        self.retraits.borrow_mut().push(r);
+                    }
+                }
+                Effet::Relancer(c) => relancer(cx, &c),
+                Effet::Quitter => cx.quit(),
+            }
+        }
+    }
+
+    fn ouvrir_gestionnaire(self: &Rc<Self>, cx: &mut gpui_kit::App) {
+        let existante = *self.gestionnaire.borrow();
+        if let Some(h) = existante
+            && h.update(cx, |_, window, _| window.activate_window())
+                .is_ok()
+        {
+            return;
+        }
+        let (c, choix) = (self.controleur.clone(), Rc::downgrade(self));
+        let lister: Rc<dyn Fn() -> Vec<fragment_cli::coffres::VaultInfo>> =
+            Rc::new(move || c.try_borrow().map(|c| c.lister()).unwrap_or_default());
+        let relais: fragment_ui::coffres::gestionnaire::Relais = Rc::new(move |commande, cx| {
+            if let Some(choix) = choix.upgrade() {
+                choix.commande(commande, cx);
+            }
+        });
+        match ouvrir_fenetre_gestionnaire(cx, lister, relais) {
+            Ok(h) => *self.gestionnaire.borrow_mut() = Some(h),
+            Err(e) => eprintln!("fragment : gestionnaire de coffres : {e:#}"),
+        }
+    }
+}
+
+impl Drop for ChoixCoffre {
+    fn drop(&mut self) {
+        for r in self.retraits.borrow_mut().drain(..) {
+            r();
+        }
+    }
+}
+
+/// Ouvre la fenêtre du gestionnaire (840 × 560, « Fragment »).
+pub fn ouvrir_fenetre_gestionnaire(
+    cx: &mut gpui_kit::App,
+    lister: Rc<dyn Fn() -> Vec<fragment_cli::coffres::VaultInfo>>,
+    relais: fragment_ui::coffres::gestionnaire::Relais,
+) -> anyhow::Result<gpui_kit::AnyWindowHandle> {
+    use fragment_ui::coffres::gestionnaire::{HAUTEUR, LARGEUR};
+    use gpui_kit::AppContext as _;
+    let opts = crate::options_fenetre(cx, crate::TITRE, LARGEUR, HAUTEUR);
+    let (h, _) = gpui_kit::open_window(opts, cx, move |_, cx| {
+        cx.new(|_| VueGestionnaire::new(lister, relais))
+    })?;
+    Ok(h)
+}
+
+/// L'application tourne déjà : elle se relance sur `chemin` (aucun état de l'ancien coffre ne
+/// survit), puis s'arrête.
+fn relancer(cx: &mut gpui_kit::App, chemin: &str) {
+    match std::env::current_exe() {
+        Ok(exe) => match std::process::Command::new(exe).arg(chemin).spawn() {
+            Ok(_) => cx.quit(),
+            Err(e) => eprintln!("fragment : relance sur {chemin} : {e}"),
+        },
+        Err(e) => eprintln!("fragment : relance : {e}"),
+    }
 }
