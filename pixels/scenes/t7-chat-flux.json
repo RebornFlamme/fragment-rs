@@ -1,0 +1,18 @@
+{
+  "scene": "t7-chat-flux",
+  "depuis": "T7",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t7/a",
+  "actions": [
+    {"type":"command","id":"pixels:horloge","args":{"iso":"2026-11-12T14:30:00"}},
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"command","id":"pixels:chat","args":{"mode":"page","conversation":"c-flux"}},
+    {"type":"command","id":"pixels:agent-script","args":{"conversation":"c-flux","events":[{"type":"text-delta","text":"Je relis tes notes de la semaine. "},{"type":"text-delta","text":"La date du deuxième relevé est la seule "}],"hold":true}},
+    {"type":"click","x":668,"y":738},
+    {"type":"type","text":"Quelle date manque ?"},
+    {"type":"key","keys":"Enter"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

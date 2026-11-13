@@ -1,0 +1,19 @@
+{
+  "scene": "t7-chat-pastille",
+  "depuis": "T7",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t7/a",
+  "actions": [
+    {"type":"command","id":"pixels:horloge","args":{"iso":"2026-11-12T14:30:00"}},
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"command","id":"pixels:chat","args":{"mode":"page","conversation":"c-long"}},
+    {"type":"command","id":"pixels:agent-script","args":{"conversation":"c-long","events":[{"type":"text-delta","text":"Je compare les relevés des deux semaines. "}],"hold":true}},
+    {"type":"click","x":668,"y":738},
+    {"type":"type","text":"Fais-moi une comparaison."},
+    {"type":"key","keys":"Enter"},
+    {"type":"command","id":"pixels:chat-defiler","args":{"to":"u1"}},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
