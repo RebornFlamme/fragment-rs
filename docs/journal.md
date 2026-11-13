@@ -880,3 +880,25 @@ Reprise du chef après le clear, sur le brief de l'orchestrateur et non sur le r
 2. Lancer les `sans-binaire` de T5 et T7 dès la fusion du plan.
 3. fr-t2-lecture dès #102.
 4. Pousser ce journal une fois le build de main fini.
+
+## Vague 13 — 13/11/2026 03:40 UTC — usage 5h 2 % (reset 08:30) / semaine 68 %
+- Fusionnée : #104 (fr-p3.3), découpage de T5 (14 tâches) et de T7 (22 tâches), plus le socle commun fr-p3-socle-t5t7. S8 vise ADR-016, car 014 et 015 sont pris.
+- Décisions de l'orchestrateur (13/11, entre 03:15 et 03:40), notées dans les beads :
+  - **fr-p3.1** : seuil de même lettre à 0,086, fusion à 99,2 %. Les glyphes étroits et l'exception « fermer » sont en dette nommée, en cliquet. Le non-jugeable vaut seulement pour un glyphe ROGNÉ à ≤ 3×2 px. Le banc ne génère plus d'essais de même lettre.
+  - **fr-p3.4** passe en P1, Opus, et bloque fr-t3-livraison : identité de glyphe des deux côtés (Playwright Range.getClientRects). À sa fusion, la dette des glyphes disparaît.
+  - **T2 (#102)** : les boîtes qui échouent seulement sur la largeur, ≤ 2 px, vont en dette nommée « placement des glyphes (fr-p4.1.1) ». Le coin de la barre d'état est étendu à T2.
+  - **fr-p4.1.1** passe en PRIORITÉ 1. Si l'écart est systématique, un patch minimal de GPUI est pré-accordé dans les formes d'ADR-006, avec une PR amont préparée mais non ouverte. Critère de fin : dettes « placement » et « fermer » à 0 sur T1 et T2.
+  - **Prompt et skills de l'agent** : option (b). Ils sont lus au lancement dans le dossier de l'agent de l'utilisateur, jamais publiés ni réécrits. Les tests utilisent un prompt factice. Question ouverte pour la livraison de T7 : le contenu réel dans un binaire autonome.
+  - **DocWidget** avancé en T5 ; **moteur d'orbes** (MIT) porté avec sa notice, son auteur et son commit.
+- ★ Les références T2 de #80 avaient été capturées en ClearType. `--disable-lcd-text` est passé dans _t2.ts et à tout nouveau décor. Le contrôle des autres décors est confié à fr-p3.5.
+- Lancés, 7 équipiers, arrêt à 200k tokens de contexte. Ordre au verrou : montage, placement, glyphes, scènes.
+  - fr-p4.1.1 (Opus, `../fragment-rs-placement`)
+  - fr-t2-montage, 4e reprise (Opus)
+  - fr-p3.1, 4e reprise (Opus)
+  - fr-p3.4 (Opus, `../fragment-rs-glyphes`, fichiers nouveaux seulement avant #99)
+  - fr-t7-harness-spike (Opus, `../fragment-rs-harness`)
+  - fr-t5-scenes-a (Sonnet)
+  - fr-t7-scenes-a (Sonnet)
+- Ensuite : fr-p3-socle-t5t7 (Sonnet, léger), puis les tâches de T5 et T7 qu'il débloque.
+**Rythme** : (97 − 68) ÷ 14,3 h ≈ 2 points par heure.
+**Prochaine action exacte** : revue à chaque compte rendu ; à la fusion de #99, prévenir fr-p3.4 (glyphes) ; le socle T5/T7 à la première place libre.
