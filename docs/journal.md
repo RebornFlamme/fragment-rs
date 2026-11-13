@@ -902,3 +902,45 @@ Reprise du chef après le clear, sur le brief de l'orchestrateur et non sur le r
 - Ensuite : fr-p3-socle-t5t7 (Sonnet, léger), puis les tâches de T5 et T7 qu'il débloque.
 **Rythme** : (97 − 68) ÷ 14,3 h ≈ 2 points par heure.
 **Prochaine action exacte** : revue à chaque compte rendu ; à la fusion de #99, prévenir fr-p3.4 (glyphes) ; le socle T5/T7 à la première place libre.
+
+## Vague 13 (suite) — 13/11/2026 06:45 UTC — usage 5h 78 % (reset 08:30) / semaine 78 %
+- Fusionnées, 8 jobs verts et audit à 0 pour chacune :
+  - #106 (socle T5/T7)
+  - #107 (S9 / ADR-016, harness GO ; spike renuméroté S9)
+  - #108 (mesure du placement des glyphes)
+  - #99 (fr-p3.1, boîtes exactes ; contre-épreuve à 99,3 %)
+  - #109 (fournisseur agent)
+  - #110 (hôte des calques)
+  - #111 (scènes T5 A)
+  - #113 (mesure de la rastérisation)
+  - #114 (harness Claude ; aucun e-mail dans les fixtures)
+  - #115 (mode marge)
+  - #116 (scènes T7 A)
+  - #112 (texte à l'origine fractionnaire ; échange de cliquets ADR-013 : −4 exceptions, +1 lettre manquée)
+- Décisions de l'orchestrateur, notées dans les beads :
+  - voie (b) du placement des glyphes, sans fork ;
+  - la dette T2 renommée « rastérisation des glyphes » ;
+  - ★ (a) : mode de texte PAR SURFACE, comme Chromium (ClearType sur fond opaque, gris dans un calque composé). Il découle d'une propriété de la surface, pas d'une liste de noms. fr-p4.1.4, après #102. fr-p3.5 devient le contrôle inverse.
+  - ★ --disable-lcd-text était une erreur du chef : les références T2, T5 et T7 se recaptureront en LCD par fr-p4.1.4. Règle retirée des consignes des équipiers.
+- Décisions du chef :
+  - sur #102 : 4 écarts traités par exceptions nommées en cliquet, chacune avec sa tâche de fermeture (dette (b) d'ADR-013, fr-p4.1.5 pour le SVG, fr-p4.1.2) ;
+  - sur #99 : pastille d'accent et 3 garde-fous en exceptions nommées ;
+  - dépendances validées : fragment-ui → fragment-plugins (#115), gpui-pre bench-support (#99), 4 crates déjà dans l'arbre sous pixels (#105).
+- ★ INCIDENT : DISQUE C: PLEIN (0 octet) vers 06:30. Dolt a planté, et les captures ont dépassé leurs délais.
+  - Le chef a supprimé 19 dossiers cible cargo de tâches finies : 44 Go libres.
+  - Nouvelle règle : un seul dossier cible par équipier, `df -h /c` avant un gros build.
+- ★ Un équipier a écrit DEUX FOIS dans le checkout principal par erreur. Annulé, et la règle « seulement ton worktree » est ajoutée aux consignes.
+- La permission de compiler la sonde COM de DirectWrite (C:/dev/raster-sonde) a été REFUSÉE : l'utilisateur est prévenu. La mesure s'en est passée.
+- Nouveaux beads :
+  - fr-p4.1.2, fr-p4.1.3, fr-p4.1.4, fr-p4.1.5 ;
+  - fr-t11.5 (interlettrage des réglages) ;
+  - parité de md_tableau et mode_marge.
+- En cours :
+  - #102 (fr-t2-montage, 7e reprise) ;
+  - #105 (fr-p3.4, recaptures sous verrou) ;
+  - fr-t5-widgets, fr-t5-doc-widget, fr-t7-fil, fr-t7-trace.
+**Rythme** : (97 − 78) ÷ 11,4 h ≈ 1,7 point par heure. Fenêtre 5 h à 78 % : aucun lancement avant le reset de 08:30.
+**Prochaine action exacte** :
+1. Revue de #102 et de #105 à leur compte rendu.
+2. fr-p4.1.4 dès la fusion de #102.
+3. Après 08:30 : fr-t5-surlignages, fr-t7-moteur, fr-t5-scenes-b, fr-t7-scenes-b (SANS --disable-lcd-text).

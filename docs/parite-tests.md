@@ -8,16 +8,16 @@ Règle de phase 1 : au moins 90 % des cas source portés ; chaque cas non porté
 
 | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|
-| 953 | 893 | 606 | 60 | 93.7 % |
+| 1093 | 1015 | 1081 | 78 | 92.9 % |
 
-**PORTE ATTEINTE** : 93.7 % des cas source portés.
+**PORTE ATTEINTE** : 92.9 % des cas source portés.
 
-- Modules non portés sans raison : aucun
+- Modules non portés sans raison : fragment-ui / crates/fragment-ui/src/md_tableau/widget.rs, hote.rs, menus.rs, controle.rs, geometrie.rs, fragment-ui / crates/fragment-ui/src/mode_marge/{mod,etat,geometrie,commandes}.rs, crates/fragment-ui/tests/mode_marge.rs
 - Fichiers illisibles : aucun
 
 ## Crates sans modules portés
 
-fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
+fragment-html, fragment-maths (pas de `parite.toml`).
 
 ## fragment-agent
 
@@ -42,10 +42,14 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 | skills_model | skillsModel.ts | 14 | 12 | 0 | 2 — le bundle réel : 7 skills, 22 fichiers, préprompt sans liens .agents/ : lit le bundle Vite (`skillsPlugin.ts`, import `?raw` des skills) : l'embarquement des skills dans le binaire est une tâche du harness / de l'app, pas du modèle ; le prompt livré : maths en LaTeX seulement, non-rendus listés : lit `FRAGMENT_PROMPT` (skillsPlugin.ts, bundle Vite) : même raison |
 | text_access | side-chat/textAccess.ts | 2 | 2 | 0 | — |
 | trace_model | trace/traceModel.ts | 15 | 15 | 0 | — |
+| crates/fragment-agent/src/fournisseur/{agent_chat,hote,faux}.rs | app/src/ui/views/agent/AgentChatProvider.ts, chatContributions.ts (id `agent`), types.ts ; app/e2e/{agent-chat,agent-harness,agent-permissions,agent-trace,chat-attachments}.spec.ts | 31 | 23 | 12 | 8 — agent-chat : ancienne vue `agent-chat` (layout d'avant) rouverte comme la vue chat : migration de layout de la vue : fr-t7-vue / fr-t7-montage ; agent-permissions : sans réglage, « Coffre ouvert » compile la liste blanche historique : la politique compilée pour le moteur est celle de fr-t7-harness-claude (compile_claude) et du service ; agent-permissions : les RÉGLAGES déclaratifs (avertissements, préréglages, matrice, arbre) : onglet Agent des réglages : fr-t7-reglages-agent ; agent-trace : le geste (étape neuve depuis le flou, au plus deux couches) : rendu de la trace : fr-t7-trace et les scènes pixels ; agent-trace : l'orbe choisie dans les réglages remplace l'automatique : orbe et onglet Agent : fr-t7-orbe, fr-t7-reglages-agent ; chat-attachments : coller une image → une puce ; ✕ la retire : extension `attachments` du champ : fr-t7-pieces-citation ; chat-attachments : une reconstruction de la vue garde les puces : état de l'extension du champ (save/restore) : fr-t7-pieces-citation ; chat-attachments : registre ouvert, un fournisseur REFUSE les pièces (`without`), un plugin tiers AJOUTE son extension : registre `chat:composer@1` : fr-t7-pieces-citation et fr-t7-fil |
+| crates/fragment-agent/src/fournisseur/pieces.rs | app/src/ui/views/agent/AgentChatProvider.ts (`reduireImage`, `ranger`, constantes COTE_MAX et OCTETS_MAX) | 0 | 0 | 10 | — |
+| crates/fragment-agent/src/fournisseur/parts.rs | app/src/ui/views/agent/AgentChatProvider.ts (`partTrace`), trace/traceModel.ts, policy/permissionCard.ts (forme JSON des parts) | 0 | 0 | 2 | — |
+| crates/fragment-agent/src/harness_claude/{mod,commande,protocole,tour,processus,transcript,dossier_agent,faux}.rs | app/src/ui/views/agent/harness/claudeHarness.ts, AgentHost.ts (send, getSession, envDuTour), sdkProcess.mjs (send, demander, getSession) ; app/e2e/{agent-harness,agent-permissions}.spec.ts | 15 | 8 | 39 | 7 — agent-harness : la suite reçoit l'état persisté ; le moteur est FIGÉ après le 1er tour : le harness Claude n'a pas d'état (l'id de session EST celui de la conversation) ; le moteur figé est le fournisseur (fr-t7-fournisseur). La reprise est couverte par la_suite_reprend_la_session_sans_instantane_du_prompt ; agent-harness : le moteur par défaut des réglages s'applique à une conversation NEUVE : choix du moteur : fournisseur et service (fr-t7-fournisseur, fr-t7-service) ; agent-harness : plugin du moteur désactivé : registre et fournisseur (fr-t7-fournisseur) ; agent-permissions : « Toujours dans cette conversation » / « Toujours dans ce coffre » : les règles permanentes vivent chez Fragment (garde + PermanentRule, fr-t7-service) ; le harness vérifie seulement qu'il n'envoie jamais `updatedPermissions` (assistant_une_carte_dans_la_reponse_autoriser_une_fois_l_outil_passe) ; agent-permissions : mode PLAN, « Lancer » passe la conversation en modifs auto : le changement de mode est l'hôte ; le harness porte le texte du plan dans la demande (protocole::tests::la_carte_du_plan_porte_son_texte) ; agent-permissions : les RÉGLAGES déclaratifs : onglet Agent des réglages : fr-t7-reglages-agent |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-agent | 117 | 109 | 0 | 8 | 93.2 % |
+| fragment-agent | 163 | 140 | 63 | 23 | 85.9 % |
 
 ## fragment-annotation
 
@@ -219,10 +223,11 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 | src/widget_activation.rs | ui/core/layers/WidgetActivation.ts | 8 | 8 | 3 | — |
 | src/gutter_arbiter.rs | ui/core/layers/GutterArbiter.ts | 3 | 3 | 4 | — |
 | src/widget_layer.rs | ui/core/layers/WidgetLayer.ts | 3 | 3 | 23 | — |
+| crates/fragment-layers/src/view_overlays.rs, crates/fragment-layers/src/gutter_arbiter.rs (with_wanted_scale, with_on_slot_removed), crates/fragment-layers/tests/view_overlays.rs | app/src/ui/core/layers/ViewOverlays.ts (clientToViewport, clientToDocument, documentToClient, gutterBand, calculerBande, documentOrigin, clé du ResizeObserver, viewport / visible / planifierViewport, majMarge, setWanted × échelle) | 0 | 0 | 18 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-layers | 35 | 35 | 36 | 0 | 100.0 % |
+| fragment-layers | 35 | 35 | 54 | 0 | 100.0 % |
 
 ## fragment-markdown
 
@@ -234,6 +239,7 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 | readme_markdown | settings/readmeMarkdown.ts | 4 | 4 | 0 | — |
 | sanitize_html | views/markdown/sanitizeHtml.ts | 5 | 5 | 0 | — |
 | table_model | views/markdown/table/tableModel.ts | 18 | 18 | 0 | — |
+| crates/fragment-markdown/src/blocs/modele.rs, calcul.rs, rangees.rs, repli.rs | app/src/ui/views/markdown/decorationPlugin.ts (mathBlockField, embedField, markdownFoldService, atxHeadingLevel, toggleFoldAt, blockFoldProvider) ; htmlDecorations.ts (htmlBlockField) ; table/tableField.ts (buildTableDecos) ; properties/frontmatterField.ts (buildDecos, repli, curseurHorsDuBloc) ; scénarios app/e2e/editor-hell.spec.ts | 3 | 3 | 77 | — |
 | crates/fragment-markdown/src/commandes/actions.rs | app/src/ui/views/markdown/EditorCommandsPlugin.ts (table ACTIONS, appliquerTransformation, appliquerCommandeEditeur, collerTexteBrut, toutSelectionner) | 0 | 0 | 10 | — |
 | crates/fragment-markdown/src/commandes/menu.rs | app/src/ui/views/markdown/MarkdownView.ts (remplirMenuEditeur, wireContextMenu : sections) | 3 | 3 | 11 | — |
 | crates/fragment-markdown/src/commandes/insertion.rs | app/src/ui/views/markdown/table/tableField.ts (separerDuTableau, saisieSousTableau) | 1 | 1 | 2 | — |
@@ -245,10 +251,14 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 | crates/fragment-markdown/src/syntaxe/analyse_blocs.rs, en_ligne.rs, genre.rs | app/src/ui/views/markdown/language.ts (markdownExtensions : GFM, Subscript, Superscript, WikiLink, Highlight, InlineMath, BlockMath, MathHighlight) sur @lezer/markdown 1.7.2 | 0 | 0 | 28 | — |
 | crates/fragment-markdown/src/syntaxe/arbre.rs | (ajout) arbre à plat et positions UTF-16 (ADR-004) | 0 | 0 | 5 | — |
 | crates/fragment-markdown/src/syntaxe/modele_rangees.rs | (ajout) types partagés par fr-t3-decorations et fr-t3-blocs-modele (contrat set_row_model, ADR-006) | 0 | 0 | 4 | — |
+| crates/fragment-markdown/src/syntaxe/imbrique_stex.rs, imbrique_jetons.rs | app/src/ui/views/markdown/language.ts (MathHighlight : parseMixed + stexMath ; codeHighlightStyle) sur @codemirror/legacy-modes 6.5.3 et @codemirror/language | 0 | 0 | 10 | — |
+| crates/fragment-markdown/src/syntaxe/imbrique_code.rs, imbrique_langues.rs | app/src/ui/views/markdown/livePreview.ts (codeLanguages: languages) : coloration des blocs ``` par langage | 0 | 0 | 17 | — |
+| crates/fragment-markdown/src/syntaxe/imbrique.rs | (ajout) couche des langages imbriqués, incrémentale (principe de parseMixed, @lezer/common) | 0 | 0 | 4 | — |
+| crates/fragment-markdown/src/syntaxe/imbrique_langues_plus.rs, imbrique_langues.rs | app/src/ui/views/markdown/livePreview.ts (codeLanguages: languages) sur @codemirror/language-data et @codemirror/legacy-modes : langages des blocs ``` au-delà de fr-t3.2 | 0 | 0 | 51 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-markdown | 120 | 119 | 113 | 1 | 99.2 % |
+| fragment-markdown | 123 | 122 | 272 | 1 | 99.2 % |
 
 ## fragment-pdf
 
@@ -261,12 +271,13 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 | pdf_zoom | app/src/ui/views/pdf/pdfZoom.ts | 7 | 7 | 0 | — |
 | crates/fragment-pdf/src/laterale/*.rs | app/src/ui/views/pdf/PdfSidebar.ts (modes, vignettes virtualisées, arbre de la table, reveler, poignée), section barre latérale de pdf-view.css | 6 | 6 | 15 | — |
 | crates/fragment-pdf/src/document/mod.rs | app/src/ui/views/pdf/PdfView.ts (chargement, pages, couche texte, liens), pdfOutline.ts (resoudreOutline, resoudreDestination) | 0 | 0 | 11 | — |
+| crates/fragment-pdf/src/document/mod.rs (rendre_region), examples/spike_s7.rs | app/src/ui/views/pdf/PdfView.ts (rendu d'une page : canvas round(pt × échelle), transform [w/vw, 0, 0, h/vh]) | 0 | 0 | 3 | — |
 | crates/fragment-pdf/src/recherche/*.rs | app/src/ui/views/pdf/PdfFindBar.ts (état find, compteur, fermeture) ; contrôleur de recherche de pdf.js (normalize, correspondance, navigation) | 5 | 4 | 21 | 1 — ctrl_f_ouvre_la_barre_le_champ_a_le_focus : focus du champ et clavier de la barre montée : vue (fr-t4-recherche-ui), hors modèle |
 | crates/fragment-pdf/src/vue_modele/*.rs | app/src/ui/views/pdf/PdfView.ts (appliquerEchelle, modes, ResizeObserver, IntersectionObserver, majPage, champ de page, repeindre, finDeGeste, zoomerMolette, lirePosition, allerAPosition, getEphemeralState), devicePixels.ts | 12 | 12 | 20 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-pdf | 56 | 55 | 67 | 1 | 98.2 % |
+| fragment-pdf | 56 | 55 | 70 | 1 | 98.2 % |
 
 ## fragment-plugins
 
@@ -344,9 +355,36 @@ fragment-html, fragment-maths, ex-spike-maths (pas de `parite.toml`).
 |  | app/e2e/right-dock.spec.ts | 1 | 0 | 0 | 1 — panneau droit : toggle topbar + reveal + topbar intacte : « reveal » ouvre une vue d'outil (chat, T7) ; le basculement seul est couvert par les tests de splits et la scène t1-docks-ouverts. |
 |  | app/e2e/view-header-nav.spec.ts | 1 | 0 | 0 | 1 — ← → naviguent dans l’historique de l’onglet, le titre reste centré : Il faut des documents (T2) ; l'état grisé est la scène t1-entete-vue (T1.md §5). |
 | crates/fragment-ui/src/clavier/mod.rs | app/src/ui/core/keymap/Keymap.ts (écoute keydown de la fenêtre) | 0 | 0 | 3 | — |
-| crates/fragment-ui/tests/spike_s6.rs, crates/fragment-ui/tests/spike_s6/smil.rs | (ajout) spike S6 : rendu natif de gpui-kit, SVG et SMIL contre Chromium, politique d'assainissement | 0 | 0 | 6 | — |
+| crates/fragment-ui/tests/theme_clair.rs (sur editeur/element.rs::style_projete et menu.rs) | app/e2e/light-theme.spec.ts, app/src/ui/index.css (.theme-light), app/src/ui/views/markdown/editor.css (caret), app/src/ui/core/menu.css | 1 | 1 | 0 | — |
+| crates/fragment-ui/src/reglages/apparence_themes.rs | app/src/ui/settings/SettingsPlugin.ts (Appearance), ui/core/settings/theme.ts, e2e/theme-plugin.spec.ts (test 2), e2e/light-theme.spec.ts | 2 | 2 | 5 | — |
+| crates/fragment-theme/src/themes_coffre.rs, crates/fragment-ui/src/themes/mod.rs | app/src/ui/theme/ThemePlugin.ts, api.ts (theme:manager@1), e2e/theme-plugin.spec.ts | 3 | 3 | 19 | — |
+| crates/fragment-ui/src/explorateur/{menu,renommer,deplacer,glisser}.rs, crates/fragment-ui/src/explorateur/vue.rs (actions), crates/fragment-ui/src/glisser/mod.rs (glisser de fichier), crates/fragment-ui/tests/explorateur_actions.rs | app/e2e/explorer-menus.spec.ts ; app/src/ui/views/explorer/FileTree.tsx (ouvrirMenuFichier, creerNote, creerDossier, cheminLibre, copierDe, cheminSysteme, RenameInput, commitRename, FolderSuggestModal, folderOf, freePath, importFiles, dropFolderPath, SPRING_DELAY, setTarget / collapseStale / endDrag, file-drag-over / file-move) ; app/src/ui/core/DragManager.ts ; app/src/ui/core/FuzzySuggestModal.ts | 6 | 6 | 46 | — |
+| crates/fragment-ui/src/explorateur/*.rs, crates/fragment-ui/tests/explorateur.rs | app/src/ui/views/explorer/FileExplorerView.tsx, FileTree.tsx (TreeNode, sortChildren, expanded, reveal, getExpanded / setExpanded), explorer.css (conteneur défilant) ; app/src/ui/views/useVaultVersion.ts | 1 | 1 | 19 | — |
+| crates/fragment-ui/src/tree_item/*.rs, crates/fragment-ui/tests/tree_item.rs | app/src/ui/views/TreeItem.tsx, treeItem.css (+ cible de dépôt de explorer.css) | 0 | 0 | 13 | — |
+| crates/fragment-ui/src/md_html/arbre.rs, css.rs, smil.rs, svg.rs, en_ligne.rs, bloc.rs, hote.rs | app/src/ui/views/markdown/htmlDecorations.ts, html-markdown.css, sanitizeHtml.ts (usage : sanitizeHtml) | 5 | 5 | 13 | — |
+| crates/fragment-ui/src/md_proprietes/modele.rs, crates/fragment-ui/src/md_proprietes/saisie.rs | app/src/ui/views/markdown/properties/PropertiesWidget.ts (commit, commitKey, commitPending, valueEditor, listEditor, openMenu, onIconDown, addPendingProperty), frontmatterField.ts (curseurHorsDuBloc, saisie, frappeApresBlocFinal, entrer, selectionnerBloc) | 12 | 12 | 1 | — |
+| crates/fragment-ui/src/editeur/surface.rs, crates/fragment-ui/src/editeur/changement.rs | app/src/ui/views/markdown/CmEditor.ts (TextSurface : getLine, offsetToPos, getSelection, coordsAtPos, coordsForRange, posAtCoords, viewportRange, renderedRanges, mapPos) | 0 | 0 | 4 | — |
+| crates/fragment-ui/src/editeur/element.rs, crates/fragment-ui/src/editeur/modele.rs, crates/fragment-ui/src/editeur/jetons.rs, crates/fragment-ui/src/editeur/constantes.rs | app/src/ui/views/markdown/MarkdownView.ts (création de l'éditeur), decorationPlugin.ts (projection replace/mark/line), editor.css, markdown-view.css | 2 | 2 | 13 | — |
+| crates/fragment-ui/src/md_tableau/widget.rs, hote.rs, menus.rs, controle.rs, geometrie.rs | app/src/ui/views/markdown/table/TableWidget.ts, cellEditor.ts, tableField.ts, tableMenu.ts, table.css | 12 | 11 | 13 | **1 non porté(s) sans raison** |
+| crates/fragment-ui/src/md_blocs/hote.rs, crates/fragment-ui/src/md_blocs/complement.rs, crates/fragment-ui/src/md_blocs/geometrie.rs, crates/fragment-ui/src/md_blocs/maths.rs | app/src/ui/views/markdown/decorationPlugin.ts (SeparatorWidget, LangBadgeWidget, MathBlockWidget, mathBlockField, embedField), editor.css (.cm-ob-codeblock*, .cm-ob-code-lang, .cm-hr, .cm-math-block) | 4 | 4 | 11 | — |
+| crates/fragment-ui/src/md_repli/etat.rs, crates/fragment-ui/src/md_repli/gouttiere.rs | app/src/ui/views/markdown/decorationPlugin.ts (markdownFolding : hoveredLine, foldCtl, hoverTracker, foldChevronGutter, ChevronMarker, toggleFoldAt), editor.css (.cm-foldGutter, .cm-fold-chevron) | 1 | 1 | 6 | — |
+| crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs | app/src/ui/views/markdown/decorationPlugin.ts (CheckboxWidget, toogleCheckbox), editor.css (.cm-task-checkbox), e2e/editor-hell.spec.ts | 3 | 3 | 3 | — |
+| crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs | app/src/ui/views/markdown/decorationPlugin.ts (BulletWidget, IndentBarWidget), editor.css (.cm-ob-bullet, .cm-indent, .cm-indent-line) | 0 | 0 | 4 | — |
+| crates/fragment-ui/src/md_inline/geometrie.rs, crates/fragment-ui/src/md_inline/calque.rs, crates/fragment-maths/src/ | app/src/ui/views/markdown/decorationPlugin.ts (MathInlineWidget, selectInside), mathjax.ts, e2e/editor-hell.spec.ts | 1 | 1 | 3 | — |
+| vendor/gpui-base (set_widget_ranges), crates/fragment-ui/tests/md_inline.rs | (patch du fork n°1, ADR-006) CodeMirror Decoration.widget de largeur libre | 0 | 0 | 2 | — |
+| crates/fragment-ui/src/editeur/modele.rs (Projeteur, Decalage, lignes_apres), crates/fragment-ui/src/editeur/changement.rs (changement_par_morceaux) | app/src/ui/views/markdown/decorationPlugin.ts (recalcul des décorations à chaque transaction) | 0 | 0 | 4 | — |
+| crates/fragment-ui/src/editeur/element.rs (set_calque, set_largeurs_widgets, poser_complement, reprojeter_maintenant, OptionsEditeur::fond_transparent) | (crochets des tâches aval fr-t3-widgets-inline et fr-t3-widgets-blocs) | 0 | 0 | 4 | — |
+| vendor/gpui-base/src/input/base/element.rs (exact_line_height), vendor/gpui-base/src/input/base/state.rs | app/src/ui/views/markdown/editor.css (thème de base de CodeMirror : .cm-scroller { line-height: 1.4 }) | 0 | 0 | 1 | — |
+| crates/fragment-ui/src/pdf_barre/*.rs | app/src/ui/views/pdf/PdfView.ts (construireBarreOutils, bouton, separateur, ouvrirMenu, remplirMenuBarre, remplirMenuZoom, construireRaccourcis), pdf-view.css (.pdf-toolbar*, .pdf-page-*) | 7 | 7 | 5 | — |
+| crates/fragment-ui/src/pdf_laterale/{mod,vue,rendu}.rs, crates/fragment-ui/tests/pdf_laterale.rs | app/src/ui/views/pdf/PdfSidebar.ts (charger, vider, peindreVignette, libererVignette, setPageCourante, montrerVignette, construireToc, construireEntree, reveler, construirePoignee), pdf-view.css (.pdf-sidebar-*, .pdf-thumbnail*, .pdf-outline-*) | 7 | 7 | 3 | — |
+| crates/fragment-ui/src/pdf_pages/{mod,vue,emplacements,fil}.rs, crates/fragment-ui/tests/pdf_pages.rs | app/src/ui/views/pdf/PdfView.ts (Emplacement, peindre, liberer, repeindre, repeindrePage, recaler, molette), devicePixels.ts, PdfEditor.ts (renderedRanges), pdf-view.css (.pdf-pages, .pdf-page, is-stale, is-pending) | 3 | 3 | 12 | — |
+| crates/fragment-ui/src/pdf_recherche/*.rs, crates/fragment-ui/tests/pdf_recherche.rs | app/src/ui/views/pdf/PdfFindBar.ts, pdf-view.css (.pdf-find-*) | 5 | 5 | 3 | — |
+| crates/fragment-ui/src/pdf_texte/{mod,modele,surface,source,vue}.rs, crates/fragment-ui/tests/pdf_texte.rs | app/src/ui/views/pdf/PdfEditor.ts (coordsAtPos, posAtCoords, lignes, getSelection, coordsForRange, viewportRange, renderedRanges, cache des glyphes), PdfView.ts (batirTexte, batirLiens, clic des liens externes), pdf-view.css (.pdf-text-layer ::selection, .linkAnnotation) | 5 | 5 | 15 | — |
+| crates/fragment-ui/src/calques/{mod,hote,element}.rs, crates/fragment-ui/tests/calques.rs | app/src/ui/core/layers/ViewOverlays.ts (mount, ensureViewport, ensureDocument, ensureGutter, makeRoot, gutterSlot, trackActivation, onGeometryChange, onViewportChange, onClustersChange, activeHostedLeaf, destroy) | 0 | 0 | 10 | — |
+| crates/fragment-ui/src/mode_marge/{mod,etat,geometrie,commandes}.rs, crates/fragment-ui/tests/mode_marge.rs | app/src/ui/coreCommands/marginMode.ts (installerMargeDeLecture : 3 commandes sur la feuille active, retrait), marginMode.css (réserve 25 % / 40 %, transition 90 ms, feuille imbriquée exclue), app/e2e/margin-mode.spec.ts | 11 | 9 | 4 | **2 non porté(s) sans raison** |
+| crates/fragment-ui/src/clavier/balayage.rs | app/src/ui/core/keymap/Keymap.ts (écoute `wheel`, defileEncore) | 0 | 0 | 2 | — |
 
 | Synthèse | Cas source | Portés | Ajoutés | Non portés | Taux |
 |---|---|---|---|---|---|
-| fragment-ui | 47 | 33 | 13 | 14 | 70.2 % |
+| fragment-ui | 138 | 121 | 245 | 17 | 87.7 % |
 
