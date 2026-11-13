@@ -321,16 +321,20 @@ impl Element for TexteExact {
             debut += morceau.len() + 1;
         }
         let police = cx.text_system().resolve_font(&style_texte.font());
+        // ★ `TextSystem::descent` est NÉGATIVE (métrique de police brute), alors que la descendante
+        // d'une ligne façonnée (`LineLayout::descent`, celle de `shell::barre_etat`) est positive.
         let metriques = (
             f32::from(cx.text_system().ascent(police, taille)),
-            f32::from(cx.text_system().descent(police, taille)),
+            f32::from(cx.text_system().descent(police, taille)).abs(),
         );
         let largeur = lignes
             .iter()
             .map(|l| f32::from(l.width))
             .fold(0.0_f32, f32::max);
-        let mut style = Style::default();
-        style.flex_shrink = 0.0;
+        let mut style = Style {
+            flex_shrink: 0.0,
+            ..Style::default()
+        };
         // La largeur de GPUI : arrondie au pixel supérieur (`elements/text.rs`).
         style.size.width = if self.pleine.0 {
             relative(1.0).into()

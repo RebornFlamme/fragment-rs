@@ -11,9 +11,10 @@ use std::mem::ManuallyDrop;
 use std::time::Instant;
 
 use fragment_theme::Mode;
-use fragment_ui::rendu::texte::{Ancrage, EtatTexteExact, texte_exact, unite};
+use fragment_ui::rendu::texte::{Ancrage, EtatTexteExact, ligne_de_base, texte_exact, unite};
 use fragment_ui::{polices, theme_global};
 use gpui_kit::platform::current_platform;
+use gpui_kit::test::TestWindowExt as _;
 use gpui_kit::{
     AnyWindowHandle, App, AppContext as _, Bounds, Context, Entity, IntoElement,
     ParentElement as _, Pixels, Point, Render, Styled as _, TestAppContext, TestDispatcher,
@@ -85,7 +86,7 @@ impl Banc {
         cx.update(gpui_kit::init);
         cx.update(|cx| theme_global::installer(cx, Mode::Sombre));
         let (fenetre, vue) = cx.update(|cx| {
-            let fenetre = gpui_kit::open_window(
+            gpui_kit::open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(Bounds {
                         origin: Point::default(),
@@ -102,10 +103,10 @@ impl Banc {
                     })
                 },
             )
-            .unwrap();
-            let vue = fenetre.root(cx).unwrap();
-            (fenetre.into(), vue)
+            .unwrap()
         });
+        cx.update_window(fenetre, |_, window, _| window.activate_window())
+            .unwrap();
         let mut b = Banc {
             cx: ManuallyDrop::new(cx),
             fenetre,
@@ -172,7 +173,14 @@ fn le_texte_ancre_a_droite_part_de_la_fraction() {
     let attendu = f(bornes.origin.x) + unite(f(bornes.size.width) - largeur);
     assert!((f(o.x) - attendu).abs() < 1e-3, "{o:?} contre {attendu}");
     assert!(f(o.x).fract() > 0.0, "origine fractionnaire : {o:?}");
-    assert_eq!(f(o.y), f(bornes.origin.y) + 12.0);
+    // Le banc tourne à l'échelle 2 : la ligne de base se calcule en px d'écran (12 px sous le haut
+    // à l'échelle 1, 12,5 à l'échelle 2).
+    let k =
+        b.cx.update_window(b.fenetre, |_, w, _| w.scale_factor())
+            .unwrap();
+    let base = ligne_de_base(f(bornes.origin.y) * k, 16.8 * k, 11.904 * k, 3.72 * k) / k;
+    assert_eq!(f(o.y), base, "k = {k}");
+    assert!((f(o.y) - f(bornes.origin.y) - 12.0).abs() <= 0.5, "{o:?}");
 }
 
 /// Le curseur et le pointé suivent la peinture : la position du caractère 0 est l'origine peinte,
@@ -196,7 +204,10 @@ fn curseur_et_pointe_suivent_l_origine_peinte() {
         debut.y < o.y && f(o.y - debut.y) < 17.0,
         "{debut:?} / {o:?}"
     );
-    for i in 0..TEXTE.len() {
+    // Pointer au premier quart de chaque caractère rend son octet (le dernier excepté : GPUI rend la
+    // fin de ligne dès qu'on dépasse le début du dernier glyphe, `closest_index_for_x`). Le pointé
+    // relit donc l'origine fractionnaire : décalé d'un demi-caractère, il change d'octet.
+    for i in 0..TEXTE.len() - 1 {
         let (p, q) = b.lire(|v, _| {
             (
                 v.exact.position_pour_indice(i).unwrap(),
@@ -206,7 +217,18 @@ fn curseur_et_pointe_suivent_l_origine_peinte() {
         let milieu_gauche = point(p.x + (q.x - p.x) * 0.25, p.y + px(4.0));
         let trouve = b.lire(|v, _| v.exact.indice_pour_position(milieu_gauche));
         assert_eq!(trouve, Some(i), "pointé du caractère {i}");
+        let trois_quarts = point(p.x + (q.x - p.x) * 0.75, p.y + px(4.0));
+        let trouve = b.lire(|v, _| v.exact.indice_pour_position(trois_quarts));
+        assert_eq!(trouve, Some(i + 1), "pointé de la fin du caractère {i}");
     }
+    // Avant l'origine peinte : le début ; après la fin exacte : la fin.
+    let avant = b.lire(|v, _| v.exact.indice_pour_position(point(o.x - px(0.2), debut.y)));
+    assert_eq!(avant, Some(0));
+    let apres = b.lire(|v, _| {
+        v.exact
+            .indice_pour_position(point(fin.x + px(0.2), debut.y))
+    });
+    assert_eq!(apres, Some(TEXTE.len()));
 }
 
 /// Le coût : la mise en page et la peinture de 400 libellés, texte de GPUI contre texte exact
