@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>saisie</title>
+<style>html, body { margin: 0; height: 100%; background: #1e90ff; }
+#champ { position: absolute; left: 20px; top: 20px; width: 200px; height: 30px; }</style>
+</head>
+<body>
+<input id="champ">
+<script>
+  window.__journal = [];
+  var champ = document.getElementById('champ');
+  ['mousedown', 'click', 'focus', 'blur', 'keydown', 'input', 'compositionstart', 'compositionend']
+    .forEach(function (n) {
+      champ.addEventListener(n, function (e) { window.__journal.push(n + (e.key ? ':' + e.key : '')); });
+    });
+  window.__etat = function () {
+    return JSON.stringify({
+      valeur: champ.value,
+      actif: document.activeElement && document.activeElement.id,
+      aLeFocus: document.hasFocus(),
+      journal: window.__journal
+    });
+  };
+</script>
+</body>
+</html>
