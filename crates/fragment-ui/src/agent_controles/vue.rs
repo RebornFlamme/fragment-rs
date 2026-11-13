@@ -30,7 +30,6 @@ use gpui_kit::{
     AnyElement, AnyView, App, AppContext as _, Context, ElementId, Entity, FontWeight,
     InteractiveElement as _, IntoElement, ParentElement as _, PathBuilder, Render, Role,
     SharedString, StatefulInteractiveElement as _, Styled as _, Window, canvas, div, point, px,
-    svg,
 };
 
 use super::carte::{
@@ -155,7 +154,7 @@ fn bouton_liste(
     if etat.desactive {
         return b.opacity(0.6).into_any_element();
     }
-    let chevron = svg()
+    let chevron = crate::icone::icone_image()
         .path(icones::chemin("chevron-down"))
         .size(u(cx, f.icon_xs))
         .flex_none();
@@ -315,7 +314,7 @@ fn puce(v: &VuePuce, p: &PuceContexte, e: &Encres, t: &Theme, cx: &App) -> AnyEl
     chip = famille_interface(chip);
     chip = chip
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(&v.icone))
                 .size(u(cx, f.icon_xs))
                 .flex_none(),
@@ -348,7 +347,7 @@ fn puce(v: &VuePuce, p: &PuceContexte, e: &Encres, t: &Theme, cx: &App) -> AnyEl
                 window.refresh();
             })
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin("x"))
                     .size(u(cx, f.icon_xs))
                     .flex_none(),
@@ -502,7 +501,7 @@ impl Render for CarteVue {
                 .border_color(couleur(Couleur::TRANSPARENT))
                 .text_color(e.muted)
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(mark.0))
                         .size(u(cx, f.icon_s))
                         .flex_none()
@@ -536,7 +535,7 @@ impl Render for CarteVue {
                     u16::try_from(t.typo.font_semibold).unwrap_or(600),
                 )))
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(&d.icon))
                         .size(u(cx, f.icon_s))
                         .flex_none()

@@ -945,7 +945,7 @@ fn rendre_en_tete(interne: &Rc<Interne>, cx: &App) -> AnyElement {
                     fenetre.refresh();
                 })
                 .child(
-                    gpui_kit::svg()
+                    crate::icone::icone_image()
                         .path(crate::icones::chemin(icone))
                         .size(u(cx, f.icon_m))
                         .flex_none()

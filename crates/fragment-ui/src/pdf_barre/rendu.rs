@@ -9,7 +9,7 @@ use std::rc::Rc;
 use fragment_pdf::vue_modele::VueModele;
 use gpui_kit::{
     AnyElement, App, Div, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement as _, Stateful, Styled as _, div, svg,
+    ParentElement as _, Stateful, Styled as _, div,
 };
 
 use super::modele::{BarrePdf, Bouton};
@@ -93,7 +93,7 @@ pub fn rendre_barre_avec_champ(
             .h(u(cx, BOUTON))
             .rounded(u(cx, f.radius_s))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(b.icone()))
                     .size(u(cx, taille_icone))
                     .flex_none()

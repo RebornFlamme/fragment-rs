@@ -16,7 +16,7 @@ use fragment_text::Rect;
 use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement as _, Styled as _, div, svg,
+    ParentElement as _, Styled as _, div,
 };
 
 use super::modele::BarreRecherche;
@@ -115,7 +115,7 @@ pub fn rendre_barre(
             .h(u(cx, cote))
             .rounded(u(cx, f.radius_s))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(b.icone()))
                     .size(u(cx, f.icon_m))
                     .flex_none()
@@ -178,7 +178,7 @@ pub fn rendre_barre(
         compteur.opacity(0.8)
     };
 
-    let loupe = svg()
+    let loupe = crate::icone::icone_image()
         .path(icones::chemin("search"))
         .size(u(cx, f.icon_xs))
         .flex_none()

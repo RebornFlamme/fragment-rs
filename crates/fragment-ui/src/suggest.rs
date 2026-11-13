@@ -21,7 +21,7 @@ use gpui_kit::{
     AppContext as _, Context, FocusHandle, Font, FontFallbacks, FontStyle, FontWeight,
     HighlightStyle, Hsla, InteractiveElement as _, IntoElement, KeyDownEvent, Modifiers,
     MouseButton, MouseDownEvent, MouseMoveEvent, ParentElement as _, Render, ScrollHandle,
-    StatefulInteractiveElement as _, Styled, StyledText, TextRun, Window, div, relative, svg,
+    StatefulInteractiveElement as _, Styled, StyledText, TextRun, Window, div, relative,
 };
 
 use crate::echelle::{calees, u};
@@ -572,7 +572,7 @@ impl<S: Suggeres> Render for ModaleSuggestion<S> {
                     )),
                     Auxiliaire::Epingle => aux.child(
                         div().flex().text_color(attenue).child(
-                            svg()
+                            crate::icone::icone_image()
                                 .path(icones::chemin("pin"))
                                 .size(u(cx, t.forme.icon_xs))
                                 .text_color(attenue),

@@ -18,7 +18,7 @@ use fragment_core::{Command, CommandManager, Keymap, Scope};
 use gpui_kit::{
     AnyElement, App, Bounds, FontWeight, InteractiveElement as _, IntoElement, MouseDownEvent,
     ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, Window, anchored,
-    canvas, deferred, div, point, relative, svg,
+    canvas, deferred, div, point, relative,
 };
 use serde_json::Value;
 
@@ -604,7 +604,7 @@ fn rendre_niveau(
                         .pl(moitie(cx, f.icon_m - ICONE))
                         .opacity(if it.warning { 1.0 } else { 0.7 })
                         .children(it.icon.as_ref().map(|nom| {
-                            svg()
+                            crate::icone::icone_image()
                                 .path(icones::chemin(nom))
                                 .size(u(cx, ICONE))
                                 .flex_none()
@@ -637,7 +637,7 @@ fn rendre_niveau(
                     if it.submenu.is_some() {
                         ligne = ligne.child(
                             div().flex().opacity(0.5).child(
-                                svg()
+                                crate::icone::icone_image()
                                     .path(icones::chemin("chevron-right"))
                                     .size(u(cx, f.icon_xs))
                                     .flex_none()

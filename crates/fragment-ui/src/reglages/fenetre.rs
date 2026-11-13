@@ -24,7 +24,6 @@ use gpui_kit::{
     InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, Pixels, Render, SharedString,
     StatefulInteractiveElement as _, Styled, Window, anchored, canvas, deferred, div, point, px,
-    svg,
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
@@ -460,7 +459,7 @@ impl FenetreReglages {
                 };
                 if let Some(nom) = &o.icone {
                     item = item.child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(nom))
                             .size(u(cx, f.icon_s))
                             .flex_none()
@@ -511,7 +510,7 @@ impl FenetreReglages {
                     .absolute()
                     .left(u(cx, LOUPE_GAUCHE - f.border_width))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("search"))
                             .size(u(cx, f.icon_xs))
                             .text_color(couleur(c.text_muted)),
@@ -1009,7 +1008,7 @@ impl FenetreReglages {
                     .text_color(couleur(p.text_muted))
                     .hover(move |s| s.bg(survol).text_color(normal))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(&b.icon))
                             .size(u(cx, f.icon_s))
                             .text_color(couleur(p.text_muted)),
@@ -1147,7 +1146,7 @@ impl FenetreReglages {
                     .top(haut_fleche)
                     .right(u(cx, f.size_2_3))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("chevrons-up-down"))
                             .size(u(cx, f.icon_s))
                             // ★ Le CSS écrit ici un gris littéral (#8f8e89, dans une URL de données),

@@ -9,7 +9,7 @@ use fragment_chat::api::Participant;
 use fragment_theme::{Couleur, Theme};
 use gpui_kit::{
     App, ElementId, InteractiveElement as _, IntoElement, ParentElement as _, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _, div, px, svg,
+    StatefulInteractiveElement as _, Styled as _, div, px,
 };
 
 use super::modele::{ContenuAvatar, contenu_avatar, oklch_vers_rgb};
@@ -64,7 +64,7 @@ pub fn bouton_icone(
         .justify_center()
         .size(cote)
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(icone))
                 .size(u(cx, COTE_ICONE_BOUTON))
                 .flex_none(),
@@ -137,7 +137,7 @@ pub fn avatar(p: &Participant, grand: bool, theme: &Theme, cx: &App) -> impl Int
             .bg(couleur(pal.text_normal))
             .text_color(couleur(pal.workspace_bg))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(&nom))
                     .size(u(cx, 13.0))
                     .flex_none(),

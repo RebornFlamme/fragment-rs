@@ -6,7 +6,7 @@
 
 use fragment_chat::history_model::salutation;
 use fragment_theme::Theme;
-use gpui_kit::{App, IntoElement, ParentElement as _, Styled as _, div, relative, svg};
+use gpui_kit::{App, IntoElement, ParentElement as _, Styled as _, div, relative};
 
 use super::horloge::Horloge;
 use crate::echelle::u;
@@ -61,7 +61,7 @@ pub fn accueil(
                 .flex_none()
                 .text_color(couleur(p.color_accent))
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(nom_icone))
                         .size(u(cx, corps))
                         .flex_none(),

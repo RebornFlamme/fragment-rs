@@ -6,7 +6,7 @@
 
 use gpui_kit::{
     App, ElementId, InteractiveElement as _, IntoElement, ParentElement as _, Role,
-    StatefulInteractiveElement as _, Styled as _, Window, div, px, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, div, px,
 };
 
 use crate::echelle::u;
@@ -177,7 +177,7 @@ pub fn pastille(
         })
         .on_click(move |_, window, cx| au_clic(window, cx))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin("arrow-down"))
                 .size(u(cx, 16.0))
                 .flex_none()

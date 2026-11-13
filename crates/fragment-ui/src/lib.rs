@@ -12,6 +12,7 @@
 pub mod boites;
 pub mod echelle;
 pub mod flottant;
+pub mod icone;
 pub mod icones;
 pub mod polices;
 pub mod rendu;

@@ -21,7 +21,7 @@ use fragment_core::{CommandManager, Keymap, Scope};
 use gpui_kit::{
     AnyView, App, AppContext as _, Context, Entity, FocusHandle, Global, InteractiveElement as _,
     IntoElement, KeyDownEvent, MouseButton, ParentElement as _, Pixels, Render, SharedString,
-    Styled as _, Window, WindowId, div, relative, svg,
+    Styled as _, Window, WindowId, div, relative,
 };
 
 use crate::echelle::u;
@@ -405,7 +405,7 @@ impl Render for Modale {
                     window.refresh();
                 })
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin("x"))
                         .size(u(cx, t.forme.icon_s))
                         .text_color(couleur(t.palette.text_muted)),

@@ -39,7 +39,7 @@ use gpui_kit::{
     FocusHandle, Focusable as _, FontWeight, InteractiveElement as _, IntoElement, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Render,
     ScrollHandle, StatefulInteractiveElement as _, Styled as _, Subscription, TextAlign, TextRun,
-    Window, canvas, div, font, point, px, size, svg,
+    Window, canvas, div, font, point, px, size,
 };
 
 use super::controle::{self, Geste, Operation, Sortie, Suite, diff_minimal};
@@ -1263,7 +1263,7 @@ impl Render for Tableau {
             };
             interieur = interieur.child(
                 d.child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(icone))
                         .size(px(theme.forme.icon_xs))
                         .text_color(couleur(c)),
@@ -1288,7 +1288,7 @@ impl Render for Tableau {
                     .rounded(px(theme.forme.radius_s))
                     .bg(couleur(p.aplat(Aplat::Survol, p.background_primary)))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("plus"))
                             .size(px(theme.forme.icon_xs))
                             .text_color(couleur(p.text_muted)),

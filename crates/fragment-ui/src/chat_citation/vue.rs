@@ -13,7 +13,7 @@ use fragment_theme::{Couleur, Theme};
 use gpui_kit::{
     AnyElement, AnyView, App, AppContext as _, Context, Div, ImageSource, InteractiveElement as _,
     IntoElement, ObjectFit, ParentElement as _, Render, RenderImage, Role, SharedString,
-    StatefulInteractiveElement as _, Styled as _, StyledImage as _, Window, div, img, px, svg,
+    StatefulInteractiveElement as _, Styled as _, StyledImage as _, Window, div, img, px,
 };
 
 use super::modele::{EXTRAIT_MAX, EtatPartage, extrait};
@@ -144,7 +144,7 @@ pub fn zone_citation(courant: Rc<RefCell<Option<EtatPartage>>>) -> ZoneChamp {
                 dessiner(&donnees, vignette.as_ref(), &theme, cx)
                     .flex_1()
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("reply"))
                             .size(u(cx, f.icon_s))
                             .flex_none()

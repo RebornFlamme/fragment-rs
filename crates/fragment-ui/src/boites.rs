@@ -25,6 +25,8 @@ thread_local! {
 /// Vide le registre (avant la peinture d'une capture).
 pub fn vider_icones() {
     ICONES_PEINTES.with(|i| i.borrow_mut().clear());
+    // Les icônes images ([`crate::icone`], fr-tep) se déclarent dans leur propre registre.
+    crate::icone::vider_declarations();
 }
 
 /// Déclare une icône peinte à la main, en pixels physiques.

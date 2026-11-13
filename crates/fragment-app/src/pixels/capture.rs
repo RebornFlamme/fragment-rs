@@ -94,7 +94,31 @@ fn sprites_peints(
             s.color.a,
         )
     });
-    for (order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes) {
+    // ★ fr-tep : les icônes sont peintes comme IMAGES (sprites polychromes). Seul compte le sprite
+    // dont la boîte est exactement celle d'une icône déclarée (`fragment_ui::icone`) : les images
+    // de PDF, de maths et d'ombres restent hors catégorie. Sa tuile est 2x sa boîte, donc le test
+    // de tuile ci-dessous le classe `Icone` comme les anciens sprites monochromes.
+    let polychromes = scene
+        .polychrome_sprites
+        .iter()
+        .filter(|s| {
+            fragment_ui::icone::est_icone_peinte(
+                s.bounds.origin.x.0,
+                s.bounds.origin.y.0,
+                s.bounds.size.width.0,
+                s.bounds.size.height.0,
+            )
+        })
+        .map(|s| {
+            (
+                s.order,
+                s.tile.bounds.size,
+                s.bounds,
+                s.content_mask.bounds,
+                s.opacity,
+            )
+        });
+    for (order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes).chain(polychromes) {
         if alpha <= 0.0 {
             continue;
         }

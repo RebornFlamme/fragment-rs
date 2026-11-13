@@ -1,5 +1,5 @@
 {
-  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes) ou teinte d'une boîte de texte (teinte = 1 − cosinus), en valeur absolue. Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
+  "commentaire": "Cliquet ADR-009 : pire écart toléré, par PNG, dans les boîtes de texte et d'icônes (delta_max, pourcent), dans les halos d'ombre (ombre_delta_max, ombre_pourcent), dans les bandes d'arrondi (arrondi_delta_max, arrondi_pourcent) et, pour l'exception nommée --shadow-l, ses garde-fous mesurés (shadow_l : étalement en px, encre et glissement relatifs, en valeur absolue ; delta max et pixels de delta > 2 de son halo). exceptions_t1 : exceptions NOMMÉES temporaires de T1, À RETIRER PAR fr-p4.1 (xtask/src/pixels/exceptions.rs), par élément : ombre (etalement, encre, glissement) ou arcs (deplacement en px, delta_max et forts de delta > 6 de ses bandes) ou teinte d'une boîte de texte (teinte = 1 − cosinus), en valeur absolue. rasterisation_glyphes : boîtes de texte en dette « rastérisation des glyphes » (fr-p4.1.3, dès T2 : largeur d'encre seule, ≤ 2 px). Une PR qui l'aggrave échoue ; `cargo xtask pixels --maj-cliquet` le réécrit (à relire en PR).",
   "scenes": {
     "t1-activation-fermeture-dark.png": {
       "arrondi_delta_max": 5,
@@ -19,7 +19,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.4988
+      "pourcent": 32.4201
     },
     "t1-activation-fermeture-light.png": {
       "arrondi_delta_max": 6,
@@ -34,7 +34,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.3729
+      "pourcent": 32.3099
     },
     "t1-boutons-fenetre-dark.png": {
       "arrondi_delta_max": 5,
@@ -57,7 +57,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.0171
+      "pourcent": 29.9239
     },
     "t1-boutons-fenetre-light.png": {
       "arrondi_delta_max": 6,
@@ -77,7 +77,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.1568
+      "pourcent": 30.0947
     },
     "t1-dock-replie-dark.png": {
       "arrondi_delta_max": 5,
@@ -97,7 +97,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.8664
+      "pourcent": 30.6235
     },
     "t1-dock-replie-light.png": {
       "arrondi_delta_max": 6,
@@ -112,7 +112,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.7368
+      "pourcent": 30.5263
     },
     "t1-docks-ouverts-dark.png": {
       "arrondi_delta_max": 5,
@@ -132,7 +132,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 31.8651
+      "pourcent": 31.3554
     },
     "t1-docks-ouverts-light.png": {
       "arrondi_delta_max": 6,
@@ -147,7 +147,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 31.6345
+      "pourcent": 31.2098
     },
     "t1-entete-vue-dark.png": {
       "arrondi_delta_max": 5,
@@ -167,7 +167,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.1226
+      "pourcent": 32.0744
     },
     "t1-entete-vue-light.png": {
       "arrondi_delta_max": 6,
@@ -182,7 +182,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 31.7564
+      "pourcent": 31.7372
     },
     "t1-fenetre-vide-dark.png": {
       "arrondi_delta_max": 5,
@@ -202,7 +202,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 29.2749
+      "pourcent": 29.1787
     },
     "t1-fenetre-vide-light.png": {
       "arrondi_delta_max": 6,
@@ -217,7 +217,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 29.1595
+      "pourcent": 29.0825
     },
     "t1-glisser-depot-dark.png": {
       "arrondi_delta_max": 5,
@@ -237,7 +237,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.627
+      "pourcent": 28.5522
     },
     "t1-glisser-depot-light.png": {
       "arrondi_delta_max": 6,
@@ -257,7 +257,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.4174
+      "pourcent": 28.3575
     },
     "t1-glisser-zone-dark.png": {
       "arrondi_delta_max": 5,
@@ -277,7 +277,7 @@
       },
       "ombre_delta_max": 1,
       "ombre_pourcent": 5.2557,
-      "pourcent": 32.4988
+      "pourcent": 32.4201
     },
     "t1-glisser-zone-light.png": {
       "arrondi_delta_max": 6,
@@ -292,7 +292,7 @@
       },
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.3395,
-      "pourcent": 32.3571
+      "pourcent": 32.2941
     },
     "t1-infobulle-dark.png": {
       "arrondi_delta_max": 2,
@@ -331,7 +331,7 @@
       "delta_max": 85,
       "ombre_delta_max": 1,
       "ombre_pourcent": 8.0674,
-      "pourcent": 39.3917
+      "pourcent": 38.1677
     },
     "t1-menu-light.png": {
       "arrondi_delta_max": 3,
@@ -339,7 +339,7 @@
       "delta_max": 71,
       "ombre_delta_max": 2,
       "ombre_pourcent": 10.1709,
-      "pourcent": 39.299
+      "pourcent": 38.1677
     },
     "t1-menu-onglet-dark.png": {
       "arrondi_delta_max": 5,
@@ -357,10 +357,9 @@
           "forts": 35.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.8097,
-      "pourcent": 32.6175
+      "pourcent": 32.552
     },
     "t1-menu-onglet-light.png": {
       "arrondi_delta_max": 6,
@@ -375,7 +374,7 @@
       },
       "ombre_delta_max": 2,
       "ombre_pourcent": 15.1218,
-      "pourcent": 32.6961
+      "pourcent": 32.6437
     },
     "t1-modale-dark.png": {
       "arrondi_delta_max": 2,
@@ -417,29 +416,29 @@
     "t1-notice-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 43.75,
-      "delta_max": 104,
+      "delta_max": 82,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.6345,
-      "pourcent": 44.2308
+      "pourcent": 43.75
     },
     "t1-notice-empilees-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 44.9074,
-      "delta_max": 153,
+      "delta_max": 131,
       "exceptions_t1": {
         "glyphe déplacé (placement des glyphes)": {
-          "glyphe": 1.0914
+          "glyphe": 1.0034
         }
       },
       "lettres_manquees": 2,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.2902,
-      "pourcent": 44.9678
+      "pourcent": 44.3568
     },
     "t1-notice-empilees-light.png": {
       "arrondi_delta_max": 3,
       "arrondi_pourcent": 62.2685,
-      "delta_max": 160,
+      "delta_max": 127,
       "exceptions_t1": {
         "ombre des notices": {
           "encre": 0.129,
@@ -450,12 +449,12 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 42.7348,
-      "pourcent": 45.1909
+      "pourcent": 44.5786
     },
     "t1-notice-light.png": {
       "arrondi_delta_max": 3,
       "arrondi_pourcent": 62.5,
-      "delta_max": 102,
+      "delta_max": 57,
       "exceptions_t1": {
         "ombre de la notice": {
           "encre": 0.1206,
@@ -465,7 +464,7 @@
       },
       "ombre_delta_max": 1,
       "ombre_pourcent": 38.8935,
-      "pourcent": 44.4712
+      "pourcent": 44.0705
     },
     "t1-onglet-epingle-dark.png": {
       "arrondi_delta_max": 5,
@@ -485,7 +484,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.7087
+      "pourcent": 33.6365
     },
     "t1-onglet-epingle-light.png": {
       "arrondi_delta_max": 6,
@@ -500,7 +499,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.5787
+      "pourcent": 33.521
     },
     "t1-onglet-survol-dark.png": {
       "arrondi_delta_max": 5,
@@ -520,7 +519,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.1199
+      "pourcent": 33.0503
     },
     "t1-onglet-survol-light.png": {
       "arrondi_delta_max": 6,
@@ -535,7 +534,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.0224
+      "pourcent": 32.9667
     },
     "t1-onglets-dark.png": {
       "arrondi_delta_max": 5,
@@ -555,7 +554,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.7087
+      "pourcent": 33.6365
     },
     "t1-onglets-light.png": {
       "arrondi_delta_max": 6,
@@ -570,15 +569,15 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 33.5787
+      "pourcent": 33.521
     },
     "t1-palette-aucun-resultat-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 39.2857,
-      "delta_max": 129,
+      "delta_max": 112,
       "ombre_delta_max": 1,
       "ombre_pourcent": 3.1625,
-      "pourcent": 41.8353,
+      "pourcent": 41.5884,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0226,
@@ -600,7 +599,7 @@
       },
       "ombre_delta_max": 2,
       "ombre_pourcent": 13.6867,
-      "pourcent": 41.763,
+      "pourcent": 41.3959,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0157,
@@ -612,11 +611,11 @@
     "t1-palette-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
-      "delta_max": 129,
+      "delta_max": 112,
       "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
-      "pourcent": 38.1088,
+      "pourcent": 38.0448,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0015,
@@ -639,7 +638,7 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 12.4131,
-      "pourcent": 38.0457,
+      "pourcent": 37.9502,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0046,
@@ -651,11 +650,11 @@
     "t1-palette-selection-dark.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
-      "delta_max": 129,
+      "delta_max": 112,
       "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
-      "pourcent": 38.1151,
+      "pourcent": 38.0511,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0015,
@@ -678,7 +677,7 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 12.4131,
-      "pourcent": 38.0457,
+      "pourcent": 37.9502,
       "shadow_l": {
         "delta_max": 0,
         "encre": 0.0046,
@@ -705,7 +704,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 31.4165
+      "pourcent": 31.3528
     },
     "t1-pile-active-inactive-light.png": {
       "arrondi_delta_max": 6,
@@ -725,7 +724,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 31.2635
+      "pourcent": 31.2125
     },
     "t1-poignee-survol-dark.png": {
       "arrondi_delta_max": 5,
@@ -745,7 +744,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.627
+      "pourcent": 28.5522
     },
     "t1-poignee-survol-light.png": {
       "arrondi_delta_max": 6,
@@ -765,7 +764,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.4174
+      "pourcent": 28.3575
     },
     "t1-reglages-appearance-dark.png": {
       "arrondi_delta_max": 3,
@@ -781,12 +780,12 @@
       "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 37.791
+      "pourcent": 37.4691
     },
     "t1-reglages-appearance-light.png": {
       "arrondi_delta_max": 3,
       "arrondi_pourcent": 13.5514,
-      "delta_max": 146,
+      "delta_max": 130,
       "exceptions_t1": {
         "arc de la pastille d'accent": {
           "delta_max": 48.0,
@@ -797,7 +796,7 @@
       "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 37.0595
+      "pourcent": 36.6794
     },
     "t1-reglages-zoom-dark.png": {
       "arrondi_delta_max": 3,
@@ -813,12 +812,12 @@
       "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 37.7846
+      "pourcent": 37.4626
     },
     "t1-reglages-zoom-light.png": {
       "arrondi_delta_max": 3,
       "arrondi_pourcent": 13.5514,
-      "delta_max": 146,
+      "delta_max": 130,
       "exceptions_t1": {
         "arc de la pastille d'accent": {
           "delta_max": 48.0,
@@ -829,7 +828,7 @@
       "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 37.0592
+      "pourcent": 36.6789
     },
     "t1-split-horizontal-dark.png": {
       "arrondi_delta_max": 5,
@@ -849,7 +848,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.0207
+      "pourcent": 29.9518
     },
     "t1-split-horizontal-light.png": {
       "arrondi_delta_max": 6,
@@ -869,7 +868,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 29.8415
+      "pourcent": 29.7864
     },
     "t1-split-proportions-dark.png": {
       "arrondi_delta_max": 6,
@@ -889,7 +888,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.4024
+      "pourcent": 28.3527
     },
     "t1-split-proportions-light.png": {
       "arrondi_delta_max": 6,
@@ -909,7 +908,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 28.1539
+      "pourcent": 28.1141
     },
     "t1-split-vertical-dark.png": {
       "arrondi_delta_max": 5,
@@ -929,7 +928,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 30.0896
+      "pourcent": 30.0207
     },
     "t1-split-vertical-light.png": {
       "arrondi_delta_max": 6,
@@ -949,23 +948,23 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 29.8828
+      "pourcent": 29.8277
     },
     "t1-toolbar-horizontale-dark.png": {
       "arrondi_delta_max": 1,
       "arrondi_pourcent": 19.8413,
-      "delta_max": 54,
+      "delta_max": 33,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.7349,
-      "pourcent": 24.6802
+      "pourcent": 23.2409
     },
     "t1-toolbar-horizontale-light.png": {
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 30.5556,
-      "delta_max": 62,
+      "delta_max": 33,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.0724,
-      "pourcent": 24.2004
+      "pourcent": 23.5608
     },
     "t1-toolbar-sections-dark.png": {
       "arrondi_delta_max": 1,
@@ -973,7 +972,7 @@
       "delta_max": 94,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.3249,
-      "pourcent": 37.6549
+      "pourcent": 37.0354
     },
     "t1-toolbar-sections-light.png": {
       "arrondi_delta_max": 2,
@@ -981,7 +980,7 @@
       "delta_max": 77,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.4181,
-      "pourcent": 37.0796
+      "pourcent": 36.9027
     },
     "t1-zoom-150-dark.png": {
       "arrondi_delta_max": 6,
@@ -1001,7 +1000,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 26.8649
+      "pourcent": 26.5541
     },
     "t1-zoom-150-light.png": {
       "arrondi_delta_max": 6,
@@ -1020,7 +1019,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 26.5047
+      "pourcent": 26.3422
     },
     "t1-zoom-80-dark.png": {
       "arrondi_delta_max": 6,
@@ -1046,7 +1045,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 38.7977
+      "pourcent": 38.4871
     },
     "t1-zoom-80-light.png": {
       "arrondi_delta_max": 6,
@@ -1065,7 +1064,7 @@
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 38.6646
+      "pourcent": 38.598
     },
     "t2-explorateur-dark.png": {
       "arrondi_delta_max": 5,
@@ -1083,10 +1082,9 @@
           "forts": 35.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 35.2404,
+      "pourcent": 35.117,
       "rasterisation_glyphes": 4
     },
     "t2-explorateur-light.png": {
@@ -1103,7 +1101,7 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 35.1238,
+      "pourcent": 35.0209,
       "rasterisation_glyphes": 4
     },
     "t2-explorateur-menu-dossier-dark.png": {
@@ -1125,10 +1123,9 @@
           "glyphe": 1.0637
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.8628,
-      "pourcent": 37.1055,
+      "pourcent": 36.4476,
       "rasterisation_glyphes": 10
     },
     "t2-explorateur-menu-dossier-light.png": {
@@ -1145,108 +1142,8 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 9.0488,
-      "pourcent": 37.0552,
+      "pourcent": 36.4845,
       "rasterisation_glyphes": 6
-    },
-    "t2-explorateur-ouvert-dark.png": {
-      "arrondi_delta_max": 5,
-      "arrondi_pourcent": 26.2295,
-      "delta_max": 88,
-      "exceptions_t1": {
-        "coin de la barre d'état": {
-          "delta_max": 11.0,
-          "deplacement": 0.039,
-          "forts": 1.0
-        },
-        "contour d'onglet actif": {
-          "delta_max": 32.0,
-          "deplacement": 0.5162,
-          "forts": 35.0
-        }
-      },
-      "lettres_manquees": 1,
-      "ombre_delta_max": 0,
-      "ombre_pourcent": 0.0,
-      "pourcent": 36.333,
-      "rasterisation_glyphes": 8
-    },
-    "t2-explorateur-ouvert-light.png": {
-      "arrondi_delta_max": 6,
-      "arrondi_pourcent": 44.2623,
-      "delta_max": 69,
-      "exceptions_t1": {
-        "contour d'onglet actif": {
-          "delta_max": 28.0,
-          "deplacement": 0.6559,
-          "forts": 39.0
-        }
-      },
-      "lettres_manquees": 1,
-      "ombre_delta_max": 0,
-      "ombre_pourcent": 0.0,
-      "pourcent": 36.2443,
-      "rasterisation_glyphes": 7
-    },
-    "t2-explorateur-renommer-dark.png": {
-      "arrondi_delta_max": 5,
-      "arrondi_pourcent": 25.4098,
-      "delta_max": 88,
-      "exceptions_t1": {
-        "coin de la barre d'état": {
-          "delta_max": 11.0,
-          "deplacement": 0.039,
-          "forts": 1.0
-        },
-        "contour d'onglet actif": {
-          "delta_max": 32.0,
-          "deplacement": 0.5162,
-          "forts": 33.0
-        }
-      },
-      "lettres_manquees": 1,
-      "ombre_delta_max": 0,
-      "ombre_pourcent": 0.0,
-      "pourcent": 35.2336,
-      "rasterisation_glyphes": 4
-    },
-    "t2-explorateur-survol-dark.png": {
-      "arrondi_delta_max": 5,
-      "arrondi_pourcent": 25.8824,
-      "delta_max": 88,
-      "exceptions_t1": {
-        "coin de la barre d'état": {
-          "delta_max": 11.0,
-          "deplacement": 0.039,
-          "forts": 1.0
-        },
-        "contour d'onglet actif": {
-          "delta_max": 32.0,
-          "deplacement": 0.5162,
-          "forts": 35.0
-        }
-      },
-      "lettres_manquees": 1,
-      "ombre_delta_max": 0,
-      "ombre_pourcent": 0.0,
-      "pourcent": 35.261,
-      "rasterisation_glyphes": 4
-    },
-    "t2-explorateur-survol-light.png": {
-      "arrondi_delta_max": 6,
-      "arrondi_pourcent": 31.7647,
-      "delta_max": 69,
-      "exceptions_t1": {
-        "contour d'onglet actif": {
-          "delta_max": 28.0,
-          "deplacement": 0.6559,
-          "forts": 39.0
-        }
-      },
-      "lettres_manquees": 1,
-      "ombre_delta_max": 0,
-      "ombre_pourcent": 0.0,
-      "pourcent": 35.0964,
-      "rasterisation_glyphes": 4
     },
     "t2-explorateur-menu-fichier-dark.png": {
       "arrondi_delta_max": 5,
@@ -1275,10 +1172,10 @@
           "glissement": 0.0172
         }
       },
-      "lettres_manquees": 2,
+      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.89,
-      "pourcent": 36.4576,
+      "pourcent": 35.8326,
       "rasterisation_glyphes": 8
     },
     "t2-explorateur-menu-fichier-light.png": {
@@ -1298,8 +1195,67 @@
       "lettres_manquees": 2,
       "ombre_delta_max": 2,
       "ombre_pourcent": 8.967,
-      "pourcent": 36.4343,
+      "pourcent": 35.8618,
       "rasterisation_glyphes": 5
+    },
+    "t2-explorateur-ouvert-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 26.2295,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 36.2266,
+      "rasterisation_glyphes": 8
+    },
+    "t2-explorateur-ouvert-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 44.2623,
+      "delta_max": 69,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "lettres_manquees": 1,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 36.1556,
+      "rasterisation_glyphes": 7
+    },
+    "t2-explorateur-renommer-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 25.4098,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 33.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 35.1101,
+      "rasterisation_glyphes": 4
     },
     "t2-explorateur-renommer-light.png": {
       "arrondi_delta_max": 6,
@@ -1320,7 +1276,45 @@
       "lettres_manquees": 1,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 35.117,
+      "pourcent": 35.0141,
+      "rasterisation_glyphes": 4
+    },
+    "t2-explorateur-survol-dark.png": {
+      "arrondi_delta_max": 5,
+      "arrondi_pourcent": 25.8824,
+      "delta_max": 88,
+      "exceptions_t1": {
+        "coin de la barre d'état": {
+          "delta_max": 11.0,
+          "deplacement": 0.039,
+          "forts": 1.0
+        },
+        "contour d'onglet actif": {
+          "delta_max": 32.0,
+          "deplacement": 0.5162,
+          "forts": 35.0
+        }
+      },
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 35.1375,
+      "rasterisation_glyphes": 4
+    },
+    "t2-explorateur-survol-light.png": {
+      "arrondi_delta_max": 6,
+      "arrondi_pourcent": 31.7647,
+      "delta_max": 69,
+      "exceptions_t1": {
+        "contour d'onglet actif": {
+          "delta_max": 28.0,
+          "deplacement": 0.6559,
+          "forts": 39.0
+        }
+      },
+      "lettres_manquees": 1,
+      "ombre_delta_max": 0,
+      "ombre_pourcent": 0.0,
+      "pourcent": 34.9935,
       "rasterisation_glyphes": 4
     }
   }

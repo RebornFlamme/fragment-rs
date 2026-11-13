@@ -24,8 +24,7 @@ use fragment_theme::{Couleur, Theme};
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Entity, FontWeight, InteractiveElement as _,
     IntoElement, ParentElement as _, PathBuilder, Render, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Transformation, Window, canvas, div, point, px,
-    radians, relative, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, canvas, div, point, px, relative,
 };
 
 use super::animation::{CaseVue, CoucheVue, angle_arc, reflet};
@@ -177,7 +176,10 @@ impl TraceView {
 // ── les pièces ───────────────────────────────────────────────────────────────
 
 fn icone(nom: &str, cote: f32, c: CouleurGpui) -> impl IntoElement {
-    svg().path(icones::chemin(nom)).size(px(cote)).text_color(c)
+    crate::icone::icone_image()
+        .path(icones::chemin(nom))
+        .size(px(cote))
+        .text_color(c)
 }
 
 fn chevron(ouvert: bool, c: CouleurGpui, visible: bool) -> AnyElement {
@@ -186,15 +188,15 @@ fn chevron(ouvert: bool, c: CouleurGpui, visible: bool) -> AnyElement {
         e = e.invisible();
     }
     e.child(
-        svg()
+        crate::icone::icone_image()
             .path(icones::chemin("chevron-right"))
             .size(px(13.0))
             .text_color(c)
-            .with_transformation(Transformation::rotate(radians(if ouvert {
+            .rotation(if ouvert {
                 std::f32::consts::FRAC_PI_2
             } else {
                 0.0
-            }))),
+            }),
     )
     .into_any_element()
 }

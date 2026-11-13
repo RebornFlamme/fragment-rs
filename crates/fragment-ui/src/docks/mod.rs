@@ -17,7 +17,7 @@
 use fragment_core::{CommandManager, ItemId};
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, ParentElement as _,
-    StatefulInteractiveElement as _, Styled, Visibility, div, svg,
+    StatefulInteractiveElement as _, Styled, Visibility, div,
 };
 
 use crate::echelle::{Echelle, moitie, u};
@@ -66,7 +66,7 @@ fn icone_du_ruban(
         .opacity(OPACITE_REPOS)
         .hover(move |s| s.opacity(1.0).bg(survol))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(nom))
                 .size(u(cx, f.icon_m))
                 .flex_none()
@@ -91,7 +91,7 @@ fn icone_posee(
         .opacity(OPACITE_REPOS)
         .hover(move |s| s.opacity(1.0).bg(survol))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(nom))
                 .absolute()
                 .left(u(cx, x))
@@ -247,7 +247,7 @@ pub fn rendre_pied_coffre(cadre: Cadre, nom: &str, cx: &App) -> AnyElement {
             .rounded(u(cx, f.radius_s))
             .opacity(opacite)
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(nom))
                     .size(u(cx, ICONE_PIED))
                     .flex_none()
@@ -267,7 +267,7 @@ pub fn rendre_pied_coffre(cadre: Cadre, nom: &str, cx: &App) -> AnyElement {
         .opacity(OPACITE_COFFRE)
         .text_color(couleur(c.text_normal))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin("chevrons-up-down"))
                 .size(u(cx, f.icon_xs))
                 .flex_none()
@@ -359,7 +359,7 @@ pub fn rendre_pile_laterale(
                     .rounded(u(cx, f.radius_s))
                     .group_hover(groupe, move |s| s.bg(survol))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(&format!("{}-fin", l.icone)))
                             .size(u(cx, f.icon_m))
                             .flex_none()
@@ -411,7 +411,7 @@ pub fn rendre_pile_laterale(
                                 cx.refresh_windows();
                             })
                             .child(
-                                svg()
+                                crate::icone::icone_image()
                                     .path(icones::chemin("panel-right"))
                                     .size(u(cx, f.icon_s))
                                     .flex_none()

@@ -35,7 +35,7 @@ use gpui_kit::{
     App, AppContext as _, Bounds, Context, Corners, Entity, IntoElement, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Render,
     SharedString, Styled as _, Subscription, TextAlign, TextRun, Window, canvas, div, fill, font,
-    point, px, size, svg,
+    point, px, size,
 };
 
 use super::complement::{Entree, completer};
@@ -748,7 +748,7 @@ impl Render for HoteBlocs {
                     .top(px(y - gy))
                     .size(px(cote))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(gouttiere::icone(&c)))
                             .size(px(cote))
                             .text_color(couleur(gouttiere::couleur(&theme, &c))),

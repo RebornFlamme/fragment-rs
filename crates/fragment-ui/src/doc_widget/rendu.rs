@@ -9,9 +9,7 @@ use std::cell::RefCell;
 
 use fragment_core::{Command, CommandManager};
 use fragment_theme::Couleur;
-use gpui_kit::{
-    AnyElement, App, FontWeight, IntoElement, ParentElement as _, Styled as _, div, svg,
-};
+use gpui_kit::{AnyElement, App, FontWeight, IntoElement, ParentElement as _, Styled as _, div};
 use serde_json::Value;
 
 use super::icones_vue::{self, CHEVAUCHEMENT, HAUTEUR_LIGNE, Motif, PASTILLE, Pastille};
@@ -111,7 +109,7 @@ fn pastille(cx: &App, p: &Pastille, rang: usize) -> AnyElement {
         .rounded_full();
     let enfant = match p {
         Pastille::Icone(nom) => base.bg(couleur(c.background_secondary_alt)).child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(nom))
                 .size(u(cx, t.forme.icon_s))
                 .text_color(couleur(c.text_normal)),
@@ -201,7 +199,7 @@ pub fn cadre(cx: &App, s: &SceneCadre) -> AnyElement {
                 .w(u(cx, BOUTON))
                 .h(u(cx, BOUTON))
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(nom))
                         .size(u(cx, f.icon_m))
                         .text_color(couleur(c.text_muted)),

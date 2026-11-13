@@ -19,7 +19,7 @@ pub use fragment_annotation::toolbar::{
 use fragment_core::{Command, CommandManager};
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, Window, anchored, deferred, div, point, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, anchored, deferred, div, point,
 };
 
 use crate::echelle::u;
@@ -291,7 +291,7 @@ fn rendre_item(index: usize, item: &ToolbarItem, cx: &App) -> AnyElement {
                 .justify_center()
                 .opacity(if item.active { 1.0 } else { 0.8 })
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(&item.icon))
                         .size(u(cx, f.icon_s))
                         .flex_none()
@@ -371,7 +371,7 @@ fn rendre(modele: &Toolbar, cx: &App) -> AnyElement {
                 enfants.push(
                     poignee
                         .child(
-                            svg()
+                            crate::icone::icone_image()
                                 .path(icones::chemin(modele.icone_de_poignee()))
                                 .size(u(cx, f.icon_xs))
                                 .flex_none()
