@@ -456,13 +456,15 @@ impl FileExplorerView {
             return;
         };
         let geste = Interne::geste(interne);
-        let menu = if chemin.is_empty() {
+        let mut menu = if chemin.is_empty() {
             menu_racine(&interne.vault, &actions, &geste)
         } else if let Some(af) = interne.vault.get_abstract_file_by_path(chemin) {
             construire_menu(&interne.vault, &actions, &geste, &af)
         } else {
             return;
         };
+        // Le menu chevauche le conteneur défilant de l'explorateur, un calque composé de Chromium.
+        menu.set_calque();
         menu.show_at_position(x, y, &actions.keymap);
     }
 
