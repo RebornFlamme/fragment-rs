@@ -331,8 +331,8 @@ mod tests {
             [20., 40.]
         );
         assert_eq!(largeurs_colonnes(&[10., 10.], &[20., 40.], 10.), [10., 10.]);
-        // 40 px à partager sur un écart de 40 : la moitié de chaque écart.
-        assert_eq!(largeurs_colonnes(&[10., 10.], &[30., 50.], 40.), [15., 25.]);
+        // 30 px à partager sur un écart total de 60 : la moitié de chaque écart.
+        assert_eq!(largeurs_colonnes(&[10., 10.], &[30., 50.], 50.), [20., 30.]);
     }
 
     #[test]

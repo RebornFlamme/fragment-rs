@@ -210,6 +210,76 @@ pub fn diff_minimal(ancien: &str, nouveau: &str) -> Option<(usize, usize, String
     ))
 }
 
+/// La plage (octets) du texte de la cellule de grille (r, c) dans `source` : son contenu sans les
+/// blancs qui l'entourent ; pour une cellule vide, une plage vide juste après la première espace.
+/// `None` si la ligne n'a pas cette cellule.
+#[must_use]
+pub fn plage_cellule(source: &str, r: usize, c: usize) -> Option<(usize, usize)> {
+    // La ligne 1 du source est celle des délimiteurs : elle n'est pas dans la grille.
+    let li = if r == 0 { 0 } else { r + 1 };
+    let mut debut = 0;
+    let ligne = source.split('\n').enumerate().find_map(|(i, l)| {
+        if i == li {
+            Some(l)
+        } else {
+            debut += l.len() + 1;
+            None
+        }
+    })?;
+    let b = ligne.as_bytes();
+    // Les `|` non échappés.
+    let mut barres = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'\\' && b.get(i + 1) == Some(&b'|') {
+            i += 2;
+            continue;
+        }
+        if b[i] == b'|' {
+            barres.push(i);
+        }
+        i += 1;
+    }
+    let tete = ligne.trim_start().starts_with('|');
+    let mut bornes: Vec<usize> = Vec::new();
+    if !tete {
+        bornes.push(0);
+    }
+    bornes.extend(barres.iter().map(|&x| x + 1));
+    let de = *bornes.get(c)?;
+    let a = match barres.iter().copied().find(|&x| x >= de) {
+        Some(x) => x,
+        // Après le `|` final, il n'y a plus de cellule.
+        None if ligne.trim_end().ends_with('|') && !barres.is_empty() => return None,
+        None => b.len(),
+    };
+    let segment = &ligne[de..a];
+    let contenu = segment.trim();
+    let (x, y) = if contenu.is_empty() {
+        let p = de + usize::from(segment.starts_with(' '));
+        (p, p)
+    } else {
+        let gauche = segment.len() - segment.trim_start().len();
+        (de + gauche, de + gauche + contenu.len())
+    };
+    Some((debut + x, debut + y))
+}
+
+/// Le source après l'écriture de `texte` dans la cellule (r, c), le reste INCHANGÉ (pas de
+/// réalignement des colonnes) : une frappe reste une insertion pure, que l'historique de l'hôte
+/// regroupe avec ses voisines. `None` si la cellule n'existe pas dans le source.
+#[must_use]
+pub fn ecrire_cellule(source: &str, r: usize, c: usize, texte: &str) -> Option<String> {
+    let (de, a) = plage_cellule(source, r, c)?;
+    let echappe = texte
+        .replace("\r\n", " ")
+        .replace('\n', " ")
+        .replace('|', "\\|");
+    let mut s = source.to_owned();
+    s.replace_range(de..a, &echappe);
+    Some(s)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,6 +369,22 @@ mod tests {
         );
         let une = parse_table("| A |\n| --- |\n| 1 |");
         assert_eq!(suppression(&une, true, 0), None);
+    }
+
+    #[test]
+    fn ecrire_une_cellule_sans_realigner() {
+        let src = "| A | B |\n| --- | --- |\n| 1 |     |";
+        assert_eq!(plage_cellule(src, 0, 0), Some((2, 3)));
+        assert_eq!(plage_cellule(src, 1, 1), Some((30, 30)));
+        assert_eq!(
+            ecrire_cellule(src, 0, 0, "Ax").as_deref(),
+            Some("| Ax | B |\n| --- | --- |\n| 1 |     |")
+        );
+        assert_eq!(
+            ecrire_cellule(src, 1, 1, "a|b").as_deref(),
+            Some("| A | B |\n| --- | --- |\n| 1 | a\\|b    |")
+        );
+        assert_eq!(plage_cellule(src, 1, 2), None);
     }
 
     #[test]

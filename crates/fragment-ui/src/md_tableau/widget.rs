@@ -16,7 +16,7 @@
 //! ★ Les gestes que seul le tableau sait traiter (Tab, Entrée, flèches aux bords) sont pris en
 //!   CAPTURE sur le conteneur de la cellule, avant l'éditeur du fork.
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use fragment_core::Keymap;
@@ -36,10 +36,10 @@ use gpui_kit::base::input::{
 };
 use gpui_kit::{
     App, AppContext as _, Bounds, Context, Entity, EntityInputHandler as _, EventEmitter,
-    Focusable as _, FontWeight, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Render, ScrollHandle,
-    StatefulInteractiveElement as _, Styled as _, Subscription, TextAlign, TextRun, Window, canvas,
-    div, font, point, px, size, svg,
+    FocusHandle, Focusable as _, FontWeight, InteractiveElement as _, IntoElement, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Pixels, Point, Render,
+    ScrollHandle, StatefulInteractiveElement as _, Styled as _, Subscription, TextAlign, TextRun,
+    Window, canvas, div, font, point, px, size, svg,
 };
 
 use super::controle::{self, Geste, Operation, Sortie, Suite, diff_minimal};
@@ -58,6 +58,9 @@ use crate::theme_global::{couleur, theme_ou_defaut};
 pub const LIBELLE_AJOUT_COLONNE: &str = "Add column to the right";
 pub const LIBELLE_AJOUT_LIGNE: &str = "Add row below";
 
+/// Ce que fait une entrée du menu d'édition d'une cellule, sur l'éditeur de cette cellule.
+pub type ActionEdition = Rc<dyn Fn(&Entity<EditeurLive>, ActionMenu, &mut Window, &mut App)>;
+
 /// La configuration commune des tableaux d'une note.
 #[derive(Clone)]
 pub struct OptionsTableau {
@@ -69,6 +72,10 @@ pub struct OptionsTableau {
     /// Le moteur de maths partagé (ADR-011) : les cellules rendent leurs formules en ligne.
     pub moteur: Option<Rc<Moteur>>,
 }
+
+/// La sélection de l'hôte (octets) que le tableau vient d'y poser en écrivant : le pont curseur ne
+/// la renvoie pas dans une cellule.
+pub type Synchro = Rc<RefCell<Option<std::ops::Range<usize>>>>;
 
 /// Ce que le tableau signale à son hôte.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -217,9 +224,12 @@ pub struct Tableau {
     operations: Rc<RefCell<Vec<Operation>>>,
     editions: Rc<RefCell<Vec<(usize, usize, ActionMenu)>>>,
     /// Ce que fait une entrée du menu d'édition d'une cellule (posé par la vue Markdown).
-    edition: Option<Rc<dyn Fn(&Entity<EditeurLive>, ActionMenu, &mut Window, &mut App)>>,
+    edition: Option<ActionEdition>,
     /// Levé pendant une écriture du tableau dans l'hôte : le pont curseur l'ignore.
-    ecriture: Rc<Cell<bool>>,
+    ecriture: Synchro,
+    /// Le focus du tableau lui-même : pris par un clic sur une poignée quand rien ne l'a (Suppr,
+    /// Échap arrivent alors à l'hôte).
+    focus: FocusHandle,
     _abonnements: Vec<Subscription>,
 }
 
@@ -234,7 +244,7 @@ impl Tableau {
         plage: Plage,
         premiere_ligne: usize,
         options: OptionsTableau,
-        ecriture: Rc<Cell<bool>>,
+        ecriture: Synchro,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
@@ -259,6 +269,7 @@ impl Tableau {
             editions: Rc::new(RefCell::new(Vec::new())),
             edition: None,
             ecriture,
+            focus: cx.focus_handle(),
             _abonnements: Vec::new(),
         };
         t.construire(window, cx);
@@ -360,10 +371,7 @@ impl Tableau {
     }
 
     /// Ce que fait une entrée du menu d'édition d'une cellule.
-    pub fn poser_edition(
-        &mut self,
-        f: Option<Rc<dyn Fn(&Entity<EditeurLive>, ActionMenu, &mut Window, &mut App)>>,
-    ) {
+    pub fn poser_edition(&mut self, f: Option<ActionEdition>) {
         self.edition = f;
     }
 
@@ -503,13 +511,20 @@ impl Tableau {
             return;
         }
         // Une cellule GFM est une ligne : un saut de ligne (collage) devient une espace.
-        self.modele = t::set_cell(&self.modele, r, c, &texte.replace(['\r', '\n'], " "));
-        self.ecrire(window, cx);
+        let texte = texte.replace(['\r', '\n'], " ");
+        self.modele = t::set_cell(&self.modele, r, c, &texte);
+        // ★ La frappe n'écrit QUE sa cellule (les colonnes du source ne sont pas réalignées) :
+        //   l'historique du fork ne regroupe que des insertions pures, une re-sérialisation
+        //   (remplacement d'espaces de bourrage) ferait un undo par caractère.
+        let suivant = controle::ecrire_cellule(&self.source, r, c, &texte)
+            .filter(|s| t::parse_table(s) == self.modele);
+        self.ecrire(suivant, window, cx);
     }
 
-    /// Écrit le modèle dans la note : UN remplacement minimal.
-    fn ecrire(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let suivant = serialize_table(&self.modele);
+    /// Écrit le modèle dans la note (`suivant`, sinon le modèle re-sérialisé) : UN remplacement
+    /// minimal.
+    fn ecrire(&mut self, suivant: Option<String>, window: &mut Window, cx: &mut Context<Self>) {
+        let suivant = suivant.unwrap_or_else(|| serialize_table(&self.modele));
         let hote = self.hote.read(cx);
         let texte = hote.texte();
         let Some(ancien) = texte.get(self.plage.octets.from..self.plage.octets.to) else {
@@ -523,9 +538,10 @@ impl Tableau {
         let a16 = self.plage.utf16.from + byte_to_utf16(ancien, b);
         let etat = hote.etat().clone();
         self.source = suivant;
-        self.ecriture.set(true);
+        let ecriture = self.ecriture.clone();
         etat.update(cx, |s, cx| {
             s.replace_text_in_range(Some(de..a16), &insere, window, cx);
+            *ecriture.borrow_mut() = Some(s.selected_range());
         });
     }
 
@@ -548,7 +564,7 @@ impl Tableau {
         self.effacer_choix(cx);
         self.modele = modele;
         self.construire(window, cx);
-        self.ecrire(window, cx);
+        self.ecrire(None, window, cx);
         if let Some((r, c)) = focus {
             self.focaliser(r, c, None, None, window, cx);
         }
@@ -662,7 +678,7 @@ impl Tableau {
         let etat = hote.etat().clone();
         let long = utf16_len(&texte);
         let plage = self.plage;
-        self.ecriture.set(true);
+        let ecriture = self.ecriture.clone();
         etat.update(cx, |st, cx| {
             st.focus(window, cx);
             match s {
@@ -684,6 +700,7 @@ impl Tableau {
                     st.set_selected_range(o..o, cx);
                 }
             }
+            *ecriture.borrow_mut() = Some(st.selected_range());
         });
     }
 
@@ -784,6 +801,9 @@ impl Tableau {
                 && b.contains(&p)
             {
                 let choix = Choix { colonne, index };
+                if window.focused(cx).is_none() {
+                    window.focus(&self.focus, cx);
+                }
                 self.choix = Some(choix);
                 self.glisser = Some(Glisser {
                     choix,
@@ -1289,11 +1309,14 @@ impl Render for Tableau {
                 move |_, (), window, _| ecouter_souris(&entite, window),
             )
             .absolute()
+            .top_0()
+            .left_0()
             .size_full(),
         );
         let geo = self.geo.clone();
         div()
             .id(("md-tableau", cx.entity_id()))
+            .track_focus(&self.focus)
             .size_full()
             .occlude()
             .overflow_x_scroll()
@@ -1305,6 +1328,8 @@ impl Render for Tableau {
                     |_, (), _, _| {},
                 )
                 .absolute()
+                .top_0()
+                .left_0()
                 .size_full(),
             )
     }

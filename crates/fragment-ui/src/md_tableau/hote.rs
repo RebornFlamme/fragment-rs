@@ -16,7 +16,7 @@
 //! - un tableau qui TERMINE la note : un clic dessous crée la ligne qui manque ; taper sur la ligne
 //!   vide collée sous un tableau part sur la ligne d'après (`separer_du_tableau`, la règle GFM).
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -33,7 +33,7 @@ use gpui_kit::{
 };
 
 use super::geometrie::Reglages;
-use super::widget::{EvenementTableau, OptionsTableau, Tableau};
+use super::widget::{EvenementTableau, OptionsTableau, Synchro, Tableau};
 use crate::editeur::constantes::{MARGE_LIGNE_DROITE, MARGE_LIGNE_GAUCHE, debut_texte, fin_texte};
 use crate::editeur::{EditeurLive, OptionsEditeur};
 use crate::md_blocs::{HoteBlocs, Mesureur};
@@ -50,7 +50,7 @@ pub struct HoteTableaux {
     hauteurs: Rc<RefCell<HashMap<usize, f32>>>,
     options: OptionsTableau,
     /// Levé par un tableau qui écrit dans l'hôte : le pont curseur ignore le changement suivant.
-    ecriture: Rc<Cell<bool>>,
+    ecriture: Synchro,
     _abonnements: Vec<Subscription>,
 }
 
@@ -93,7 +93,7 @@ impl HoteTableaux {
             tableaux: Vec::new(),
             hauteurs,
             options,
-            ecriture: Rc::new(Cell::new(false)),
+            ecriture: Synchro::default(),
             _abonnements: abonnements,
         };
         h.synchroniser(window, cx);
@@ -188,7 +188,12 @@ impl HoteTableaux {
         if ch.doc_changed {
             self.synchroniser(window, cx);
         }
-        let de_nous = self.ecriture.replace(false);
+        // Une sélection posée par l'écriture d'un tableau n'est pas renvoyée dans une cellule.
+        let actuelle = self.editeur.read(cx).etat().read(cx).selected_range();
+        let de_nous = self.ecriture.borrow().as_ref() == Some(&actuelle);
+        if !de_nous {
+            *self.ecriture.borrow_mut() = None;
+        }
         self.pont(de_nous, window, cx);
         cx.notify();
     }
@@ -412,12 +417,13 @@ impl HoteTableaux {
             return false;
         }
         let etat = self.editeur.read(cx).etat().clone();
-        self.ecriture.set(true);
+        let ecriture = self.ecriture.clone();
         etat.update(cx, |s, cx| {
             s.focus(window, cx);
             s.replace_text_in_range(Some(long..long), "\n", window, cx);
             let n = s.text().len();
             s.set_selected_range(n..n, cx);
+            *ecriture.borrow_mut() = Some(n..n);
         });
         true
     }
@@ -510,6 +516,8 @@ impl Render for HoteTableaux {
                     },
                 )
                 .absolute()
+                .top_0()
+                .left_0()
                 .size_full(),
             )
     }
