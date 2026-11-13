@@ -1,0 +1,12 @@
+# Parité de fr-t7-post (fragment-ui). Schéma `parite.d` : un fichier par tâche. post.ts n'a pas de test
+# unitaire TS (postModel.ts, lui, est porté et testé dans fragment-chat) ; les cas headless suivent
+# les cas de app/e2e/gutter-cluster.spec.ts (la timeline : nom, « · 6 h », question, citation d'une
+# ligne, nombre de réponses, trait du fil, « Afficher ce fil », texte court sans fondu, coin ⋯ / « Aller à »).
+
+[[module]]
+ts = "app/src/ui/views/chat/components/post.ts (renderPost) et post.css"
+rs = "crates/fragment-ui/src/chat_post/{mod,modele,vue}.rs, crates/fragment-ui/tests/chat_post.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 21
+notes = "Modèle pur (compact sous 360 px de contenu, 6 / 4 lignes, hauteur coupée, tolérance 1 px, citation en une ligne, puce de pièces, heure relative à horloge figée) et vue PostVue (avatar 40 px / 28 px, nom gras, « · 2 h », corps par l'éditeur de la note en lecture seule, citation, nombre de réponses, trait du fil, « Afficher ce fil », coin ⋯ et « Aller à » en rappels de l'hôte). Écarts : (1) le fondu n'est pas un masque (GPUI n'en a pas) mais un dégradé vers le fond que l'hôte donne (`DepsPost::fond`) ; (2) le corps est l'éditeur SEUL, sans hôtes de blocs (même dette que chat_fil : tableaux et maths en bloc avec fr-t7-vue) ; (3) la largeur du mode compact est celle de la boîte du post mesurée au peint, pas un ResizeObserver ; (4) les icônes message-circle, paperclip et locate ne sont pas encore dans assets/icons (le chef les ajoute) ; (5) le fond au survol, l'appui et l'anneau de focus du post sont ceux de la grappe (hôte), pas dessinés ici ; (6) l'infobulle de l'heure (date complète) n'est pas posée."
