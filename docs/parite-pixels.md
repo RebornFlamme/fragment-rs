@@ -28,6 +28,17 @@ Fragment est en lecture seule : on exécute ses outils, on n'y écrit rien (déc
 Comparer avec `git status` / `git diff --stat pixels/reference`. Un écart est à expliquer avant de commiter
 (fixture ou décor réécrits, mise à jour de Fragment : le commit de PROVENANCE.txt le montre).
 
+## Scènes instables (référence non déterministe)
+★ Décision de l'orchestrateur (13/11) : une RÉFÉRENCE non déterministe est un défaut de la mire, pas un bruit
+acceptable, car elle peut masquer un vrai écart. Une scène listée ici ne compte PAS comme verte, même à 0 pixel,
+tant que son bead n'a pas trouvé la source (caret, transition, horloge, ordre de rendu…) et figé la scène :
+critère de sortie, **1 seul MD5 sur 5 rejeux** en mode invisible.
+
+| Scène | Symptôme | Bead |
+|---|---|---|
+| t11-accent | deux MD5 qui alternent, pixel (507,7) R 0x30/0x2F, dans les deux thèmes | fr-hwq |
+| t7-chat-cowork-replie | deux passes, deux PNG différents | fr-914 |
+
 ## Dettes de parité : surfaces flottantes T1 (fr-t1.1)
 Scènes `t1-{notice,notice-empilees,menu,infobulle,toolbar-sections}` en `"depuis": "T2"` ; `t1-toolbar-horizontale` à T1.
 Mesures CI du 10/11, de 0,12 % à 1,07 % de pixels différents (contre 0,5 à 4,3 % avant) ; la mise en page est
