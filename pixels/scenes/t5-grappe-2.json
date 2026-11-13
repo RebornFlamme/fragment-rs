@@ -1,0 +1,18 @@
+{
+  "scene": "t5-grappe-2",
+  "depuis": "T5",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t5/a",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"open","path":"note.md"},
+    {"type":"wait-stable"},
+    {"type":"command","id":"pixels:doc-widget","args":{"from":544,"to":546,"open":false,"actions":["split","tab","dock","collapse"]}},
+    {"type":"command","id":"pixels:doc-widget","args":{"from":546,"to":548,"open":false,"actions":["split","tab","dock","collapse"]}},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
