@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+# Socle T9 (fr-t9-socle) : le texte aplati et les jetons que la page reçoit. Aucune dépendance externe.
+fragment-text = { path = "../fragment-text" }
+fragment-theme = { path = "../fragment-theme" }
 
 # Spike S2 (tests/spike_s2.rs, examples/spike_s2.rs) : GPUI et WebView2 ne sont tirées que sous Windows,
 # comme S1 et S3 — le job `test-linux` n'installe pas les bibliothèques système de GPUI.

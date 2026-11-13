@@ -21,6 +21,8 @@ use crate::{
     chat_vue, doc_widget, grappe, lien_ancre, menu_calques, mode_marge, orbe, surlignages,
     widget_couche,
 };
+// Socle T9 (fr-t9-socle).
+use crate::{chat_origine, embed, html_surface, md_embed, vue_hebergee, vue_html, vue_image};
 
 /// Enregistre dans `commandes` toutes les commandes `pixels:*` des modules de rendu.
 pub fn commandes_de_scene(commandes: &CommandManager) {
@@ -82,4 +84,11 @@ pub fn commandes_de_scene(commandes: &CommandManager) {
     agent_barre::commandes_de_scene(commandes);
     agent_reglages::commandes_de_scene(commandes);
     agent::commandes_de_scene(commandes);
+    vue_hebergee::commandes_de_scene(commandes);
+    embed::commandes_de_scene(commandes);
+    md_embed::commandes_de_scene(commandes);
+    vue_image::commandes_de_scene(commandes);
+    vue_html::commandes_de_scene(commandes);
+    html_surface::commandes_de_scene(commandes);
+    chat_origine::commandes_de_scene(commandes);
 }

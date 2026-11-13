@@ -1,3 +1,10 @@
 //! Pages HTML : pont (htmlBridge, htmlTextModel), hôte webview (S2).
 //!
-//! Crate VIDE en phase 0 : les modules arrivent avec les tâches de phase 1 (program.md §5).
+//! Socle T9 posé (fr-t9-socle) : les modules sont des coquilles que les tâches de T9 remplissent.
+
+// Socle T9 (fr-t9-socle) : coquilles vides, une par tâche aval.
+pub mod capture;
+pub mod hote;
+pub mod pont;
+pub mod protocole;
+pub mod theme_page;

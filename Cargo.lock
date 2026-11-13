@@ -2821,6 +2821,7 @@ name = "fragment-html"
 version = "0.0.1"
 dependencies = [
  "fragment-text",
+ "fragment-theme",
  "gpui-kit",
  "gpui-webview",
  "lb-wry",
@@ -2916,6 +2917,7 @@ dependencies = [
  "fragment-chat",
  "fragment-cli",
  "fragment-core",
+ "fragment-html",
  "fragment-layers",
  "fragment-markdown",
  "fragment-maths",
