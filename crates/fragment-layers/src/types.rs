@@ -93,6 +93,30 @@ pub struct CompactInfo {
     pub doc: Option<Rc<dyn Fn() -> Option<String>>>,
     /// `false` : jamais regroupé (il PRÉSENTE une grappe). Défaut : `true`.
     pub groupable: bool,
+    /// Les entrées du menu de sa ligne dans une grappe (⋮) : l'ouvreur (la vue de grappe) les
+    /// range dans ses sections. Rendues à l'ouverture du menu (fr-t5-doc-widget).
+    pub menu: Option<Rc<dyn Fn() -> Vec<EntreeMenuReduit>>>,
+}
+
+/// Une entrée du menu d'un widget réduit (`CompactInfo::menu`) : le modèle pur, que l'UI rend.
+#[derive(Clone)]
+pub struct EntreeMenuReduit {
+    pub titre: String,
+    pub icone: String,
+    /// La section du menu (`open`, `action`, `danger`…).
+    pub section: String,
+    /// Entrée destructive (rouge).
+    pub avertissement: bool,
+    pub action: Rc<dyn Fn()>,
+}
+
+impl std::fmt::Debug for EntreeMenuReduit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EntreeMenuReduit")
+            .field("titre", &self.titre)
+            .field("section", &self.section)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CompactInfo {
@@ -105,6 +129,7 @@ impl CompactInfo {
             hover: None,
             doc: None,
             groupable: true,
+            menu: None,
         }
     }
 }
