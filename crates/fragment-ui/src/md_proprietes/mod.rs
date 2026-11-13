@@ -6,6 +6,7 @@
 
 pub mod modele;
 pub mod saisie;
+pub mod vue;
 
 use fragment_core::CommandManager;
 

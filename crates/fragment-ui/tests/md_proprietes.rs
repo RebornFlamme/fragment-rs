@@ -362,3 +362,194 @@ fn cles_en_double_et_collage() {
     let vide = b.p.coller(&b.texte, 0, "pas du yaml: [");
     assert!(matches!(vide.effets[0], Effet::Notice(_)));
 }
+
+/// La vue montée sur un vrai éditeur (GPUI de test, DirectWrite réel) : chaque geste est UNE
+/// transaction isolée de l'historique.
+#[cfg(windows)]
+mod vue {
+    use std::mem::ManuallyDrop;
+    use std::rc::Rc;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::{Duration, Instant};
+
+    use fragment_core::{Keymap, MetadataTypeManager, StockageMemoire};
+    use fragment_theme::Mode;
+    use fragment_ui::editeur::{EditeurLive, OptionsEditeur};
+    use fragment_ui::md_proprietes::modele::Action;
+    use fragment_ui::md_proprietes::vue::{CrochetsProprietes, VueProprietes};
+    use fragment_ui::{polices, theme_global};
+    use gpui_kit::platform::current_platform;
+    use gpui_kit::test::TestWindowExt as _;
+    use gpui_kit::{
+        AnyWindowHandle, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement as _,
+        Point, Render, Styled as _, TestAppContext, TestDispatcher, Window, WindowBounds,
+        WindowOptions, div, px, size,
+    };
+
+    /// ★ Un test figé échoue en 5 min, nommé (voir `tests/editeur.rs`).
+    fn chien_de_garde(fini: Arc<AtomicBool>) {
+        let nom = std::thread::current().name().unwrap_or("?").to_owned();
+        std::thread::spawn(move || {
+            let debut = Instant::now();
+            while debut.elapsed() < Duration::from_secs(300) {
+                if fini.load(Ordering::Relaxed) {
+                    return;
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            eprintln!("PROPRIETES|bloque|{nom} dépasse 300 s : arrêt du processus");
+            std::process::exit(101);
+        });
+    }
+
+    /// L'éditeur et, par-dessus, la vue des Properties : les deux dans l'arbre de la fenêtre.
+    struct Racine(Entity<EditeurLive>, Entity<VueProprietes>);
+
+    impl Render for Racine {
+        fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+            div()
+                .size_full()
+                .child(div().h(px(400.)).child(self.0.clone()))
+                .child(self.1.clone())
+        }
+    }
+
+    struct Banc {
+        /// ★ JAMAIS détruit (DirectWrite sous Windows).
+        cx: ManuallyDrop<TestAppContext>,
+        fenetre: AnyWindowHandle,
+        vue: Entity<VueProprietes>,
+        editeur: Entity<EditeurLive>,
+        fini: Arc<AtomicBool>,
+    }
+
+    impl Drop for Banc {
+        fn drop(&mut self) {
+            self.fini.store(true, Ordering::Relaxed);
+        }
+    }
+
+    impl Banc {
+        fn new(texte: &str) -> Banc {
+            let mut cx = TestAppContext::build_with_text_system(
+                TestDispatcher::new(0),
+                None,
+                current_platform(false).text_system(),
+            );
+            polices::enregistrer(cx.text_system()).unwrap();
+            cx.update(gpui_kit::init);
+            cx.update(|cx| theme_global::installer(cx, Mode::Sombre));
+            let texte = texte.to_owned();
+            let (fenetre, (vue, editeur)) = cx.update(|cx| {
+                let mut sortie = None;
+                let (f, _) = gpui_kit::open_window(
+                    WindowOptions {
+                        window_bounds: Some(WindowBounds::Windowed(Bounds {
+                            origin: Point::default(),
+                            size: size(px(800.), px(600.)),
+                        })),
+                        ..Default::default()
+                    },
+                    cx,
+                    |window, cx| {
+                        let editeur = cx.new(|cx| {
+                            EditeurLive::new(&texte, OptionsEditeur::default(), window, cx)
+                        });
+                        let types = Rc::new(MetadataTypeManager::new(
+                            Rc::new(StockageMemoire::new()),
+                            Rc::new(|| 0),
+                        ));
+                        let crochets = CrochetsProprietes {
+                            notifier: Rc::new(|_| {}),
+                            deplier: Rc::new(|| {}),
+                            keymap: Rc::new(Keymap::new()),
+                        };
+                        let e2 = editeur.clone();
+                        let vue = cx.new(|cx| VueProprietes::new(e2, types, crochets, cx));
+                        sortie = Some((vue.clone(), editeur.clone()));
+                        cx.new(|_| Racine(editeur, vue))
+                    },
+                )
+                .unwrap();
+                (f, sortie.unwrap())
+            });
+            cx.update_window(fenetre, |_, window, _| window.activate_window())
+                .unwrap();
+            let fini = Arc::new(AtomicBool::new(false));
+            chien_de_garde(fini.clone());
+            let mut b = Banc {
+                cx: ManuallyDrop::new(cx),
+                fenetre,
+                vue,
+                editeur,
+                fini,
+            };
+            b.stabiliser();
+            b
+        }
+
+        fn stabiliser(&mut self) {
+            for _ in 0..4 {
+                self.cx.run_until_parked();
+                self.cx
+                    .update_window(self.fenetre, |_, window, cx| window.render_frame(cx))
+                    .unwrap();
+            }
+            self.cx.run_until_parked();
+        }
+
+        fn texte(&mut self) -> String {
+            let e = self.editeur.clone();
+            self.cx.update(|cx| e.read(cx).texte().to_owned())
+        }
+
+        fn executer(&mut self, a: &Action) {
+            let (vue, a) = (self.vue.clone(), a.clone());
+            self.cx
+                .update_window(self.fenetre, |_, window, cx| {
+                    vue.update(cx, |v, cx| v.executer(&a, window, cx));
+                })
+                .unwrap();
+            self.stabiliser();
+        }
+
+        fn annuler(&mut self) {
+            let e = self.editeur.clone();
+            self.cx
+                .update_window(self.fenetre, |_, window, cx| {
+                    let etat = e.read(cx).etat().clone();
+                    etat.update(cx, |s, cx| s.focus(window, cx));
+                })
+                .unwrap();
+            self.stabiliser();
+            self.cx
+                .update_window(self.fenetre, |_, window, cx| window.press("ctrl-z", cx))
+                .unwrap();
+            self.stabiliser();
+        }
+    }
+
+    #[test]
+    fn clear_properties_est_annulable_d_un_coup() {
+        let mut b = Banc::new(super::PROPS);
+        b.executer(&Action::ToutEffacer);
+        assert_eq!(b.texte(), "Corps\n");
+        b.annuler();
+        assert_eq!(b.texte(), super::PROPS);
+    }
+
+    #[test]
+    fn chaque_edition_est_une_transaction_isolee() {
+        let mut b = Banc::new(super::PROPS);
+        b.executer(&Action::Supprimer(1));
+        assert_eq!(b.texte(), "---\ntags:\n  - 2023-2024\n---\nCorps\n");
+        b.executer(&Action::Supprimer(0));
+        assert_eq!(b.texte(), "Corps\n");
+        // Deux gestes, deux pas : un Ctrl+Z ne défait que le dernier.
+        b.annuler();
+        assert_eq!(b.texte(), "---\ntags:\n  - 2023-2024\n---\nCorps\n");
+        b.annuler();
+        assert_eq!(b.texte(), super::PROPS);
+    }
+}
