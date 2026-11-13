@@ -1,0 +1,13 @@
+{
+  "scene": "t11-accent",
+  "depuis": "T11",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t11",
+  "actions": [
+    {"type":"command","id":"pixels:theme-set","args":{"name":"Rose"}},
+    {"type":"command","id":"pixels:accent-set","args":{"couleur":"#1fb5a3"}},
+    {"type":"command","id":"pixels:explorer-rename","args":{"path":"Journal.md"}},
+    {"type":"wait","ms":200}
+  ]
+}

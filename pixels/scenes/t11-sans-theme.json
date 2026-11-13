@@ -1,0 +1,14 @@
+{
+  "scene": "t11-sans-theme",
+  "depuis": "T11",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t11",
+  "actions": [
+    {"type":"command","id":"pixels:theme-set","args":{"name":"Rose"}},
+    {"type":"command","id":"pixels:theme-set","args":{"name":""}},
+    {"type":"click","x":150,"y":117,"button":"right"},
+    {"type":"hover","x":700,"y":500},
+    {"type":"wait","ms":300}
+  ]
+}

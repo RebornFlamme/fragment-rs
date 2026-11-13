@@ -1,0 +1,13 @@
+{
+  "--color-accent": "#d9488f",
+  "--tab-bar-bg": "#1d0f19",
+  "--background-secondary": "#25131f",
+  "--background-primary": "#2d1826",
+  "--background-primary-alt": "#341c2d",
+  "--menu-bg": "#3a2032",
+  "--background-secondary-alt": "#42243a",
+  "--tab-outline-color": "#5f3552",
+  "--text-normal": "#f9e6f1",
+  "--text-muted": "#d3a9c2",
+  "--text-faint": "#a37a93"
+}
