@@ -2823,9 +2823,12 @@ dependencies = [
  "fragment-text",
  "gpui-kit",
  "gpui-webview",
+ "image",
  "lb-wry",
  "raw-window-handle",
  "serde_json",
+ "webview2-com",
+ "windows 0.61.3",
 ]
 
 [[package]]

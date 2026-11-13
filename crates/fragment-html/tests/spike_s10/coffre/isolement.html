@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>isolement</title></head>
+<body>
+<p id="js">sonde</p>
+<script>
+  // Sonde d'isolement, écrite pour ce dépôt : ce que la page atteint, mesuré par elle-même.
+  (async function () {
+    var r = { cadre: window.parent !== window };
+    r.node = typeof require === 'undefined' ? 'pas-de-node' : 'node';
+    try {
+      // Le document d'un autre contexte : celui du parent s'il existe (iframe), sinon aucun.
+      r.dom = (window.parent !== window && window.parent.document) ? 'dom-hote' : 'pas-de-dom';
+    } catch (e) { r.dom = 'pas-de-dom'; }
+    try { localStorage.setItem('k', 'v'); r.stockage = 'stockage'; } catch (e) { r.stockage = 'pas-de-stockage'; }
+    try { document.cookie = 'k=v'; r.cookie = document.cookie ? 'cookie' : 'pas-de-cookie'; } catch (e) { r.cookie = 'pas-de-cookie'; }
+    r.ipc = typeof window.ipc;
+    r.webview = typeof (window.chrome && window.chrome.webview);
+    r.origine = String(self.origin);
+    try {
+      var x = await fetch('/note.md');
+      var t = await x.text();
+      r.fetch = x.status + ':' + (t.indexOf('SECRET') >= 0 ? 'SECRET' : 'ok');
+    } catch (e) { r.fetch = 'refuse'; }
+    var viol = [];
+    document.addEventListener('securitypolicyviolation', function (e) { viol.push(e.violatedDirective + ' ' + e.blockedURI); });
+    if (new URL(location.href).searchParams.get('reseau') !== '0') {
+      try { await fetch('https://example.com/x'); r.reseau = 'sortie'; } catch (e) { r.reseau = 'bloque'; }
+      await new Promise(function (ok) { setTimeout(ok, 50); });
+      r.csp = viol;
+    } else { r.reseau = 'non-essaye'; }
+    document.getElementById('js').setAttribute('data-isolement', [r.node, r.dom, r.stockage].join(','));
+    try { window.ipc.postMessage(JSON.stringify({ fragmentHtml: 1, type: 'ipc-direct' })); r.ipcDirect = 'envoye'; } catch (e) { r.ipcDirect = 'exception'; }
+    if (window.__envoyer) window.__envoyer('isolement', r);
+  })();
+</script>
+</body>
+</html>

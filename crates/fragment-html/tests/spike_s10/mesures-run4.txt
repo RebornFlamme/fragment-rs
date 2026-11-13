@@ -1,0 +1,67 @@
+[S10] ouverture_enfant_ms (fenêtre → 1er height) = 53
+[S10] dpi = 144
+[S10] echelle = 1.5
+[S10] conteneur_wry_trouve = true
+[S10] 0_popup_visible_avant_topmost = true
+[S10] 0_topmost_sans_activation = true
+[S10] 1_enfant_centre (bleu = page visible) = Some((30, 144, 255))
+[S10] 1_temoin_gpui (vert) = Some((0, 255, 0))
+[S10] 1_barre_gpui (rouge) = Some((255, 0, 0))
+[S10] 1_popup_centre (bleu) = Some((30, 144, 255))
+[S10] 2_images_par_seconde = "29.4"
+[S10] 2_echantillons = 702
+[S10] 2_suivi_enfant = "n=702 retard 0 image 76% / 1 image 24% / ≥2 images 0% ; médiane 0.00 ; max 1.00 images"
+[S10] 2_suivi_popup = "n=702 retard 0 image 76% / 1 image 24% / ≥2 images 0% ; médiane 0.00 ; max 1.00 images"
+[S10] 3_sans_region_enfant_sous_barre (bleu = la page couvre la barre) = Some((30, 144, 255))
+[S10] 3_sans_region_popup_sous_barre = Some((30, 144, 255))
+[S10] 3_region_enfant_sous_barre (rouge = rognée) = Some((255, 0, 0))
+[S10] 3_region_enfant_dessous (bleu) = Some((30, 144, 255))
+[S10] 3_region_popup_sous_barre (rouge) = Some((255, 0, 0))
+[S10] 3_region_popup_dessous (bleu) = Some((30, 144, 255))
+[S10] 3_en_mouvement_rogner=false (échantillons, page bleue sur la barre : enfant, popup) = (1120, 152, 152)
+[S10] 3_en_mouvement_rogner=true (échantillons, page bleue sur la barre : enfant, popup) = (1122, 39, 0)
+[S10] 4_menu_sur_enfant (jaune) = Some((255, 255, 0))
+[S10] 4_menu_sur_popup (jaune) = Some((255, 255, 0))
+[S10] 4_enfant_hors_menu (bleu) = Some((30, 144, 255))
+[S10] 5_deplacement_enfant (dx, dy attendu 80, 40) = (80, 40)
+[S10] 5_deplacement_popup_sans_rendu (dx, dy) = (80, 40)
+[S10] 5_deplacement_popup_apres_notify (dx, dy ; ms) = (80, 40, 0)
+[S10] 5_minimisee (iconique, popup visible, conteneur visible) = (true, false, true)
+[S10] 5_restauree (iconique, popup visible) = (false, true)
+[S10] 5_restauree_enfant (bleu) = Some((30, 144, 255))
+[S10] 5_restauree_popup (bleu) = Some((30, 144, 255))
+[S10] 5_premier_plan_inchange = true
+[S10] 6_page_enfant (innerWidth x innerHeight, dpr) = Some("\"500x300 dpr=1.5\"")
+[S10] 6_conteneur_physique (l x h) contre logique x échelle = (750, 450, 750.0, 450.0)
+[S10] 7_capturepreview_enfant (ms, octets, centre) = Ok((93, 5563, (30, 144, 255)))
+[S10] 7_capturepreview_popup = Ok((56, 5042, (30, 144, 255)))
+[S10] 7_printwindow_conteneur_enfant (ms, centre) = (9, Some((30, 144, 255)))
+[S10] 7_printwindow_fenetre_gpui (ms, page, témoin) = (26, Some((30, 144, 255)), Some((0, 255, 0)))
+[S10] 7_printwindow_popup (ms, centre) = (20, Some((30, 144, 255)))
+[S10] 7_capturepreview_enfant_rogne (centre) = Ok((40, 5563, (30, 144, 255)))
+[S10] 7_printwindow_enfant_rogne (haut, bas) = (Some((32, 32, 32)), Some((30, 144, 255)))
+[S10] 7_capturepreview_popup_hors_ecran = Ok((56, 5042, (30, 144, 255)))
+[S10] 7_printwindow_popup_hors_ecran (centre) = Some((30, 144, 255))
+[S10] 7_capturepreview_webview_cachee = Err("délai")
+[S10] 8_hwnd_descendants (classe, même processus ?) = ["Chrome_WidgetWin_0:true", "Chrome_WidgetWin_1:false", "Chrome_RenderWidgetHostHWND:false", "Intermediate D3D Window:false"]
+[S10] 8_apres_clic_poste = Some("\"{\\\"valeur\\\":\\\"\\\",\\\"actif\\\":\\\"champ\\\",\\\"aLeFocus\\\":true,\\\"journal\\\":[\\\"mousedown\\\",\\\"focus\\\",\\\"click\\\"]}\"")
+[S10] 8_apres_wm_char = Some("\"{\\\"valeur\\\":\\\"ab\\\",\\\"actif\\\":\\\"champ\\\",\\\"aLeFocus\\\":true,\\\"journal\\\":[\\\"mousedown\\\",\\\"focus\\\",\\\"click\\\",\\\"input\\\",\\\"input\\\"]}\"")
+[S10] 8_echap_poste → message key = Some("{\"fragmentHtml\":1,\"type\":\"key\",\"key\":\"Escape\",\"ctrlKey\":false}")
+[S10] 8_focus_fil_avant (== fenêtre GPUI ?) = false
+[S10] 8_move_focus = Ok(())
+[S10] 8_focus_fil_apres_movefocus (gpui, conteneur, descendant webview) = (false, false, true)
+[S10] 8_etat_page_apres_movefocus = Some("\"{\\\"valeur\\\":\\\"ab\\\",\\\"actif\\\":\\\"champ\\\",\\\"aLeFocus\\\":true,\\\"journal\\\":[\\\"mousedown\\\",\\\"focus\\\",\\\"click\\\",\\\"input\\\",\\\"input\\\",\\\"keydown:Escape\\\",\\\"blur\\\",\\\"focus\\\"]}\"")
+[S10] 8_focus_fil_apres_focus_parent (== gpui) = true
+[S10] 8_premier_plan_inchange = true
+[S10] 9_iso1 = Some("{\"fragmentHtml\":1,\"type\":\"isolement\",\"cadre\":false,\"node\":\"pas-de-node\",\"dom\":\"pas-de-dom\",\"stockage\":\"stockage\",\"cookie\":\"cookie\",\"ipc\":\"object\",\"webview\":\"object\",\"origine\":\"http://fragment-local.localhost\",\"fetch\":\"403:ok\",\"reseau\":\"non-essaye\",\"ipcDirect\":\"envoye\"}")
+[S10] 9_iso2 = Some("{\"fragmentHtml\":1,\"type\":\"isolement\",\"cadre\":false,\"node\":\"pas-de-node\",\"dom\":\"pas-de-dom\",\"stockage\":\"pas-de-stockage\",\"cookie\":\"pas-de-cookie\",\"ipc\":\"object\",\"webview\":\"object\",\"origine\":\"null\",\"fetch\":\"refuse\",\"reseau\":\"bloque\",\"csp\":[\"connect-src https://example.com/x\"],\"ipcDirect\":\"envoye\"}")
+[S10] 9_iso3 = Some("{\"fragmentHtml\":1,\"type\":\"isolement\",\"cadre\":true,\"node\":\"pas-de-node\",\"dom\":\"pas-de-dom\",\"stockage\":\"pas-de-stockage\",\"cookie\":\"pas-de-cookie\",\"ipc\":\"object\",\"webview\":\"object\",\"origine\":\"null\",\"fetch\":\"refuse\",\"reseau\":\"bloque\",\"csp\":[\"connect-src https://example.com/x\"],\"ipcDirect\":\"envoye\"}")
+[S10] 9_iso1_ipc_direct_recu = 1
+[S10] 9_iso2_ipc_direct_recu = 1
+[S10] 9_iso3_ipc_direct_recu = 0
+[S10] 10_memoire_base (Mo WS, Mo privés, processus) = Some((414.48046875, 200.53125, 7))
+[S10] 10_lot_1 (ms construction, ms jusqu'au dernier height, mémoire) = (116, 160, Some((464.046875, 218.65625, 8)))
+[S10] 10_lot_5 (ms construction, ms jusqu'au dernier height, mémoire) = (522, 575, Some((668.71875, 300.13671875, 12)))
+[S10] 10_lot_10 (ms construction, ms jusqu'au dernier height, mémoire) = (704, 757, Some((931.05078125, 409.01953125, 17)))
+[S10] premier_plan_intact (inchangé, à nous) = (true, false)
+erreur : None ; 66 mesures
