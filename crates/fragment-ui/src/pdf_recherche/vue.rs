@@ -22,6 +22,7 @@
 //! ★ Les caractères tapés arrivent, eux, par l'écouteur de frappes du champ (la portée ne les
 //!   reconnaît pas, la frappe poursuit son chemin jusqu'à lui).
 
+use fragment_pdf::recherche::OptionsRecherche;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -214,6 +215,12 @@ impl RecherchePdf {
     }
 
     /// Aa : bascule la casse et relance.
+    /// Les réglages restaurés de l'état éphémère (fr-t4-vue-pdf) ; rien n'est relancé.
+    pub fn definir_options(&mut self, options: OptionsRecherche, cx: &mut Context<Self>) {
+        self.barre.definir_options(options);
+        cx.notify();
+    }
+
     pub fn basculer_casse(&mut self, cx: &mut Context<Self>) {
         let type_ = self.barre.basculer_casse();
         self.lancer(type_, false, cx);

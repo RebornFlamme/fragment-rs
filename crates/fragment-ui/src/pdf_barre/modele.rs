@@ -152,6 +152,11 @@ impl BarrePdf {
         self.ouverte = !self.ouverte;
     }
 
+    /// Le contenu de la barre latérale, sans l'ouvrir (état éphémère restauré, fr-t4-vue-pdf).
+    pub fn definir_mode_barre(&mut self, mode: ModeBarre) {
+        self.mode = mode;
+    }
+
     pub fn ouvrir_barre(&mut self, ouverte: bool) {
         self.ouverte = ouverte;
     }
