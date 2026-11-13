@@ -1,0 +1,11 @@
+# Parité de fr-t7-defilement (fragment-ui). Schéma `parite.d` : un fichier par tâche. ScrollController.ts,
+# jump.ts et announcer.ts n'ont pas de test unitaire TS (followModel.test.ts est porté dans fragment-chat) ;
+# les cas headless suivent les tests de app/e2e/chat-scroll.spec.ts, un par principe.
+
+[[module]]
+ts = "app/src/ui/views/chat/scroll/{ScrollController,jump,announcer}.ts, app/e2e/chat-scroll.spec.ts"
+rs = "crates/fragment-ui/src/chat_defilement/{mod,controleur,defileur,pastille,annonceur}.rs, crates/fragment-ui/tests/chat_defilement.rs"
+cas_source = 11
+cas_portes = 10
+cas_ajoutes = 10
+notes = "Portés (positions MESURÉES en headless, échantillonnées image par image) : 11 réouverture sur la dernière question, 4·5·6 envoi (question à contexte px, tour d'avant visible, immobile pendant le flux, réserve hors du contenu), 1·7 lecture plus haut pendant un flux, 8·9·2 pastille / suivi / molette, 3 sélection et Ctrl+F, 10 rail + Alt+↑/↓ et lien #m5 (la partie recherche est fr-t7-rail-recherche), 12 contenu qui grandit au-dessus et reconstruction, 13 arrêt / erreur, 14·15 une passe par image et annonceur (le compte des mises à jour du fil est la règle UneParImage ; rôle log / article : fr-t7-fil), 11 position rouverte. Non porté ici : l'aperçu du rail (fr-t7-rail-recherche). Écarts et dettes : (1) ★ pas d'overflow-anchor dans GPUI : la passe libre rejoue l'ancre de lecture à chaque image (rien ancré tout en haut, comme Chromium) ; (2) une position écrite après la mise en page vaut pour l'image SUIVANTE (une image de retard, risque 5 de T7.md) ; (3) pas de défilement doux (jump et reveal smooth sont immédiats) ; (4) pas de barre de défilement GPUI : un appui n'importe où dans le fil (sélection, lien, focus, barre) est l'intention ; touches PageUp/PageDown/flèches/Début/Espace défilent à la main, Fin = aller au plus récent ; (5) l'annonceur est une région role=status sans aria-live (GPUI n'expose pas live) ; (6) la pastille et son ancre se rendent par une fonction que la vue pose au-dessus du champ (fr-t7-vue), les lus (SuiviLus) aussi. Ajout minimal hors liste : ListeMessages::poser_mesure (chat_fil/liste.rs), le rapport des boîtes de la colonne."
