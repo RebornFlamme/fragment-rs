@@ -8,7 +8,7 @@
 //!
 //! ★ Pas porté ici (voir `parite.toml`) : la saisie de la recherche (champ statique), l'ouverture de la
 //!   liste déroulante et le sélecteur de couleur natif, les définitions page / liste / arbre / action /
-//!   libre, l'espacement des lettres des titres de groupe (GPUI n'a pas de `letter-spacing`).
+//!   libre.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -23,7 +23,8 @@ use gpui_kit::{
     AbsoluteLength, AnyElement, App, Bounds, ClickEvent, Context, Div, FontWeight,
     InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, ParentElement as _, Pixels, Render, SharedString,
-    StatefulInteractiveElement as _, Styled, Window, anchored, canvas, deferred, div, px, svg,
+    StatefulInteractiveElement as _, Styled, Window, anchored, canvas, deferred, div, point, px,
+    svg,
 };
 
 use super::curseur::{Curseur, DIAMETRE_POUCE, HAUTEUR_PISTE, LARGEUR_PISTE};
@@ -250,30 +251,56 @@ fn lignes(cx: &App, texte: &str, taille: f32, largeur: f32) -> usize {
     (n + usize::from(!ligne.is_empty())).max(1)
 }
 
-/// ★ `letter-spacing`, que GPUI n'a pas : une boîte par lettre, chacune à l'arrondi de l'abscisse de
-/// Chromium (avance crénée du préfixe + `i` × espacement, l'espacement suivant AUSSI la dernière
-/// lettre). Chromium pose les glyphes au pixel entier sous Windows (pas de positionnement
-/// sous-pixel) : les lettres retombent donc où il les peint. Sans cela « OPTIONS » finissait 3 px
-/// trop tôt (0,48 px × 7).
+/// Le décalage d'interlettrage du glyphe qui commence à l'octet `index` de `texte` : `letter-spacing`
+/// suit chaque caractère, le glyphe du caractère de rang `i` est donc poussé de `i` × `espacement`.
+fn decalage_lettre(texte: &str, index: usize, espacement: f32) -> f32 {
+    let rang = texte.char_indices().take_while(|(k, _)| *k < index).count();
+    #[allow(clippy::cast_precision_loss)]
+    let decalage = rang as f32 * espacement;
+    decalage
+}
+
+/// ★ `letter-spacing`, que GPUI n'a pas : la ligne est mise en forme D'UN SEUL TENANT (avances
+/// crénées de DirectWrite), puis chaque glyphe est peint à son abscisse fractionnaire, poussée de
+/// `i` × espacement. Chromium garde l'origine sous-pixel du texte et `paint_glyph` la quantifie au
+/// quart de pixel, comme lui (docs/mesures/placement-glyphes.md). L'ancienne pose, une boîte par
+/// lettre calée au pixel par taffy, déplaçait chaque lettre de −0,45 à +0,95 px (fr-t11.5).
+/// Police, taille, interligne et couleur sont celles héritées du parent (`texte`, `text_color`).
 fn espacer_lettres(cx: &App, texte: &str, taille: f32, espacement: f32) -> AnyElement {
-    let mut bords = vec![0.0_f32];
-    for (i, (k, ch)) in texte.char_indices().enumerate() {
-        let fin = k + ch.len_utf8();
-        bords.push(
-            largeur_texte(cx, &texte[..fin], FontWeight::NORMAL, taille)
-                + (i + 1) as f32 * espacement,
-        );
-    }
-    let mut largeurs = Vec::with_capacity(bords.len());
-    for w in bords.windows(2) {
-        largeurs.push(w[1] - w[0]);
-    }
-    let calees_ = calees(cx, 0.0, &largeurs);
-    let mut ligne = div().flex().flex_none().whitespace_nowrap();
-    for (ch, l) in texte.chars().zip(calees_) {
-        ligne = ligne.child(div().flex_none().w(l).child(ch.to_string()));
-    }
-    ligne.into_any_element()
+    let texte: SharedString = texte.to_owned().into();
+    #[allow(clippy::cast_precision_loss)]
+    let largeur = largeur_texte(cx, &texte, FontWeight::NORMAL, taille)
+        + texte.chars().count() as f32 * espacement;
+    let espacement = u(cx, espacement);
+    canvas(
+        |_, _, _| {},
+        move |bounds: Bounds<Pixels>, (), window: &mut Window, _: &mut App| {
+            let style = window.text_style();
+            let rem = window.rem_size();
+            let corps = style.font_size.to_pixels(rem);
+            let interligne = style.line_height_in_pixels(rem);
+            let run = style.to_run(texte.len());
+            let ligne = window
+                .text_system()
+                .shape_line(texte.clone(), corps, &[run], None);
+            // Même ligne de base que `ShapedLine::paint` : interligne centré autour de l'encre.
+            let base =
+                bounds.origin.y + (interligne - ligne.ascent - ligne.descent) / 2.0 + ligne.ascent;
+            for r in &ligne.runs {
+                for g in &r.glyphs {
+                    let x = bounds.origin.x
+                        + g.position.x
+                        + px(decalage_lettre(&texte, g.index, f32::from(espacement)));
+                    let origine = point(x, base + g.position.y);
+                    let _ = window.paint_glyph(origine, r.font_id, g.id, corps, style.color);
+                }
+            }
+        },
+    )
+    .flex_none()
+    .w(u(cx, largeur))
+    .h(u(cx, taille * 1.5))
+    .into_any_element()
 }
 
 /// Pose un bloc : l'écart calé qui le précède, puis le bloc à sa hauteur calée.
@@ -1422,7 +1449,7 @@ pub fn hex_de(c: Couleur) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{hauteur_curseur, hauteur_entete, hauteur_liste, repartir};
+    use super::{decalage_lettre, hauteur_curseur, hauteur_entete, hauteur_liste, repartir};
     use fragment_theme::Theme;
 
     #[test]
@@ -1435,6 +1462,15 @@ mod tests {
         // L'étiquette (19,5) l'emporte sur l'`input` (4 + 2 × 2).
         assert_eq!(hauteur_curseur(true, &t), 19.5);
         assert_eq!(hauteur_curseur(false, &t), 8.0);
+    }
+
+    #[test]
+    fn l_espacement_suit_chaque_lettre_precedente() {
+        // « OPTIONS » à 12 px, 0,04 em : le glyphe de rang i est poussé de i × 0,48 px.
+        assert_eq!(decalage_lettre("OPTIONS", 0, 0.48), 0.0);
+        assert!((decalage_lettre("OPTIONS", 3, 0.48) - 1.44).abs() < 1e-6);
+        // Le rang compte des caractères, pas des octets.
+        assert!((decalage_lettre("ÉTÉ", 2, 0.5) - 0.5).abs() < 1e-6);
     }
 
     #[test]
