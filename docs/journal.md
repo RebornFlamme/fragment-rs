@@ -1008,3 +1008,7 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - PR en CI : #126 (surlignages, dette Multiplie notée), #127.
 **Rythme** : 3 points en 1 h, au-dessus des 1,8 par heure nécessaires ; 6 places occupées, pas plus.
 - Battement 13/11 09:40 UTC — usage 5h 23 % / semaine 82 % ; contexte du chef 240k. PR : #127 (relance du flake fr-9n1), #125, #128 et #105 en brouillon chez leurs équipiers. 6 places occupées, disque 81 Go. Rythme tenu (1,8 point par heure requis) : pas de 7e place.
+- 13/11 ~10:30 UTC (semaine 83 %) — fusionnées, 8 jobs verts et audit à 0 : #126 (surlignages), #127 (menu Calques, flake fr-9n1 relancé), #129 (lien d'ancre), #125 (ChatSurface), #130 (service de l'agent), #131 (défilement du chat ; +19 lignes hors liste dans chat_fil/liste.rs, signalées). Vague 14 : 10 fusions.
+- ★ Mes moniteurs de CI lisaient `name` avant `bucket` : le JSON de gh rend `bucket` d'abord, donc « aucun échec » même en rouge. Les fusions ont été revérifiées par `gh pr checks` (toutes vertes) ; motif corrigé.
+- Décision utilisateur (via l'orchestrateur) : références pixels en CI. Bead fr-e9q, #132 ouverte. Bloquants remontés : pousser Fragment main (refs de 89c7a80, 2 commits locaux non poussés) ; activer « Allow GitHub Actions to create and approve pull requests ».
+- Lancés : fr-t7-controles, fr-t7-pieces-citation (Sonnet), fr-t5-grappes (Opus → #133 brouillon, contexte dépassé, reprise Sonnet). Bead fr-bwa : icônes locate et list-filter, constante DISQUE.
