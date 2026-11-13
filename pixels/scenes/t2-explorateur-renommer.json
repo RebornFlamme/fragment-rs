@@ -6,6 +6,7 @@
   "vault": "pixels/vault-t2",
   "actions": [
     {"type":"command","id":"pixels:explorer-rename","args":{"path":"Journal.md"}},
+    {"type":"hover","x":295,"y":535},
     {"type":"wait","ms":200}
   ]
 }
