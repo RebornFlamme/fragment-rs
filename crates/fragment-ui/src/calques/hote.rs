@@ -398,12 +398,20 @@ impl HoteCalques {
 
     /// Pose la boîte MESURÉE d'un élément ; vrai si elle a changé.
     pub fn poser_taille(&self, el: ElementId, taille: (f64, f64)) -> bool {
-        let mut r = self.partage.registre.borrow_mut();
-        let f = r.fiche(el);
-        if f.taille == taille {
-            return false;
+        let marge = {
+            let mut r = self.partage.registre.borrow_mut();
+            let f = r.fiche(el);
+            if f.taille == taille {
+                return false;
+            }
+            f.taille = taille;
+            f.racine == Some(Racine::Marge)
+        };
+        // ★ Le ResizeObserver du TS (ajout de fr-t5-widgets) : un élément de marge qui change de
+        //   taille replace la marge DANS la passe de cette image — sinon le recouvrement est peint.
+        if marge {
+            self.arbitre.invalidate();
         }
-        f.taille = taille;
         true
     }
 
