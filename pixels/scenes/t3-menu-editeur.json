@@ -1,0 +1,12 @@
+{
+  "scene": "t3-menu-editeur",
+  "depuis": "T3",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t3/c",
+  "actions": [
+    {"type":"open","path":"menu.md"},
+    {"type":"click","x":470,"y":253,"button":"right"},
+    {"type":"wait","ms":200}
+  ]
+}
