@@ -1,0 +1,12 @@
+# Parité de fr-t5-hote (fragment-layers). Schéma `parite.d` : un fichier par tâche. ViewOverlays.ts n'a
+# pas de test unitaire TS : les cas sont écrits d'après le contrat d'OverlayHost et les specs e2e viewport
+# (bande stable aux petits pas, zoom), gutter-room (marge trop étroite), margin-mode (la colonne déplacée
+# change la géométrie) et reader-pdf (« zoom : le widget de marge garde SA taille »).
+
+[[module]]
+ts = "app/src/ui/core/layers/ViewOverlays.ts (clientToViewport, clientToDocument, documentToClient, gutterBand, calculerBande, documentOrigin, clé du ResizeObserver, viewport / visible / planifierViewport, majMarge, setWanted × échelle)"
+rs = "crates/fragment-layers/src/view_overlays.rs, crates/fragment-layers/src/gutter_arbiter.rs (with_wanted_scale, with_on_slot_removed), crates/fragment-layers/tests/view_overlays.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 18
+notes = "Géométrie pure, sans DOM : conversions client ↔ plan inversibles à toute échelle, bande de marge par côté (GUTTER_PAD 14, écart de la vue), clé de géométrie (largeurs et écarts arrondis, hauteur de colonne ignorée), viewport annoncé seulement si sa bande change, échelle bornée, position d'un élément dans le pane selon sa racine (GPUI n'a pas de transform : la marge en px écran, le plan document × échelle), ancre viewport par coin. Écart : les bandes mémorisées sont oubliées à chaque nouvelle mesure (une par image) au lieu du défilement capturé et de la microtâche."

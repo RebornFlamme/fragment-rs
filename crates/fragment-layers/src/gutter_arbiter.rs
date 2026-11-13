@@ -141,6 +141,12 @@ struct Inner {
     /// L'élément actif de la VUE (WidgetActivation) : le slot qui le porte est épinglé.
     actif_el: Box<dyn Fn() -> Option<ElementId>>,
     host: Option<Rc<dyn GutterArbiterHost>>,
+    /// L'échelle du plan document (fr-t5-hote) : un niveau voulu arrive en unités
+    /// du plan, l'arbitre parle en px de la marge (zoom annulé). Défaut : 1.
+    echelle_voulue: Box<dyn Fn() -> f64>,
+    /// Prévenu quand un slot est rendu (fr-t5-hote : l'hôte relâche l'actif de
+    /// l'élément et le sort de la racine de marge).
+    slot_rendu: Option<Box<dyn Fn(ElementId)>>,
 }
 
 /// L'arbitre des marges d'une vue. Clonable : une poignée sur un même arbitre.
@@ -174,6 +180,8 @@ impl GutterArbiter {
                 hauteur_visible: Box::new(|| f64::INFINITY),
                 actif_el: Box::new(|| None),
                 host: None,
+                echelle_voulue: Box::new(|| 1.0),
+                slot_rendu: None,
             }),
         }
     }
@@ -191,6 +199,18 @@ impl GutterArbiter {
     /// Le présentateur des grappes : sans lui, aucune grappe n'est formée.
     pub fn with_host(self, host: Rc<dyn GutterArbiterHost>) -> Self {
         self.reconfigurer(|i| i.host = Some(host))
+    }
+
+    /// L'échelle du plan document : `set_wanted` la multiplie (unités du plan →
+    /// px de la marge). Ajout de fr-t5-hote, posé par l'hôte des calques.
+    pub fn with_wanted_scale(self, f: impl Fn() -> f64 + 'static) -> Self {
+        self.reconfigurer(|i| i.echelle_voulue = Box::new(f))
+    }
+
+    /// Prévenu à chaque `GutterSlot::remove` effectif, avec l'élément du slot.
+    /// Ajout de fr-t5-hote, posé par l'hôte des calques.
+    pub fn with_on_slot_removed(self, f: impl Fn(ElementId) + 'static) -> Self {
+        self.reconfigurer(|i| i.slot_rendu = Some(Box::new(f)))
     }
 
     /// Les `with_*` s'appellent à la construction, avant tout partage de la poignée.
@@ -469,6 +489,8 @@ impl GutterSlot {
 
     /// Le haut voulu (repère du plan document), ou `None` : non affiché, aucune place.
     pub fn set_wanted(&self, top: Option<f64>) {
+        let e = self.arb.upgrade().map_or(1.0, |i| (i.echelle_voulue)());
+        let top = top.map(|t| t * e);
         let change = self
             .avec(|s| {
                 if s.wanted == top {
@@ -571,6 +593,9 @@ impl GutterSlot {
         inner.elements.set_room(el, None);
         inner.elements.set_clustered(el, false);
         inner.schedule();
+        if let Some(f) = &inner.slot_rendu {
+            f(el);
+        }
     }
 
     fn planifier(&self) {
