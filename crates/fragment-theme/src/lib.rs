@@ -9,6 +9,7 @@
 pub mod cascade;
 pub mod clair;
 pub mod couleur;
+pub mod fixture;
 pub mod jetons_css;
 pub mod manager;
 pub mod sombre;
