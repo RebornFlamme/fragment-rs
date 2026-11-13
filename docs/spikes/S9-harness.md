@@ -1,4 +1,4 @@
-# S8 (harness) — Le binaire `claude` piloté en `stream-json` depuis Rust
+# S9 (harness) — Le binaire `claude` piloté en `stream-json` depuis Rust
 
 Tâche `fr-t7-harness-spike`. Code : `crates/fragment-agent/examples/spike_harness.rs`. Décision : `docs/decisions/ADR-016-harness-claude.md`.
 (Le numéro S8 sert déjà à `S8-melange-alpha.md` ; le nom de fichier suit le bead, au chef de renuméroter s'il le veut.)

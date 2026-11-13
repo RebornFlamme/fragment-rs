@@ -1,10 +1,10 @@
 # ADR-016 — Harness Claude : le binaire `claude` en processus enfant, protocole `stream-json`
 
-Statut : **proposé**, verdict **GO** (fr-t7-harness-spike, 13/11/2026). Mesures : `docs/spikes/S8-harness.md`. Débloque `fr-t7-harness-claude`.
+Statut : **proposé**, verdict **GO** (fr-t7-harness-spike, 13/11/2026). Mesures : `docs/spikes/S9-harness.md`. Débloque `fr-t7-harness-claude`.
 
 ## Contexte
 
-Fragment pilote l'agent par un processus Node (`sdkProcess.mjs`), qui appelle le Claude Agent SDK, qui lance à son tour le binaire `claude`. program.md §4 demande que fragment-rs parle au binaire directement, sans Node. S8 a rejoué depuis Rust ce que fait le SDK, contre le vrai binaire en 2.1.295 (celui du SDK de Fragment) et en 2.1.316 (installé). Tout passe : tour en flux, pensée résumée, outils, garde `PreToolUse`, carte, « toujours », commande en lecture seule forcée à la carte, reprise, fork à un point donné, interruption, image et PDF, isolement des réglages, prompt par `initialize`.
+Fragment pilote l'agent par un processus Node (`sdkProcess.mjs`), qui appelle le Claude Agent SDK, qui lance à son tour le binaire `claude`. program.md §4 demande que fragment-rs parle au binaire directement, sans Node. S9 a rejoué depuis Rust ce que fait le SDK, contre le vrai binaire en 2.1.295 (celui du SDK de Fragment) et en 2.1.316 (installé). Tout passe : tour en flux, pensée résumée, outils, garde `PreToolUse`, carte, « toujours », commande en lecture seule forcée à la carte, reprise, fork à un point donné, interruption, image et PDF, isolement des réglages, prompt par `initialize`.
 
 ## Décision
 
@@ -64,7 +64,7 @@ Trois fils par tour, sans dépendance nouvelle :
 - Plus de Node ni de SDK dans l'app. Le moteur reste celui de `fr-t7-moteur` : Claude Code installé, ou téléchargé et vérifié.
 - Le protocole de contrôle n'est pas une API publique. `--thinking`, `--thinking-display` et `--resume-session-at` sont des options cachées. Trois garde-fous :
   - la version minimale ;
-  - les tests du lecteur sur des transcripts réels (S8, réécrits en fixtures par `fr-t7-harness-claude`) ;
+  - les tests du lecteur sur des transcripts réels (S9, réécrits en fixtures par `fr-t7-harness-claude`) ;
   - l'exemple `spike_harness`, à relancer à chaque montée de version du binaire.
 - La réponse à `initialize` porte le compte de l'utilisateur (courriel, organisation) : jamais journalisée.
 - ★ Pour l'orchestrateur : Fragment, qui relit `prompt.md` à chaque tour, ne passe pas `systemPromptSnapshot`. Une conversation reprise y garde donc le prompt de son premier tour (vérifié sur 2.1.295). C'est un écart probable dans Fragment, en lecture seule ici.

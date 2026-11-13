@@ -1,4 +1,4 @@
-//! Spike S8 (harness) : le binaire `claude` piloté en `stream-json` depuis Rust, sans le SDK Node.
+//! Spike S9 (harness) : le binaire `claude` piloté en `stream-json` depuis Rust, sans le SDK Node.
 //!
 //! Question : fragment-rs peut-il parler DIRECTEMENT au binaire de Claude Code (processus enfant,
 //! JSON par lignes sur stdin / stdout, protocole de contrôle) pour tout ce que Fragment obtient du
