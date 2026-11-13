@@ -846,6 +846,14 @@ pub(crate) fn lever_nommees(
         }
         res.nommee = Some(element);
     }
+    // Exception nommée d'un glyphe déplacé (fr-p4.1.1, placement des glyphes) : la SEULE forme par
+    // glyphe, jusqu'à la marge `MARGE_GLYPHE_PLACEMENT` ; le passage reste à sa borne.
+    if let Some(element) = exceptions::pour_boite_de(nommees, b, exceptions::Nature::Placement) {
+        if res.ecart_glyphe <= exceptions::MARGE_GLYPHE_PLACEMENT {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_GLYPHE));
+        }
+        res.nommee = Some(element);
+    }
 }
 
 /// Préfixe de la violation du garde-fou de forme par glyphe (voir [`juger`]).
@@ -1583,6 +1591,8 @@ pub fn comparer_tranche(
                     .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
                     .fold(0.0, f64::max);
                 garder(element, "barycentre", passage);
+            } else if element == exceptions::GLYPHE_DEPLACE {
+                garder(element, "glyphe", b.ecart_glyphe);
             } else if element == exceptions::ICONE_HAIRLINE {
                 // L'écart d'encre relatif, en valeur absolue.
                 garder(element, "encre", b.ecart_encre);

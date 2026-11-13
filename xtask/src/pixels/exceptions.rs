@@ -43,6 +43,10 @@ pub enum Nature {
     /// barycentre du passage (l'origine) jusqu'à [`ECART_BARYCENTRE_MOT`] d'une boîte de texte
     /// ([`Exception::boite`]) : encre, bords, moitiés et teinte restent exigés.
     Mot,
+    /// Le SEUL garde-fou de forme PAR GLYPHE jusqu'à la marge [`MARGE_GLYPHE_PLACEMENT`] d'une
+    /// boîte de texte ([`Exception::boite`]) : encre, bords, barycentres (passage compris) et
+    /// teinte restent exigés.
+    Placement,
 }
 
 /// Une exception nommée : un élément d'un PNG.
@@ -207,6 +211,47 @@ const fn mot(png: &'static str, boite: [u32; 4]) -> Exception {
         jeton: "--text-muted",
         nature: Nature::Mot,
         boite: Some(boite),
+    }
+}
+
+/// ★ L'élément des glyphes déplacés de texte légitime (chef, 13/11 04:30, en cliquet sous
+/// `fr-p4.1.1`, placement des glyphes) : `t1-notice-empilees` sombre (deux boîtes) et `t1-zoom-80`
+/// sombre (une boîte). Un glyphe y est placé par GPUI à une autre phase sous-pixel que Chromium :
+/// sa masse 3×3 (1,60 et 1,68, borne 1,54) ou 2×2 (1,10, borne 1,09) déborde, sans autre écart
+/// (encre, bords, passage dans leurs bornes). Les bornes du garde-fou ne bougent pas (la détection
+/// reste ≥ 99,2 %) ; seules ces trois boîtes sont levées. Clé du cliquet : `glyphe` (marge du pire
+/// glyphe). Elles tombent avec le correctif de placement de `fr-p4.1.1`.
+pub const GLYPHE_DEPLACE: &str = "glyphe déplacé (placement des glyphes)";
+
+/// La marge du pire glyphe tolérée par une exception [`Nature::Placement`] (1 : la borne).
+pub const MARGE_GLYPHE_PLACEMENT: f64 = 1.10;
+
+const fn placement(png: &'static str, boite: [u32; 4]) -> Exception {
+    Exception {
+        png,
+        element: GLYPHE_DEPLACE,
+        jeton: "--text-normal",
+        nature: Nature::Placement,
+        boite: Some(boite),
+    }
+}
+
+/// ★ L'élément de l'arc de la pastille d'accent des réglages (chef, 13/11 04:30, en cliquet sous
+/// `fr-p4.1`, comme le contour d'onglet) : la pastille ronde de 28 px (bordure 1 px) a le MÊME centre
+/// (910, 242) et le même rayon déclaré (14 px) des deux côtés ; seules les cellules que coupent les
+/// deux bords de l'anneau de bordure diffèrent (rayon 12,5 à 14,3 du centre, delta jusqu'à 62 en
+/// sombre, 48 en clair) : Chromium sous-couvre l'anneau (rayons effectifs 13,79/12,84), GPUI le
+/// sur-couvre (14,15/13,16), épaisseur égale (0,95 contre 0,99). Même cause (mélange alpha).
+/// Déclarée par `fragment_ui::reglages::fenetre` sous ce nom : son nom EST la clé du cliquet.
+pub const PASTILLE_ACCENT: &str = "arc de la pastille d'accent";
+
+const fn pastille(png: &'static str) -> Exception {
+    Exception {
+        png,
+        element: PASTILLE_ACCENT,
+        jeton: "--tab-outline-color",
+        nature: Nature::Arcs,
+        boite: None,
     }
 }
 
@@ -377,6 +422,15 @@ pub const EXCEPTIONS: &[Exception] = &[
     mot("t1-palette-dark.png", [503, 241, 37, 10]),
     mot("t1-palette-selection-dark.png", [503, 241, 37, 10]),
     mot("t1-palette-aucun-resultat-dark.png", [503, 220, 37, 10]),
+    // Les glyphes déplacés de texte légitime, sombre seulement (fr-p4.1.1).
+    placement("t1-notice-empilees-dark.png", [1162, 30, 86, 10]),
+    placement("t1-notice-empilees-dark.png", [1196, 140, 53, 10]),
+    placement("t1-zoom-80-dark.png", [372, 12, 37, 7]),
+    // L'arc de la pastille d'accent des réglages, deux scènes, deux thèmes.
+    pastille("t1-reglages-appearance-dark.png"),
+    pastille("t1-reglages-appearance-light.png"),
+    pastille("t1-reglages-zoom-dark.png"),
+    pastille("t1-reglages-zoom-light.png"),
     // Le texte de la barre d'état à 80 %, clair seulement.
     Exception {
         png: "t1-zoom-80-light.png",
@@ -1366,5 +1420,104 @@ mod tests {
             pour_arrondi(&du_png("t1-reglages-zoom-dark.png"), &pied, &[]),
             None
         );
+    }
+
+    /// L'arc de la pastille d'accent n'est levé que dans les quatre PNG des réglages, et seulement
+    /// pour l'arrondi déclaré sous son nom.
+    #[test]
+    fn l_arc_de_la_pastille_ne_vaut_que_pour_les_reglages_et_son_element() {
+        let pastille = ArrondiDeclare {
+            x: 896.0,
+            y: 228.0,
+            largeur: 28.0,
+            hauteur: 28.0,
+            rayon: 14.0,
+            bordure: 1.0,
+            coins: [true; 4],
+            element: PASTILLE_ACCENT.to_owned(),
+        };
+        for png in [
+            "t1-reglages-appearance-dark.png",
+            "t1-reglages-appearance-light.png",
+            "t1-reglages-zoom-dark.png",
+            "t1-reglages-zoom-light.png",
+        ] {
+            assert_eq!(
+                pour_arrondi(&du_png(png), &pastille, &[]),
+                Some(PASTILLE_ACCENT)
+            );
+        }
+        assert_eq!(
+            pour_arrondi(&du_png("t1-onglets-dark.png"), &pastille, &[]),
+            None
+        );
+        let anonyme = ArrondiDeclare {
+            element: String::new(),
+            ..pastille
+        };
+        assert_eq!(
+            pour_arrondi(&du_png("t1-reglages-zoom-dark.png"), &anonyme, &[]),
+            None
+        );
+    }
+
+    /// Le glyphe déplacé ne lève QUE la forme par glyphe, jusqu'à 1,10, dans ses trois boîtes
+    /// sombres ; au-delà, ou dans une autre boîte, ou si le passage glisse : rien n'est levé.
+    #[test]
+    fn le_glyphe_deplace_ne_leve_que_la_forme_par_glyphe() {
+        use crate::pixels::sas::{ResultatBoite, lever_nommees};
+        let boite = |x: u32, y: u32, l: u32, h: u32| BoiteEncre {
+            categorie: super::super::boites::Categorie::Texte,
+            x,
+            y,
+            largeur: l,
+            hauteur: h,
+        };
+        let resultat = |marge: f64, passage: f64| ResultatBoite {
+            boite: boite(1196, 140, 53, 10),
+            differents: 0,
+            delta_max: 0,
+            ecart_encre: -0.094,
+            ecart_forme: 0.0,
+            ecart_glyphe: marge,
+            teinte: 1.0,
+            barycentres: vec![("passage", passage, 0.0)],
+            ecart_bords: Some([1, 0, 0, 0]),
+            dette_largeur: false,
+            nommee: None,
+            encre_reference: None,
+            violations: vec![
+                "forme : glyphe n° 8 changé".to_owned(),
+                format!("origine : barycentre (passage) {passage:+.2}"),
+            ],
+        };
+        let leve = |png: &str, b: BoiteEncre, marge: f64| {
+            let mut r = resultat(marge, 0.7);
+            lever_nommees(&mut r, &du_png(png), &b);
+            r
+        };
+        let png = "t1-notice-empilees-dark.png";
+        // La mesure de CI : marge 1,09 (masse 3×3 1,68 / 1,54) : forme levée, passage exigé.
+        let r = leve(png, boite(1196, 140, 53, 10), 1.09);
+        assert_eq!(r.nommee, Some(GLYPHE_DEPLACE));
+        assert_eq!(r.violations.len(), 1);
+        assert!(r.violations[0].starts_with("origine : barycentre (passage)"));
+        // Au-delà de 1,10 : la forme reste en échec.
+        assert_eq!(
+            leve(png, boite(1196, 140, 53, 10), 1.12).violations.len(),
+            2
+        );
+        // Une autre boîte, ou le clair : rien n'est levé.
+        let r = leve(png, boite(1156, 94, 53, 10), 1.09);
+        assert_eq!((r.nommee, r.violations.len()), (None, 2));
+        let r = leve(
+            "t1-notice-empilees-light.png",
+            boite(1196, 140, 53, 10),
+            1.09,
+        );
+        assert_eq!((r.nommee, r.violations.len()), (None, 2));
+        // La boîte de `t1-zoom-80` sombre.
+        let r = leve("t1-zoom-80-dark.png", boite(372, 12, 37, 7), 1.01);
+        assert_eq!((r.nommee, r.violations.len()), (Some(GLYPHE_DEPLACE), 1));
     }
 }

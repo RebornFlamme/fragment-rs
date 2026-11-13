@@ -357,7 +357,6 @@
           "forts": 35.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.8097,
       "pourcent": 32.6175
@@ -426,10 +425,15 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 44.9074,
       "delta_max": 153,
+      "exceptions_t1": {
+        "glyphe déplacé (placement des glyphes)": {
+          "glyphe": 1.0914
+        }
+      },
       "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.2902,
-      "pourcent": 37.839
+      "pourcent": 44.9678
     },
     "t1-notice-empilees-light.png": {
       "arrondi_delta_max": 3,
@@ -781,40 +785,68 @@
       "pourcent": 28.4174
     },
     "t1-reglages-appearance-dark.png": {
-      "arrondi_delta_max": 1,
-      "arrondi_pourcent": 8.1633,
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 8.4112,
       "delta_max": 144,
+      "exceptions_t1": {
+        "arc de la pastille d'accent": {
+          "delta_max": 62.0,
+          "deplacement": 0.0,
+          "forts": 140.0
+        }
+      },
       "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.7345
+      "pourcent": 37.791
     },
     "t1-reglages-appearance-light.png": {
       "arrondi_delta_max": 3,
-      "arrondi_pourcent": 15.6463,
+      "arrondi_pourcent": 13.5514,
       "delta_max": 146,
+      "exceptions_t1": {
+        "arc de la pastille d'accent": {
+          "delta_max": 48.0,
+          "deplacement": 0.0,
+          "forts": 140.0
+        }
+      },
       "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.1097
+      "pourcent": 37.0595
     },
     "t1-reglages-zoom-dark.png": {
-      "arrondi_delta_max": 1,
-      "arrondi_pourcent": 8.1633,
+      "arrondi_delta_max": 3,
+      "arrondi_pourcent": 8.4112,
       "delta_max": 144,
+      "exceptions_t1": {
+        "arc de la pastille d'accent": {
+          "delta_max": 62.0,
+          "deplacement": 0.0,
+          "forts": 140.0
+        }
+      },
       "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.729
+      "pourcent": 37.7846
     },
     "t1-reglages-zoom-light.png": {
       "arrondi_delta_max": 3,
-      "arrondi_pourcent": 15.6463,
+      "arrondi_pourcent": 13.5514,
       "delta_max": 146,
+      "exceptions_t1": {
+        "arc de la pastille d'accent": {
+          "delta_max": 48.0,
+          "deplacement": 0.0,
+          "forts": 140.0
+        }
+      },
       "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 32.1094
+      "pourcent": 37.0592
     },
     "t1-split-horizontal-dark.png": {
       "arrondi_delta_max": 5,
@@ -1009,7 +1041,7 @@
     },
     "t1-zoom-80-dark.png": {
       "arrondi_delta_max": 6,
-      "arrondi_pourcent": 17.8862,
+      "arrondi_pourcent": 16.8582,
       "delta_max": 120,
       "exceptions_t1": {
         "coin de la barre d'état": {
@@ -1022,13 +1054,16 @@
           "deplacement": 0.2576,
           "forts": 83.0
         },
+        "glyphe déplacé (placement des glyphes)": {
+          "glyphe": 1.0052
+        },
         "icône en hairline": {
           "encre": 0.279
         }
       },
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
-      "pourcent": 36.5747
+      "pourcent": 38.7977
     },
     "t1-zoom-80-light.png": {
       "arrondi_delta_max": 6,
