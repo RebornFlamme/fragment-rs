@@ -87,18 +87,9 @@ fn lignes_de_scene(n: usize) -> Vec<(String, String)> {
         .collect()
 }
 
-/// L'icône embarquée, ou son remplaçant (`minimize-2`, `columns-2` et `file-plus` manquent encore au jeu).
+/// L'icône embarquée (le jeu les contient toutes : plus de remplaçant).
 fn icone(nom: &str) -> String {
-    if icones::svg(nom).is_some() {
-        return icones::chemin(nom);
-    }
-    let repli = match nom {
-        "minimize-2" => "minus",
-        "columns-2" => "panel-right",
-        "file-plus" => "file-plus-2",
-        autre => autre,
-    };
-    icones::chemin(repli)
+    icones::chemin(nom)
 }
 
 /// Le coin haut-gauche de la boîte des bulles dans le widget : le même replié et ouvert.
