@@ -17,12 +17,16 @@ use super::smil;
 /// S6) : l'échelle 0,5 rend la taille déclarée au pixel près, à densité 1.
 const ECHELLE_UNITE: f32 = 0.5;
 
+/// Le nom de la fonction CSS d'une couleur translucide : du texte écrit pour le rasteriseur SVG, pas un
+/// littéral de couleur (la valeur vient toujours du thème).
+const FONCTION_CSS_ALPHA: &str = "rgba";
+
 fn texte_couleur(c: Couleur) -> String {
     if c.a == 255 {
         format!("rgb({}, {}, {})", c.r, c.g, c.b)
     } else {
         format!(
-            "rgba({}, {}, {}, {:.3})",
+            "{FONCTION_CSS_ALPHA}({}, {}, {}, {:.3})",
             c.r,
             c.g,
             c.b,
