@@ -857,3 +857,26 @@ Reprise du chef après le clear, sur le brief de l'orchestrateur et non sur le r
   7. retrait du worktree et du dossier cible.
   Places libérées : fr-t3-vue et fr-t4-vue-pdf dès qu'ils sont prêts.
   Fenêtre 5 h : pas de lancement au-dessus de 80 %, pause à 90 % (reset à 03:30).
+
+## Vague 12 (battement) — 13/11/2026 02:45 UTC — usage 5h 66 % (reset 03:30) / semaine 65 %
+- Fusionnées, toutes avec 8 jobs verts et l'audit à 0. Beads fermés, worktrees et dossiers cible retirés.
+  - #97 (fr-t11-identite) : icône de marque exportée, exclusion nommée fichier par fichier. Le test des polices résout les familles génériques comme Chromium (monospace → Consolas). fr-t11.2, JetBrains Mono, fermé comme invalide (ADR-005 §5).
+  - #98 (fr-t11-clair).
+  - #100 (fr-t11.1).
+  - #101 (fr-t3-html-rendu) : html5ever et markup5ever_rcdom ajoutés à fragment-ui, déjà au lock par gpui-base. Spike S6 supprimé.
+  - #103 (fr-t4.3). ★ Cause réelle : dans Fragment, une portée persistante de barre d'outils (parent = racine) masque Mod+f. Noté sur fr-t4-vue-pdf.
+- Relancés par des équipiers neufs, les précédents ayant dépassé 250k tokens de contexte :
+  - fr-t3-html-rendu : fusionnée depuis.
+  - fr-t2-montage (#102, Opus) : pixels rouges sur les 12 images T2. L'exception T1 « contour d'onglet actif » peut s'étendre à T2 seulement si c'est exactement le même élément, sans aire plus grande.
+  - fr-p3.1 (#99, Opus) : boîtes exactes lues dans la scène peinte (gpui-pre =0.3.12, feature bench-support, sous pixels). Contre-épreuve à 89 %. Cliquet selon ADR-013 : le nombre de pixels hors strict ne monte pas, une table par scène dans la PR.
+- Nouveaux beads :
+  - fr-t11.3 : ThemesCoffre au boot, après fr-t2-montage ;
+  - fr-t11.4 : accent libre, après fr-p3.1, qui déclare la pastille dans fenetre.rs ;
+  - fr-p3.3 : découpage de T5 et T7, lancé (Opus, `../fragment-rs-plan`).
+- fr-zdx dépend maintenant de fr-t3-html-rendu.
+**Rythme** : (97 − 65) ÷ 15,3 h ≈ 2,1 points par heure. Le goulot est fr-t2-montage, qui bloque fr-t2-lecture, puis fr-t3-vue et fr-t4-vue-pdf. Les places libres attendent les tâches `sans-binaire` de T5 et T7.
+**Prochaine action exacte** :
+1. Revue de #102, #99 et de la PR de fr-p3.3 à leurs comptes rendus.
+2. Lancer les `sans-binaire` de T5 et T7 dès la fusion du plan.
+3. fr-t2-lecture dès #102.
+4. Pousser ce journal une fois le build de main fini.
