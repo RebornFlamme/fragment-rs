@@ -256,7 +256,7 @@ impl Bilan {
 
 /// La lettre de référence à la place du glyphe peint : celle qui contient le centre de son encre,
 /// la plus proche de ce centre s'il y en a plusieurs.
-fn a_la_place(reference: &[Glyphe], peint: &Glyphe) -> Option<usize> {
+pub fn a_la_place(reference: &[Glyphe], peint: &Glyphe) -> Option<usize> {
     let centre = peint.centre();
     let distance = |g: &Glyphe| {
         let (x, y) = g.centre();

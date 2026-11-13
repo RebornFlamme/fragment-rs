@@ -19,6 +19,10 @@ use super::actions::{PixelAttendu, Scene};
 #[path = "../../../../xtask/src/pixels/boites.rs"]
 mod boites;
 
+// L'identité des glyphes (fr-p3.4) : même fichier que `xtask`, comme `boites.rs`.
+#[path = "../../../../xtask/src/pixels/identite.rs"]
+mod identite;
+
 thread_local! {
     /// Les surfaces ombrées de la dernière capture, déclarées par la mise en page pendant SA peinture.
     static OMBRES: RefCell<Vec<boites::OmbreDeclaree>> = const { RefCell::new(Vec::new()) };
@@ -30,7 +34,14 @@ thread_local! {
     /// Les glyphes de la dernière capture ROGNÉS par un rectangle de découpe (`content_mask`) : un
     /// fragment de 3×2 px visibles ou moins n'y est pas jugeable (fr-p3.1, décision du 13/11).
     static ROGNES: RefCell<Vec<boites::BoiteEncre>> = const { RefCell::new(Vec::new()) };
+    /// Le caractère de chaque glyphe peint de la dernière capture, dans l'ordre et au rectangle de
+    /// `SPRITES` (fr-p3.4) : `None` sans scène lisible.
+    static IDENTITE: RefCell<Option<Vec<identite::Glyphe>>> = const { RefCell::new(None) };
 }
+
+/// Le caractère d'un glyphe dont la plateforme enveloppée ne connaît pas l'identité : il ne peut
+/// être « la même lettre » qu'aucune lettre de la référence.
+const INCONNU: &str = "\u{FFFD}";
 
 /// Peint une image fraîche puis la relit : la capture montre l'état APRÈS la dernière entrée.
 ///
@@ -51,10 +62,11 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
                 .collect();
             ARRONDIS.with(|a| *a.borrow_mut() = arrondis);
             let image = window.render_to_image()?;
-            let sprites = sprites_peints(window, image.width(), image.height()).map(|mut s| {
-                s.extend(icones_declarees(image.width(), image.height()));
-                s
-            });
+            let sprites =
+                sprites_peints(fenetre, window, image.width(), image.height()).map(|mut s| {
+                    s.extend(icones_declarees(image.width(), image.height()));
+                    s
+                });
             SPRITES.with(|s| *s.borrow_mut() = sprites);
             Ok(image)
         })
@@ -69,6 +81,7 @@ pub fn capturer(fenetre: AnyWindowHandle, cx: &mut AsyncApp) -> anyhow::Result<R
 /// icône un sprite de `paint_svg`. C'est la vérité de la peinture, pas une estimation de mise en page.
 #[cfg(feature = "pixels")]
 fn sprites_peints(
+    fenetre: AnyWindowHandle,
     window: &gpui_kit::Window,
     largeur: u32,
     hauteur: u32,
@@ -76,8 +89,10 @@ fn sprites_peints(
     let scene = window.rendered_scene();
     let mut sprites = Vec::new();
     let mut rognes = Vec::new();
+    let mut identites = Vec::new();
     let glyphes = scene.subpixel_sprites.iter().map(|s| {
         (
+            &s.tile,
             s.order,
             s.tile.bounds.size,
             s.bounds,
@@ -87,6 +102,7 @@ fn sprites_peints(
     });
     let monochromes = scene.monochrome_sprites.iter().map(|s| {
         (
+            &s.tile,
             s.order,
             s.tile.bounds.size,
             s.bounds,
@@ -94,7 +110,7 @@ fn sprites_peints(
             s.color.a,
         )
     });
-    for (order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes) {
+    for (atlas, order, tuile, bornes, masque, alpha) in glyphes.chain(monochromes) {
         if alpha <= 0.0 {
             continue;
         }
@@ -154,13 +170,34 @@ fn sprites_peints(
             (bornes.origin.x.0 + bornes.size.width.0).ceil(),
             (bornes.origin.y.0 + bornes.size.height.0).ceil(),
         );
-        if categorie == boites::Categorie::Texte && entier != rect {
-            rognes.push(boite);
+        if categorie == boites::Categorie::Texte {
+            if entier != rect {
+                rognes.push(boite);
+            }
+            identites.push(identite::Glyphe::new(
+                &caractere(fenetre, atlas).unwrap_or_else(|| INCONNU.to_owned()),
+                boite.x as f32,
+                boite.y as f32,
+                boite.largeur as f32,
+                boite.hauteur as f32,
+            ));
         }
         sprites.push(boite);
     }
     ROGNES.with(|r| *r.borrow_mut() = rognes);
+    IDENTITE.with(|i| *i.borrow_mut() = Some(identites));
     Some(sprites)
+}
+
+/// Le caractère du glyphe peint avec la tuile `tuile` (plateforme enveloppée, Windows seulement).
+#[cfg(all(feature = "pixels", windows))]
+fn caractere(fenetre: AnyWindowHandle, tuile: &gpui_kit::AtlasTile) -> Option<String> {
+    super::enveloppe::caractere(fenetre.window_id(), tuile)
+}
+
+#[cfg(all(feature = "pixels", not(windows)))]
+fn caractere(_fenetre: AnyWindowHandle, _tuile: &gpui_kit::AtlasTile) -> Option<String> {
+    None
 }
 
 /// Les icônes peintes à la main (quads), déclarées par leur dessin pendant la peinture : la scène
@@ -186,6 +223,7 @@ fn icones_declarees(largeur: u32, hauteur: u32) -> Vec<boites::BoiteEncre> {
 /// Sans la feature `pixels` (cible de test du lecteur), la scène peinte n'est pas lisible.
 #[cfg(not(feature = "pixels"))]
 fn sprites_peints(
+    _fenetre: AnyWindowHandle,
     _window: &gpui_kit::Window,
     _largeur: u32,
     _hauteur: u32,
@@ -308,6 +346,34 @@ pub fn ecrire(image: &RgbaImage, dossier: &Path, nom: &str, theme: &str) -> anyh
         None => (boites::detecter(image), Vec::new(), "déduites de l'image"),
     };
     let rognes = ROGNES.with(|r| r.borrow().clone());
+    // L'identité des glyphes peints (fr-p3.4), voisine du PNG : un glyphe par sprite de texte, au
+    // rectangle même de sa boîte dans `.boites.json`.
+    if let Some(identites) = IDENTITE.with(|i| i.borrow().clone()) {
+        let rognes_ids = identites
+            .iter()
+            .enumerate()
+            .filter(|(_, g)| {
+                rognes.iter().any(|r| {
+                    r.x as f32 == g.x
+                        && r.y as f32 == g.y
+                        && r.largeur as f32 == g.largeur
+                        && r.hauteur as f32 == g.hauteur
+                })
+            })
+            .map(|(i, _)| i)
+            .collect();
+        let releve = identite::Releve {
+            source: "scene".to_owned(),
+            largeur: image.width(),
+            hauteur: image.height(),
+            glyphes: identites,
+            rognes: rognes_ids,
+        };
+        std::fs::write(
+            dossier.join(format!("{nom}-{theme}{}", identite::SUFFIXE)),
+            identite::serialiser(&releve),
+        )?;
+    }
     let ombres = OMBRES.with(|o| o.borrow().clone());
     let arrondis = ARRONDIS.with(|a| a.borrow().clone());
     std::fs::write(

@@ -305,7 +305,6 @@
           "glissement": 0.0373
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 5.6405,
       "pourcent": 42.4012
@@ -357,7 +356,6 @@
           "forts": 35.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 7.8097,
       "pourcent": 32.6175
@@ -431,7 +429,6 @@
           "glyphe": 1.0914
         }
       },
-      "lettres_manquees": 2,
       "ombre_delta_max": 1,
       "ombre_pourcent": 9.2902,
       "pourcent": 44.9678
@@ -447,7 +444,6 @@
           "glissement": 0.0819
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 42.7348,
       "pourcent": 45.1909
@@ -613,7 +609,6 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
       "delta_max": 129,
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
       "pourcent": 38.1088,
@@ -636,7 +631,6 @@
           "forts": 22.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 12.4131,
       "pourcent": 38.0457,
@@ -652,7 +646,6 @@
       "arrondi_delta_max": 2,
       "arrondi_pourcent": 26.6055,
       "delta_max": 129,
-      "lettres_manquees": 1,
       "ombre_delta_max": 1,
       "ombre_pourcent": 1.1327,
       "pourcent": 38.1151,
@@ -675,7 +668,6 @@
           "forts": 22.0
         }
       },
-      "lettres_manquees": 1,
       "ombre_delta_max": 2,
       "ombre_pourcent": 12.4131,
       "pourcent": 38.0457,
@@ -778,7 +770,6 @@
           "forts": 140.0
         }
       },
-      "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
       "pourcent": 37.791
@@ -794,7 +785,6 @@
           "forts": 140.0
         }
       },
-      "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
       "pourcent": 37.0595
@@ -810,7 +800,6 @@
           "forts": 140.0
         }
       },
-      "lettres_manquees": 2,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
       "pourcent": 37.7846
@@ -826,7 +815,6 @@
           "forts": 140.0
         }
       },
-      "lettres_manquees": 3,
       "ombre_delta_max": 0,
       "ombre_pourcent": 0.0,
       "pourcent": 37.0592

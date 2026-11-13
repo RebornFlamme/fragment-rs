@@ -30,7 +30,10 @@ path = "src/pixels/mod.rs"
 # boîtes exactes des glyphes et des icônes (fr-p3.1). Elle n'ajoute que des accesseurs et le journal du
 # profileur (incrustation de débogage masquée par défaut) : ni le rastériseur, ni l'atlas, ni le
 # cadencement des images ne changent.
-pixels = ["gpui-kit/test-support", "dep:gpui-pre"]
+# ★ fr-p3.4 : l'identité des glyphes peints passe par une plateforme ENVELOPPÉE
+# (`src/pixels/enveloppe.rs`), dont les traits nomment `futures`, `windows`, `accesskit` et `raw-window-handle` : quatre crates
+# déjà dans l'arbre (gpui les tire, mêmes versions), en dépendances directes sous Windows seulement.
+pixels = ["gpui-kit/test-support", "dep:gpui-pre", "dep:futures", "dep:windows", "dep:accesskit", "dep:raw-window-handle"]
 
 [dependencies]
 gpui-kit.workspace = true
@@ -50,6 +53,12 @@ thiserror.workspace = true
 gpui-kit = { workspace = true, features = ["test-support"] }
 
 # ★ Déjà dans l'arbre (gpui la tire) : aucune nouvelle crate, seulement une dépendance directe.
+[target.'cfg(windows)'.dependencies]
+futures = { version = "0.3", optional = true }
+windows = { version = "0.62", optional = true, features = ["Win32_Foundation"] }
+accesskit = { version = "0.24", optional = true }
+raw-window-handle = { version = "0.6", optional = true }
+
 [target.'cfg(windows)'.build-dependencies]
 embed-resource = "3"
 
