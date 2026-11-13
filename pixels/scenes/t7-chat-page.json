@@ -1,0 +1,14 @@
+{
+  "scene": "t7-chat-page",
+  "depuis": "T7",
+  "window": {"width":700,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t7/a",
+  "actions": [
+    {"type":"command","id":"pixels:horloge","args":{"iso":"2026-11-12T14:30:00"}},
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"command","id":"pixels:chat","args":{"mode":"page","conversation":"c-page"}},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}

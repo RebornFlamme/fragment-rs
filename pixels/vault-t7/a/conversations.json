@@ -1,0 +1,219 @@
+{
+ "auteurs": [
+  {
+   "id": "julien",
+   "name": "Julien",
+   "role": "user"
+  },
+  {
+   "id": "claude",
+   "name": "Claude",
+   "role": "assistant"
+  }
+ ],
+ "conversations": [
+  {
+   "id": "c-panel",
+   "maj": "2026-11-12T09:40:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Résume ma note en une phrase.",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Votre carnet décrit une crue d'automne plus forte que celle de l'an dernier, avec des berges effondrées sur la rive gauche.",
+     "id": "a0"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Que faut-il revenir mesurer au printemps ?",
+     "id": "u1"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Le niveau de l'eau et l'état des berges, pour voir **ce que le courant a emporté** pendant l'hiver.",
+     "id": "a1"
+    }
+   ]
+  },
+  {
+   "id": "c-page",
+   "maj": "2026-11-12T10:05:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Les saules vont-ils tenir ?",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Rien ne permet de l'affirmer. Leurs racines sont à nu, mais ils ont résisté à la crue de novembre. Un nouveau relevé en février dira s'ils penchent davantage.",
+     "id": "a0"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Et si les berges continuent de s'effondrer ?",
+     "id": "u1"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Le plus simple serait de planter des espèces à racines profondes sur les trois zones touchées, puis de revenir contrôler le résultat au printemps.",
+     "id": "a1"
+    }
+   ]
+  },
+  {
+   "id": "c-markdown",
+   "maj": "2026-11-12T11:20:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Donne-moi un bilan structuré des relevés.",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "## Bilan des relevés\n\n- le niveau monte **après chaque pluie** ;\n- les berges de la rive gauche cèdent.\n\nLe débit moyen vaut $Q = \\frac{V}{t}$ sur la période.\n\n| Station | Débit (m³/s) |\n|---|---|\n| Moulin | 4,2 |\n| Passerelle | 3,9 |\n\n```js\nconst debit = volume / duree;\n```",
+     "id": "a0"
+    }
+   ]
+  },
+  {
+   "id": "c-flux",
+   "maj": "2026-11-12T08:15:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Peux-tu relire mes notes de la semaine ?",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Oui. Elles sont claires, avec une seule zone floue : la date du deuxième relevé.",
+     "id": "a0"
+    }
+   ]
+  },
+  {
+   "id": "c-long",
+   "maj": "2026-11-12T12:50:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Où en est la crue ?",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "La crue a atteint son maximum mercredi. L'eau redescend depuis, mais la crue a laissé du limon sur toute la prairie. L'eau redescend depuis, mais la crue a laissé du limon sur toute la prairie. L'eau redescend depuis, mais la crue a laissé du limon sur toute la prairie.",
+     "id": "a0"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Quels dégâts sur les berges ?",
+     "id": "u1"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Trois effondrements sur la rive gauche. Les saules ont gardé leurs racines, la terre a cédé autour. Les saules ont gardé leurs racines, la terre a cédé autour. Les saules ont gardé leurs racines, la terre a cédé autour.",
+     "id": "a1"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Faut-il prévenir la mairie ?",
+     "id": "u2"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Oui, un signalement écrit est préférable. Joignez les photos du moulin et la date de la crue. Joignez les photos du moulin et la date de la crue. Joignez les photos du moulin et la date de la crue.",
+     "id": "a2"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Quand revenir mesurer ?",
+     "id": "u3"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Dans deux semaines, puis au printemps. Un relevé après une nouvelle crue serait le plus utile. Un relevé après une nouvelle crue serait le plus utile. Un relevé après une nouvelle crue serait le plus utile.",
+     "id": "a3"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Que prévoir comme matériel ?",
+     "id": "u4"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Une règle graduée, des bottes et le carnet. Le niveau se lit au repère peint sur la pile de la passerelle. Le niveau se lit au repère peint sur la pile de la passerelle. Le niveau se lit au repère peint sur la pile de la passerelle.",
+     "id": "a4"
+    },
+    {
+     "auteur": "julien",
+     "texte": "Et pour les photos ?",
+     "id": "u5"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Toujours depuis la passerelle, au même endroit. Cela permet de comparer la crue avant et après. Cela permet de comparer la crue avant et après. Cela permet de comparer la crue avant et après.",
+     "id": "a5"
+    }
+   ]
+  },
+  {
+   "id": "c-hier-1",
+   "maj": "2026-11-11T17:30:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Idées pour la sortie de dimanche",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Une marche jusqu'au moulin, avec un arrêt au pont.",
+     "id": "a0"
+    }
+   ]
+  },
+  {
+   "id": "c-hier-2",
+   "maj": "2026-11-11T15:10:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Liste de courses pour le week-end",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Pain, lait, pommes, bougies.",
+     "id": "a0"
+    }
+   ]
+  },
+  {
+   "id": "c-hier-3",
+   "maj": "2026-11-11T09:00:00",
+   "messages": [
+    {
+     "auteur": "julien",
+     "texte": "Corriger la lettre à la mairie",
+     "id": "u0"
+    },
+    {
+     "auteur": "claude",
+     "texte": "Voici une version plus courte et plus directe.",
+     "id": "a0"
+    }
+   ]
+  },
+  {
+   "id": "c-vide",
+   "maj": "2026-11-12T07:00:00",
+   "messages": []
+  }
+ ]
+}
