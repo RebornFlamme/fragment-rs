@@ -1,0 +1,10 @@
+# Parité de fr-t3-proprietes (fragment-ui) : les Properties, le front matter en widget de bloc éditable.
+# Schéma `parite.d` : un fichier par tâche.
+
+[[module]]
+ts = "app/src/ui/views/markdown/properties/PropertiesWidget.ts (commit, commitKey, commitPending, valueEditor, listEditor, openMenu, onIconDown, addPendingProperty), frontmatterField.ts (curseurHorsDuBloc, saisie, frappeApresBlocFinal, entrer, selectionnerBloc)"
+rs = "crates/fragment-ui/src/md_proprietes/modele.rs, crates/fragment-ui/src/md_proprietes/saisie.rs"
+cas_source = 12
+cas_portes = 12
+cas_ajoutes = 1
+notes = "properties.spec.ts : un test headless par cas (tests/md_proprietes.rs), sur le contrôleur pur (document + geste -> édition). Le cas d'alignement et l'annulation d'un coup relèvent de la vue (transaction isolée, scènes t3-alignement). Ajouté : cles_en_double_et_collage. Écart : le crochet « avant saisie » de l'éditeur n'existe pas encore, les règles de frappe sont fournies pures (saisie.rs)."
