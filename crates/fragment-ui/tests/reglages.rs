@@ -18,6 +18,7 @@ use fragment_core::{
     enregistrer_commandes_zoom,
 };
 use fragment_ui::reglages::curseur::Curseur;
+use fragment_ui::reglages::selecteur_couleur::{BoiteCouleur, choisir_et_appliquer};
 
 struct FauxHote(Cell<f64>);
 
@@ -174,4 +175,49 @@ fn fenetre_de_reglages_slider_applique_au_relache_reset_resynchronise() {
     pres(a.zoom(), 1.25);
     assert_eq!(ligne_zoom(&a).piste(), 125.0);
     assert_eq!(ligne_zoom(&a).etiquette(), "125 %");
+}
+
+/// Une boîte de couleur factice : rend toujours la même valeur, sans fenêtre système.
+struct BoiteFausse(&'static str);
+impl BoiteCouleur for BoiteFausse {
+    fn choisir(&self, _: &str) -> Option<String> {
+        Some(self.0.to_owned())
+    }
+}
+
+/// Fr-t11.4 : la boîte de couleur (native en vrai) rend un `#rrggbb` quelconque, que la ligne « Accent color »
+/// applique et enregistre (Fragment : `input type=color`, `appearance.set('accentColor', v)`).
+#[test]
+fn accent_libre_choisi_au_selecteur_est_applique_et_enregistre() {
+    let stockage = Rc::new(StockageMemoire::new());
+    let a = Apparence::new(stockage.clone(), Rc::new(|| 0));
+    a.charger();
+    let defs = definitions_appearance(&a, "#646cff", None);
+    let couleur = defs
+        .iter()
+        .find_map(|d| match d {
+            SettingDefinition::Item(it) => it.controls.iter().find_map(|c| match c {
+                SettingControl::Color(k) => Some(k.clone()),
+                _ => None,
+            }),
+            _ => None,
+        })
+        .expect("la ligne Accent color a un sélecteur");
+    assert_eq!(couleur.value, "#646cff");
+
+    // Un clic sur la pastille : la (fausse) boîte rend une couleur hors des huit nommées.
+    let choisie = "#12ab34".to_owned();
+    let rappel = couleur.on_change.as_ref().expect("on_change");
+    assert!(choisir_et_appliquer(
+        &BoiteFausse("#12ab34"),
+        &couleur.value,
+        Some(rappel.as_ref())
+    ));
+    assert_eq!(a.accent(), choisie);
+
+    // Écrit au vidage (la sauvegarde est différée), puis rechargé depuis le même stockage.
+    a.magasin().vider();
+    let b = Apparence::new(stockage, Rc::new(|| 0));
+    b.charger();
+    assert_eq!(b.accent(), choisie);
 }

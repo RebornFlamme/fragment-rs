@@ -149,3 +149,15 @@ cas_source = 0
 cas_portes = 0
 cas_ajoutes = 3
 notes = "Le pont Keystroke GPUI → KeyEvent : touche physique déduite de la touche imprimée (GPUI ne donne pas `code`), auto-répétition non transmise par l'intercepteur."
+
+# fr-t11.4 : couleur d'accent libre.
+[[module]]
+ts = "app/src/ui/core/settings/components/ColorComponent.ts"
+rs = "crates/fragment-ui/src/reglages/selecteur_couleur.rs, crates/fragment-ui/tests/reglages.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 1
+notes = "Ajouté : accent_libre_choisi_au_selecteur_est_applique_et_enregistre (pas de .test.ts source). Windows : la pastille ouvre ChooseColorW (ADR-018), comme input type=color ouvre la boîte système."
+[[module.non_portes]]
+quoi = "la boîte de couleur hors Windows (Chromium : popup de couleur, pipette)"
+raison = "Écart assumé : seul Windows a une boîte native branchée (comdlg32). Sur les autres OS la pastille est rendue mais son clic ne fait rien ; l'accent se règle alors dans appearance.json. Sous Windows, la valeur n'est rappelée qu'à la validation de la boîte (Chromium : à chaque geste, évènement input), et la pipette de Chromium n'existe pas dans ChooseColorW."

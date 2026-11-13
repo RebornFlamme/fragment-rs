@@ -17,6 +17,7 @@ use gpui_kit::{App, WindowAppearance};
 pub mod apparence_themes;
 pub mod curseur;
 pub mod fenetre;
+pub mod selecteur_couleur;
 
 use apparence_themes::{appliquer_schema, definitions_apparence_themes};
 pub use fenetre::{
