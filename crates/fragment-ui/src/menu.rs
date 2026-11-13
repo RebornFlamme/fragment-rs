@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use fragment_core::{Command, CommandManager, Keymap, Scope};
 use gpui_kit::{
-    AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseDownEvent,
+    AnyElement, App, Bounds, FontWeight, InteractiveElement as _, IntoElement, MouseDownEvent,
     ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, Window, anchored,
     canvas, deferred, div, point, relative, svg,
 };
@@ -25,6 +25,7 @@ use serde_json::Value;
 use crate::echelle::{calees, moitie, u};
 use crate::flottant::{ecouter_args, nombre, ombrer, texte};
 use crate::icones;
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::rendu::melange::{aplat_exact, bord_unique};
 use crate::rendu::ombre::{ombrer_au_calque, voile};
 use crate::theme_global::{couleur, theme_ou_defaut};
@@ -652,12 +653,39 @@ fn rendre_niveau(
 
     // `min-width` et le rembourrage de `.menu` : boîte de contenu en CSS, boîte de bordure ici.
     let largeur_min = LARGEUR_MIN + 2.0 * f.size_4_1 + 2.0 * f.border_width;
+    // ★ La largeur ajustée au contenu, comme Chromium : GPUI arrondit au pixel SUPÉRIEUR la largeur
+    // du libellé le plus long, Chromium garde la fraction et n'arrondit que l'arête
+    // (`polices::largeur_ajustee`). Menu d'un fichier de l'explorateur : 263 px au lieu de 262
+    // (run 43351537908). Une ligne : rembourrages, icône, écart, libellé (✓ compris) et, pour un
+    // sous-menu, écart et chevron.
+    let contenu = menu
+        .ordre()
+        .into_iter()
+        .filter_map(|o| o.and_then(|i| menu.item_a(i)))
+        .map(|it| {
+            let mut libelle = it.title.clone();
+            if it.checked {
+                libelle.push_str(" \u{2713}");
+            }
+            let mut l = 2.0 * f.size_4_2
+                + f.icon_m
+                + f.size_4_2
+                + largeur_texte(cx, &libelle, FontWeight::NORMAL, t.typo.font_ui_medium);
+            if it.submenu.is_some() {
+                l += f.size_4_2 + f.icon_xs;
+            }
+            l
+        })
+        .fold(0.0_f32, f32::max);
+    let bords = 2.0 * f.size_4_1 + 2.0 * f.border_width;
+    let ajustee = largeur_ajustee(cx, contenu.max(LARGEUR_MIN), bords);
     let boite = div()
         .id(("menu", niveau))
         .relative()
         .flex()
         .flex_col()
         .min_w(u(cx, largeur_min))
+        .w(ajustee)
         .p(u(cx, f.size_4_1))
         .text_color(couleur(c.text_normal))
         .on_mouse_down_out(appui_exterieur);

@@ -18,7 +18,7 @@ use fragment_core::{App as _, Command, Disposer, EventRef, LayoutMemoire};
 use fragment_ui::explorateur::{FILE_EXPLORER_VIEW_TYPE, FileExplorerView};
 use serde_json::{Value, json};
 
-use super::actions::{Decor, Scene};
+use super::actions::{Decor, Scene, Tranche};
 use super::fenetres::VERSION_DES_REFERENCES;
 
 /// Où les coffres des scènes sont recopiés (hors OneDrive, hors du dépôt).
@@ -89,6 +89,12 @@ pub fn layout_decor() -> Value {
 /// coffre de la scène s'il y en a un.
 pub fn options_de_scene(scene: &Scene) -> anyhow::Result<Options> {
     let mut options = Options::memoire(VERSION_DES_REFERENCES);
+    // ★ Le décor de T1 (`_t1.ts`) monte `pixels/vault` EN MÉMOIRE, sous le nom « coffre », sur un
+    // layout de vues vides : ouvrir le dossier changerait le nom du pied du dock (« vault ») et les
+    // thèmes de l'onglet Appearance (run 43351537908 : t1-docks-ouverts, t1-reglages-* rouges).
+    if scene.depuis.is_none_or(|t| t <= Tranche(1)) {
+        return Ok(options);
+    }
     let Some(fixture) = &scene.vault else {
         return Ok(options);
     };

@@ -304,10 +304,15 @@ impl Interne {
     }
 
     /// Entre en renommage sur `chemin` (`startRename`) : la ligne est révélée pour rester visible.
+    ///
+    /// ★ Sans devenir l'élément ACTIF : `startRename` ne pose que le chemin du champ. La ligne
+    /// renommée gardait le fond de l'actif (scène t2-explorateur-renommer, run 43351537908).
     fn demarrer_renommage(interne: &Rc<Self>, chemin: &str) {
         if let Some(r) = Renommage::ouvrir(&interne.vault, chemin) {
             *interne.renommage.borrow_mut() = Some(r);
+            let actif = interne.etat.borrow().actif().map(str::to_owned);
             FileExplorerView::reveler_dans(interne, chemin);
+            interne.etat.borrow_mut().definir_actif(actif.as_deref());
         }
     }
 
@@ -731,16 +736,21 @@ fn construire(
         } else {
             Vec::new()
         };
-        // Le champ de renommage remplace le nom de la ligne (la saisie, puis un curseur).
-        let titre: SharedString = match interne.renommage.borrow().as_ref() {
-            Some(r) if r.chemin() == l.chemin => format!("{}\u{258f}", r.saisie()).into(),
-            _ => l.titre.clone().into(),
+        // Le champ de renommage remplace le nom de la ligne : tout sélectionné à l'ouverture (sans
+        // curseur, comme une sélection non vide de Chromium), puis la saisie et un curseur.
+        let (titre, selectionne): (SharedString, bool) = match interne.renommage.borrow().as_ref() {
+            Some(r) if r.chemin() == l.chemin && r.selectionne() => {
+                (r.saisie().to_owned().into(), true)
+            }
+            Some(r) if r.chemin() == l.chemin => (format!("{}\u{258f}", r.saisie()).into(), false),
+            _ => (l.titre.clone().into(), false),
         };
         let cible = interne.cible_depot.borrow().as_deref() == Some(l.chemin.as_str());
         let mut ligne = Ligne::new(SharedString::from(l.chemin.clone()), titre)
             .profondeur(profondeur)
             .actif(actif == Some(l.chemin.as_str()))
             .cible_depot(l.dossier && cible)
+            .titre_selectionne(selectionne)
             .hauteur(h);
         if l.dossier {
             ligne = ligne.repliable(!l.ouvert);

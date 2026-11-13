@@ -349,6 +349,21 @@ pub const EXCEPTIONS: &[Exception] = &[
     contour("t1-zoom-150-light.png"),
     contour("t1-zoom-80-dark.png"),
     contour("t1-zoom-80-light.png"),
+    // Le MÊME contour dans les scènes de l'explorateur de T2 (décision du chef, fr-t2-montage,
+    // 13/11) : onglet actif 207 × 32 r 5,5 à x 300, arcs déplacés de 0,516 px en sombre et de
+    // 0,656 px en clair, comme t1-split-vertical / t1-poignee-survol à x 662. Même dette (fr-p4.1).
+    contour("t2-explorateur-dark.png"),
+    contour("t2-explorateur-light.png"),
+    contour("t2-explorateur-menu-dossier-dark.png"),
+    contour("t2-explorateur-menu-dossier-light.png"),
+    contour("t2-explorateur-menu-fichier-dark.png"),
+    contour("t2-explorateur-menu-fichier-light.png"),
+    contour("t2-explorateur-ouvert-dark.png"),
+    contour("t2-explorateur-ouvert-light.png"),
+    contour("t2-explorateur-renommer-dark.png"),
+    contour("t2-explorateur-renommer-light.png"),
+    contour("t2-explorateur-survol-dark.png"),
+    contour("t2-explorateur-survol-light.png"),
     // Coin haut gauche de la barre d'état (décision du chef, fr-t1.5) : la diagonale de l'arc
     // INTÉRIEUR du quad GPUI (r = --radius-sm, bordure 1) a 1 px de delta 9 à 11 en sombre, dans
     // la bande de l'arc ; même cause (mélange alpha). Seule la bande de l'arc déclaré est levée.
@@ -1048,7 +1063,10 @@ mod tests {
     #[test]
     fn chaque_exception_nomme_un_png_de_t1_et_un_element() {
         for e in EXCEPTIONS {
-            assert!(e.png.starts_with("t1-") && e.png.ends_with(".png"), "{e:?}");
+            // Seul le contour d'onglet actif s'étend aux scènes de l'explorateur de T2 (chef, 13/11).
+            let tranche_admise = e.png.starts_with("t1-")
+                || (e.element == CONTOUR_ONGLET && e.png.starts_with("t2-explorateur"));
+            assert!(tranche_admise && e.png.ends_with(".png"), "{e:?}");
             assert!(!e.element.is_empty() && e.jeton.starts_with("--"), "{e:?}");
         }
         // Pas de doublon (png, élément) ; deux arcs nommés d'un même PNG sont des éléments distincts

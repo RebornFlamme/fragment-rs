@@ -300,3 +300,14 @@ fn le_guide_prend_la_bordure_de_survol_sur_le_panneau() {
         assert_eq!(g.a, 255, "un aplat opaque, composé comme Chromium");
     }
 }
+
+#[test]
+fn le_guide_tombe_sur_la_capture_de_fragment() {
+    // Valeurs lues dans les références t2-explorateur-ouvert (barre de guide de « Projets »).
+    let sombre = Theme::sombre();
+    let g = couleur_guide(&sombre.palette, sombre.palette.background_secondary);
+    assert_eq!((g.r, g.g, g.b), (59, 58, 59));
+    let clair = Theme::clair();
+    let g = couleur_guide(&clair.palette, clair.palette.background_secondary);
+    assert_eq!((g.r, g.g, g.b), (196, 195, 192));
+}

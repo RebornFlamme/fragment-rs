@@ -10,20 +10,27 @@ use std::rc::Rc;
 
 use fragment_theme::Couleur;
 use gpui_kit::{
-    AnyElement, App, ClickEvent, ElementId, InteractiveElement as _, IntoElement as _, MouseButton,
-    MouseDownEvent, ParentElement as _, Pixels, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Window, div, svg,
+    AnyElement, App, ClickEvent, ElementId, FontWeight, InteractiveElement as _, IntoElement as _,
+    MouseButton, MouseDownEvent, ParentElement as _, Pixels, SharedString,
+    StatefulInteractiveElement as _, Styled as _, Window, div, svg,
 };
 
 use crate::echelle::{calees, u};
-use crate::flottant::{arrondir, texte};
+use crate::flottant::{arrondir, arrondir_au_survol, texte};
 use crate::icones;
+use crate::polices::{largeur_ajustee, largeur_texte};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use crate::tree_item::couleurs::{Etat, couleur_guide, couleurs_ligne};
 use crate::tree_item::geometrie::{
     COTE_CHEVRON, GOUTTIERE, INTERLIGNE, LARGEUR_GUIDE, MARGE_ENFANTS, OPACITE_CHEVRON, PAS,
     RETRAIT_ENFANTS, chevron_gauche, chevron_haut, hauteur_ligne, marge_gauche, retrait_titre,
 };
+
+/// L'opacité de l'accent du fond de sélection (`::selection` de `index.css`), en pourcents.
+const POURCENT_SELECTION: f32 = 35.0;
+
+/// Le groupe GPUI de la ligne : le survol de la ligne colore son chevron.
+const GROUPE_LIGNE: &str = "tree-item-ligne";
 
 /// Le rappel d'un clic.
 pub type RappelClic = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
@@ -43,6 +50,7 @@ pub struct Ligne {
     hauteur: Option<Pixels>,
     sonde: Option<String>,
     flair: Option<SharedString>,
+    titre_selectionne: bool,
     sur_chevron: Option<RappelClic>,
     sur_clic: Option<RappelClic>,
     sur_menu: Option<RappelMenu>,
@@ -63,6 +71,7 @@ impl Ligne {
             hauteur: None,
             sonde: None,
             flair: None,
+            titre_selectionne: false,
             sur_chevron: None,
             sur_clic: None,
             sur_menu: None,
@@ -117,6 +126,13 @@ impl Ligne {
     /// `<nom>/enfants`.
     pub fn sonde(mut self, nom: impl Into<String>) -> Self {
         self.sonde = Some(nom.into());
+        self
+    }
+
+    /// Le titre entièrement sélectionné (champ de renommage qui vient de s'ouvrir : `select()`) :
+    /// le fond `::selection` de Fragment derrière le texte.
+    pub fn titre_selectionne(mut self, oui: bool) -> Self {
+        self.titre_selectionne = oui;
         self
     }
 
@@ -183,13 +199,15 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
         .pl(u(cx, retrait_titre(ligne.profondeur)))
         .pr(u(cx, f.size_2_3))
         .cursor_default()
+        .group(GROUPE_LIGNE)
         .text_color(couleur(repos.texte));
     row = texte(row, cx, t.typo.font_ui_small, INTERLIGNE);
     if let Some(fond) = repos.fond {
         // Le fond est connu : le coin arrondi est déclaré (ADR-009, bord d'arrondi).
         row = arrondir(row.bg(couleur(fond)), cx, u(cx, f.radius_s), u(cx, 0.0));
     } else {
-        row = row.rounded(u(cx, f.radius_s));
+        // Le fond de survol, seul peint : son arrondi est déclaré quand le pointeur est dessus.
+        row = arrondir_au_survol(row, cx, u(cx, f.radius_s));
     }
     let (fond_survol, texte_survol) = (survol.fond.map(couleur), couleur(survol.texte));
     row = row.hover(move |s| {
@@ -225,12 +243,17 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
             .w(u(cx, COTE_CHEVRON))
             .h(u(cx, COTE_CHEVRON))
             .opacity(OPACITE_CHEVRON)
-            // Pas de couleur propre : le triangle hérite de celle de la ligne (survol compris).
+            // Le triangle prend la couleur de la ligne (`currentColor`), survol compris.
+            // ★ Un `svg()` de GPUI n'hérite PAS du `text_color` de son parent : sans couleur
+            // propre, il ne peint rien (chevrons absents, run 43351537908). Le survol passe par
+            // le groupe de la ligne.
             .child(
                 svg()
                     .path(icones::chemin(icone))
                     .size(u(cx, COTE_CHEVRON))
-                    .flex_none(),
+                    .flex_none()
+                    .text_color(couleur(repos.texte))
+                    .group_hover(GROUPE_LIGNE, move |s| s.text_color(texte_survol)),
             );
         if let Some(nom) = nom("chevron") {
             chevron = chevron.debug_selector(move || nom);
@@ -270,8 +293,23 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
         .min_w(u(cx, 0.0))
         .overflow_hidden()
         .whitespace_nowrap()
-        .text_ellipsis()
-        .child(ligne.titre);
+        .text_ellipsis();
+    titre = if ligne.titre_selectionne {
+        // ★ `::selection` : l'accent à 35 % sur le panneau, composé comme un REMPLISSAGE de
+        // Chromium (`sur_chromium` : 184 et 227 en clair, là où le mélange exact donne 183 et 226).
+        // Le rectangle couvre la ligne de texte, sur la largeur du libellé arrondie à l'arête.
+        let largeur = largeur_texte(cx, &ligne.titre, FontWeight::NORMAL, t.typo.font_ui_small);
+        titre.child(
+            div()
+                .w(largeur_ajustee(cx, largeur, 0.0))
+                .bg(couleur(
+                    c.color_accent.sur_chromium(POURCENT_SELECTION, panneau),
+                ))
+                .child(ligne.titre),
+        )
+    } else {
+        titre.child(ligne.titre)
+    };
     if let Some(nom) = nom("titre") {
         titre = titre.debug_selector(move || nom);
     }
