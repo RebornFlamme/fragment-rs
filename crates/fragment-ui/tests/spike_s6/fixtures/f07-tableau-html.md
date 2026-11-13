@@ -1,1 +1,0 @@
-<table><thead><tr><th>Nom</th><th>Valeur</th></tr></thead><tbody><tr><td style="background: #fde9c9">alpha</td><td>1</td></tr><tr><td>beta</td><td style="text-align: right">22</td></tr></tbody></table>

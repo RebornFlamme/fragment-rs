@@ -27,12 +27,14 @@ gpui-kit.workspace = true
 # Les images d'ombre du calque (fr-p4.1, ADR-013) : `image::Frame` de `RenderImage`. Déjà tirée par
 # GPUI (même version, 0.25) et dans le workspace.
 image = { workspace = true }
+# Le HTML du Markdown (fr-t3-html-rendu, ADR-012) : analysé par html5ever en arbre rcdom, les mêmes
+# versions que celles que `gpui-base` tire déjà (aucune crate nouvelle au lock).
+html5ever = "0.27"
+markup5ever_rcdom = "0.3.0"
 
 [dev-dependencies]
 # Test headless de résolution des polices : TextSystem de la plateforme, sans fenêtre.
 gpui-kit = { workspace = true, features = ["test-support"] }
-# Spike S6 (tests/spike_s6.rs) : décode les PNG de référence de Chromium. Déjà dans le workspace (spike-maths).
-image = { workspace = true }
 
 [lints]
 workspace = true
