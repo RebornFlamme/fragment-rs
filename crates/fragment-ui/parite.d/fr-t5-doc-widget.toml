@@ -1,0 +1,16 @@
+# Parité de fr-t5-doc-widget (fragment-ui). Schéma `parite.d` : un fichier par tâche. La spec e2e
+# doc-widget-views compte 12 cas ; 9 sont portés en headless (service en mémoire, modèle du cadre,
+# FauxHandle pour le widget de calque), les 3 de persistance sont à T6.
+
+[[module]]
+ts = "app/src/ui/views/doc-widget/{DocWidget.ts,DocWidgetPlugin.ts,api.ts,doc-widget.css}, app/src/ui/core/workspace/{viewIcons.ts,view-icons.css}, app/e2e/doc-widget-views.spec.ts"
+rs = "crates/fragment-ui/src/doc_widget/{api,service,cadre,icones_vue,rendu}.rs, crates/fragment-ui/tests/doc_widget.rs"
+cas_source = 12
+cas_portes = 9
+cas_ajoutes = 25
+non_portes = [
+  { cas = "doc-widget-views : le record survit au rechargement, la vue revient ancrée au même mot", raison = "persistance au journal (records doc-widget:pin v2) : fr-t6-*" },
+  { cas = "doc-widget-views : fermer par le service = une tombe", raison = "la tombe est un record du journal : fr-t6-*. Ici, fermer retire le widget (fermer_par_le_service_une_tombe_le_widget_part)" },
+  { cas = "doc-widget-views : un record v1 ({file, w, h}) migré en v2", raison = "migration v1 : fr-t6-*" },
+]
+notes = "Service doc-widget:host@1 EN MÉMOIRE (ouvrir, fermer, replier, révéler, lister ; focus d'ouverture valable 2 s ; brouillon livré une fois), cadre (replié = icônes de la vue, suit updateHeader ; actif ; Réduire toujours dernier ; surlignage du passage plus marqué actif ; bouclier et activation manuelle du flottant), menus, pastille et repli faute de place (seuils propres au widget). Écart : le menu clic droit suit le TS (places, Réduire, Fermer) ; « Ouvrir ailleurs » est dans menu_reduit (forme réduite de la grappe). Ajout hors liste : fragment-layers/src/types.rs reçoit CompactInfo.menu et EntreeMenuReduit pour la grappe. Rendu GPUI : en-tête de 37 px, bandeau replié de 38 px, anneau d'actif de 2 px ; commande pixels:doc-widget {from, to, open, actions}, montée par l'assemblage."

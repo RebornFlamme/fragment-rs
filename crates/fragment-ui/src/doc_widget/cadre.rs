@@ -23,7 +23,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 use fragment_core::workspace::feuille::HEADER_CHANGE;
-use fragment_core::{ItemId, NouvelleFeuille, ViewState, Workspace};
+use fragment_core::{DocumentKey, ItemId, NouvelleFeuille, ViewState, Workspace};
 use fragment_layers::overlay_host::Disposer;
 use fragment_layers::types::{CompactInfo, EntreeMenuReduit, GutterSide, LeafId};
 use fragment_layers::widget_layer::{WidgetAnchor, WidgetHandle};
@@ -319,7 +319,7 @@ impl DocWidget {
         };
         w.leaf(leaf).map_or((String::new(), Vec::new(), None), |l| {
             let v = l.view();
-            (v.get_display_text(), v.get_icons(), v.get_document())
+            (v.get_display_text(), v.get_icons(), v.get_document().map(DocumentKey::into_string))
         })
     }
 

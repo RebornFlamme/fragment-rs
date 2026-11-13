@@ -12,7 +12,7 @@ use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use fragment_core::{AppCoeur, ContexteVue, ItemId, NouvelleFeuille, View, ViewState};
+use fragment_core::{App, AppCoeur, DocumentKey, ContexteVue, ItemId, NouvelleFeuille, View, ViewState};
 use fragment_layers::overlay_host::Disposer;
 use fragment_layers::types::{CompactInfo, GutterSide, LeafId};
 use fragment_layers::widget_layer::{WidgetAnchor, WidgetBox, WidgetHandle};
@@ -55,8 +55,8 @@ impl View for VueDeTest {
     fn get_icons(&self) -> Vec<String> {
         self.etat.icones.borrow().clone()
     }
-    fn get_document(&self) -> Option<String> {
-        Some("chat:test".to_owned())
+    fn get_document(&self) -> Option<DocumentKey> {
+        Some(DocumentKey::new("chat:test"))
     }
     /// Ses SEUILS à elle : au moins 200 px de place, la vue entière ; moins, une pastille.
     fn set_ephemeral_state(&mut self, state: &Value) {
@@ -201,13 +201,13 @@ fn decor() -> Decor {
     let vue = Rc::new(VueEtat::default());
     *vue.icones.borrow_mut() = vec!["🙂".to_owned(), "message-circle".to_owned()];
     let etat = vue.clone();
-    app.view_registry.register(
+    app.view_registry().register(
         TYPE_VUE,
         Rc::new(move |_: &ContexteVue| Box::new(VueDeTest { etat: etat.clone() }) as Box<dyn View>),
         "test",
     );
     let note = {
-        let mut w = app.workspace.borrow_mut();
+        let mut w = app.workspace().borrow_mut();
         let note = w.get_leaf(NouvelleFeuille::Non).unwrap();
         w.set_active_leaf(Some(note));
         note
@@ -227,7 +227,7 @@ fn widget_nu(d: &Decor, from: usize, to: usize) -> (Rc<DocWidget>, Rc<FauxHandle
 
 fn widget(d: &Decor, from: usize, to: usize, taille: Option<(f64, f64)>) -> (Rc<DocWidget>, Rc<FauxHandle>) {
     let dw = DocWidget::new(
-        d.app.workspace.clone(),
+        d.app.workspace().clone(),
         OptionsCadre {
             non_groupable: false,
             hote: Some(d.note),
@@ -424,7 +424,7 @@ fn la_vue_garde_ses_actions_de_widget_et_ouvrir_dans_le_panneau_la_met_dans_le_d
     dw.poser_crochets(Crochets::default());
     let dock = dw.actions_entete().into_iter().find(|a| a.cle == "dock").unwrap();
     (dock.action)();
-    let w = d.app.workspace.borrow();
+    let w = d.app.workspace().borrow();
     let droite = w.right_split();
     let dans_le_dock: Vec<_> = w
         .get_leaves_of_type(TYPE_VUE)
@@ -458,7 +458,7 @@ fn supprimer_est_clic_droit_fermer_le_plugin_supprime_le_record() {
     (fermer.action)();
     assert_eq!(ferme.get(), 1);
     assert!(dw.est_ferme() && h.retire.get());
-    assert!(d.app.workspace.borrow().get_leaves_of_type(TYPE_VUE).is_empty(), "la feuille hébergée est détachée");
+    assert!(d.app.workspace().borrow().get_leaves_of_type(TYPE_VUE).is_empty(), "la feuille hébergée est détachée");
     // Fermer deux fois ne ferme qu'une fois.
     dw.fermer();
     assert_eq!(ferme.get(), 1);
@@ -480,12 +480,12 @@ fn ouvrir_a_droite_une_nouvelle_pile_du_centre_ouvrir_dans_un_nouvel_onglet_la_p
     let d = decor();
     let (dw, _h) = widget_nu(&d, 12, 18);
     let (racine, piles_avant) = {
-        let w = d.app.workspace.borrow();
+        let w = d.app.workspace().borrow();
         (w.root_split(), w.arbre().children(w.root_split()).len())
     };
     dw.ouvrir_ailleurs(Ailleurs::Droite);
     {
-        let w = d.app.workspace.borrow();
+        let w = d.app.workspace().borrow();
         assert_eq!(w.arbre().children(racine).len(), piles_avant + 1);
         let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
         assert_eq!(w.active_leaf(), Some(l), "la nouvelle vue est active");
@@ -493,13 +493,13 @@ fn ouvrir_a_droite_une_nouvelle_pile_du_centre_ouvrir_dans_un_nouvel_onglet_la_p
     }
     // Retour à la note, puis « nouvel onglet » : dans SA pile.
     {
-        let mut w = d.app.workspace.borrow_mut();
+        let mut w = d.app.workspace().borrow_mut();
         let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
         w.detach(l);
         w.set_active_leaf(Some(d.note));
     }
     dw.ouvrir_ailleurs(Ailleurs::Onglet);
-    let w = d.app.workspace.borrow();
+    let w = d.app.workspace().borrow();
     let l = w.get_leaves_of_type(TYPE_VUE).into_iter().find(|&l| w.arbre().parent(l).is_some()).unwrap();
     assert_eq!(w.arbre().parent(l), w.arbre().parent(d.note));
     assert_eq!(w.active_leaf(), Some(l));
@@ -591,7 +591,7 @@ fn replie_le_widget_montre_les_icones_de_sa_vue_et_suit_update_header() {
     assert!(matches!(dw.pastilles()[1], Pastille::Icone(ref n) if n == "message-circle"));
     // La vue change ses icônes : updateHeader, le widget replié suit.
     *d.vue.icones.borrow_mut() = ["A", "B", "C", "D", "E"].map(String::from).to_vec();
-    d.app.workspace.borrow_mut().update_header(dw.leaf().unwrap());
+    d.app.workspace().borrow_mut().update_header(dw.leaf().unwrap());
     dw.tour();
     assert_eq!(h.icones_compactes().map(|v| v.len()), Some(5));
     let textes: Vec<_> = dw.pastilles().iter().map(Pastille::texte).collect();
@@ -604,7 +604,7 @@ fn la_forme_reduite_garde_son_identite_tant_que_rien_ne_change() {
     let (dw, h) = widget_nu(&d, 12, 18);
     dw.replier();
     let avant = h.nb_set_compact.get();
-    d.app.workspace.borrow_mut().update_header(dw.leaf().unwrap());
+    d.app.workspace().borrow_mut().update_header(dw.leaf().unwrap());
     dw.tour(); // titre et icônes identiques : le même objet, rien de refait
     assert_eq!(h.nb_set_compact.get(), avant);
 }
