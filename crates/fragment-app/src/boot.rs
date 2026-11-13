@@ -30,6 +30,7 @@ use fragment_core::{
     PluginHost, PluginManifest, Plugins, appliquer_apparence, cabler_apparence,
     enregistrer_commandes_app, enregistrer_commandes_workspace, enregistrer_commandes_zoom,
 };
+use fragment_theme::ThemesCoffre;
 use fragment_ui::docks::ElementRuban;
 use fragment_ui::palette::{PalettePlugin, SourcePalette, StockageMemoire as PaletteMemoire};
 use fragment_ui::shell::ElementsBarreEtat;
@@ -83,6 +84,10 @@ pub struct Options {
     pub horloge: Horloge,
     /// Le coffre à ouvrir (`None` : aucun coffre, les docks démarrent repliés comme en T1).
     pub coffre: Option<SourceCoffre>,
+    /// Poser au démarrage le schéma de `appearance.json` (`system` : sombre ou clair de l'OS).
+    /// ★ Faux par défaut : les scènes de pixels fixent leur propre mode avant `monter`, et l'OS du
+    ///   runner ne doit pas le changer. Le binaire (`main.rs`) l'active.
+    pub schema_au_demarrage: bool,
 }
 
 impl Options {
@@ -100,6 +105,7 @@ impl Options {
             nom: "coffre".to_owned(),
             horloge: Rc::new(move || debut.elapsed().as_millis() as u64),
             coffre: None,
+            schema_au_demarrage: false,
         }
     }
 }
@@ -141,6 +147,9 @@ pub struct Noyau {
     pub hote: Rc<HoteFenetre>,
     /// Le coffre ouvert, s'il y en a un.
     pub coffre: Option<Rc<Coffre>>,
+    /// Les thèmes du coffre (`.fragment/themes`), quand un coffre est ouvert. `lib.rs` les branche
+    /// sur les réglages et les monte à l'écran (`fragment_ui::themes::monter`).
+    pub themes: Option<Rc<ThemesCoffre>>,
     /// Les éléments de la barre d'état (`app.statusBarItems`).
     pub barre_etat: ElementsBarreEtat,
     /// Les actions du ruban (`app.ribbonItems`), dans l'ordre de chargement.
@@ -360,6 +369,24 @@ pub fn demarrer(options: &Options) -> Noyau {
         c.surveiller();
     }
 
+    // Les thèmes du coffre : lus sur son adaptateur, suivis quand le disque bouge (`raw`) et quand
+    // `appearance.json` change (`cssTheme`, accent). Sans coffre, les réglages restent ceux de T1.
+    let mut abonnements = vec![abonnement];
+    let themes = coffre.as_ref().map(|c| {
+        let racine = c.racine.clone();
+        let t = ThemesCoffre::new(
+            c.vault.adapter().clone(),
+            DOSSIER_CONFIG,
+            apparence.clone(),
+            options.horloge.clone(),
+            Rc::new(|m| eprintln!("fragment : thèmes : {m}")),
+            Rc::new(move |dossier| coffre::ouvrir_dossier_du_coffre(&racine, dossier)),
+        );
+        abonnements.push(t.lier_coffre(&c.vault));
+        abonnements.push(t.lier_apparence());
+        t
+    });
+
     Noyau {
         app,
         plugins,
@@ -368,10 +395,11 @@ pub fn demarrer(options: &Options) -> Noyau {
         palette,
         hote,
         coffre,
+        themes,
         barre_etat,
         ruban,
         reglages_demandes,
-        _abonnements: vec![abonnement],
+        _abonnements: abonnements,
     }
 }
 

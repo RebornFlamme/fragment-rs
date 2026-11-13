@@ -237,3 +237,48 @@ fn en_session_montrer_ou_fermer_un_onglet_ne_laisse_jamais_l_active_cachee() {
     let visible = w.arbre().active_leaf(pile).unwrap();
     assert_eq!(active, visible, "l'active est l'onglet montré");
 }
+
+// ─── thèmes du coffre (fr-t11.3) ───
+
+#[test]
+fn un_coffre_ouvert_construit_les_themes_et_sans_coffre_il_n_y_en_a_pas() {
+    use fragment_app::coffre::SourceCoffre;
+    use fragment_core::MemoryAdapter;
+    use fragment_theme::ThemeManager;
+
+    assert!(boot::demarrer(&Options::memoire("0.0.0")).themes.is_none());
+
+    let disque = Rc::new(MemoryAdapter::new());
+    disque.put(".fragment/themes/Nuit/theme.json", "{}");
+    let mut options = Options::memoire("0.0.0");
+    options.coffre = Some(SourceCoffre::Memoire(disque));
+    let n = boot::demarrer(&options);
+    let themes = n.themes.expect("thèmes du coffre");
+    themes.refresh().unwrap();
+    // ★ `.fragment` est caché : le coffre ne l'indexe pas, mais les thèmes le lisent par l'adaptateur.
+    assert_eq!(themes.list(), vec!["Nuit".to_owned()]);
+}
+
+#[test]
+fn un_schema_light_enregistre_donne_le_theme_clair_apres_le_boot() {
+    use fragment_app::coffre::SourceCoffre;
+    use fragment_core::MemoryAdapter;
+    use fragment_theme::Mode;
+    use gpui_kit::TestAppContext;
+
+    let (s, _, config) = stockages();
+    config.poser("appearance.json", "{ \"baseColorScheme\": \"light\" }");
+    let mut options = Options::avec(s, "0.0.0");
+    options.coffre = Some(SourceCoffre::Memoire(Rc::new(MemoryAdapter::new())));
+    let n = boot::demarrer(&options);
+    let themes = n.themes.clone().expect("thèmes du coffre");
+
+    let cx = TestAppContext::single();
+    cx.update(|cx| {
+        fragment_ui::themes::monter(cx, &themes);
+        assert_eq!(fragment_ui::theme_global::theme(cx).mode, Mode::Sombre);
+        // L'OS est sombre : le schéma `light` l'emporte.
+        fragment_app::appliquer_schema_au_demarrage(cx, &themes, &n.apparence, true);
+        assert_eq!(fragment_ui::theme_global::theme(cx).mode, Mode::Clair);
+    });
+}
