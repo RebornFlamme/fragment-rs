@@ -265,6 +265,11 @@ struct Plan {
     manquants: Vec<String>,
 }
 
+/// La tranche (`"depuis"`) de la scène du PNG `png`, `None` si elle n'en déclare pas (T1).
+fn scene_depuis(meta: &BTreeMap<String, MetaScene>, png: &str) -> Option<u32> {
+    meta.get(scene_du_png(png)).and_then(|m| m.depuis)
+}
+
 fn planifier(
     references: &BTreeSet<String>,
     candidats: &BTreeSet<String>,
@@ -689,13 +694,15 @@ pub fn run(args: &[String]) -> anyhow::Result<bool> {
         let r = image::open(o.reference.join(nom))?.to_rgba8();
         let c = image::open(o.candidat.join(nom))?.to_rgba8();
         let ligne = match boites_du_candidat(&o.candidat, nom, &c).and_then(|d| {
-            sas::comparer_tout(
+            // fr-p3.2 : la tranche de la scène décide si la largeur d'encre est stricte.
+            sas::comparer_tranche(
                 &r,
                 &c,
                 &d.boites,
                 &d.ombres,
                 &d.arrondis,
                 &exceptions::du_png(nom),
+                scene_depuis(&meta, nom),
             )
             .map(|s| (d.boites, s))
         }) {
