@@ -20,24 +20,31 @@ pub const ICONE_PNG: &[u8] = include_bytes!("../assets/brand/icon.png");
 /// L'icône de l'exécutable (ressource Windows), toutes tailles de 16 à 256 px.
 pub const ICONE_ICO: &[u8] = include_bytes!("../assets/brand/app-icon.ico");
 
-/// Les noms génériques de CSS : ce ne sont pas des polices installées, Chromium (et la pile du
-/// thème) les traduit ; ils ne comptent donc jamais comme « résolus ».
-const GENERIQUES: [&str; 6] = [
-    "system-ui",
-    "ui-monospace",
-    "-apple-system",
-    "sans-serif",
-    "serif",
-    "monospace",
-];
+/// La famille que Chromium donne, sous Windows, à un nom générique de CSS (c'est ce que voit la
+/// référence). `ui-monospace` n'est pas géré par Chromium : il passe son chemin. Ailleurs : `None`.
+fn generique(nom: &str) -> Option<&'static str> {
+    if !cfg!(windows) {
+        return None;
+    }
+    match nom {
+        "monospace" => Some("Consolas"),
+        "sans-serif" => Some("Arial"),
+        "serif" => Some("Times New Roman"),
+        "system-ui" => Some("Segoe UI"),
+        _ => None,
+    }
+}
 
 /// La première famille de `pile` que le système de texte connaît (embarquée ou installée), à la
-/// manière du `font-family` de CSS ; `None` si aucune n'existe.
+/// manière du `font-family` de CSS ; un nom générique vaut la famille de Chromium (`monospace` →
+/// Consolas), donc une pile qui finit sur `monospace` n'est PAS un repli : c'est le comportement
+/// attendu de Fragment. `None` si rien ne se résout (par exemple Consolas absente du système).
 pub fn pile_resolue(systeme: &TextSystem, pile: &[&'static str]) -> Option<&'static str> {
     let connues = systeme.all_font_names();
-    pile.iter()
-        .copied()
-        .find(|f| !GENERIQUES.contains(f) && connues.iter().any(|c| c == f))
+    pile.iter().copied().find_map(|f| {
+        let cible = generique(f).unwrap_or(f);
+        connues.iter().any(|c| c == cible).then_some(cible)
+    })
 }
 
 /// Les polices qui tombent sur un repli, une ligne par défaut (vide : tout se résout).

@@ -111,8 +111,8 @@ fn la_pile_du_code_se_resout_sur_une_police_installee() {
     let systeme = systeme();
     let pile = fragment_theme::theme::Theme::sombre().typo.font_monospace;
     let famille = pile_resolue(&systeme, pile).expect("une famille de la pile existe");
-    // Comme Chromium sur la machine de référence : ni JetBrains Mono (non embarquée, ADR-005 §5),
-    // ni les noms génériques ; sous Windows, `monospace` donne Consolas.
+    // Comme Chromium sur la machine de référence : JetBrains Mono n'est pas embarquée (ADR-005 §5),
+    // la pile se termine sur `monospace`, qui donne Consolas sous Windows.
     #[cfg(windows)]
     assert_eq!(famille, "Consolas");
     assert!(!["ui-monospace", "monospace"].contains(&famille));
@@ -120,10 +120,22 @@ fn la_pile_du_code_se_resout_sur_une_police_installee() {
 
 #[test]
 fn une_pile_sans_famille_connue_est_un_repli() {
-    // Contre-épreuve : le test sait dire « repli », et les noms génériques ne comptent pas.
+    // Contre-épreuve : le test sait dire « repli » (aucun nom générique à la fin de la pile).
+    let systeme = systeme();
+    assert_eq!(pile_resolue(&systeme, &["Famille Qui N'Existe Pas"]), None);
+}
+
+#[cfg(windows)]
+#[test]
+fn les_noms_generiques_se_resolvent_comme_chromium() {
     let systeme = systeme();
     assert_eq!(
-        pile_resolue(&systeme, &["Famille Qui N'Existe Pas", "monospace"]),
-        None
+        pile_resolue(&systeme, &["Inconnue", "monospace"]),
+        Some("Consolas")
+    );
+    // `ui-monospace` n'est pas géré par Chromium : on passe à la suivante.
+    assert_eq!(
+        pile_resolue(&systeme, &["ui-monospace", "monospace"]),
+        Some("Consolas")
     );
 }
