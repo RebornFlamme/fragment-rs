@@ -37,6 +37,7 @@ critère de sortie, **1 seul MD5 sur 5 rejeux** en mode invisible.
 | Scène | Symptôme | Bead |
 |---|---|---|
 | t11-accent | deux MD5 qui alternent, pixel (507,7) R 0x30/0x2F, dans les deux thèmes | fr-hwq |
+| t11-rose (light) | référence 6216576C / F15A1401 (vu une fois), même pixel (507,7) que t11-accent : même cause présumée | fr-hwq |
 | t7-chat-cowork-replie | deux passes, deux PNG différents | fr-914 |
 
 ## Dettes de parité : surfaces flottantes T1 (fr-t1.1)
