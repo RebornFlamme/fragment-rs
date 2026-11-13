@@ -1,0 +1,13 @@
+{
+  "scene": "t3-proprietes-menu",
+  "depuis": "T3",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t3/b",
+  "actions": [
+    {"type":"open","path":"proprietes.md"},
+    {"type":"click","x":344,"y":270},
+    {"type":"hover","x":427,"y":306},
+    {"type":"wait","ms":200}
+  ]
+}

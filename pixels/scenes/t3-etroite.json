@@ -1,0 +1,12 @@
+{
+  "scene": "t3-etroite",
+  "depuis": "T3",
+  "window": {"width":600,"height":400,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t3/b",
+  "actions": [
+    {"type":"open","path":"etroite.md"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
