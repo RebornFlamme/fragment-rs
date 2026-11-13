@@ -1,0 +1,9 @@
+# Parité de fr-t11-clair (fragment-ui). Spec e2e de Fragment traduite : light-theme.spec.ts (1 test).
+
+[[module]]
+ts = "app/e2e/light-theme.spec.ts, app/src/ui/index.css (.theme-light), app/src/ui/views/markdown/editor.css (caret), app/src/ui/core/menu.css"
+rs = "crates/fragment-ui/tests/theme_clair.rs (sur editeur/element.rs::style_projete et menu.rs)"
+cas_source = 1
+cas_portes = 1
+cas_ajoutes = 0
+notes = "Le DOM n'existe pas : on lit les grandeurs où le rendu les prend (curseur du style projeté, menu_bg et text_normal, aplat de bordure), contraste WCAG > 4,5 comme le TS. « Pas de cadre de focus » : le fork ne peint aucun contour de focus, le test vérifie que la bordure projetée reste l'aplat discret des jetons (luminance > 0,7 en clair). Scènes t11-clair-editeur et t11-clair-menus jugées par le job pixels."
