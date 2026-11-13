@@ -996,4 +996,14 @@ Contexte du chef : 505k, au seuil de 550k. Clear fait une fois tous les équipie
 - Disque : 112 Go libres au lancement.
 **Rythme** : (97 − 79) ÷ 9,3 h ≈ 1,9 point par heure ; cible 90 % = 11 points.
 **Prochaine action exacte** : revue à chaque compte rendu (diff, audit à 0, CI, fusion, `bd close`, export, retrait du worktree et du dossier cible) ; places libérées → fr-t5-scenes-b et fr-t7-scenes-b APRÈS fr-p4.1.4, sinon fr-t7-surface, fr-t7-defilement, fr-t5-menu-modele.- 13/11 ~09:50 UTC : fr-p4.1.4 a chiffré le crochet. Le mode par surface est possible sans fork, mais Chromium passe le texte en gris sous opacité < 1 et `element_opacity` est `pub(crate)`. **Orchestrateur : option B accordée**, fork n°2 de gpui-pre (ADR-017). Conditions : patch limité à `should_use_subpixel_rendering` ; CI en diff exact contre le crate publié ; NOTICE et provenance ; aucune PR amont ; contre-épreuves de scène ; plafond de 2 forks. Équipier lcd2 relancé.
-- Place libérée pendant l'attente : fr-t7-surface lancé (Opus, `../fragment-rs-chatsurface`). fr-t5-scenes-b et fr-t7-scenes-b : après la fusion de fr-p4.1.4.
+- Place libérée pendant l'attente : fr-t7-surface lancé (Opus, `../fragment-rs-chatsurface`). fr-t5-scenes-b et fr-t7-scenes-b : après la fusion de fr-p4.1.4.- 13/11 ~09:35 UTC (usage 5h 21 % / semaine 82 %) — fusionnées, 8 jobs verts et audit à 0, beads fermés, worktrees et dossiers cible retirés :
+  - #122 (fr-t7-moteur) : ureq et flate2 ajoutés ; tests rendus justes sous Linux ;
+  - #123 (fr-t5.1) : palette fixture-*, globe à dégradé radial calculé ;
+  - #124 (fr-t2-lecture) ;
+  - #121 (fr-t11.3) : schéma de appearance.json posé au boot (binaire seulement, pas les scènes) ; `mut` en trop corrigé par le chef.
+- fr-p4.1.4 : #128 en brouillon. Le fork n°2 vise gpui-pre 0.3.12 (version du Cargo.lock), pas 0.3.10. Équipier neuf lancé : test du patch joué en CI, contre-épreuve .clickable-icon remplacée (SVG), recaptures sous verrou.
+- fr-t7-surface : #125 en brouillon, équipier neuf (contexte dépassé).
+- Bug fr-9n1 : flake de spike_s7 (PdfiumLibraryBindingsAlreadyInitialized), vu sur #127.
+- Lancés : fr-t7-defilement (Opus), fr-t5-menu-modele (Sonnet, #127), fr-t5-lien-ancre (Sonnet), fr-t7-service (Sonnet).
+- PR en CI : #126 (surlignages, dette Multiplie notée), #127.
+**Rythme** : 3 points en 1 h, au-dessus des 1,8 par heure nécessaires ; 6 places occupées, pas plus.
