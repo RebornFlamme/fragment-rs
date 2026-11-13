@@ -1,0 +1,38 @@
+# Parité de fr-t7-fournisseur (fragment-agent) : le fournisseur agent du chat et son faux harness.
+# Les cas source sont les tests e2e (Playwright) que le fournisseur rend vrais : agent-chat (5),
+# agent-harness (6), agent-permissions (9), agent-trace (5), chat-attachments (6). Portés dans
+# crates/fragment-agent/tests/fournisseur.rs, SOUS LE MÊME NOM en snake_case, sur le FauxHarness.
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentChatProvider.ts, chatContributions.ts (id `agent`), types.ts ; app/e2e/{agent-chat,agent-harness,agent-permissions,agent-trace,chat-attachments}.spec.ts"
+rs = "crates/fragment-agent/src/fournisseur/{agent_chat,hote,faux}.rs"
+cas_source = 31
+cas_portes = 23
+cas_ajoutes = 12
+non_portes = [
+  { cas = "agent-chat : ancienne vue `agent-chat` (layout d'avant) rouverte comme la vue chat", raison = "migration de layout de la vue : fr-t7-vue / fr-t7-montage" },
+  { cas = "agent-permissions : sans réglage, « Coffre ouvert » compile la liste blanche historique", raison = "la politique compilée pour le moteur est celle de fr-t7-harness-claude (compile_claude) et du service" },
+  { cas = "agent-permissions : les RÉGLAGES déclaratifs (avertissements, préréglages, matrice, arbre)", raison = "onglet Agent des réglages : fr-t7-reglages-agent" },
+  { cas = "agent-trace : le geste (étape neuve depuis le flou, au plus deux couches)", raison = "rendu de la trace : fr-t7-trace et les scènes pixels" },
+  { cas = "agent-trace : l'orbe choisie dans les réglages remplace l'automatique", raison = "orbe et onglet Agent : fr-t7-orbe, fr-t7-reglages-agent" },
+  { cas = "chat-attachments : coller une image → une puce ; ✕ la retire", raison = "extension `attachments` du champ : fr-t7-pieces-citation" },
+  { cas = "chat-attachments : une reconstruction de la vue garde les puces", raison = "état de l'extension du champ (save/restore) : fr-t7-pieces-citation" },
+  { cas = "chat-attachments : registre ouvert, un fournisseur REFUSE les pièces (`without`), un plugin tiers AJOUTE son extension", raison = "registre `chat:composer@1` : fr-t7-pieces-citation et fr-t7-fil" },
+]
+notes = "Écarts : appels SYNCHRONES (le tour rend la main à sa fin, `stop` est un appel à part, observé de l'intérieur du tour) ; le plugin `agent` entier devient le trait `AgentHote` (sessions, registre, run commun, pièces, codec), que fr-t7-service implémentera et que FauxHote double ; une carte de permission attend sa réponse en « pompant » l'hôte (`pomper`), refus si plus rien ne peut répondre ; les options d'envoi passent par `EnvoiAgent` (typé, décodé du JSON du chat, octets en base64). FauxHarness : scénarios de `Pas` (événements, pause libérée par le test, garde, carte, bilan, état), transcripts en mémoire avec branches ; ses tests sont ceux du fournisseur. Cas ajoutés : participants, titre, choix en attente (copy_pending, set_pending_meta), moteur changé jusqu'au 1er tour, branche (forkPoint, bulles héritées sautées), préambule, citation et contexte, options JSON, usage et échec du tour, origine (ancienne forme), historique et suppression, carte sans réponse, réduction d'image, relecture d'une pièce."
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentChatProvider.ts (`reduireImage`, `ranger`, constantes COTE_MAX et OCTETS_MAX)"
+rs = "crates/fragment-agent/src/fournisseur/pieces.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 10
+notes = "Aucun test TS isolé. La décision de réduire est pure et testée ; le pixel (createImageBitmap, OffscreenCanvas) devient le trait CodecImage, fourni par l'hôte (crate `image` côté app) : sans codec, ou s'il échoue, la pièce part telle quelle, comme le catch du TS. Horodatage ISO écrit à la main (pas de dépendance)."
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentChatProvider.ts (`partTrace`), trace/traceModel.ts, policy/permissionCard.ts (forme JSON des parts)"
+rs = "crates/fragment-agent/src/fournisseur/parts.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 2
+notes = "Trace n'est pas sérialisable par serde : conversion JSON écrite à la main, dans les deux sens (clés camelCase), pour que la vue de la trace relise ce que le fournisseur écrit."
