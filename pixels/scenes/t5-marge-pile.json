@@ -1,0 +1,19 @@
+{
+  "scene": "t5-marge-pile",
+  "depuis": "T5",
+  "window": {"width":1280,"height":800,"dpr":1},
+  "themes": ["dark","light"],
+  "vault": "pixels/vault-t5/a",
+  "actions": [
+    {"type":"layout","tree":{"main":{"type":"tabs","tabs":1,"current":0}}},
+    {"type":"open","path":"note.md"},
+    {"type":"wait-stable"},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"flex","from":718,"side":"right","height":110}},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"flex","from":266,"side":"right","height":110}},
+    {"type":"command","id":"pixels:widget-test","args":{"kind":"flex","from":486,"side":"right","height":110}},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"},
+    {"type":"hover","x":2,"y":2},
+    {"type":"wait-stable"}
+  ]
+}
