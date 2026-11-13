@@ -284,6 +284,9 @@ pub fn ouvrir_principale(
         VueScene::Flottantes => {
             gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| fragment_ui::flottant::Decor))?.0
         }
+        VueScene::Gestionnaire => {
+            anyhow::bail!("la vue « gestionnaire » s'ouvre par `ouvrir_gestionnaire`")
+        }
     };
     Ok(fenetre)
 }
@@ -301,6 +304,26 @@ pub fn ouvrir_reglages(
     let opts = options(cx, taille);
     let (fenetre, _) = gpui_kit::open_window(opts, cx, |_, cx| cx.new(|_| Vide))?;
     Ok(fenetre)
+}
+
+/// Ouvre la fenêtre du gestionnaire de coffres d'une scène `gestionnaire` : les coffres de la
+/// scène, aucun courant (le gestionnaire s'ouvre seul), les commandes sans effet. ★ La liste est
+/// celle du registre (`VaultInfo`), relue du disque : un dossier absent est « introuvable ».
+pub fn ouvrir_gestionnaire(cx: &mut App, coffres: &[String]) -> anyhow::Result<AnyWindowHandle> {
+    let infos: Vec<fragment_cli::coffres::VaultInfo> = coffres
+        .iter()
+        .map(|p| fragment_cli::coffres::VaultInfo {
+            name: fragment_ui::coffres::nom_du_coffre(p),
+            exists: std::path::Path::new(p).is_dir(),
+            current: false,
+            path: p.clone(),
+        })
+        .collect();
+    fragment_app::coffre::ouvrir_fenetre_gestionnaire(
+        cx,
+        Rc::new(move || infos.clone()),
+        Rc::new(|_, _| {}),
+    )
 }
 
 /// Un point logique, pour les tests.

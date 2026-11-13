@@ -40,10 +40,17 @@ anyhow.workspace = true
 fragment-core = { path = "../fragment-core" }
 fragment-theme = { path = "../fragment-theme" }
 fragment-ui = { path = "../fragment-ui" }
+# Le registre des coffres (config.json de userData) : choix du coffre au démarrage.
+fragment-cli = { path = "../fragment-cli" }
 image.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+
+# La boîte native de choix de dossier du gestionnaire de coffres (fr-t2-gestionnaire, NOUVELLE
+# dépendance notée dans la PR). Sans GTK : sous Linux, `zenity` (coffre.rs::choisir_dossier).
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+rfd = { version = "0.15", default-features = false }
 
 [dev-dependencies]
 # Vue jouet : TestAppContext et render_to_image dans les tests du lecteur.

@@ -254,7 +254,15 @@ pub fn rendre_pied_coffre(cadre: Cadre, nom: &str, cx: &App) -> AnyElement {
                     .text_color(couleur(c.text_normal)),
             )
     };
+    // Le clic ouvre le menu des coffres au coin haut-gauche du pied (fr-t2-gestionnaire).
+    let (mx, my) = (cadre.x as f32, cadre.y as f32);
     let selecteur = div()
+        .id("vault-switcher-action")
+        .on_mouse_down(MouseButton::Left, move |_, window, _| {
+            if crate::coffres::selecteur::clic_du_pied(mx, my) {
+                window.refresh();
+            }
+        })
         .flex()
         .flex_1()
         .min_w(u(cx, 0.0))

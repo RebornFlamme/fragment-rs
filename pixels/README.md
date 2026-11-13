@@ -22,7 +22,9 @@ tourne déjà sur 5123 (celui de l'utilisateur), il est RÉUTILISÉ tel quel, sa
 
 ## Schéma JSON
 Racine : `scene`, `window {width,height,dpr}`, `settings_window` (1000 × 700), `themes` (`dark`, `light` ;
-défaut `dark`), `vault`, `vue` (`app` par défaut, `mire`, `jouet`), `actions`, et :
+défaut `dark`), `vault`, `vue` (`app` par défaut, `mire`, `jouet`, `flottantes`, `gestionnaire` : la fenêtre du gestionnaire de
+coffres), `coffres` (scène `gestionnaire` : chemins des coffres connus, un dossier absent est « introuvable »),
+`actions`, et :
 - `depuis` : `"T1"`, `"T7"`… la tranche de la scène. `fragment-pixels` ne la rejoue pas et
   `cargo xtask pixels` ne la compare pas tant que cette tranche n'est pas ACTIVE : les tranches actives
   sont listées dans `pixels/tranches.json` (`{"actives": ["T1", "T4"]}`), lu par les deux outils ; T2, T3 et

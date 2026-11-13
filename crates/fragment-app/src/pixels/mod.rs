@@ -119,7 +119,15 @@ pub async fn jouer(
             (commandes, None, Some(app), principale)
         } else {
             let (commandes, hote) = fenetres::commandes_de_scene();
-            let principale = fenetres::ouvrir_principale(cx, scene.vue, scene.fenetre)?;
+            let principale = if scene.vue == VueScene::Gestionnaire {
+                // Le coffre de fixture existe sur le disque (ligne présente), les autres non.
+                if let Some(f) = &scene.vault {
+                    coffre::preparer_coffre(f)?;
+                }
+                fenetres::ouvrir_gestionnaire(cx, &scene.coffres)?
+            } else {
+                fenetres::ouvrir_principale(cx, scene.vue, scene.fenetre)?
+            };
             (commandes, Some(hote), None, principale)
         };
         let reglages = scene
