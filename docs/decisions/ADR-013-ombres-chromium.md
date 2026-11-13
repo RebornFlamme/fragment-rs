@@ -60,6 +60,7 @@ Mesures CI (run 43040649423, PR #56) contre `main` (run 43018474495). Accepté p
 Après le calque émulé, il reste ceci :
 - `--shadow-l` en clair, étalement : +0,18 px pour la modale, +0,21 px pour les palettes (borne 0,08). En sombre : 0,09 px pour la modale, 0,00 à 0,01 px pour les palettes.
 - Ombres de l'infobulle, du menu et des notices : 0,15 à 0,24 px.
+- Ombre du menu d'un fichier de l'explorateur, sombre (`t2-explorateur-menu-fichier-dark`, chef du 13/11) : étalement −0,12 px, côté droit −0,31 px, déjà ombrée au calque émulé. La gaussienne simulée reproduit le candidat à 100 % et la référence à 95 % : même forme de flou, même dette.
 - Arcs opaques de la modale et des palettes claires : 22 px de delta 7 à 9 à la jonction de l'arc et du côté droit.
 
 Ce reste est hors d'atteinte au bit près sans la couverture de Skia sur GPU. Celle-ci dépend du chemin (neuvaine, flou sous-échantillonné) et du GPU de la référence. Seule une table de couverture mesurée par géométrie sur la mire de S8 le résorberait. Simulée, elle donne 0,01 px.

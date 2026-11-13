@@ -132,6 +132,17 @@ pub enum VueScene {
     Flottantes,
 }
 
+/// Le layout d'une scène à coffre (`_t2.ts`, `OptionsScene.layout`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Decor {
+    /// L'explorateur ouvert au dock gauche, une pile centrale vide, le dock droit replié.
+    #[default]
+    Explorateur,
+    /// Le layout par défaut d'un coffre neuf.
+    Defaut,
+}
+
 /// Où un geste est envoyé.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -400,9 +411,12 @@ struct SceneBrute {
     window: Option<Taille>,
     settings_window: Option<Taille>,
     themes: Option<Vec<ThemeScene>>,
-    /// Le coffre de fixture : lu par les tâches de décor (T3+), pas par le lecteur.
-    #[allow(dead_code)]
+    /// Le coffre de fixture (`pixels/vault-t2`) : copié, puis ouvert par l'application.
     vault: Option<String>,
+    /// Le décor d'une scène à coffre : `explorateur` (défaut, `_t2.ts`) ou `defaut` (le layout par
+    /// défaut de Fragment, tel quel).
+    #[serde(default)]
+    decor: Decor,
     #[serde(default)]
     vue: VueScene,
     depuis: Option<String>,
@@ -424,6 +438,9 @@ pub struct Scene {
     pub reglages: Option<Taille>,
     pub themes: Vec<ThemeScene>,
     pub vue: VueScene,
+    /// Le coffre de fixture, relatif à la racine du dépôt.
+    pub vault: Option<String>,
+    pub decor: Decor,
     pub depuis: Option<Tranche>,
     pub sans_reference: bool,
     /// Pixels que chaque capture doit porter (voir [`PixelAttendu`]).
@@ -486,6 +503,8 @@ pub fn analyser_scene(texte: &str, nom_par_defaut: &str) -> Result<Scene, Erreur
         reglages: brute.settings_window,
         themes: brute.themes.unwrap_or_else(|| vec![ThemeScene::Dark]),
         vue: brute.vue,
+        vault: brute.vault,
+        decor: brute.decor,
         depuis,
         sans_reference: brute.sans_reference,
         pixels_attendus: brute.pixels_attendus,

@@ -7,7 +7,7 @@
 //! La séquence de Fragment, réduite à ce qui existe en T1 :
 //! 1. l'App (registres, commandes, Keymap, Workspace) ;
 //! 2. le seed des plugins cœur, dans l'ordre de `seedCore` ;
-//! 3. (le coffre : T2) ;
+//! 3. le coffre (`coffre.rs`) : lu, branché sur les documents, son plugin `file-explorer` ;
 //! 4. l'apparence chargée puis appliquée AVANT la première peinture (le zoom de `appearance.json`
 //!    est en place dès le démarrage, `app-zoom`) ;
 //! 5. les raccourcis personnalisés, APRÈS les configs et AVANT les plugins (la table compilée sait
@@ -34,6 +34,7 @@ use fragment_ui::docks::ElementRuban;
 use fragment_ui::palette::{PalettePlugin, SourcePalette, StockageMemoire as PaletteMemoire};
 use fragment_ui::shell::ElementsBarreEtat;
 
+use crate::coffre::{self, Coffre, SourceCoffre};
 use crate::hote_fenetre::HoteFenetre;
 use crate::stockage::{DOSSIER_CONFIG, Stockages};
 
@@ -80,6 +81,8 @@ pub struct Options {
     pub nom: String,
     /// La source du temps (ms monotones) des configs débouncées.
     pub horloge: Horloge,
+    /// Le coffre à ouvrir (`None` : aucun coffre, les docks démarrent repliés comme en T1).
+    pub coffre: Option<SourceCoffre>,
 }
 
 impl Options {
@@ -96,6 +99,7 @@ impl Options {
             version: version.to_owned(),
             nom: "coffre".to_owned(),
             horloge: Rc::new(move || debut.elapsed().as_millis() as u64),
+            coffre: None,
         }
     }
 }
@@ -135,6 +139,8 @@ pub struct Noyau {
     pub raccourcis: Rc<HotkeyManager>,
     pub palette: Rc<PalettePlugin>,
     pub hote: Rc<HoteFenetre>,
+    /// Le coffre ouvert, s'il y en a un.
+    pub coffre: Option<Rc<Coffre>>,
     /// Les éléments de la barre d'état (`app.statusBarItems`).
     pub barre_etat: ElementsBarreEtat,
     /// Les actions du ruban (`app.ribbonItems`), dans l'ordre de chargement.
@@ -181,6 +187,7 @@ fn manifeste(id: &str) -> PluginManifest {
         "workspace" => "Espace de travail",
         "app" => "Application",
         "settings" => "Réglages",
+        "file-explorer" => "Explorateur de fichiers",
         autre => autre,
     };
     PluginManifest::new(id, nom, "1.0.0")
@@ -206,6 +213,21 @@ pub fn demarrer(options: &Options) -> Noyau {
     let raccourcis = app.installer_raccourcis(st.raccourcis.clone());
     raccourcis.load();
 
+    // 3. Le coffre : un dossier illisible laisse l'application démarrer sans coffre.
+    let coffre = options
+        .coffre
+        .as_ref()
+        .and_then(|s| match Coffre::ouvrir(s) {
+            Ok(c) => {
+                c.brancher(&app);
+                Some(c)
+            }
+            Err(e) => {
+                eprintln!("fragment : coffre : {e:#}");
+                None
+            }
+        });
+
     // 2. Le seed. Les fabriques capturent ce dont leur plugin a besoin.
     let hote_plugins: Rc<dyn PluginHost> = app.clone();
     let plugins = Plugins::new(
@@ -221,7 +243,16 @@ pub fn demarrer(options: &Options) -> Noyau {
     let barre_etat: ElementsBarreEtat = Rc::new(RefCell::new(Vec::new()));
     let reglages_demandes = Rc::new(Cell::new(false));
 
-    let activations: Vec<(&str, Activation)> = vec![
+    let mut activations: Vec<(&str, Activation)> = Vec::new();
+    // `file-explorer` vient avant la palette dans `seedCore` ; il n'existe qu'avec un coffre.
+    if let Some(c) = &coffre {
+        let (a, c) = (app.clone(), c.clone());
+        activations.push((
+            "file-explorer",
+            Rc::new(move || coffre::activer_explorateur(&a, &c)),
+        ));
+    }
+    activations.extend::<Vec<(&str, Activation)>>(vec![
         ("command-palette", {
             let (p, c) = (palette.clone(), commandes.clone());
             Rc::new(move || vec![p.enregistrer(&c)])
@@ -260,7 +291,7 @@ pub fn demarrer(options: &Options) -> Noyau {
                 vec![c.add_command(commande, "settings")]
             })
         }),
-    ];
+    ]);
     for (id, activer) in activations {
         let h = hote_plugins.clone();
         plugins.register_internal_plugin(
@@ -295,9 +326,9 @@ pub fn demarrer(options: &Options) -> Noyau {
     ];
 
     // 7. Le layout : celui du disque, sinon le layout par défaut.
-    // ★ Le layout par défaut de Fragment ouvre l'explorateur dans le dock gauche (déplié). T1 n'a pas
-    //   d'explorateur (T2) : les docks démarrent repliés, avec la vue vide (T1.md, risque 9 ; pas de
-    //   faux explorateur).
+    // ★ Le layout par défaut de Fragment ouvre l'explorateur dans le dock gauche (déplié), le dock
+    //   droit replié. Sans coffre (tests, scènes de T1), pas d'explorateur : les deux docks
+    //   démarrent repliés, avec la vue vide (T1.md, risque 9 ; pas de faux explorateur).
     let restaure = layout_lisible(st.layout.as_ref());
     {
         let mut w = app.workspace().borrow_mut();
@@ -305,7 +336,9 @@ pub fn demarrer(options: &Options) -> Noyau {
         w.load_layout();
         if !restaure {
             let (gauche, droite) = (w.left_split(), w.right_split());
-            w.collapse(gauche);
+            if coffre.is_none() {
+                w.collapse(gauche);
+            }
             w.collapse(droite);
         }
         // ★ boot-scope : démarrer sans clic laisse une feuille ACTIVE (sa portée au sommet du
@@ -322,6 +355,11 @@ pub fn demarrer(options: &Options) -> Noyau {
         }
     }
 
+    // La surveillance démarre une fois l'arbre lu et le layout posé.
+    if let Some(c) = &coffre {
+        c.surveiller();
+    }
+
     Noyau {
         app,
         plugins,
@@ -329,6 +367,7 @@ pub fn demarrer(options: &Options) -> Noyau {
         raccourcis,
         palette,
         hote,
+        coffre,
         barre_etat,
         ruban,
         reglages_demandes,

@@ -16,7 +16,7 @@ use std::rc::Rc;
 
 use fragment_core::{Command, CommandManager, Keymap, Scope};
 use gpui_kit::{
-    AnyElement, App, Bounds, InteractiveElement as _, IntoElement, MouseDownEvent,
+    AnyElement, App, Bounds, FontWeight, InteractiveElement as _, IntoElement, MouseDownEvent,
     ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, Window, anchored,
     canvas, deferred, div, point, relative, svg,
 };
@@ -25,7 +25,8 @@ use serde_json::Value;
 use crate::echelle::{calees, moitie, u};
 use crate::flottant::{ecouter_args, nombre, ombrer, texte};
 use crate::icones;
-use crate::rendu::melange::{aplat_exact, bord_unique};
+use crate::polices::{largeur_ajustee, largeur_texte};
+use crate::rendu::melange::{aplat_au_calque, aplat_exact, bord_unique};
 use crate::rendu::ombre::{ombrer_au_calque, voile};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_theme::Aplat;
@@ -152,6 +153,8 @@ pub struct Menu {
     entrees: Vec<Entree>,
     sections: Vec<String>,
     on_hide: Vec<Action>,
+    /// Le menu chevauche un calque composé de Chromium ([`Menu::set_calque`]).
+    calque: bool,
 }
 
 impl Menu {
@@ -178,6 +181,21 @@ impl Menu {
     pub fn add_sections(&mut self, sections: &[&str]) -> &mut Self {
         self.sections
             .extend(sections.iter().map(|s| (*s).to_owned()));
+        self
+    }
+
+    /// Déclare que le menu s'ouvre par-dessus un calque composé de Chromium (le conteneur défilant
+    /// de l'explorateur) : sa bordure translucide est alors composée en prémultiplié 8 bits
+    /// ([`aplat_au_calque`]), et non en aplat exact. Ses sous-menus suivent.
+    ///
+    /// ★ Mesuré sur les références (fr-t2-montage, 13/11) : les menus de l'explorateur et de la vue
+    /// PDF (`t4-menu-zoom`) ont une bordure de (45,46,50) en sombre et (232,232,232) en clair, au
+    /// pixel près sur les quatre côtés ; ceux de l'onglet, de l'éditeur et du sélecteur de coffre
+    /// gardent l'aplat exact (46,46,50) / (232,232,233). Chromium met en calque une boîte `fixed` qui
+    /// CHEVAUCHE un calque composé (cause 1 de S8, ADR-013) ; ce calque-là compose la bordure comme
+    /// un remplissage prémultiplié.
+    pub fn set_calque(&mut self) -> &mut Self {
+        self.calque = true;
         self
     }
 
@@ -493,7 +511,11 @@ pub fn couche(cx: &App) -> AnyElement {
     let rendu = COURANT.with(|c| {
         let garde = c.borrow();
         let o = garde.as_ref()?;
-        Some((rendre_niveau(&o.menu, 0, &o.chemin, o.y, cx), o.x, o.y))
+        Some((
+            rendre_niveau(&o.menu, 0, &o.chemin, o.y, o.menu.calque, cx),
+            o.x,
+            o.y,
+        ))
     });
     let Some((menu, x, y)) = rendu else {
         return div().into_any_element();
@@ -521,6 +543,7 @@ fn rendre_niveau(
     niveau: usize,
     chemin: &[usize],
     origine_y: f32,
+    calque: bool,
     cx: &App,
 ) -> AnyElement {
     let t = theme_ou_defaut(cx);
@@ -569,8 +592,14 @@ fn rendre_niveau(
                     } else {
                         c.text_normal
                     };
+                    // ★ Ni l'icône ni le libellé ne rétrécissent : la boîte du menu est peinte à la
+                    // largeur ARRONDIE au pixel (`largeur_ajustee`), parfois sous la largeur exacte du
+                    // libellé le plus long ; Chromium garde la fraction en mise en page. Sans
+                    // `flex_none`, le rétrécissement retombait sur l'icône et décalait le libellé de
+                    // −0,85 px (« Afficher dans l'explorateur système », (187,490), run 43356976195).
                     let icone = div()
                         .w(u(cx, f.icon_m))
+                        .flex_none()
                         .flex()
                         .pl(moitie(cx, f.icon_m - ICONE))
                         .opacity(if it.warning { 1.0 } else { 0.7 })
@@ -581,7 +610,7 @@ fn rendre_niveau(
                                 .flex_none()
                                 .text_color(couleur(couleur_texte))
                         }));
-                    let mut titre = div().flex_1().child(it.title.clone());
+                    let mut titre = div().flex_1().whitespace_nowrap().child(it.title.clone());
                     if it.checked {
                         titre = titre.child(div().opacity(0.7).child(" \u{2713}"));
                     }
@@ -628,6 +657,7 @@ fn rendre_niveau(
                                         niveau + 1,
                                         chemin,
                                         haut_ligne - 5.0,
+                                        calque,
                                         cx,
                                     )),
                             ));
@@ -652,21 +682,50 @@ fn rendre_niveau(
 
     // `min-width` et le rembourrage de `.menu` : boîte de contenu en CSS, boîte de bordure ici.
     let largeur_min = LARGEUR_MIN + 2.0 * f.size_4_1 + 2.0 * f.border_width;
+    // ★ La largeur ajustée au contenu, comme Chromium : GPUI arrondit au pixel SUPÉRIEUR la largeur
+    // du libellé le plus long, Chromium garde la fraction et n'arrondit que l'arête
+    // (`polices::largeur_ajustee`). Menu d'un fichier de l'explorateur : 263 px au lieu de 262
+    // (run 43351537908). Une ligne : rembourrages, icône, écart, libellé (✓ compris) et, pour un
+    // sous-menu, écart et chevron.
+    let contenu = menu
+        .ordre()
+        .into_iter()
+        .filter_map(|o| o.and_then(|i| menu.item_a(i)))
+        .map(|it| {
+            let mut libelle = it.title.clone();
+            if it.checked {
+                libelle.push_str(" \u{2713}");
+            }
+            let mut l = 2.0 * f.size_4_2
+                + f.icon_m
+                + f.size_4_2
+                + largeur_texte(cx, &libelle, FontWeight::NORMAL, t.typo.font_ui_medium);
+            if it.submenu.is_some() {
+                l += f.size_4_2 + f.icon_xs;
+            }
+            l
+        })
+        .fold(0.0_f32, f32::max);
+    let bords = 2.0 * f.size_4_1 + 2.0 * f.border_width;
+    let ajustee = largeur_ajustee(cx, contenu.max(LARGEUR_MIN), bords);
     let boite = div()
         .id(("menu", niveau))
         .relative()
         .flex()
         .flex_col()
         .min_w(u(cx, largeur_min))
+        .w(ajustee)
         .p(u(cx, f.size_4_1))
         .text_color(couleur(c.text_normal))
         .on_mouse_down_out(appui_exterieur);
-    // Un seul anticrénelage au bord, bordure translucide en aplat exact (`rendu::melange`).
+    // Un seul anticrénelage au bord, bordure translucide en aplat exact (`rendu::melange`), ou
+    // prémultipliée sur un calque composé (`Menu::set_calque`).
+    let aplat = if calque { aplat_au_calque } else { aplat_exact };
     let boite = bord_unique(
         boite,
         cx,
         (f.radius_m, f.border_width),
-        aplat_exact(c.background_modifier_border, c.opacites.bordure, c.menu_bg),
+        aplat(c.background_modifier_border, c.opacites.bordure, c.menu_bg),
         c.menu_bg,
         true,
     )

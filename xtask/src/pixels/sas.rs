@@ -544,6 +544,9 @@ pub struct ResultatBoite {
     pub ecart_bords: Option<[i64; 4]>,
     /// La largeur d'encre diffère d'un pixel (dette T1, `fr-t1.3`).
     pub dette_largeur: bool,
+    /// Dès T2, boîte de texte en échec sur sa SEULE largeur, de [`ECART_RASTERISATION`] px au plus :
+    /// dette nommée « rastérisation des glyphes » (`fr-p4.1.3`), comptée par PNG dans le cliquet.
+    pub dette_rasterisation: bool,
     /// L'exception nommée de teinte qui couvre la boîte (`exceptions::Nature::Teinte`), le cas échéant.
     pub nommee: Option<&'static str>,
     /// Boîte d'encre de la RÉFÉRENCE (x0, y0, x1, y1), dans le repère de `boite`.
@@ -743,7 +746,7 @@ fn juger(
             // gardent leur ±1 en position.
             if largeur_stricte && e[2] - e[0] != 0 {
                 violations.push(format!(
-                    "boîte d'encre : largeur {:+} px (strict depuis T2, la dette de largeur est réservée à T1)",
+                    "{VIOLATION_LARGEUR}{:+} px (strict depuis T2, la dette de largeur est réservée à T1)",
                     e[2] - e[0]
                 ));
             }
@@ -774,6 +777,7 @@ fn juger(
         teinte,
         ecart_bords,
         dette_largeur,
+        dette_rasterisation: false,
         nommee: None,
         encre_reference: rf.boite,
         violations,
@@ -838,10 +842,48 @@ pub(crate) fn lever_nommees(
         }
         res.nommee = Some(element);
     }
+    // Exception nommée de l'anticrénelage SVG d'une icône (fr-p4.1.5) : la SEULE largeur stricte,
+    // jusqu'à `ECART_LARGEUR_ICONE_SVG` px ; tout le reste demeure.
+    if let Some(element) =
+        exceptions::pour_boite_ou_encre(nommees, b, encre, exceptions::Nature::IconeSvg)
+    {
+        let largeur = res.ecart_bords.map_or(0, |e| e[2] - e[0]);
+        if largeur.abs() <= exceptions::ECART_LARGEUR_ICONE_SVG {
+            res.violations.retain(|v| !v.starts_with(VIOLATION_LARGEUR));
+        }
+        res.nommee = Some(element);
+    }
 }
 
 /// Préfixe de la violation du garde-fou de forme par glyphe (voir [`juger`]).
 const VIOLATION_GLYPHE: &str = "forme : glyphe n° ";
+
+/// Préfixe de la violation de largeur stricte des tranches ≥ T2 (voir [`juger`]).
+const VIOLATION_LARGEUR: &str = "boîte d'encre : largeur ";
+
+/// Écart de largeur d'encre (px) que la dette « rastérisation des glyphes » couvre.
+pub const ECART_RASTERISATION: i64 = 2;
+
+/// Dette nommée « rastérisation des glyphes » (`fr-p4.1.3`, orchestrateur du 13/11 ; d'abord nommée
+/// « rastérisation des glyphes », fr-p4.1.3, à 03:30) : origine entière, mais le rastériseur de GPUI
+/// rend une encre plus étroite (ou plus large) DES DEUX CÔTÉS que celle de Chromium, la boîte
+/// d'encre d'un libellé perd ou gagne 1 à 2 px de largeur. Une boîte de TEXTE dont la largeur est le SEUL garde-fou violé, de
+/// [`ECART_RASTERISATION`] px au plus, passe en dette ; toute autre violation la garde stricte.
+fn lever_rasterisation(res: &mut ResultatBoite) {
+    let largeur = res.ecart_bords.map_or(0, |e| e[2] - e[0]);
+    if res.boite.categorie == Categorie::Texte
+        && largeur != 0
+        && largeur.abs() <= ECART_RASTERISATION
+        && !res.violations.is_empty()
+        && res
+            .violations
+            .iter()
+            .all(|v| v.starts_with(VIOLATION_LARGEUR))
+    {
+        res.violations.clear();
+        res.dette_rasterisation = true;
+    }
+}
 
 /// Préfixe de la violation du garde-fou de teinte (voir [`juger`]).
 const VIOLATION_TEINTE: &str = "teinte : ";
@@ -985,6 +1027,11 @@ impl Sas {
 
     pub fn dettes_largeur(&self) -> usize {
         self.boites.iter().filter(|b| b.dette_largeur).count()
+    }
+
+    /// Boîtes en dette « rastérisation des glyphes » (`fr-p4.1.3`), clé du cliquet.
+    pub fn dettes_rasterisation(&self) -> usize {
+        self.boites.iter().filter(|b| b.dette_rasterisation).count()
     }
 }
 
@@ -1495,6 +1542,7 @@ pub fn comparer_tranche(
     for b in boites {
         let mut res = juger_boite(reference, candidat, b, glyphes, depuis);
         lever_nommees(&mut res, nommees, b);
+        lever_rasterisation(&mut res);
         let tol = rect(b, PAD_TOL, largeur, hauteur);
         for y in tol.1..=tol.3 {
             for x in tol.0..=tol.2 {
@@ -1563,8 +1611,15 @@ pub fn comparer_tranche(
                     .map(|&(_, dx, dy)| dx.abs().max(dy.abs()))
                     .fold(0.0, f64::max);
                 garder(element, "barycentre", pire);
-            } else if element == exceptions::GLYPHE_DEPLACE {
+            } else if element == exceptions::GLYPHE_DEPLACE || element == exceptions::GLYPHE_MENU {
                 garder(element, "glyphe", b.ecart_glyphe);
+            } else if element == exceptions::ICONE_SVG {
+                // L'écart de largeur d'encre, px.
+                garder(
+                    element,
+                    "largeur",
+                    b.ecart_bords.map_or(0.0, |e| (e[2] - e[0]) as f64),
+                );
             } else if element == exceptions::ICONE_HAIRLINE {
                 // L'écart d'encre relatif, en valeur absolue.
                 garder(element, "encre", b.ecart_encre);
@@ -2090,24 +2145,39 @@ pub(super) mod tests {
         assert!(largeur_stricte(Some(11)));
     }
 
+    /// ★ fr-p4.1.3 (orchestrateur, 13/11, 03:30) : dès T2, une largeur à ±1 n'est plus la dette de
+    /// T1 mais la dette « rastérisation des glyphes », comptée à part (cliquet par PNG).
     #[test]
-    fn un_pixel_de_largeur_en_plus_est_tolere_en_t1_et_refuse_des_t2() {
+    fn un_pixel_de_largeur_en_plus_est_la_dette_de_t1_puis_celle_de_la_rasterisation_des_glyphes() {
         let r = ligne("panneau", 1.0, ENCRE, 0);
         let c = ligne("panneau", 1.0, ENCRE, 1);
         for t1 in [None, Some(1)] {
             let s = sas_depuis(&r, &c, t1);
             assert_eq!(s.verdict, Verdict::Tolere, "{t1:?} : {}", motifs(&s));
             assert_eq!(s.dettes_largeur(), 1);
+            assert_eq!(s.dettes_rasterisation(), 0);
         }
         for t in [2, 4] {
             let s = sas_depuis(&r, &c, Some(t));
-            assert_eq!(s.verdict, Verdict::Echec, "T{t}");
-            assert!(
-                motifs(&s).contains("largeur +1 px"),
-                "T{t} : {}",
-                motifs(&s)
-            );
+            assert_eq!(s.verdict, Verdict::Tolere, "T{t} : {}", motifs(&s));
+            assert_eq!(s.dettes_rasterisation(), 1, "T{t}");
         }
+    }
+
+    /// Contre-épreuve : la dette ne couvre que la largeur SEULE. Un bord à 2 px (au-delà du ±1) ou
+    /// une autre violation dans la même boîte la laisse en échec, largeur comprise.
+    #[test]
+    fn la_dette_de_rasterisation_ne_couvre_que_la_largeur_seule() {
+        let r = ligne("panneau", 1.0, ENCRE, 0);
+        let c2 = ligne("panneau", 1.0, ENCRE, 2);
+        let s = sas_depuis(&r, &c2, Some(2));
+        assert_eq!(s.verdict, Verdict::Echec, "{}", motifs(&s));
+        assert_eq!(s.dettes_rasterisation(), 0);
+        assert!(motifs(&s).contains("largeur +2 px"), "{}", motifs(&s));
+        let autre = ligne("panneau", 1.0, [200, 40, 40], 1);
+        let s = sas_depuis(&r, &autre, Some(2));
+        assert_eq!(s.verdict, Verdict::Echec, "{}", motifs(&s));
+        assert_eq!(s.dettes_rasterisation(), 0);
     }
 
     /// ★ CONTRE-ÉPREUVE (fr-p3.2) : en T2 la largeur exacte passe, même avec un trait plus fin

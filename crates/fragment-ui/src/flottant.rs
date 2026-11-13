@@ -149,6 +149,36 @@ pub fn arrondir<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels, bordur
     arrondir_coins(e, cx, rayon, bordure, [true; 4], "")
 }
 
+/// Comme [`arrondir`], pour une boîte dont le fond n'apparaît qu'au SURVOL (`hover`) : la boîte
+/// arrondie n'est déclarée que si le pointeur est dessus au prépeint, quand son fond est peint.
+pub fn arrondir_au_survol<E: Styled + ParentElement>(e: E, cx: &App, rayon: Pixels) -> E {
+    e.rounded(rayon).child(
+        canvas(
+            move |bounds: Bounds<Pixels>, window: &mut Window, _: &mut App| {
+                if !bounds.contains(&window.mouse_position()) {
+                    return;
+                }
+                let k = window.scale_factor();
+                declarer_arrondi(ArrondiPeint {
+                    x: f32::from(bounds.origin.x) * k,
+                    y: f32::from(bounds.origin.y) * k,
+                    largeur: f32::from(bounds.size.width) * k,
+                    hauteur: f32::from(bounds.size.height) * k,
+                    rayon: f32::from(rayon) * k,
+                    bordure: 0.0,
+                    coins: [true; 4],
+                    element: "",
+                });
+            },
+            |_, (), _, _| {},
+        )
+        .absolute()
+        .top(u(cx, 0.0))
+        .left(u(cx, 0.0))
+        .size_full(),
+    )
+}
+
 /// Comme [`arrondir`], pour les seuls `coins` (haut gauche, haut droit, bas gauche, bas droit) ;
 /// les autres restent carrés et ne sont pas déclarés. `element` nomme l'arrondi pour une exception
 /// nommée sans ombre d'ADR-009 (vide sinon).

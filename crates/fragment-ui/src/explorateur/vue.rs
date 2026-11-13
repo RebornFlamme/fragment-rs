@@ -304,10 +304,15 @@ impl Interne {
     }
 
     /// Entre en renommage sur `chemin` (`startRename`) : la ligne est révélée pour rester visible.
+    ///
+    /// ★ Sans devenir l'élément ACTIF : `startRename` ne pose que le chemin du champ. La ligne
+    /// renommée gardait le fond de l'actif (scène t2-explorateur-renommer, run 43351537908).
     fn demarrer_renommage(interne: &Rc<Self>, chemin: &str) {
         if let Some(r) = Renommage::ouvrir(&interne.vault, chemin) {
             *interne.renommage.borrow_mut() = Some(r);
+            let actif = interne.etat.borrow().actif().map(str::to_owned);
             FileExplorerView::reveler_dans(interne, chemin);
+            interne.etat.borrow_mut().definir_actif(actif.as_deref());
         }
     }
 
@@ -451,13 +456,15 @@ impl FileExplorerView {
             return;
         };
         let geste = Interne::geste(interne);
-        let menu = if chemin.is_empty() {
+        let mut menu = if chemin.is_empty() {
             menu_racine(&interne.vault, &actions, &geste)
         } else if let Some(af) = interne.vault.get_abstract_file_by_path(chemin) {
             construire_menu(&interne.vault, &actions, &geste, &af)
         } else {
             return;
         };
+        // Le menu chevauche le conteneur défilant de l'explorateur, un calque composé de Chromium.
+        menu.set_calque();
         menu.show_at_position(x, y, &actions.keymap);
     }
 
@@ -731,16 +738,21 @@ fn construire(
         } else {
             Vec::new()
         };
-        // Le champ de renommage remplace le nom de la ligne (la saisie, puis un curseur).
-        let titre: SharedString = match interne.renommage.borrow().as_ref() {
-            Some(r) if r.chemin() == l.chemin => format!("{}\u{258f}", r.saisie()).into(),
-            _ => l.titre.clone().into(),
+        // Le champ de renommage remplace le nom de la ligne : tout sélectionné à l'ouverture (sans
+        // curseur, comme une sélection non vide de Chromium), puis la saisie et un curseur.
+        let (titre, selectionne): (SharedString, bool) = match interne.renommage.borrow().as_ref() {
+            Some(r) if r.chemin() == l.chemin && r.selectionne() => {
+                (r.saisie().to_owned().into(), true)
+            }
+            Some(r) if r.chemin() == l.chemin => (format!("{}\u{258f}", r.saisie()).into(), false),
+            _ => (l.titre.clone().into(), false),
         };
         let cible = interne.cible_depot.borrow().as_deref() == Some(l.chemin.as_str());
         let mut ligne = Ligne::new(SharedString::from(l.chemin.clone()), titre)
             .profondeur(profondeur)
             .actif(actif == Some(l.chemin.as_str()))
             .cible_depot(l.dossier && cible)
+            .titre_selectionne(selectionne)
             .hauteur(h);
         if l.dossier {
             ligne = ligne.repliable(!l.ouvert);
@@ -872,6 +884,85 @@ pub fn rendre_explorateur(vue: &FileExplorerView, cx: &App) -> AnyElement {
         .flex()
         .flex_col()
         .size_full()
+        .child(rendre_en_tete(interne, cx))
         .child(liste)
+        .into_any_element()
+}
+
+/// Un geste d'un bouton de l'en-tête.
+type GesteEnTete = fn(&Rc<Interne>);
+
+/// Les boutons de l'en-tête (`addNavButton`), dans l'ordre : icône (au trait fin), libellé, geste.
+const BOUTONS_EN_TETE: [(&str, &str, GesteEnTete); 4] = [
+    ("square-pen-fin", "Nouvelle note", |i| {
+        match creer_note(&i.vault, "") {
+            Ok(f) => FileExplorerView::ouvrir_chemin(i, &f.path),
+            Err(e) => i.signaler(&format!("création refusée : {e}")),
+        }
+    }),
+    (
+        "folder-plus-fin",
+        "Nouveau dossier",
+        |i| match creer_dossier(&i.vault, "") {
+            Ok(d) => Interne::demarrer_renommage(i, &d.path),
+            Err(e) => i.signaler(&format!("création refusée : {e}")),
+        },
+    ),
+    ("arrow-up-narrow-wide-fin", "Trier", |i| {
+        i.etat.borrow_mut().basculer_tri();
+    }),
+    ("chevrons-down-up-fin", "Tout replier", |i| {
+        i.etat.borrow_mut().tout_replier();
+        (i.sauvegarder)();
+    }),
+];
+
+/// L'en-tête fixe de l'explorateur (`.nav-header`) : dans un dock, les actions de la vue vivent
+/// dans son contenu (l'en-tête de vue y est masqué). Quatre `.clickable-icon.nav-action-button`
+/// centrés, au-dessus de la liste qui défile.
+fn rendre_en_tete(interne: &Rc<Interne>, cx: &App) -> AnyElement {
+    let t = theme_ou_defaut(cx);
+    let (c, f) = (&t.palette, &t.forme);
+    let survol = crate::theme_global::couleur(c.background_modifier_hover);
+    let teinte = crate::theme_global::couleur(c.text_normal);
+    let boutons = BOUTONS_EN_TETE
+        .iter()
+        .enumerate()
+        .map(|(rang, &(icone, _libelle, geste))| {
+            let i = interne.clone();
+            div()
+                .id(("nav-action-button", rang))
+                .flex()
+                .flex_none()
+                .items_center()
+                .justify_center()
+                .p(u(cx, f.size_2_3))
+                .rounded(u(cx, f.radius_s))
+                .opacity(crate::onglets::mesures::OPACITE_REPOS)
+                .hover(move |s| s.opacity(1.0).bg(survol))
+                .on_click(move |_, fenetre, _| {
+                    geste(&i);
+                    fenetre.refresh();
+                })
+                .child(
+                    gpui_kit::svg()
+                        .path(crate::icones::chemin(icone))
+                        .size(u(cx, f.icon_m))
+                        .flex_none()
+                        .text_color(teinte),
+                )
+        });
+    div()
+        .flex_none()
+        .pt(u(cx, f.size_4_2))
+        .px(u(cx, f.size_4_2))
+        .pb(u(cx, f.size_4_1))
+        .child(
+            div()
+                .flex()
+                .justify_center()
+                .gap(u(cx, f.size_4_1))
+                .children(boutons),
+        )
         .into_any_element()
 }

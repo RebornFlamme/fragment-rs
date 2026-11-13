@@ -28,7 +28,7 @@ use crate::onglets::actions;
 use crate::onglets::mesures::{OPACITE_REPOS, REMBOURRAGE_ENTETE};
 use crate::splits::ContexteSplits;
 use crate::splits::geometrie::{self, CadreDock, PoigneeDock, TRAIT_POIGNEE_ACTIVE};
-use crate::splits::{elargi, quads_du_trait};
+use crate::splits::{declarer_traits, elargi, quads_du_trait};
 use crate::theme_global::{couleur, theme_ou_defaut};
 use fragment_core::{Cadre, Cote};
 
@@ -471,6 +471,7 @@ pub fn rendre_poignee_dock(
         zone,
         true,
         couleur(t.palette.color_accent),
+        t.palette.background_secondary,
         cx,
     ));
     if !active {
@@ -498,6 +499,16 @@ pub fn rendre_poignee_dock(
             cx.refresh_windows();
         })
         .child(accent)
+        // ★ (fr-t2-montage) Le trait d'accent, à cheval sur deux demi-pixels, est déclaré comme
+        // celui des poignées de split : en clair, la cellule de bord vaut une demi-couverture EXACTE
+        // (bleu 223,5) que Chromium arrondit tantôt 223, tantôt 224 par bandes de 127 lignes (tuiles
+        // du raster), sans modèle uniforme. Seules ses cellules de bord relèvent de l'exception
+        // « trait de poignée » (delta 1), et seulement dans les PNG qu'elle nomme.
+        .child(declarer_traits(
+            [trait_],
+            f64::from(Echelle::courante(cx).zoom()),
+            cx,
+        ))
         .into_any_element()
 }
 

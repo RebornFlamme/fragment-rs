@@ -55,10 +55,10 @@ pub fn couleurs_ligne(c: &Palette, etat: Etat, survol: bool, panneau: Couleur) -
 }
 
 /// La couleur de la barre de guide : `--nav-indentation-guide-color`, soit la bordure de survol.
+///
+/// ★ Composée comme les REMPLISSAGES de Chromium (`Palette::aplat`, prémultiplié), pas comme une
+/// bordure (`aplat_exact`) : la capture de Fragment donne (59,58,59) en sombre et (196,195,192) en
+/// clair, que seul `sur_chromium` retrouve (scène t2-explorateur-ouvert, run 43351537908).
 pub fn couleur_guide(c: &Palette, panneau: Couleur) -> Couleur {
-    aplat_exact(
-        c.background_modifier_border_hover,
-        c.opacites.bordure_survol,
-        panneau,
-    )
+    c.aplat(Aplat::BordureSurvol, panneau)
 }

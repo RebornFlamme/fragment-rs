@@ -71,6 +71,11 @@ impl Renommage {
         &self.initial
     }
 
+    /// Tout le texte est-il encore sélectionné (`select()` au focus, avant la première frappe) ?
+    pub fn selectionne(&self) -> bool {
+        self.selectionne
+    }
+
     /// Le texte saisi.
     pub fn saisie(&self) -> &str {
         &self.saisie

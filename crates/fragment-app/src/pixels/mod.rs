@@ -20,6 +20,7 @@
 
 pub mod actions;
 pub mod capture;
+pub mod coffre;
 pub mod entree;
 pub mod fenetres;
 
@@ -62,6 +63,8 @@ struct Session {
     app: Option<fenetres::ScenesApp>,
     principale: AnyWindowHandle,
     reglages: Option<AnyWindowHandle>,
+    /// Les commandes `pixels:explorer-*` d'une scène à coffre, vivantes avec la scène.
+    _coffre: Option<coffre::CommandesCoffre>,
 }
 
 impl Session {
@@ -104,8 +107,13 @@ pub async fn jouer(
         // scènes suivantes (menu 209 px au lieu de 190, run 43023627987). Chaque scène repart à
         // 100 % ; une scène d'app réinstalle le sien à sa première synchronisation.
         fragment_ui::echelle::Echelle::installer(cx, fragment_core::ZOOM_DEFAUT);
+        let mut commandes_coffre = None;
         let (commandes, hote, app, principale) = if scene.vue == VueScene::App {
-            let app = fenetres::ouvrir_app(cx, scene.fenetre, theme)?;
+            let options = coffre::options_de_scene(scene)?;
+            let app = fenetres::ouvrir_app(cx, scene.fenetre, theme, &options)?;
+            if options.coffre.is_some() {
+                commandes_coffre = Some(coffre::brancher(&app.application));
+            }
             let commandes = app.application.noyau.commandes();
             let principale = app.application.principale;
             (commandes, None, Some(app), principale)
@@ -124,6 +132,7 @@ pub async fn jouer(
             app,
             principale,
             reglages,
+            _coffre: commandes_coffre,
         })
     })?;
     cx.background_executor().timer(ATTENTE_INITIALE).await;

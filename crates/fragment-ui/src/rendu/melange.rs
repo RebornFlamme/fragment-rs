@@ -61,6 +61,17 @@ pub fn aplat_exact(teinte: Couleur, pourcent: f32, fond: Couleur) -> Couleur {
     )
 }
 
+/// L'aplat OPAQUE de `teinte` à `pourcent` % sur `fond`, comme le compose un CALQUE composé de
+/// Chromium : la teinte prémultipliée par l'opacité ramenée à l'octet, puis le fond par le reste,
+/// chacun arrondi (`Couleur::sur_chromium`, le chemin des remplissages).
+///
+/// ★ Mesuré sur les menus qui chevauchent un calque composé (explorateur, vue PDF) : (45,46,50) en
+/// sombre et (232,232,232) en clair, au pixel près, là où [`aplat_exact`] donne (46,46,50) et
+/// (232,232,233), ce que gardent les menus hors calque (onglet, éditeur, sélecteur de coffre).
+pub fn aplat_au_calque(teinte: Couleur, pourcent: f32, fond: Couleur) -> Couleur {
+    teinte.sur_chromium(pourcent, fond)
+}
+
 /// Le rayon intérieur ajouté sous une bordure TRANSLUCIDE, en px CSS (ADR-013 §3).
 ///
 /// ★ Mesuré sur la mire de S8 (bordure de 1 px à 10 %, r 8) : devant une bordure translucide,
@@ -180,6 +191,19 @@ mod tests {
         for p in [&clair, &sombre] {
             let c = p.tab_outline_color;
             assert_eq!(gpui(couleur(c), p.workspace_bg), [c.r, c.g, c.b]);
+        }
+    }
+
+    /// Relevés des références de l'explorateur (`t2-explorateur-menu-dossier`, côtés du menu) : la
+    /// bordure du menu posé sur un calque composé, au bit près après le chemin de GPUI.
+    #[test]
+    fn la_bordure_du_menu_au_calque_tombe_sur_chromium() {
+        let clair = Theme::clair().palette;
+        let sombre = Theme::sombre().palette;
+        for (p, attendu) in [(&sombre, [45, 46, 50]), (&clair, [232, 232, 232])] {
+            let a = aplat_au_calque(p.background_modifier_border, p.opacites.bordure, p.menu_bg);
+            assert_eq!([a.r, a.g, a.b], attendu);
+            assert_eq!(gpui(couleur(a), p.menu_bg), attendu);
         }
     }
 

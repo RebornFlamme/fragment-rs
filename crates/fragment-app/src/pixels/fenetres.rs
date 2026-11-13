@@ -233,21 +233,24 @@ pub struct ScenesApp {
     _abonnements: Vec<fragment_core::EventRef>,
 }
 
-/// Démarre l'application (stockages en mémoire, version des références) dans une fenêtre de
-/// `taille`, et branche les actions de scène sur SON workspace et SES commandes.
+/// Démarre l'application sur `options` (stockages en mémoire, version des références, coffre de la
+/// scène s'il y en a un : voir `super::coffre_de_scene`) dans une fenêtre de `taille`, et branche les actions de scène sur SON workspace et SES commandes.
 ///
 /// ★ Les commandes `pixels:*` de la coquille (onglets) sont enregistrées dans le gestionnaire de
 ///   l'application, pas dans un gestionnaire à part : une scène d'app exécute les VRAIES commandes
 ///   (`app:zoom-in`). Les fixtures de la palette (`palette::commandes_de_scene`) n'y vont pas : elles
 ///   doublonneraient les commandes `app:*` réelles.
-pub fn ouvrir_app(cx: &mut App, taille: Taille, theme: ThemeScene) -> anyhow::Result<ScenesApp> {
+pub fn ouvrir_app(
+    cx: &mut App,
+    taille: Taille,
+    theme: ThemeScene,
+    options: &fragment_app::boot::Options,
+) -> anyhow::Result<ScenesApp> {
     // ★ Les surfaces flottantes vivent dans des magasins de fil (menus, notices, infobulle) que
     // chaque `commandes_de_scene` vide : un gestionnaire jetable les remet à zéro, sans quoi le menu
     // d'onglet d'une scène resterait ouvert dans la suivante.
     drop(commandes_de_scene());
-    let options = fragment_app::boot::Options::memoire(VERSION_DES_REFERENCES);
-    let application =
-        fragment_app::monter(cx, &options, taille.width as f32, taille.height as f32)?;
+    let application = fragment_app::monter(cx, options, taille.width as f32, taille.height as f32)?;
     // Le harnais de Fragment fixe le schéma de couleurs de la scène (`baseColorScheme`), que montre
     // l'onglet Appearance : « Dark » ou « Light », pas « Adapt to system ».
     application.noyau.apparence.set_schema(match theme {
