@@ -20,3 +20,9 @@ pub mod gutter_arbiter;
 
 pub mod overlay_host;
 pub mod widget_layer;
+
+// Socle T5-T7 (fr-p3-socle-t5t7) : coquilles vides, une par tâche aval.
+/// Modèle du menu « Calques » et visibilité des calques par vue (tâche `fr-t5-menu-modele`).
+pub mod menu_calques;
+/// Géométrie pure de ViewOverlays (tâche `fr-t5-hote`).
+pub mod view_overlays;

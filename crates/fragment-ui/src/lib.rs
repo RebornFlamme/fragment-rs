@@ -56,6 +56,31 @@ pub mod vue_fichier;
 pub mod vue_markdown;
 pub mod vue_pdf;
 
+// Socle T5-T7 (fr-p3-socle-t5t7) : coquilles vides, une par tâche aval.
+pub mod agent;
+pub mod agent_barre;
+pub mod agent_controles;
+pub mod agent_reglages;
+pub mod agent_trace;
+pub mod calques;
+pub mod chat_barre_laterale;
+pub mod chat_citation;
+pub mod chat_defilement;
+pub mod chat_fil;
+pub mod chat_pieces;
+pub mod chat_post;
+pub mod chat_rail;
+pub mod chat_surface;
+pub mod chat_vue;
+pub mod doc_widget;
+pub mod grappe;
+pub mod lien_ancre;
+pub mod menu_calques;
+pub mod mode_marge;
+pub mod orbe;
+pub mod surlignages;
+pub mod widget_couche;
+
 /// Les fichiers de `assets/` embarqués (écrit par `build.rs`).
 pub(crate) mod embarque {
     include!(concat!(env!("OUT_DIR"), "/assets.rs"));

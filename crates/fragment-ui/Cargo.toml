@@ -21,6 +21,10 @@ fragment-pdf = { path = "../fragment-pdf" }
 fragment-cli = { path = "../fragment-cli" }
 # Les maths en ligne (ADR-011) : MathJax dans QuickJS, sans gpui-kit.
 fragment-maths = { path = "../fragment-maths" }
+# Socle T5-T7 (fr-p3-socle-t5t7) : les calques, le chat et l'agent que les vues aval rapprochent de GPUI.
+fragment-layers = { path = "../fragment-layers" }
+fragment-chat = { path = "../fragment-chat" }
+fragment-agent = { path = "../fragment-agent" }
 # Les arguments des commandes de scène (`pixels:args`) sont des `serde_json::Value`.
 serde_json.workspace = true
 gpui-kit.workspace = true

@@ -23,3 +23,9 @@ pub mod skills_model;
 pub mod text_access;
 pub mod trace_model;
 pub mod utf16;
+
+// Socle T5-T7 (fr-p3-socle-t5t7) : coquilles vides, une par tâche aval.
+pub mod fournisseur;
+pub mod harness_claude;
+pub mod moteur;
+pub mod service;
