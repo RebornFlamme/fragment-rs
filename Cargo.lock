@@ -2748,6 +2748,7 @@ name = "fragment-app"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "embed-resource",
  "fragment-core",
  "fragment-theme",
  "fragment-ui",

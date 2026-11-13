@@ -15,6 +15,7 @@
 
 pub mod boot;
 pub mod hote_fenetre;
+pub mod identite;
 pub mod stockage;
 
 use std::cell::{Cell, RefCell};

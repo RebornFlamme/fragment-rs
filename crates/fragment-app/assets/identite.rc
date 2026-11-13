@@ -1,0 +1,4 @@
+// Ressource Windows de l'exécutable. ★ L'identifiant 1 est celui que GPUI charge pour l'icône de ses
+// fenêtres (`LoadImageW(module, 1, IMAGE_ICON)`) : la même ressource sert l'exe (Explorateur, barre
+// des tâches) et la barre de titre.
+1 ICON "brand/app-icon.ico"

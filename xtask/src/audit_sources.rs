@@ -38,7 +38,9 @@ const DOSSIERS_IGNORES: [&str; 7] = [
     "coverage",
 ];
 const TAILLE_MAX: u64 = 4 * 1024 * 1024;
-/// Les copies légitimes, une par ligne : `chemin # raison`.
+/// Les copies légitimes, une par ligne : `chemin # raison`. ★ Les actifs de marque exportés
+/// (`crates/fragment-app/assets/brand/`) y sont nommés UN PAR UN : jamais un dossier entier, pour qu'un
+/// fichier de plus dans ce dossier reste audité.
 const EXCLUS: &str = include_str!("../audit-sources-exclus.txt");
 
 /// Vrai si la ligne (déjà sans indentation) compte pour l'audit.
