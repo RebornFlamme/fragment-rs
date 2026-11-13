@@ -6,9 +6,9 @@
   "vault": "pixels/vault-t3/c",
   "actions": [
     {"type":"open","path":"html-blocs.md"},
-    {"type":"click","x":800,"y":200},
-    {"type":"key","keys":"ArrowDown"},
-    {"type":"key","keys":"ArrowDown"},
+    {"type":"hover","x":600,"y":262},
+    {"type":"wait","ms":200},
+    {"type":"click","x":984,"y":257},
     {"type":"hover","x":2,"y":2},
     {"type":"wait-stable"}
   ]
