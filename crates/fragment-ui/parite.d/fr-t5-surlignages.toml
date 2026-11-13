@@ -1,0 +1,20 @@
+# Parité de fr-t5-surlignages (fragment-ui). Schéma `parite.d` : un fichier par tâche.
+# La table (rangeHighlights.test.ts) est déjà portée dans fragment-text ; ici, le CALQUE : géométrie
+# par ligne, styles en jetons de thème, redessin après remappage, crochet de peinture générique,
+# commande de scène pixels:survol. Le branchement dans l'éditeur et les pages PDF est au montage.
+# DETTE (pas un écart définitif, à régler au montage PDF, fr-t5-montage-pdf) : GPUI n'a pas de
+# mix-blend-mode ; le mode PDF (Multiplie) peint la teinte par-dessus la page sans multiplier. Piste :
+# multiply = produit par canal, calculable côté CPU sur le bitmap de la page (pdfium) dans la zone
+# surlignée, sans blend GPUI. Aucune tolérance de pixels demandée.
+
+[[module]]
+ts = "app/src/ui/core/editor/rangeHighlights.ts + range-highlight.css (calque, styles)"
+rs = "crates/fragment-ui/src/surlignages/{mod,calque,style,scene}.rs, crates/fragment-ui/tests/surlignages.rs"
+cas_source = 5
+cas_portes = 5
+cas_ajoutes = 3
+notes = "Cas : forme d'une plage sur deux lignes, plage vidée retirée, suit une édition, redessin après remappage, passage actif plus marqué. Ajoutés : survol = style passage, retrait d'une pose remplacée, crochet peint sans erreur."
+
+[[module.non_portes]]
+cas = "doc-widget-views.spec.ts : surlignage SUR la vue réelle (note, PDF multiply)"
+raison = "branchement dans l'éditeur et les pages PDF : fr-t5-montage-note, fr-t5-montage-pdf"
