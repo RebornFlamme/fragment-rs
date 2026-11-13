@@ -794,3 +794,36 @@ Reprise demandée par l'orchestrateur : « reprise à fond les ballons ».
   - #95 (fr-t3-tableaux) : l'écart « frappe en cellule sans réalignement » est accepté provisoirement, à réaligner au blur.
 - ★ Les JSON des scènes T3 ne sont JOUÉS par aucune CI tant que T3 est inactive dans `pixels/tranches.json`. Le vert du job pixels ne prouve rien pour eux. Activer T3 dès la vue Markdown montée (fr-t3-vue).
 - Actifs : t11scenes (passe E). t3scenesc, tableaux et proprietes ont fini.
+
+## Vague 11 (fin, avant clear du chef) — 13/11/2026 01:19 UTC — usage 5h 39 % (reset 03:30) / semaine 62 %
+Contexte du chef : 574k, au-delà du seuil de 550k fixé par l'orchestrateur. Clear demandé une fois tous les équipiers rentrés.
+- Fusionnées depuis la reprise du 12/11 17:25 (#73 à #96) : #73, #74, #75, #76, #77, #78, #79, #80, #81, #82, #83, #84, #85, #86, #87, #88, #89, #90, #91, #92, #93, #94, #95, #96, et **#49 (T1 LIVRÉE, 42/42)**.
+- Équipiers actifs : AUCUN. Aucune PR ouverte.
+- Worktree restant : `../fragment-rs-t4recherche` (task/fr-t4.3, fe20890, la sonde seule). Bead laissé ouvert.
+- Battement annulé avant le clear.
+
+**Ouverts sans équipier** :
+- fr-p4.1 : dettes de rendu, 8 exceptions nommées, rastériseur ; ADR-013 sous condition que la dette totale ne monte pas.
+- fr-p3-gpui-kit-0.9 : PR amont en attente de l'accord de l'utilisateur.
+- fr-t4.3 : cause probable trouvée, `Workspace.setActiveLeaf` sort tôt. Contournement dans les notes du bead.
+
+**Prochaine action exacte** (après le clear, sur le brief de l'orchestrateur) :
+1. get_usage, puis battement CronCreate (minute 17), vérifié par CronList.
+   - La règle de clear 550k/750k vaut jusqu'au reset de 18:00 UTC ; ensuite, retour au §10 (300k).
+   - Après le reset hebdo du 13/11 18:00, relire §2 : la règle « charbonne » visait ce reset.
+2. Remplir jusqu'à 7 places depuis `bd ready`, sans partage de fichiers :
+   - fr-t2-montage (Opus, débloqué par T1) ;
+   - fr-t3-html-rendu ;
+   - fr-t11-identite ;
+   - fr-t11-clair ;
+   - fr-t11.1 (branchement de l'onglet Appearance dans `fenetre.rs`) ;
+   - fr-p3.1 (boîtes exactes ; `boites.rs` libéré par #49) ;
+   - fr-t4.3 (reprise dans son worktree).
+   Puis fr-t3-vue et fr-t4-vue-pdf dès qu'ils sont prêts.
+   - fr-t3-proprietes demande ensuite un crochet `poser_avant_saisie` dans editeur/ (notes du bead).
+   - fr-t3-tableaux : réaligner les colonnes au blur.
+3. Activer T3, T4 et T11 dans `pixels/tranches.json` dès que leurs vues sont montées. Avant, leurs JSON ne sont joués par aucune CI.
+4. ★ Briefs : renvoyer à `C:/dev/fragment-rs-regles-equipier.md` (règles communes, verrou de capture strict, commits fréquents, `--append-notes`).
+5. ★ Ne pas pousser le journal sur main pendant un build de livraison : `build.yml` annule le run en cours.
+6. Rien à remonter : les décisions de l'orchestrateur sur T1 sont appliquées. PR amont et ADR-014 sont chez l'utilisateur.
+**Rythme** : (97 − 62) ÷ 16,7 h ≈ 2,1 points par heure.
