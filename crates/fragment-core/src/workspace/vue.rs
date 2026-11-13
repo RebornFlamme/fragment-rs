@@ -88,6 +88,13 @@ pub trait View: Any {
 
     fn on_resize(&mut self) {}
 
+    /// L'éditeur que la vue expose à `activeEditor` (commandes `editor:*`) ; `None` par défaut
+    /// (vue sans éditeur, ou en lecture seule). ★ Le cœur ne nomme aucune vue : c'est elle qui
+    /// fournit son contexte, opaque (`Rc<dyn Any>`).
+    fn editor_context(&self) -> Option<crate::command::EditorContext> {
+        None
+    }
+
     /// Pour la couche de rendu et les tests : retrouver le type concret.
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;

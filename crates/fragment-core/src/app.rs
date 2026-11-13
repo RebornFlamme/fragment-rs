@@ -172,9 +172,10 @@ impl CommandHost for AppCoeur {
         *self.last_event.borrow_mut() = evt;
     }
 
-    /// Pas d'éditeur de texte dans le cœur de T1 (les vues textuelles viennent avec T3).
+    /// L'éditeur de la vue de la feuille active (`app.workspace.activeEditor`). `None` si aucune
+    /// feuille active, si sa vue n'a pas d'éditeur, ou si le Workspace est déjà emprunté.
     fn active_editor(&self) -> Option<EditorContext> {
-        None
+        self.workspace.try_borrow().ok()?.active_editor()
     }
 
     fn hotkey_manager(&self) -> Option<Rc<HotkeyManager>> {
