@@ -1,0 +1,35 @@
+# Parité de fr-t3-vue (fragment-ui) : la vue Markdown montée. MarkdownView.ts et TextFileView.ts
+# n'ont pas de test unitaire côté TS : les cas viennent du bead et des e2e editor-hell (lecture
+# seule, note ouverte, Format puis undo, taille minimale) et scroll-persistence (cas note).
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (type, garde d'extension, readOnly dans l'état, getEditor nul en lecture seule), app/src/ui/core/workspace/TextFileView.ts (lecture, sauvegarde différée, relecture)"
+rs = "crates/fragment-ui/src/vue_markdown/vue.rs, note.rs, relecture.rs"
+cas_source = 4
+cas_portes = 4
+cas_ajoutes = 8
+notes = "e2e portés : lecture_seule_tout_se_rend_rien_ne_se_modifie, note_ouverte_rien_n_est_revele_avant_le_premier_focus, enchainement_format_gras_sur_une_selection_puis_undo_complet, la_fenetre_ne_descend_pas_sous_sa_taille_minimale (constante seulement : la fenêtre est créée par boot.rs, hors tâche). Écart : la sauvegarde différée vit dans le document partagé (le rendu n'a qu'un &dyn View) ; TextFileBase.data n'est mis à jour que par save()."
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (lirePosition, allerAPosition)"
+rs = "crates/fragment-ui/src/vue_markdown/position.rs, vue.rs (Liens::image)"
+cas_source = 2
+cas_portes = 2
+cas_ajoutes = 3
+notes = "scroll-persistence, cas note : (a) autre onglet puis retour, (b) recharger (état éphémère). (c) ← et (f) rebuildView passent par le même état éphémère (core). Dette : la carte du fork (montage.rs) lit haut_de_ligne de SurfaceLive ; non vérifiée à l'écran."
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (menu contextuel, onPaste/insertPastedImages), pasteImage.ts, EditorCommandsPlugin.ts (save-file, enregistrement)"
+rs = "crates/fragment-ui/src/vue_markdown/menu.rs, collage.rs, commandes.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 6
+notes = "Dettes : le menu contextuel n'est pas encore DESSINÉ (modèle et exécution seulement) ; le collage n'est pas branché sur le presse-papiers GPUI ; editor:paste-plain et editor:follow-link non enregistrés. Ctrl+Z / Ctrl+Y : historique du fork une fois monté, historique du document en headless."
+
+[[module]]
+ts = "app/src/ui/views/markdown/MarkdownView.ts (onOpen : montage de l'éditeur)"
+rs = "crates/fragment-ui/src/vue_markdown/montage.rs"
+cas_source = 0
+cas_portes = 0
+cas_ajoutes = 0
+notes = "Élément GPUI qui crée EditeurLive à son request_layout ; recopie les révisions (écart minimal) ; pas de test GPUI (CI check-app / pixels)."
