@@ -21,7 +21,10 @@ pub const BULLES: f32 = 41.0;
 /// Le décalage d'une bulle du carré (`data-slot` b, c, d : 19 px).
 pub const DECALAGE_BULLE: f32 = 19.0;
 /// Le disque de 5 membres et plus : 522 unités de la maquette, la plus grande bulle (Ø 240) valant 22 px.
-pub const DISQUE: f32 = 48.0;
+/// ★ 522 · 22/240 = 47,85 ; Chromium garde la mise en page en `LayoutUnit` (1/64 px, arrondi vers le
+/// bas) : 3062/64 = 47,84375. La largeur du bouton (18 + disque) reste fractionnaire, seule la peinture
+/// du disque est calée au pixel. 48 décalait de 0,16 px tout ce qui suit le bouton.
+pub const DISQUE: f32 = 47.84375;
 /// La ligne normale du bandeau d'icônes (`--doc-widget-icons-height`).
 pub const HAUTEUR_LIGNE: f32 = 38.0;
 /// Le bandeau d'une grappe : le carré des bulles plus 7 px de marge en haut et en bas.
@@ -150,4 +153,17 @@ pub fn oklch_vers_rgb(l: f32, c: f32, h_deg: f32) -> [u8; 3] {
         (v * 255.0).round() as u8
     };
     [gamma(r), gamma(g), gamma(bl)]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 522 · 22/240 passé à la grille de 1/64 px de Chromium (LayoutUnit, vers le bas).
+    #[test]
+    fn disque_est_en_layout_unit() {
+        let attendu = (522.0_f32 * 22.0 / 240.0 * 64.0).floor() / 64.0;
+        assert_eq!(DISQUE, attendu);
+        assert_eq!(largeur_boite(5, Motif::Bulles), 18.0 + 47.84375);
+    }
 }

@@ -670,6 +670,7 @@ Tableau généré par lecture directe des 50 fichiers `.css` : chaque ligne donn
 | `.view-icons.is-bubbles[data-count='2'] > [data-slot='b']` | top | `19px` | 79 |
 | `.view-icons.is-bubbles[data-count='more']` | width | `calc(522 * var(--k))` | 97 |
 | `.view-icons.is-bubbles[data-count='more']` | height | `calc(522 * var(--k))` | 98 |
+| (dérivé) | `--k` = `calc(22px / 240)` ; disque = 522·k = 47,85 px, tenu par Chromium en `LayoutUnit` (1/64 px, vers le bas) = **47,84375** (`icones_vue::DISQUE`, ex-48) | | 96 |
 | `.view-icons.is-bubbles[data-count='more']::before` | left | `0` | 104 |
 | `.view-icons.is-bubbles[data-count='more']::before` | top | `0` | 105 |
 | `.view-icons.is-bubbles[data-count='more']::before` | width | `100%` | 106 |
