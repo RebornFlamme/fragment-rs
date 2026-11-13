@@ -7,11 +7,13 @@
 //! - [`position`] : la position de lecture `{line, dy}` et sa reprise jusqu'à stabilité ;
 //! - [`menu`] : le menu contextuel de l'éditeur ;
 //! - [`collage`] : le collage d'image ;
+//! - [`interaction`] : le menu dessiné, le collage au presse-papiers, `paste-plain`, `follow-link` ;
 //! - [`commandes`] : l'enregistrement (vue, extension `md`, commandes `editor:*`) ;
 //! - [`montage`] : l'élément éditeur du live preview monté dans le contenu de la vue.
 
 pub mod collage;
 pub mod commandes;
+pub mod interaction;
 pub mod menu;
 pub mod montage;
 pub mod note;

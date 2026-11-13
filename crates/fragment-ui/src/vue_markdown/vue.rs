@@ -13,8 +13,8 @@ use fragment_core::workspace::vue_fichier::{
     ContexteFichier, EditableFileView, FileView, FileViewBase, TextFileBase, TextFileView,
 };
 use fragment_core::{
-    ContexteVue, DataWriteOptions, DocumentKey, Events, ItemView, ItemViewBase, Scope, TFile,
-    Vault, View, ViewCreator, ViewStateResult,
+    ContexteVue, DataWriteOptions, DocumentKey, Events, ItemView, ItemViewBase, Keymap, Scope,
+    TFile, Vault, View, ViewCreator, ViewStateResult,
 };
 use fragment_markdown::commandes::actions::EditeurPartage;
 use serde_json::{Map, Value};
@@ -54,9 +54,38 @@ pub struct Liens {
     pub montage: super::montage::CelluleMontage,
     fichier: Rc<RefCell<Option<TFile>>>,
     vault: Rc<Vault>,
+    /// Ce que le menu, les commandes et le collage se passent : le clavier, le réglage des
+    /// pièces jointes, les demandes que le rendu exécute (il a le presse-papiers).
+    pub interaction: Rc<RefCell<super::interaction::Interaction>>,
 }
 
 impl Liens {
+    /// Le coffre de la vue.
+    pub fn vault(&self) -> &Rc<Vault> {
+        &self.vault
+    }
+
+    /// Le chemin de la note ouverte.
+    pub fn chemin(&self) -> Option<String> {
+        self.fichier.borrow().as_ref().map(|f| f.path.clone())
+    }
+
+    /// La façade `Editor` du document (même en lecture seule : le menu copie et sélectionne).
+    pub fn editeur_interne(&self) -> EditeurNote {
+        let liens = self.clone();
+        EditeurNote::new(
+            self.note.clone(),
+            Rc::new(move || {
+                let t = (liens.horloge)();
+                liens.note.borrow_mut().demander_sauvegarde(t);
+            }),
+        )
+    }
+
+    pub fn lecture_seule(&self) -> bool {
+        self.note.borrow().lecture_seule()
+    }
+
     /// La sauvegarde différée : écrit si l'échéance est passée. Rend vrai si elle a écrit.
     ///
     /// ★ Par `Vault::modify` (le coffre gère l'écho), comme `TextFileView::save`.
@@ -183,8 +212,16 @@ impl VueMarkdown {
                 montage: Rc::default(),
                 fichier: Rc::default(),
                 vault,
+                interaction: Rc::default(),
             },
         }
+    }
+
+    /// Branche le clavier de l'application : le menu y empile sa portée Échap.
+    #[must_use]
+    pub fn avec_clavier(self, keymap: Keymap) -> Self {
+        self.liens.interaction.borrow_mut().clavier = Some(keymap);
+        self
     }
 
     /// Les poignées du montage.
@@ -234,14 +271,7 @@ impl VueMarkdown {
 
     /// La façade, même en lecture seule (le menu l'utilise pour copier et tout sélectionner).
     pub fn editeur_interne(&self) -> EditeurNote {
-        let liens = self.liens.clone();
-        EditeurNote::new(
-            self.liens.note.clone(),
-            Rc::new(move || {
-                let t = (liens.horloge)();
-                liens.note.borrow_mut().demander_sauvegarde(t);
-            }),
-        )
+        self.liens.editeur_interne()
     }
 
     /// Le contexte que reçoivent les `editor_callback` (`activeEditor`) : `None` en lecture seule.
@@ -396,16 +426,19 @@ pub fn horloge_systeme() -> Horloge {
 }
 
 /// La fabrique du type [`MARKDOWN_VIEW_TYPE`].
-pub fn fabrique(ctx: ContexteMarkdown) -> ViewCreator {
+pub fn fabrique(ctx: ContexteMarkdown, keymap: Keymap) -> ViewCreator {
     Rc::new(move |c: &ContexteVue| {
-        Box::new(VueMarkdown::new(
-            &c.app_scope,
-            ContexteFichier {
-                leaf: c.leaf,
-                vault: ctx.vault.clone(),
-                workspace_events: ctx.workspace_events.clone(),
-            },
-            ctx.horloge.clone(),
-        ))
+        Box::new(
+            VueMarkdown::new(
+                &c.app_scope,
+                ContexteFichier {
+                    leaf: c.leaf,
+                    vault: ctx.vault.clone(),
+                    workspace_events: ctx.workspace_events.clone(),
+                },
+                ctx.horloge.clone(),
+            )
+            .avec_clavier(keymap.clone()),
+        )
     })
 }

@@ -197,17 +197,17 @@ pub fn monter(
         .avec_ruban(noyau.ruban.clone())
         .avec_coffre(options.nom.clone());
     let (s, barre, hote) = (splits.clone(), noyau.barre_etat.clone(), noyau.hote.clone());
-    let (principale, _) = gpui_kit::open_window(
-        options_fenetre(cx, TITRE, largeur, hauteur),
-        cx,
-        move |window, cx| {
-            let apres: clavier::ApresFrappe = Rc::new(move |cx| {
-                hote.appliquer(cx);
-            });
-            clavier::brancher(window, cx, keymap, Some(apres));
-            cx.new(|_| Coquille::new(s, barre))
-        },
-    )?;
+    // ★ Sous 600 × 400 la note n'a plus de colonne de lecture : la fenêtre refuse de descendre.
+    let mut options_principale = options_fenetre(cx, TITRE, largeur, hauteur);
+    let (min_l, min_h) = fragment_ui::vue_markdown::TAILLE_MIN_FENETRE;
+    options_principale.window_min_size = Some(size(px(min_l), px(min_h)));
+    let (principale, _) = gpui_kit::open_window(options_principale, cx, move |window, cx| {
+        let apres: clavier::ApresFrappe = Rc::new(move |cx| {
+            hote.appliquer(cx);
+        });
+        clavier::brancher(window, cx, keymap, Some(apres));
+        cx.new(|_| Coquille::new(s, barre))
+    })?;
 
     let titre_reglages = format!("Settings - {} - Fragment {}", options.nom, options.version);
     let application = Rc::new(Application {

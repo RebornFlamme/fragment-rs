@@ -9,9 +9,13 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
-use fragment_core::{App as _, AppCoeur, Command, Disposer, Hotkey, Modifier, Workspace};
+use fragment_core::{
+    App as _, AppCoeur, Command, Disposer, Hotkey, Modifier, NouvelleFeuille, Workspace,
+};
 use fragment_markdown::commandes::actions::commandes_editeur;
+use fragment_markdown::commandes::menu::ActionMenu;
 
+use super::interaction::{fichier_du_lien, lien_a_suivre, poster};
 use super::vue::{ContexteMarkdown, Liens, MARKDOWN_VIEW_TYPE, VueMarkdown, fabrique};
 
 /// Le propriétaire des enregistrements (l'id du plugin cœur).
@@ -20,6 +24,10 @@ pub const PLUGIN_MARKDOWN: &str = "markdown";
 pub const EXTENSION_MD: &str = "md";
 /// `editor:save-file`.
 pub const COMMANDE_ENREGISTRER: &str = "editor:save-file";
+/// `editor:paste-plain`.
+pub const COMMANDE_COLLER_BRUT: &str = "editor:paste-plain";
+/// `editor:follow-link`.
+pub const COMMANDE_SUIVRE_LIEN: &str = "editor:follow-link";
 
 /// La vue Markdown de la feuille active, s'il y en a une.
 fn avec_vue_active<R>(
@@ -37,12 +45,12 @@ fn avec_vue_active<R>(
 /// Les commandes d'éditeur (via `active_editor` du cœur) et `editor:save-file`.
 pub fn commandes(ws: &Weak<RefCell<Workspace>>) -> Vec<Command> {
     let mut v: Vec<Command> = commandes_editeur();
-    let ws = ws.clone();
+    let (ws0, ws2, ws3) = (ws.clone(), ws.clone(), ws.clone());
     v.push(
         Command::new(COMMANDE_ENREGISTRER, "Enregistrer le fichier")
             .with_hotkeys(vec![Hotkey::new(&[Modifier::Mod], "s")])
             .with_check_callback(move |checking| {
-                let liens: Option<Liens> = avec_vue_active(&ws, |v| Some(v.liens().clone()));
+                let liens: Option<Liens> = avec_vue_active(&ws0, |v| Some(v.liens().clone()));
                 let Some(liens) = liens else {
                     return Some(false);
                 };
@@ -52,14 +60,64 @@ pub fn commandes(ws: &Weak<RefCell<Workspace>>) -> Vec<Command> {
                 Some(true)
             }),
     );
+    v.push(
+        Command::new(COMMANDE_COLLER_BRUT, "Coller en texte brut").with_check_callback(
+            move |checking| {
+                // ★ Sans éditeur (lecture seule) : indisponible, comme toute commande d'éditeur.
+                let liens =
+                    avec_vue_active(&ws2, |v| (!v.lecture_seule()).then(|| v.liens().clone()));
+                let Some(liens) = liens else {
+                    return Some(false);
+                };
+                if !checking {
+                    poster(&liens, ActionMenu::CollerTexteBrut);
+                }
+                Some(true)
+            },
+        ),
+    );
+    v.push(
+        Command::new(COMMANDE_SUIVRE_LIEN, "Suivre le lien sous le curseur")
+            .with_hotkeys(vec![Hotkey::new(&[Modifier::Alt], "Enter")])
+            .with_check_callback(move |checking| {
+                let cible = avec_vue_active(&ws3, |v| {
+                    let l = v.liens().clone();
+                    lien_a_suivre(&l).map(|c| (l, c))
+                });
+                let Some((liens, cible)) = cible else {
+                    return Some(false);
+                };
+                if !checking {
+                    suivre(&ws3, &liens, &cible);
+                }
+                Some(true)
+            }),
+    );
     v
+}
+
+/// Ouvre la cible du lien dans la feuille active (`openLinkText`). Un lien mort ou externe n'ouvre
+/// rien. ★ Le workspace n'est emprunté qu'APRÈS la lecture de la vue (la commande y est appelée).
+fn suivre(ws: &Weak<RefCell<Workspace>>, liens: &Liens, cible: &str) {
+    let Some(f) = fichier_du_lien(liens, cible) else {
+        eprintln!("fragment : markdown : lien sans fichier : {cible}");
+        return;
+    };
+    if let Some(ws) = ws.upgrade()
+        && let Ok(mut w) = ws.try_borrow_mut()
+    {
+        w.open_document(&f.path, NouvelleFeuille::Non, None);
+    }
 }
 
 /// Enregistre la vue `markdown`, l'extension `md` et les commandes. Rend les retraits.
 pub fn enregistrer(app: &AppCoeur, ctx: ContexteMarkdown) -> Vec<Disposer> {
     let mut retraits = vec![
-        app.view_registry()
-            .register(MARKDOWN_VIEW_TYPE, fabrique(ctx), PLUGIN_MARKDOWN),
+        app.view_registry().register(
+            MARKDOWN_VIEW_TYPE,
+            fabrique(ctx, app.keymap().clone()),
+            PLUGIN_MARKDOWN,
+        ),
         app.extension_registry().register(
             EXTENSION_MD,
             MARKDOWN_VIEW_TYPE.to_owned(),

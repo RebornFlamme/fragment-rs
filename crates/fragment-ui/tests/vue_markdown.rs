@@ -577,3 +577,144 @@ fn les_commandes_d_editeur_visent_la_note_active() {
 fn la_fenetre_ne_descend_pas_sous_sa_taille_minimale() {
     assert_eq!(TAILLE_MIN_FENETRE, (600.0, 400.0));
 }
+
+// ─── Menu dessiné, paste-plain, follow-link (fr-c8n) ───
+
+use fragment_ui::menu::{cliquer, fermer_menu, index_ouvert, menu_ouvert};
+use fragment_ui::vue_markdown::interaction::{
+    fichier_du_lien, lien_a_suivre, menu_de_la_note, montrer_menu,
+};
+
+fn ouvre_la_note_active(b: &Banc, chemin: &str) {
+    let mut w = b.app.workspace().borrow_mut();
+    let mut etat = Map::new();
+    etat.insert("file".to_owned(), json!(chemin));
+    w.set_view_state(
+        b.leaf,
+        ViewState::with_state(MARKDOWN_VIEW_TYPE, Value::Object(etat)),
+        None,
+    );
+    w.set_active_leaf(Some(b.leaf));
+}
+
+fn contexte(b: &Banc) -> ContexteMarkdown {
+    ContexteMarkdown {
+        vault: b.vault.clone(),
+        workspace_events: b.events.clone(),
+        horloge: b.horloge(),
+    }
+}
+
+#[test]
+fn le_menu_contextuel_est_dessine_dans_l_ordre_des_sections() {
+    let b = banc();
+    let v = b.ouverte("journal.md");
+    let forme = menu_de_la_note(v.liens()).forme();
+    // Les liens, la mise en forme, puis le presse-papiers (celui d'Obsidian) en queue.
+    let pos = |t: &str| forme.iter().position(|x| x == t).unwrap();
+    assert!(pos("Cut") < pos("Copy"));
+    assert!(pos("Paste") < pos("Paste as plain text"));
+    assert_eq!(forme.last().map(String::as_str), Some("Select all"));
+    assert!(forme.iter().any(|x| x == "|"));
+}
+
+#[test]
+fn un_clic_de_menu_poste_son_action_et_ferme_le_menu() {
+    let b = banc();
+    let v = b.ouverte("journal.md");
+    montrer_menu(v.liens(), 40.0, 60.0);
+    assert!(menu_ouvert());
+    let idx = index_ouvert(0, "Select all").unwrap();
+    assert!(cliquer(0, idx));
+    assert!(!menu_ouvert());
+    assert_eq!(
+        v.liens().interaction.borrow().demandes,
+        vec![ActionMenu::ToutSelectionner]
+    );
+    fermer_menu();
+}
+
+#[test]
+fn une_entree_grisee_ne_poste_rien() {
+    let b = banc();
+    let v = b.ouverte("journal.md");
+    // Sélection vide : « Cut » est grisé.
+    montrer_menu(v.liens(), 0.0, 0.0);
+    let idx = index_ouvert(0, "Cut").unwrap();
+    assert!(!cliquer(0, idx));
+    assert!(v.liens().interaction.borrow().demandes.is_empty());
+    fermer_menu();
+}
+
+#[test]
+fn editor_paste_plain_poste_le_collage_brut_et_refuse_en_lecture_seule() {
+    let b = banc();
+    let _r = enregistrer(&b.app, contexte(&b));
+    assert!(
+        b.app
+            .commands()
+            .find_command("editor:paste-plain")
+            .is_some()
+    );
+    // Sans note active : indisponible.
+    assert!(
+        !b.app
+            .commands()
+            .execute_command_by_id("editor:paste-plain", None)
+    );
+    ouvre_la_note_active(&b, "autre.md");
+    assert!(
+        b.app
+            .commands()
+            .execute_command_by_id("editor:paste-plain", None)
+    );
+    let mut w = b.app.workspace().borrow_mut();
+    let leaf = w.active_leaf().unwrap();
+    let vue = w.view_mut(leaf).unwrap();
+    let md = vue.as_any_mut().downcast_mut::<VueMarkdown>().unwrap();
+    assert_eq!(
+        md.liens().interaction.borrow().demandes,
+        vec![ActionMenu::CollerTexteBrut]
+    );
+    md.set_read_only(true);
+    drop(w);
+    assert!(
+        !b.app
+            .commands()
+            .execute_command_by_id("editor:paste-plain", None)
+    );
+}
+
+#[test]
+fn editor_follow_link_ouvre_la_cible_sous_le_curseur() {
+    let b = banc();
+    b.vault
+        .modify(
+            &b.fichier("journal.md"),
+            "Voir [[autre]] ici.",
+            Default::default(),
+        )
+        .unwrap();
+    let mut v = b.vue();
+    v.load_file(Some(b.fichier("journal.md")));
+    // Hors du lien : rien à suivre.
+    v.editeur().unwrap().set_selection(0, None);
+    assert_eq!(lien_a_suivre(v.liens()), None);
+    v.editeur().unwrap().set_selection(7, None);
+    assert_eq!(lien_a_suivre(v.liens()).as_deref(), Some("autre"));
+    // `[[autre]]` désigne `autre.md` ; un lien mort ou externe n'a pas de fichier.
+    assert_eq!(
+        fichier_du_lien(v.liens(), "autre").unwrap().path,
+        "autre.md"
+    );
+    assert!(fichier_du_lien(v.liens(), "fantome").is_none());
+    assert!(fichier_du_lien(v.liens(), "https://exemple.org/x").is_none());
+    // La commande n'est disponible que sur un lien.
+    let _r = enregistrer(&b.app, contexte(&b));
+    ouvre_la_note_active(&b, "journal.md");
+    assert!(
+        !b.app
+            .commands()
+            .execute_command_by_id("editor:follow-link", None)
+    );
+}
