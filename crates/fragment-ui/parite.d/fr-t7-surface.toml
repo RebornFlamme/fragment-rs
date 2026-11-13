@@ -1,0 +1,12 @@
+# Parité de fr-t7-surface (fragment-ui). Schéma `parite.d` : un fichier par tâche. ChatSurface.ts n'a pas
+# de test unitaire TS (le modèle pur, chatSurfaceModel.ts, est porté et testé dans fragment-chat) : les cas
+# headless suivent app/e2e/chat-document.spec.ts (adresse et surface, « / » et Ctrl+Z au champ, ancres
+# au-dessus d'un flux) et le contrat de ChatSurface.ts.
+
+[[module]]
+ts = "app/src/ui/views/chat/ChatSurface.ts (sync, reset, notifier, getText, getLine, offsetToPos, coordsAtPos, posAtCoords, coordsForRange, getSelection, viewportRange, renderedRanges, ResizeObserver du plan) ; garde enChamp de AnnotationPlugin.ts"
+rs = "crates/fragment-ui/src/chat_surface/{mod,surface,garde}.rs, crates/fragment-ui/tests/chat_surface.rs"
+cas_source = 11
+cas_portes = 3
+cas_ajoutes = 7
+notes = "e2e chat-document portés : la_vue_chat_a_une_adresse_une_surface_de_document (adresse + surface ; le bouton Calques → fr-t7-montage), slash_et_ctrl_z_tapes_dans_le_composer_restent_du_texte (+ Échap, + contre-épreuve hors champ) ; en_flux_les_ancres_au_dessus_ne_bougent_pas reprend la moitié surface du cas « en flux » (l'ancrage par Ask → T8). Ajoutés (contrat) : sync externe, reset sans doc_changed, géométrie aller-retour, coords_for_range, sélection bornée à la colonne, plan observé, fil masqué. Écarts : (1) pas de sélection native qui traverse les messages en GPUI : la sélection est celle de l'éditeur de part focalisé (ou focalisé en dernier) ; (2) un texte rendu par un tiers (chat:text@1) a ses positions et son texte (pris au message) mais aucune géométrie (pas de DOM à mesurer) ; (3) addLayer (DomLayerSurface) n'est pas porté ici : les calques passent par l'hôte de fr-t5-hote au montage (fr-t7-montage) ; (4) les notifications de géométrie sont groupées par cycle d'effets GPUI (cx.defer), pas par requestAnimationFrame ; (5) la garde du champ relève le focus à chaque image (pile des contextes clavier : Input sans mode=editor), le Keymap du cœur ne voyant pas la cible ; (6) pas de cache du texte joint (SurfaceText n'est pas clonable) ni du texte par doc."

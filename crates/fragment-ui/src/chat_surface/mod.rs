@@ -1,8 +1,21 @@
-//! Surface du chat à pas fixe sur éditeurs imbriqués (tâche `fr-t7-surface`).
+//! La conversation est un document (tâche `fr-t7-surface`) : la `TextSurface` en lecture seule à
+//! pas fixe d'une conversation, sur les éditeurs de ses parts.
 //!
-//! Squelette posé par `fr-p3-socle-t5t7` : la tâche propriétaire le remplit sans toucher à `lib.rs`.
+//! - [`surface`] : l'entité [`ChatSurface`] (unités, synchronisation avec le fil, changements),
+//!   l'emprunt [`SurfaceConversation`] (le contrat de surface) et [`plan_observe`] (le plan suivi
+//!   à chaque image) ;
+//! - [`garde`] : « / », Ctrl+Z et Échap tapés au champ restent au champ ([`GardeChamp`]).
+//!
+//! Le montage (la vue chat en fait son `get_editor`, les calques s'y posent) est `fr-t7-montage`.
+
+pub mod garde;
+pub mod surface;
+
+pub use garde::{GardeChamp, focus_dans_un_champ};
+pub use surface::{ChatSurface, SurfaceConversation, plan_observe};
 
 use fragment_core::CommandManager;
 
-/// Enregistre les commandes de scène `pixels:chat_surface` : vide jusqu'à la tâche propriétaire.
+/// Enregistre les commandes de scène `pixels:chat_surface` : aucune (la surface ne se peint pas ;
+/// ses scènes sont celles des calques de la vue chat montée).
 pub fn commandes_de_scene(_commandes: &CommandManager) {}
