@@ -1,0 +1,10 @@
+# Parité de fr-t7-reglages-agent (fragment-ui) : l'onglet Agent des réglages, en définitions
+# déclaratives (crates/fragment-ui/tests/agent_reglages.rs).
+
+[[module]]
+ts = "app/src/ui/views/agent/AgentPlugin.ts (AgentSettingTab : moteur, modèle, nom, orbe, barre, permissions), harness/claudeSetup.ts (apiKeySetting), e2e/agent-permissions.spec.ts (test « les RÉGLAGES déclaratifs », « Toujours dans ce coffre »), e2e/agent-trace.spec.ts (orbe choisie)"
+rs = "crates/fragment-ui/src/agent_reglages/{mod,generales,permissions}.rs"
+cas_source = 3
+cas_portes = 3
+cas_ajoutes = 15
+notes = "Portés : les réglages déclaratifs (avertissement du terminal, préréglage Strict qui remplit la matrice, arbre des dossiers avec l'accès de Privé), les règles « Toujours dans ce coffre » relues et retirables, l'orbe choisie relue par la trace. Ajoutés : défauts Coffre ouvert, préréglages Assistant et Ouvert, mode et accès d'outil, accès d'un dossier et inherit, commandes permises, domaines web, dossiers hors coffre, modèle nettoyé, nom, moteur, Claude Code, barre, clé d'API au stockage des secrets, clés des autres tâches préservées, onglet du rail. Écarts : le rendu des contrôles texte, secret et arbre revient à fenetre.rs (fichier pris par fr-t1), les définitions sont testées à la source ; le menu du modèle des actions rapides est à T8 ; le montage (fournisseur de moteurs, lister les dossiers du coffre, brancher onglet_agent dans onglets_t1) revient à fr-t7-montage."
