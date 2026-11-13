@@ -21,7 +21,7 @@ use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, Context, ElementId, FocusHandle, InteractiveElement as _, IntoElement,
     KeyDownEvent, MouseButton, MouseDownEvent, ParentElement as _, Render,
-    StatefulInteractiveElement as _, Styled as _, Window, div, relative, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, div, relative,
 };
 
 use crate::chat_defilement::Mesures;
@@ -292,7 +292,7 @@ impl RailChat {
                     .gap(u(cx, f.size_2_2))
                     .text_color(couleur(c.text_muted))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("paperclip"))
                             .size(u(cx, f.icon_xs))
                             .flex_none(),

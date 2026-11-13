@@ -17,7 +17,7 @@ use gpui_kit::{
     AnyElement, AnyView, App, AppContext as _, ClipboardEntry, ClipboardItem, Context, Div,
     ElementId, ImageSource, InteractiveElement as _, IntoElement, ObjectFit, ParentElement as _,
     Render, RenderImage, SharedString, StatefulInteractiveElement as _, Styled as _,
-    StyledImage as _, Window, div, img, px, svg,
+    StyledImage as _, Window, div, img, px,
 };
 
 use super::donnees::{est_image, octets_de_url, piece_depuis_octets, pieces_de_chemins};
@@ -148,7 +148,7 @@ fn dessiner(
         .px(u(cx, theme.forme.size_4_2))
         .py(u(cx, theme.forme.size_2_3))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(icone_de_piece(&d.mime)))
                 .size(u(cx, theme.forme.icon_s))
                 .flex_none()

@@ -9,7 +9,7 @@ use gpui_kit::base::input::{Input, InputEvent, InputState};
 use gpui_kit::{
     AppContext as _, Context, ElementId, Entity, EventEmitter, Focusable as _,
     InteractiveElement as _, IntoElement, KeyDownEvent, ParentElement as _, Render, Role,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px, svg,
+    SharedString, StatefulInteractiveElement as _, Styled as _, Subscription, Window, div, px,
 };
 
 use super::horloge::Horloge;
@@ -169,7 +169,7 @@ impl Render for BarreLaterale {
             .text_color(couleur(p.text_muted))
             .on_key_down(cx.listener(|this, ev, window, cx| this.sur_touche(ev, window, cx)))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin("search"))
                     .size(u(cx, f.icon_xs))
                     .flex_none(),
@@ -199,7 +199,7 @@ impl Render for BarreLaterale {
             .hover(move |s| s.bg(couleur(survol_nouvelle)))
             .on_click(cx.listener(|_, _, _, cx| cx.emit(EvenementBarre::Nouvelle)))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin("plus"))
                     .size(u(cx, 15.0))
                     .flex_none(),

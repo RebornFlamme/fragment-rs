@@ -21,7 +21,7 @@ use gpui_kit::base::input::{Input, InputEvent, InputState};
 use gpui_kit::{
     AppContext as _, ClipboardItem, Context, Entity, InteractiveElement as _, IntoElement,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, ParentElement as _, Render,
-    StatefulInteractiveElement as _, Styled as _, Subscription, Window, canvas, div, px, svg,
+    StatefulInteractiveElement as _, Styled as _, Subscription, Window, canvas, div, px,
 };
 
 use super::modele::{
@@ -641,7 +641,7 @@ impl Render for VueProprietes {
                             }),
                         )
                         .child(
-                            svg()
+                            crate::icone::icone_image()
                                 .path(icones::chemin(icone_du_type(type_)))
                                 .size(u(cx, theme.forme.icon_s))
                                 .text_color(faible),
@@ -685,7 +685,7 @@ impl Render for VueProprietes {
                                 }),
                             )
                             .child(
-                                svg()
+                                crate::icone::icone_image()
                                     .path(icones::chemin(icone_du_type(t)))
                                     .size(u(cx, theme.forme.icon_s))
                                     .text_color(faible),
@@ -716,7 +716,7 @@ impl Render for VueProprietes {
                             .justify_center()
                             .w(u(cx, LARGEUR_ICONE))
                             .child(
-                                svg()
+                                crate::icone::icone_image()
                                     .path(icones::chemin("plus"))
                                     .size(u(cx, theme.forme.icon_s)),
                             ),
@@ -876,7 +876,7 @@ impl VueProprietes {
                                             this.appliquer(s, window, cx);
                                         }))
                                         .child(
-                                            svg()
+                                            crate::icone::icone_image()
                                                 .path(icones::chemin("x"))
                                                 .size(px(12.0))
                                                 .text_color(couleur(p.text_faint)),

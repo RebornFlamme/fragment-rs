@@ -12,7 +12,7 @@ use fragment_theme::Couleur;
 use gpui_kit::{
     AnyElement, App, ClickEvent, ElementId, FontWeight, InteractiveElement as _, IntoElement as _,
     MouseButton, MouseDownEvent, ParentElement as _, Pixels, SharedString,
-    StatefulInteractiveElement as _, Styled as _, Window, div, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, div,
 };
 
 use crate::echelle::{calees, u};
@@ -244,11 +244,11 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
             .h(u(cx, COTE_CHEVRON))
             .opacity(OPACITE_CHEVRON)
             // Le triangle prend la couleur de la ligne (`currentColor`), survol compris.
-            // ★ Un `svg()` de GPUI n'hérite PAS du `text_color` de son parent : sans couleur
+            // ★ Un `crate::icone::icone_image()` de GPUI n'hérite PAS du `text_color` de son parent : sans couleur
             // propre, il ne peint rien (chevrons absents, run 43351537908). Le survol passe par
             // le groupe de la ligne.
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(icone))
                     .size(u(cx, COTE_CHEVRON))
                     .flex_none()
@@ -281,7 +281,7 @@ pub fn rendre_item(ligne: Ligne, enfants: Vec<AnyElement>, cx: &App) -> AnyEleme
         // ont pas) : taille `icon_s` et écart `size_4_1` provisoires, voir parite.d.
         row = row.child(
             div().flex_none().mr(u(cx, f.size_4_1)).child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(nom_icone))
                     .size(u(cx, f.icon_s))
                     .flex_none(),

@@ -9,7 +9,7 @@
 
 use gpui_kit::{
     AnyElement, App, Bounds, InteractiveElement as _, IntoElement, ParentElement as _, Pixels,
-    StatefulInteractiveElement as _, Styled as _, Window, canvas, div, fill, point, px, svg,
+    StatefulInteractiveElement as _, Styled as _, Window, canvas, div, fill, point, px,
 };
 
 use super::geometrie;
@@ -227,7 +227,7 @@ pub fn rendre_boutons(cx: &App) -> AnyElement {
             )
             .into_any_element()
         } else {
-            let icone = svg()
+            let icone = crate::icone::icone_image()
                 .path(icones::chemin(b.icone()))
                 .size(u(cx, f.icon_xs))
                 .flex_none()

@@ -23,7 +23,7 @@ use fragment_core::{
 use fragment_theme::Aplat;
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, div, svg,
+    ParentElement as _, StatefulInteractiveElement as _, Styled as _, div,
 };
 
 use crate::echelle::{Echelle, u};
@@ -164,7 +164,7 @@ fn bouton(
         .h(u(cx, BOUTON_ENTETE_VUE))
         .rounded(u(cx, f.radius_s))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(icone))
                 .size(u(cx, f.icon_m))
                 .flex_none()

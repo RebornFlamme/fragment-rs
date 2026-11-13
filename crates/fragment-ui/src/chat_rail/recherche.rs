@@ -24,7 +24,7 @@ use fragment_text::{HighlightRange, SurfaceText};
 use fragment_theme::Couleur;
 use gpui_kit::{
     App, Context, Entity, FocusHandle, InteractiveElement as _, IntoElement, KeyDownEvent,
-    MouseButton, MouseDownEvent, ParentElement as _, Render, Styled as _, Window, div, svg,
+    MouseButton, MouseDownEvent, ParentElement as _, Render, Styled as _, Window, div,
 };
 
 use crate::chat_defilement::Defileur;
@@ -438,7 +438,7 @@ impl Render for RechercheChat {
         let t = theme_ou_defaut(cx);
         let (c, f) = (&t.palette, &t.forme);
 
-        let loupe = svg()
+        let loupe = crate::icone::icone_image()
             .path(icones::chemin("search"))
             .size(u(cx, f.icon_xs))
             .flex_none()
@@ -523,7 +523,7 @@ impl Render for RechercheChat {
                         }),
                     )
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(b.icone()))
                             .size(u(cx, f.icon_xs))
                             .flex_none(),

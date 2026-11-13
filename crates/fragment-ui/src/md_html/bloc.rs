@@ -25,7 +25,7 @@ use gpui_kit::{
     FontWeight, HighlightStyle, ImageSource, InteractiveElement as _, IntoElement, MouseButton,
     ParentElement as _, Pixels, Render, RenderImage, StatefulInteractiveElement as _,
     StrikethroughStyle, Styled as _, StyledText, TextAlign, UnderlineStyle, Window, canvas, div,
-    img, px, svg as icone_svg,
+    img, px,
 };
 
 use super::arbre::{Element, Noeud, analyser};
@@ -875,7 +875,7 @@ impl Render for BlocHtml {
                         }),
                     )
                     .child(
-                        icone_svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin(ICONE_BOUTON))
                             .size(px(cote))
                             .text_color(couleur(theme.palette.text_muted)),

@@ -13,9 +13,7 @@ use std::cell::RefCell;
 
 use fragment_core::{Command, CommandManager};
 use fragment_theme::Couleur;
-use gpui_kit::{
-    AnyElement, App, FontWeight, IntoElement, ParentElement as _, Styled as _, div, svg,
-};
+use gpui_kit::{AnyElement, App, FontWeight, IntoElement, ParentElement as _, Styled as _, div};
 use serde_json::Value;
 
 use super::bulles::{self, Bulle, Disposition, MARGE_GAUCHE, OPACITE_DISQUE, SVG_BULLE};
@@ -118,7 +116,7 @@ fn bulle(cx: &App, b: &Bulle, disposition: Disposition) -> AnyElement {
     };
     let e = match &b.pastille {
         Pastille::Icone(nom) => base.bg(couleur(c.text_normal)).child(
-            svg()
+            crate::icone::icone_image()
                 .path(icone(nom))
                 .size(u(cx, svg_cote))
                 .text_color(couleur(c.workspace_bg)),
@@ -240,7 +238,7 @@ pub fn ouverte(cx: &App, icones: &[String], lignes: &[(String, String)]) -> AnyE
                 .w(u(cx, BOUTON))
                 .h(u(cx, BOUTON))
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icone(nom))
                         .size(u(cx, f.icon_m))
                         .text_color(couleur(c.text_muted)),
@@ -279,7 +277,7 @@ pub fn ouverte(cx: &App, icones: &[String], lignes: &[(String, String)]) -> AnyE
         .border(u(cx, bord))
         .border_color(couleur(gris_bord))
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icone("search"))
                 .size(u(cx, f.icon_s))
                 .text_color(couleur(c.text_faint)),
@@ -305,7 +303,7 @@ pub fn ouverte(cx: &App, icones: &[String], lignes: &[(String, String)]) -> AnyE
                 .h(u(cx, BOUTON))
                 .rounded_full()
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icone("list-filter"))
                         .size(u(cx, f.icon_s))
                         .text_color(couleur(c.text_muted)),
@@ -409,7 +407,7 @@ fn bouton_coin(cx: &App, nom: &str, cote: f32) -> AnyElement {
         .h(u(cx, BOUTON))
         .rounded_full()
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icone(nom))
                 .size(u(cx, cote))
                 .text_color(couleur(t.palette.text_muted)),

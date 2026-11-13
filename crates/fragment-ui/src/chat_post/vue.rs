@@ -27,7 +27,7 @@ use fragment_theme::{Couleur, Theme};
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, ElementId, Entity, InteractiveElement as _,
     IntoElement, ParentElement as _, Render, Role, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Window, canvas, div, px, svg,
+    Styled as _, Window, canvas, div, px,
 };
 
 use super::modele::{
@@ -313,7 +313,7 @@ impl PostVue {
                     .text_color(couleur(p.text_muted))
                     .text_size(u(cx, t.typo.font_ui_medium))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("paperclip"))
                             .size(u(cx, t.forme.icon_xs))
                             .flex_none(),
@@ -393,7 +393,7 @@ impl PostVue {
                 .rounded(u(cx, t.forme.radius_xl))
         };
         l = l.child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(&o.icone))
                 .size(u(cx, t.forme.icon_xs))
                 .flex_none()
@@ -449,7 +449,7 @@ impl PostVue {
                     .items_center()
                     .gap(u(cx, t.forme.size_2_3))
                     .child(
-                        svg()
+                        crate::icone::icone_image()
                             .path(icones::chemin("message-circle"))
                             .size(u(cx, 17.0))
                             .flex_none(),
@@ -496,7 +496,7 @@ impl PostVue {
                 })
                 .active(move |s| s.bg(couleur(accent.melange(22.0, Couleur::TRANSPARENT))))
                 .child(
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(icone))
                         .size(u(cx, taille))
                         .flex_none(),
@@ -566,7 +566,7 @@ fn avatar_post(p: &Participant, compact: bool, t: &Theme, cx: &App) -> AnyElemen
             .bg(couleur(pal.text_normal))
             .text_color(couleur(pal.workspace_bg))
             .child(
-                svg()
+                crate::icone::icone_image()
                     .path(icones::chemin(&nom))
                     .size(u(cx, 20.0))
                     .flex_none(),

@@ -10,7 +10,6 @@
 use gpui_kit::{
     AnyElement, App, InteractiveElement as _, IntoElement, MouseDownEvent, ParentElement as _,
     Pixels, StatefulInteractiveElement as _, Styled as _, Window, anchored, deferred, div, point,
-    svg,
 };
 
 use crate::echelle::{calees, moitie, u};
@@ -141,7 +140,7 @@ fn icone_de_ligne(nom: Option<&str>, opacite: f32, cx: &App) -> AnyElement {
         .pl(moitie(cx, f.icon_m - ICONE))
         .opacity(opacite)
         .children(nom.map(|n| {
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(icone_ou(n, "layers")))
                 .size(u(cx, ICONE))
                 .flex_none()
@@ -196,7 +195,7 @@ fn bouton(
             }
         })
         .child(
-            svg()
+            crate::icone::icone_image()
                 .path(icones::chemin(icone_ou(icone, "layers")))
                 .size(u(cx, f.icon_xs))
                 .flex_none()
@@ -262,7 +261,7 @@ fn ligne(i: usize, l: &LigneVue, hauteur: Pixels, cx: &App) -> AnyElement {
                 .mr(u(cx, RETRAIT_CHEVRON))
                 .opacity(OPACITE_CHEVRON)
                 .children(l.a_enfants.then(|| {
-                    svg()
+                    crate::icone::icone_image()
                         .path(icones::chemin(if l.depliee {
                             "right-triangle"
                         } else {
